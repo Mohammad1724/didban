@@ -32,7 +32,6 @@ class MonitorService : Service() {
 
         @Volatile
         var isRunning: Boolean = false
-            private set
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
