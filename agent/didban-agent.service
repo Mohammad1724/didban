@@ -1,0 +1,25 @@
+[Unit]
+Description=Didban monitoring agent — دیدبان
+Documentation=https://github.com/Mohammad1724/didban
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/didban/agent.conf
+ExecStart=/usr/local/bin/didban-agent
+Restart=always
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/didban
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+# agent
+agent/didban-agent
+agent/didban-agent-*.tar.gz
+agent/data/
+*.zip
+
+# android (phase 2)
+app/.gradle/
+app/build/
+app/local.properties
+*.apk
+*.aab
+.idea/
