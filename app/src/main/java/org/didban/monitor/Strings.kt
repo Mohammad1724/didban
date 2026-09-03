@@ -68,7 +68,18 @@ class Str(
     val eventProcessUp: String,
     val eventDisk: String,
     val eventSteal: String,
-    val eventAgentRestart: String
+    val eventAgentRestart: String,
+    val edit: String,
+    val share: String,
+    val latency: String,
+    val settings: String,
+    val pollInterval: String,
+    val every30: String,
+    val every60: String,
+    val every120: String,
+    val every300: String,
+    val cpuAlertLbl: String,
+    val memAlertLbl: String
 )
 
 object Locales {
