@@ -424,7 +424,7 @@ private fun shareEvents(ctx: android.content.Context, t: Str, server: ServerConf
         val value = if (e.value > 0f) " ${Fmt.pct(e.value)}" else ""
         val detail = if (e.detail.isNotBlank()) " — ${e.detail}" else ""
         sb.appendLine("${fmt.format(Date(e.time))}  ${e.type}$value$detail")
-        for (p in e.top.take(3)) {
+        for (p in e.top.take(5)) {
             sb.appendLine("     • ${p.name}  cpu=${Fmt.pct(p.cpu)}  mem=${"%.0f".format(Locale.US, p.memMb)}MB")
         }
     }

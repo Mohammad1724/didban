@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -114,6 +115,12 @@ func (m *Monitor) sampleProcs() {
 		procs = append(procs, p)
 	}
 
+	// Total CPU across ALL processes (before truncating to top 25).
+	var sum float64
+	for _, p := range procs {
+		sum += p.CPU
+	}
+
 	// Sort by CPU desc, then memory, keep the top 25.
 	sort.Slice(procs, func(i, j int) bool {
 		if procs[i].CPU != procs[j].CPU {
@@ -140,6 +147,7 @@ func (m *Monitor) sampleProcs() {
 	m.mu.Lock()
 	m.procs = procs
 	m.procNames = names
+	m.procCpuSum = sum
 	m.mu.Unlock()
 }
 
@@ -209,11 +217,16 @@ func (m *Monitor) detectEvents() {
 
 	if cpu >= m.cfg.CPUThreshold && now.Sub(m.lastCPUEvent) > 60*time.Second {
 		m.lastCPUEvent = now
+		m.mu.RLock()
+		procSum := m.procCpuSum
+		m.mu.RUnlock()
 		m.events.Add(Event{
 			Time:  now,
 			Type:  "cpu",
 			Value: cpu,
-			Top:   topEventProcs(procs, 5),
+			Detail: fmt.Sprintf("user %.0f%% | sys %.0f%% | steal %.0f%% | sum of all processes %.0f%%",
+				m.snap.CPU.Usage-m.snap.CPU.System, m.snap.CPU.System, m.snap.CPU.Steal, procSum),
+			Top: topEventProcs(procs, 8),
 		})
 	}
 	if mem >= m.cfg.MemThreshold && now.Sub(m.lastMemEvent) > 5*time.Minute {

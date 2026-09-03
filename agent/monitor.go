@@ -107,6 +107,7 @@ type Monitor struct {
 	lastDiskEvent  map[string]time.Time
 	watchState     map[string]bool
 	procNames      map[string]bool
+	procCpuSum     float64
 }
 
 func NewMonitor(cfg *Config) *Monitor {
