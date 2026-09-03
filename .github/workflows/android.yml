@@ -1,0 +1,75 @@
+name: Build Android App
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Prepare signing (uses repo secrets when available)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KSPASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS" ] && [ -n "$KSPASS" ]; then
+            printf '%s' "$KS" | base64 -d > "$HOME/didban-release.keystore"
+            echo "DIDBAN_STORE_FILE=$HOME/didban-release.keystore" >> "$GITHUB_ENV"
+            echo "DIDBAN_STORE_PASSWORD=$KSPASS" >> "$GITHUB_ENV"
+            echo "DIDBAN_KEY_ALIAS=didban" >> "$GITHUB_ENV"
+            echo "DIDBAN_KEY_PASSWORD=$KSPASS" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets not configured — building a debug-signed (still installable) APK."
+          fi
+
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Collect APK
+        run: |
+          VERSION="${GITHUB_REF_NAME:-dev}"
+          cp app/build/outputs/apk/release/app-release.apk "Didban-$VERSION.apk"
+          ls -la Didban-*.apk
+          sha256sum Didban-*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: didban-apk
+          path: Didban-*.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate-release-notes: true
+          files: dist/*
