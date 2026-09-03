@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -63,6 +65,23 @@ fun ServersScreen(
 
     fun refresh() {
         servers = Prefs.loadServers(ctx)
+    }
+
+    // Poll servers directly while this screen is visible, so cards show live
+    // data within seconds — independent of the background service cycle.
+    LaunchedEffect(servers) {
+        while (true) {
+            for (s in servers) {
+                try {
+                    val t0 = System.currentTimeMillis()
+                    val m = ApiClient().metrics(s)
+                    Repo.set(s.id, metrics = m, latencyMs = (System.currentTimeMillis() - t0).toFloat())
+                } catch (e: Exception) {
+                    Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
+                }
+            }
+            delay(15_000)
+        }
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
