@@ -54,7 +54,7 @@ fun ServersScreen(
     val scope = rememberCoroutineScope()
     val states by Repo.states.collectAsState()
 
-    var servers by remember { mutableStateOf(Prefs.loadServers(ctx)) }
+    var servers by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(ctx)) }
     var showAdd by remember { mutableStateOf(false) }
     var monitoring by remember { mutableStateOf(false) }
     var deletedServer by remember { mutableStateOf<ServerConfig?>(null) }
