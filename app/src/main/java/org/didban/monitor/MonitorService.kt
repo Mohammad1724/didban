@@ -29,6 +29,10 @@ class MonitorService : Service() {
         const val CHANNEL_STATUS = "didban_status"
         const val CHANNEL_ALERT = "didban_alerts"
         private const val ALERT_COOLDOWN_MS = 10 * 60_000L
+
+        @Volatile
+        var isRunning: Boolean = false
+            private set
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -39,6 +43,7 @@ class MonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL_STATUS, "Monitoring status", NotificationManager.IMPORTANCE_MIN)
@@ -125,6 +130,7 @@ class MonitorService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
         pollJob?.cancel()
         scope.cancel()
         super.onDestroy()

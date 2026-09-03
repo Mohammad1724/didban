@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +30,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,6 +53,13 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val api = remember { ApiClient() }
     var tab by remember { mutableStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = 0) { 3 }
+    val scope = rememberCoroutineScope()
+
+    // Keep the tab chips and the pager in sync (swipe ↔ chip tap)
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }.collect { tab = it }
+    }
 
     var metrics by remember { mutableStateOf<Metrics?>(null) }
     var hist by remember { mutableStateOf<List<HistPoint>>(emptyList()) }
@@ -122,11 +134,11 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
 
         // ── Tabs ──
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            TabChip(t.overview, tab == 0) { tab = 0 }
+            TabChip(t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
             Spacer(Modifier.width(8.dp))
-            TabChip(t.processes, tab == 1) { tab = 1 }
+            TabChip(t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
             Spacer(Modifier.width(8.dp))
-            TabChip(t.events, tab == 2) { tab = 2 }
+            TabChip(t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
             if (tab == 2) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { shareEvents(ctx, t, server, events) }) {
@@ -135,11 +147,13 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             }
         }
 
-        // ── Content ──
-        when (tab) {
-            0 -> OverviewTab(t, metrics, hist, err, latency, latHist)
-            1 -> ProcessesTab(t, procs)
-            2 -> EventsTab(t, events)
+        // ── Content (swipeable pages) ──
+        HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+            when (page) {
+                0 -> OverviewTab(t, metrics, hist, err, latency, latHist)
+                1 -> ProcessesTab(t, procs)
+                2 -> EventsTab(t, events)
+            }
         }
     }
 }
@@ -337,13 +351,14 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
 private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        color = if (selected) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) Color(0xFF0B1220) else MaterialTheme.colorScheme.onSurface
         )
     }

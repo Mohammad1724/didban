@@ -58,7 +58,7 @@ fun ServersScreen(
 
     var servers by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(ctx)) }
     var showAdd by remember { mutableStateOf(false) }
-    var monitoring by remember { mutableStateOf(false) }
+    var monitoring by remember { mutableStateOf(MonitorService.isRunning) }
     var deletedServer by remember { mutableStateOf<ServerConfig?>(null) }
     var editServer by remember { mutableStateOf<ServerConfig?>(null) }
     var showSettings by remember { mutableStateOf(false) }
@@ -95,7 +95,7 @@ fun ServersScreen(
             TextButton(onClick = { showSettings = true }) {
                 Text("⚙", fontSize = 18.sp)
             }
-            TextButton(onClick = { onLanguage(if (t.langButton == "EN") "fa" else "en") }) {
+            TextButton(onClick = { onLanguage(if (t.langButton == "EN") "en" else "fa") }) {
                 Text(t.langButton)
             }
         }
@@ -122,11 +122,14 @@ fun ServersScreen(
                     fontSize = 14.sp)
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = {
-                    monitoring = !monitoring
-                    if (monitoring) {
-                        ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
-                    } else {
+                    if (MonitorService.isRunning) {
                         ctx.stopService(Intent(ctx, MonitorService::class.java))
+                        MonitorService.isRunning = false
+                        monitoring = false
+                    } else {
+                        ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
+                        MonitorService.isRunning = true
+                        monitoring = true
                     }
                 }) { Text(if (monitoring) "■" else "▶", fontSize = 18.sp) }
             }
@@ -284,13 +287,14 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        color = if (selected) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) Color(0xFF0B1220) else MaterialTheme.colorScheme.onSurface
         )
     }
@@ -490,12 +494,15 @@ private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
             Column {
                 Text(t.pollInterval, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TabButton(t.every5, selected == 5L) { selected = 5L }
+                    TabButton(t.every10, selected == 10L) { selected = 10L }
+                    TabButton(t.every15, selected == 15L) { selected = 15L }
                     TabButton(t.every30, selected == 30L) { selected = 30L }
-                    TabButton(t.every60, selected == 60L) { selected = 60L }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TabButton(t.every60, selected == 60L) { selected = 60L }
                     TabButton(t.every120, selected == 120L) { selected = 120L }
                     TabButton(t.every300, selected == 300L) { selected = 300L }
                 }
