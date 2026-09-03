@@ -51,6 +51,128 @@ data class NetInfo(val name: String, val rx: Double, val tx: Double)
 data class ProcInfo(val pid: Int, val name: String, val cmd: String, val user: String, val cpu: Float, val memPct: Float, val memMb: Float)
 data class ProcBrief(val name: String, val pid: Int, val cpu: Float, val memMb: Float)
 data class SpikeEvent(val time: Long, val type: String, val value: Float, val detail: String, val top: List<ProcBrief>)
+data class HistPoint(val t: Long, val cpu: Float, val mem: Float, val rx: Double, val tx: Double)
+
+data class Metrics(
+    val hostname: String,
+    val time: Long,
+    val uptime: Long,
+    val load1: Float,
+    val cores: Int,
+    val cpuUsage: Float,
+    val cpuUser: Float,
+    val cpuSystem: Float,
+    val cpuIowait: Float,
+    val cpuSteal: Float,
+    val memTotal: Long,
+    val memUsed: Long,
+    val memAvailable: Long,
+    val memPct: Float,
+    val swapTotal: Long,
+    val swapUsed: Long,
+    val swapPct: Float,
+    val disks: List<DiskInfo>,
+    val nets: List<NetInfo>
+) {
+    companion object {
+        fun fromJson(o: JSONObject): Metrics {
+            val cpu = o.optJSONObject("cpu") ?: JSONObject()
+            val mem = o.optJSONObject("memory") ?: JSONObject()
+            val disks = mutableListOf<DiskInfo>()
+            val da = o.optJSONArray("disks")
+            if (da != null) for (i in 0 until da.length()) {
+                val d = da.optJSONObject(i) ?: continue
+                disks.add(DiskInfo(d.optString("mount"), d.optLong("total"), d.optLong("used"), d.optDouble("usage_pct").toFloat()))
+            }
+            val nets = mutableListOf<NetInfo>()
+            val na = o.optJSONArray("network")
+            if (na != null) for (i in 0 until na.length()) {
+                val n = na.optJSONObject(i) ?: continue
+                nets.add(NetInfo(n.optString("name"), n.optDouble("rx"), n.optDouble("tx")))
+            }
+            val load = o.optJSONArray("load_avg")
+            return Metrics(
+                hostname = o.optString("hostname"),
+                time = TimeUtil.parseIso(o.optString("time")),
+                uptime = o.optLong("uptime_sec"),
+                load1 = if (load != null && load.length() > 0) load.optDouble(0).toFloat() else 0f,
+                cores = cpu.optInt("cores", 1),
+                cpuUsage = cpu.optDouble("usage").toFloat(),
+                cpuUser = cpu.optDouble("user").toFloat(),
+                cpuSystem = cpu.optDouble("system").toFloat(),
+                cpuIowait = cpu.optDouble("iowait").toFloat(),
+                cpuSteal = cpu.optDouble("steal").toFloat(),
+                memTotal = mem.optLong("total"),
+                memUsed = mem.optLong("used"),
+                memAvailable = mem.optLong("available"),
+                memPct = mem.optDouble("usage_pct").toFloat(),
+                swapTotal = mem.optLong("swap_total"),
+                swapUsed = mem.optLong("swap_used"),
+                swapPct = mem.optDouble("swap_usage_pct").toFloat(),
+                disks = disks,
+                nets = nets
+            )
+        }
+    }
+}
+
+object JsonParse {
+    fun processes(o: JSONObject): List<ProcInfo> {
+        val arr = o.optJSONArray("processes") ?: JSONArray()
+        val out = mutableListOf<ProcInfo>()
+        for (i in 0 until arr.length()) {
+            val p = arr.optJSONObject(i) ?: continue
+            out.add(ProcInfo(
+                pid = p.optInt("pid"),
+                name = p.optString("name"),
+                cmd = p.optString("cmd"),
+                user = p.optString("user"),
+                cpu = p.optDouble("cpu").toFloat(),
+                memPct = p.optDouble("mem_pct").toFloat(),
+                memMb = p.optDouble("mem_mb").toFloat()
+            ))
+        }
+        return out
+    }
+
+    fun events(o: JSONObject): List<SpikeEvent> {
+        val arr = o.optJSONArray("events") ?: JSONArray()
+        val out = mutableListOf<SpikeEvent>()
+        for (i in 0 until arr.length()) {
+            val e = arr.optJSONObject(i) ?: continue
+            val top = mutableListOf<ProcBrief>()
+            val ta = e.optJSONArray("top")
+            if (ta != null) for (j in 0 until ta.length()) {
+                val p = ta.optJSONObject(j) ?: continue
+                top.add(ProcBrief(p.optString("name"), p.optInt("pid"), p.optDouble("cpu").toFloat(), p.optDouble("mem_mb").toFloat()))
+            }
+            out.add(SpikeEvent(
+                time = TimeUtil.parseIso(e.optString("time")),
+                type = e.optString("type"),
+                value = e.optDouble("value").toFloat(),
+                detail = e.optString("detail"),
+                top = top
+            ))
+        }
+        return out
+    }
+
+    fun history(o: JSONObject): List<HistPoint> {
+        val arr = o.optJSONArray("points") ?: JSONArray()
+        val out = mutableListOf<HistPoint>()
+        for (i in 0 until arr.length()) {
+            val p = arr.optJSONObject(i) ?: continue
+            out.add(HistPoint(
+                t = p.optLong("t"),
+                cpu = p.optDouble("cpu").toFloat(),
+                mem = p.optDouble("mem").toFloat(),
+                rx = p.optDouble("rx"),
+                tx = p.optDouble("tx")
+            ))
+        }
+        return out
+    }
+}
 
 // ── Shared live state (written by MonitorService, read by UI) ───────────────
 
