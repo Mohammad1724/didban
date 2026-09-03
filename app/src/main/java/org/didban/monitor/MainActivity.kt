@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,8 +25,11 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
 
+    private val pendingServerId = androidx.compose.runtime.mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleServerIntent(intent)
 
         // Notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -34,16 +39,36 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            DidbanApp()
+            DidbanApp(pendingServerId)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleServerIntent(intent)
+    }
+
+    private fun handleServerIntent(intent: Intent?) {
+        val id = intent?.getLongExtra("server_id", -1L) ?: -1L
+        pendingServerId.value = if (id > 0) id else null
     }
 }
 
 @Composable
-fun DidbanApp() {
+fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
+
+    // Deep link from notifications: open the specific server
+    LaunchedEffect(pendingServerId.value) {
+        val id = pendingServerId.value
+        if (id != null) {
+            val s = Prefs.loadServers(ctx).firstOrNull { it.id == id }
+            if (s != null) openServer = s
+            pendingServerId.value = null
+        }
+    }
 
     val t = if (lang == "fa") Locales.fa else Locales.en
 

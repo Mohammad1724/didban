@@ -58,6 +58,8 @@ fun ServersScreen(
     var showAdd by remember { mutableStateOf(false) }
     var monitoring by remember { mutableStateOf(false) }
     var deletedServer by remember { mutableStateOf<ServerConfig?>(null) }
+    var editServer by remember { mutableStateOf<ServerConfig?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
 
     fun refresh() {
         servers = Prefs.loadServers(ctx)
@@ -71,6 +73,9 @@ fun ServersScreen(
             Spacer(Modifier.width(8.dp))
             Text("👁", fontSize = 20.sp)
             Spacer(Modifier.weight(1f))
+            TextButton(onClick = { showSettings = true }) {
+                Text("⚙", fontSize = 18.sp)
+            }
             TextButton(onClick = { onLanguage(if (t.langButton == "EN") "fa" else "en") }) {
                 Text(t.langButton)
             }
@@ -122,7 +127,12 @@ fun ServersScreen(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(servers, key = { it.id }) { s ->
                     val st = states[s.id]
-                    ServerCard(t, s, st, onOpen = { onOpen(s) }, onDelete = { deletedServer = s })
+                    ServerCard(
+                        t, s, st,
+                        onOpen = { onOpen(s) },
+                        onEdit = { editServer = s },
+                        onDelete = { deletedServer = s }
+                    )
                 }
                 item { Spacer(Modifier.height(70.dp)) }
             }
@@ -145,6 +155,19 @@ fun ServersScreen(
         )
     }
 
+    editServer?.let { es ->
+        EditServerDialog(
+            t = t,
+            server = es,
+            onDismiss = { editServer = null },
+            onSaved = { refresh(); editServer = null }
+        )
+    }
+
+    if (showSettings) {
+        SettingsDialog(t = t, onDismiss = { showSettings = false })
+    }
+
     deletedServer?.let { ds ->
         AlertDialog(
             onDismissRequest = { deletedServer = null },
@@ -165,7 +188,14 @@ fun ServersScreen(
 }
 
 @Composable
-private fun ServerCard(t: Str, s: ServerConfig, st: Repo.State?, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun ServerCard(
+    t: Str,
+    s: ServerConfig,
+    st: Repo.State?,
+    onOpen: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -181,8 +211,10 @@ private fun ServerCard(t: Str, s: ServerConfig, st: Repo.State?, onOpen: () -> U
                 Spacer(Modifier.height(6.dp))
                 val m = st?.metrics
                 if (m != null) {
+                    val lat = st?.latencyMs ?: 0f
                     Text(
-                        "CPU ${Fmt.pct(m.cpuUsage)}   •   RAM ${Fmt.pct(m.memPct)}",
+                        "CPU ${Fmt.pct(m.cpuUsage)}   •   RAM ${Fmt.pct(m.memPct)}" +
+                                if (lat > 0f) "   •   ${lat.toInt()} ms" else "",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -191,6 +223,9 @@ private fun ServerCard(t: Str, s: ServerConfig, st: Repo.State?, onOpen: () -> U
                 } else {
                     Text(t.connecting, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            TextButton(onClick = onEdit) {
+                Text("✎", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             TextButton(onClick = onDelete) {
                 Text("×", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -361,4 +396,98 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (busy) t.installing else t.install) }
     }
+}
+
+
+// ── Edit server dialog ──────────────────────────────────────────────────────
+
+@Composable
+private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var name by remember { mutableStateOf(server.name) }
+    var host by remember { mutableStateOf(server.host) }
+    var port by remember { mutableStateOf(server.port.toString()) }
+    var token by remember { mutableStateOf(server.token) }
+    var tls by remember { mutableStateOf(server.useTls) }
+    var fp by remember { mutableStateOf(server.fingerprint) }
+    var cpuAlert by remember { mutableStateOf(server.cpuAlert.toString()) }
+    var memAlert by remember { mutableStateOf(server.memAlert.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("${t.edit} — ${server.name}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true)
+                OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true)
+                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(t.port) }, singleLine = true)
+                OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text(t.token) }, singleLine = true)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = tls, onCheckedChange = { tls = it })
+                    Text(t.useTls, fontSize = 13.sp)
+                }
+                OutlinedTextField(value = fp, onValueChange = { fp = it }, label = { Text(t.fingerprint) }, singleLine = true)
+                OutlinedTextField(value = cpuAlert, onValueChange = { cpuAlert = it }, label = { Text(t.cpuAlertLbl) }, singleLine = true)
+                OutlinedTextField(value = memAlert, onValueChange = { memAlert = it }, label = { Text(t.memAlertLbl) }, singleLine = true)
+                Button(
+                    onClick = {
+                        val list = Prefs.loadServers(ctx)
+                        val idx = list.indexOfFirst { it.id == server.id }
+                        if (idx >= 0) {
+                            list[idx].name = name
+                            list[idx].host = host.trim()
+                            list[idx].port = port.toIntOrNull() ?: server.port
+                            list[idx].token = token.trim()
+                            list[idx].useTls = tls
+                            list[idx].fingerprint = fp.trim()
+                            list[idx].cpuAlert = cpuAlert.toIntOrNull() ?: server.cpuAlert
+                            list[idx].memAlert = memAlert.toIntOrNull() ?: server.memAlert
+                            Prefs.saveServers(ctx, list)
+                            onSaved()
+                        }
+                    },
+                    enabled = host.isNotBlank() && token.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(t.save) }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
+}
+
+// ── Settings dialog (poll interval) ─────────────────────────────────────────
+
+@Composable
+private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val current = Prefs.getPollIntervalMs(ctx) / 1000L
+    var selected by remember { mutableStateOf(current) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(t.settings) },
+        text = {
+            Column {
+                Text(t.pollInterval, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TabButton(t.every30, selected == 30L) { selected = 30L }
+                    TabButton(t.every60, selected == 60L) { selected = 60L }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TabButton(t.every120, selected == 120L) { selected = 120L }
+                    TabButton(t.every300, selected == 300L) { selected = 300L }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                Prefs.setPollIntervalSec(ctx, selected)
+                onDismiss()
+            }) { Text(t.save) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
+    )
 }

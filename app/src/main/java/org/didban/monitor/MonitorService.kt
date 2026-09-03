@@ -28,7 +28,6 @@ class MonitorService : Service() {
     companion object {
         const val CHANNEL_STATUS = "didban_status"
         const val CHANNEL_ALERT = "didban_alerts"
-        private const val POLL_MS = 30_000L
         private const val ALERT_COOLDOWN_MS = 10 * 60_000L
     }
 
@@ -68,40 +67,45 @@ class MonitorService : Service() {
     private fun startPolling() {
         pollJob = scope.launch {
             while (isActive) {
+                val pollMs = Prefs.getPollIntervalMs(applicationContext)
                 val servers = Prefs.loadServers(applicationContext)
                 for (s in servers) {
+                    val t0 = System.currentTimeMillis()
                     try {
                         val m = ApiClient().metrics(s)
-                        Repo.set(s.id, metrics = m)
+                        val ms = (System.currentTimeMillis() - t0).toFloat()
+                        Repo.set(s.id, metrics = m, latencyMs = ms)
                         checkThresholds(s, m)
                     } catch (e: Exception) {
-                        Repo.set(s.id, error = e.message ?: "error")
-                        alert(s.name, "${s.name}: ${e.message}")
+                        Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
+                        alert(s, "${s.name}: ${e.message}")
                     }
                 }
-                delay(POLL_MS)
+                delay(pollMs)
             }
         }
     }
 
     private fun checkThresholds(s: ServerConfig, m: Metrics) {
         if (m.cpuUsage >= s.cpuAlert) {
-            alert(s.name, "${s.name}: CPU ${m.cpuUsage.toInt()}%")
+            alert(s, "${s.name}: CPU ${m.cpuUsage.toInt()}%")
         }
         if (m.memPct >= s.memAlert) {
-            alert(s.name, "${s.name}: RAM ${m.memPct.toInt()}%")
+            alert(s, "${s.name}: RAM ${m.memPct.toInt()}%")
         }
     }
 
-    private fun alert(serverName: String, text: String) {
+    private fun alert(server: ServerConfig, text: String) {
         val now = System.currentTimeMillis()
-        val key = "$serverName:$text"
+        val key = "${server.name}:$text"
         if (now - (lastAlertAt[key] ?: 0L) < ALERT_COOLDOWN_MS) return
         lastAlertAt[key] = now
 
+        val openIntent = Intent(this, MainActivity::class.java)
+            .putExtra("server_id", server.id)
         val pi = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
+            this, (server.id % 100000L).toInt(),
+            openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notif = NotificationCompat.Builder(this, CHANNEL_ALERT)

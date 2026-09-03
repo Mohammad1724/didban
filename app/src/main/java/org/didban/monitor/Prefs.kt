@@ -36,4 +36,15 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("lang", lang).apply()
     }
+
+    fun getPollIntervalMs(ctx: Context): Long {
+        val sec = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString("poll_sec", "30")?.toLongOrNull() ?: 30L
+        return sec * 1000L
+    }
+
+    fun setPollIntervalSec(ctx: Context, seconds: Long) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("poll_sec", seconds.toString()).apply()
+    }
 }

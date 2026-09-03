@@ -139,7 +139,18 @@ object Locales {
         eventProcessUp = "پروسه برگشت",
         eventDisk = "دیسک تقریباً پر",
         eventSteal = "دزدی CPU (steal)",
-        eventAgentRestart = "ری‌استارت ایجنت"
+        eventAgentRestart = "ری‌استارت ایجنت",
+        edit = "ویرایش",
+        share = "اشتراک",
+        latency = "زمان پاسخ",
+        settings = "تنظیمات",
+        pollInterval = "بازه پایش پس‌زمینه",
+        every30 = "۳۰ ثانیه",
+        every60 = "۱ دقیقه",
+        every120 = "۲ دقیقه",
+        every300 = "۵ دقیقه",
+        cpuAlertLbl = "هشدار وقتی CPU بالاتر از (٪)",
+        memAlertLbl = "هشدار وقتی رم بالاتر از (٪)"
     )
 
     val en = Str(
@@ -209,6 +220,17 @@ object Locales {
         eventProcessUp = "Process is back",
         eventDisk = "Disk almost full",
         eventSteal = "CPU steal",
-        eventAgentRestart = "Agent restarted"
+        eventAgentRestart = "Agent restarted",
+        edit = "Edit",
+        share = "Share",
+        latency = "Latency",
+        settings = "Settings",
+        pollInterval = "Background poll interval",
+        every30 = "30 seconds",
+        every60 = "1 minute",
+        every120 = "2 minutes",
+        every300 = "5 minutes",
+        cpuAlertLbl = "Alert when CPU above (%)",
+        memAlertLbl = "Alert when RAM above (%)"
     )
 }

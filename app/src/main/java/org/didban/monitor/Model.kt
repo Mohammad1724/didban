@@ -177,13 +177,18 @@ object JsonParse {
 // ── Shared live state (written by MonitorService, read by UI) ───────────────
 
 object Repo {
-    data class State(val metrics: Metrics? = null, val error: String? = null, val updated: Long = 0)
+    data class State(
+        val metrics: Metrics? = null,
+        val error: String? = null,
+        val updated: Long = 0,
+        val latencyMs: Float = 0f
+    )
 
     val states = MutableStateFlow<Map<Long, State>>(emptyMap())
 
-    fun set(id: Long, metrics: Metrics? = null, error: String? = null) {
+    fun set(id: Long, metrics: Metrics? = null, error: String? = null, latencyMs: Float = 0f) {
         val cur = states.value.toMutableMap()
-        cur[id] = State(metrics, error, System.currentTimeMillis())
+        cur[id] = State(metrics, error, System.currentTimeMillis(), latencyMs)
         states.value = cur
     }
 }

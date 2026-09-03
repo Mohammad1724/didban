@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +51,8 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
 
     var metrics by remember { mutableStateOf<Metrics?>(null) }
     var hist by remember { mutableStateOf<List<HistPoint>>(emptyList()) }
+    var latency by remember { mutableStateOf(0f) }
+    var latHist by remember { mutableStateOf<List<Float>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
@@ -58,10 +61,14 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     LaunchedEffect(server.id) {
         while (true) {
             try {
+                val t0 = System.currentTimeMillis()
                 metrics = api.metrics(server)
+                latency = (System.currentTimeMillis() - t0).toFloat()
+                latHist = (latHist + latency).takeLast(120)
                 err = null
             } catch (e: Exception) {
                 err = e.message
+                latency = -1f
             }
             try {
                 hist = api.history(server)
@@ -120,11 +127,17 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             TabChip(t.processes, tab == 1) { tab = 1 }
             Spacer(Modifier.width(8.dp))
             TabChip(t.events, tab == 2) { tab = 2 }
+            if (tab == 2) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { shareEvents(ctx, t, server, events) }) {
+                    Text("⇪ ${t.share}", fontSize = 13.sp)
+                }
+            }
         }
 
         // ── Content ──
         when (tab) {
-            0 -> OverviewTab(t, metrics, hist, err)
+            0 -> OverviewTab(t, metrics, hist, err, latency, latHist)
             1 -> ProcessesTab(t, procs)
             2 -> EventsTab(t, events)
         }
@@ -134,7 +147,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
 // ── Overview ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun OverviewTab(t: Str, m: Metrics?, hist: List<HistPoint>, err: String?) {
+private fun OverviewTab(t: Str, m: Metrics?, hist: List<HistPoint>, err: String?, latency: Float, latHist: List<Float>) {
     if (m == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -151,6 +164,13 @@ private fun OverviewTab(t: Str, m: Metrics?, hist: List<HistPoint>, err: String?
     }
 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            Card(t.latency, if (latency >= 0f) "${latency.toInt()} ms" else "—", null) {
+                if (latHist.size > 1) {
+                    Sparkline(latHist, Modifier.fillMaxWidth().height(40.dp), color = Color(0xFF4ADE80))
+                }
+            }
+        }
         item {
             Card(t.cpu, Fmt.pct(m.cpuUsage), m.cpuUsage / 100f) {
                 Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(46.dp))
@@ -364,4 +384,30 @@ private fun BreakRow(label: String, value: Float) {
         Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(Fmt.pct(value), fontSize = 11.sp)
     }
+}
+
+
+// ── Share events as text ────────────────────────────────────────────────────
+
+private fun shareEvents(ctx: android.content.Context, t: Str, server: ServerConfig, events: List<SpikeEvent>) {
+    val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    val sb = StringBuilder()
+    sb.appendLine("Didban — ${server.name} (${server.host}:${server.port})")
+    sb.appendLine("───")
+    if (events.isEmpty()) {
+        sb.appendLine("(no events)")
+    }
+    for (e in events) {
+        val value = if (e.value > 0f) " ${Fmt.pct(e.value)}" else ""
+        val detail = if (e.detail.isNotBlank()) " — ${e.detail}" else ""
+        sb.appendLine("${fmt.format(Date(e.time))}  ${e.type}$value$detail")
+        for (p in e.top.take(3)) {
+            sb.appendLine("     • ${p.name}  cpu=${Fmt.pct(p.cpu)}  mem=${"%.0f".format(Locale.US, p.memMb)}MB")
+        }
+    }
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, sb.toString())
+    }
+    ctx.startActivity(Intent.createChooser(send, t.share))
 }
