@@ -129,14 +129,17 @@ func (m *Monitor) sampleProcs() {
 	}
 
 	newPrev := make(map[int]uint64, len(list))
+	names := make(map[string]bool, len(list))
 	for _, a := range list {
 		newPrev[int(a.pid)] = a.utime + a.stime
+		names[a.name] = true
 	}
 	m.prevProcs = newPrev
 	m.lastProcJiffies = nowTotal
 
 	m.mu.Lock()
 	m.procs = procs
+	m.procNames = names
 	m.mu.Unlock()
 }
 
@@ -221,6 +224,61 @@ func (m *Monitor) detectEvents() {
 			Value: mem,
 			Top:   topEventProcs(procs, 5),
 		})
+	}
+	if m.snap.CPU.Steal >= m.cfg.StealThreshold && now.Sub(m.lastStealEvent) > 10*time.Minute {
+		m.lastStealEvent = now
+		m.events.Add(Event{
+			Time:   now,
+			Type:   "steal",
+			Value:  m.snap.CPU.Steal,
+			Detail: "hypervisor is taking CPU from this VM",
+		})
+	}
+}
+
+// checkDisks records an event when a filesystem crosses the disk threshold.
+func (m *Monitor) checkDisks() {
+	now := time.Now()
+	m.mu.RLock()
+	disks := m.snap.Disks
+	m.mu.RUnlock()
+	for _, d := range disks {
+		if d.UsagePct >= m.cfg.DiskThreshold && now.Sub(m.lastDiskEvent[d.Mount]) > 30*time.Minute {
+			m.lastDiskEvent[d.Mount] = now
+			m.events.Add(Event{
+				Time:   now,
+				Type:   "disk",
+				Value:  d.UsagePct,
+				Detail: d.Mount,
+			})
+		}
+	}
+}
+
+// checkWatchedProcs records process_down / process_up events for the
+// configured watchlist (e.g. DIDBAN_WATCH=xray,pg-node-service).
+func (m *Monitor) checkWatchedProcs() {
+	if len(m.cfg.WatchProcs) == 0 {
+		return
+	}
+	m.mu.RLock()
+	names := m.procNames
+	m.mu.RUnlock()
+	for _, want := range m.cfg.WatchProcs {
+		running := names[want]
+		was, known := m.watchState[want]
+		if known && was != running {
+			typ := "process_up"
+			if !running {
+				typ = "process_down"
+			}
+			m.events.Add(Event{
+				Time:   time.Now(),
+				Type:   typ,
+				Detail: want,
+			})
+		}
+		m.watchState[want] = running
 	}
 }
 

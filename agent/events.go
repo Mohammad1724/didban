@@ -10,10 +10,11 @@ import (
 
 // Event records a resource spike with the processes that caused it.
 type Event struct {
-	Time  time.Time   `json:"time"`
-	Type  string      `json:"type"` // "cpu" | "memory"
-	Value float64     `json:"value"`
-	Top   []EventProc `json:"top,omitempty"`
+	Time   time.Time   `json:"time"`
+	Type   string      `json:"type"` // cpu | memory | steal | disk | node_down | node_up | process_down | process_up | panel_down | panel_up | agent_restart
+	Value  float64     `json:"value"`
+	Detail string      `json:"detail,omitempty"`
+	Top    []EventProc `json:"top,omitempty"`
 }
 
 // EventLog keeps the most recent events in memory and persists them

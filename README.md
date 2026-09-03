@@ -126,6 +126,24 @@ Flags (or environment variables via `/etc/didban/agent.conf`):
 
 Spike events survive restarts (`events.jsonl`), are rate-limited (60 s for CPU, 5 min for memory), and keep the last 500.
 
+
+## PasarGuard panel monitoring (optional)
+
+The agent can also watch a [PasarGuard](https://github.com/PasarGuard/panel) (Marzban-family) panel.
+It polls the panel API every 60s and records **node up/down transitions as events** — you'll never
+miss another `#Error_Node` flap. Edit `/etc/didban/agent.conf` on the panel server:
+
+```bash
+DIDBAN_PANEL_URL=http://127.0.0.1:8000
+DIDBAN_PANEL_USER=admin
+DIDBAN_PANEL_PASS=your-panel-password
+# DIDBAN_PANEL_INSECURE=1   # only for self-signed https
+# DIDBAN_WATCH=xray,pg-node-service   # alert when a process dies
+```
+
+Then `systemctl restart didban-agent`. The app shows users (total/online/active),
+bandwidth and live node statuses in the **Panel** tab.
+
 ## Security model
 
 - HTTPS with an auto-generated self-signed certificate (10 years, all local IPs in SANs)

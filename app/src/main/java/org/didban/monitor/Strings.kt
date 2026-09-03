@@ -63,7 +63,27 @@ class Str(
     val available: String,
     val used: String,
     val yes: String,
-    val no: String
+    val no: String,
+    val panel: String,
+    val panelNotConfigured: String,
+    val panelNotConfiguredHint: String,
+    val usersTotal: String,
+    val usersOnline: String,
+    val usersActive: String,
+    val usersExpired: String,
+    val usersLimited: String,
+    val bandwidthIn: String,
+    val bandwidthOut: String,
+    val nodes: String,
+    val eventNodeDown: String,
+    val eventNodeUp: String,
+    val eventProcessDown: String,
+    val eventProcessUp: String,
+    val eventDisk: String,
+    val eventSteal: String,
+    val eventPanelDown: String,
+    val eventPanelUp: String,
+    val eventAgentRestart: String
 )
 
 object Locales {
@@ -129,7 +149,27 @@ object Locales {
         available = "آزاد",
         used = "مصرف‌شده",
         yes = "بله",
-        no = "خیر"
+        no = "خیر",
+        panel = "پنل",
+        panelNotConfigured = "مانیتورینگ پنل پاسارگارد فعال نشده",
+        panelNotConfiguredHint = "روی سرور، فایل /etc/didban/agent.conf را ویرایش کن و DIDBAN_PANEL_URL و یوزر/پسورد پنل را وارد کن، بعد سرویس را ری‌استارت کن",
+        usersTotal = "کل کاربران",
+        usersOnline = "آنلاین",
+        usersActive = "فعال",
+        usersExpired = "منقضی",
+        usersLimited = "به سقف رسیده",
+        bandwidthIn = "ترافیک ورودی",
+        bandwidthOut = "ترافیک خروجی",
+        nodes = "نودها",
+        eventNodeDown = "نود قطع شد",
+        eventNodeUp = "نود وصل شد",
+        eventProcessDown = "پروسه از دسترس خارج شد",
+        eventProcessUp = "پروسه برگشت",
+        eventDisk = "دیسک تقریباً پر",
+        eventSteal = "دزدی CPU (steal)",
+        eventPanelDown = "پنل در دسترس نیست",
+        eventPanelUp = "پنل برگشت",
+        eventAgentRestart = "ری‌استارت ایجنت"
     )
 
     val en = Str(
@@ -194,6 +234,26 @@ object Locales {
         available = "available",
         used = "used",
         yes = "Yes",
-        no = "No"
+        no = "No",
+        panel = "Panel",
+        panelNotConfigured = "PasarGuard panel monitoring is not enabled",
+        panelNotConfiguredHint = "Edit /etc/didban/agent.conf on the server, set DIDBAN_PANEL_URL and panel credentials, then restart the service",
+        usersTotal = "Total users",
+        usersOnline = "Online",
+        usersActive = "Active",
+        usersExpired = "Expired",
+        usersLimited = "Limited",
+        bandwidthIn = "Ingress",
+        bandwidthOut = "Egress",
+        nodes = "Nodes",
+        eventNodeDown = "Node went down",
+        eventNodeUp = "Node came back",
+        eventProcessDown = "Process died",
+        eventProcessUp = "Process is back",
+        eventDisk = "Disk almost full",
+        eventSteal = "CPU steal",
+        eventPanelDown = "Panel unreachable",
+        eventPanelUp = "Panel is back",
+        eventAgentRestart = "Agent restarted"
     )
 }

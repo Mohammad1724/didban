@@ -101,16 +101,22 @@ type Monitor struct {
 	memTotal        uint64
 	uidMap          map[string]string
 
-	lastCPUEvent time.Time
-	lastMemEvent time.Time
+	lastCPUEvent   time.Time
+	lastMemEvent   time.Time
+	lastStealEvent time.Time
+	lastDiskEvent  map[string]time.Time
+	watchState     map[string]bool
+	procNames      map[string]bool
 }
 
 func NewMonitor(cfg *Config) *Monitor {
 	host, _ := os.Hostname()
 	return &Monitor{
-		cfg:    cfg,
-		events: NewEventLog(cfg.DataDir + "/events.jsonl"),
-		uidMap: loadUserMap(),
+		cfg:           cfg,
+		events:        NewEventLog(cfg.DataDir + "/events.jsonl"),
+		uidMap:        loadUserMap(),
+		lastDiskEvent: make(map[string]time.Time),
+		watchState:    make(map[string]bool),
 		snap: Snapshot{
 			Hostname: host,
 			Version:  version,
@@ -121,6 +127,7 @@ func NewMonitor(cfg *Config) *Monitor {
 
 // Run starts all sampling loops until ctx is cancelled.
 func (m *Monitor) Run(ctx context.Context) {
+	m.events.Add(Event{Time: time.Now(), Type: "agent_restart", Detail: "agent (re)started"})
 	m.sampleAll()
 
 	fast := time.NewTicker(2 * time.Second)
@@ -138,9 +145,11 @@ func (m *Monitor) Run(ctx context.Context) {
 			m.sampleCPU()
 			m.sampleProcs()
 			m.detectEvents()
+			m.checkWatchedProcs()
 		case <-slow.C:
 			m.sampleMem()
 			m.sampleDisks()
+			m.checkDisks()
 			m.sampleNet()
 			m.sampleMisc()
 		case <-minute.C:
@@ -468,8 +477,8 @@ func (m *Monitor) appendHistory() {
 
 	m.mu.Lock()
 	m.hist = append(m.hist, p)
-	if len(m.hist) > 1440 { // 24h at 1-minute resolution
-		m.hist = m.hist[len(m.hist)-1440:]
+	if len(m.hist) > 10080 { // 7 days at 1-minute resolution
+		m.hist = m.hist[len(m.hist)-10080:]
 	}
 	m.mu.Unlock()
 }

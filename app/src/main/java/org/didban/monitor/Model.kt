@@ -50,7 +50,56 @@ data class DiskInfo(val mount: String, val total: Long, val used: Long, val pct:
 data class NetInfo(val name: String, val rx: Double, val tx: Double)
 data class ProcInfo(val pid: Int, val name: String, val cmd: String, val user: String, val cpu: Float, val memPct: Float, val memMb: Float)
 data class ProcBrief(val name: String, val pid: Int, val cpu: Float, val memMb: Float)
-data class SpikeEvent(val time: Long, val type: String, val value: Float, val top: List<ProcBrief>)
+data class SpikeEvent(val time: Long, val type: String, val value: Float, val detail: String, val top: List<ProcBrief>)
+
+data class PanelNodeInfo(val id: Int, val name: String, val status: String, val uplink: Long, val downlink: Long)
+data class PanelState(
+    val configured: Boolean,
+    val ok: Boolean,
+    val version: String,
+    val uptimeSec: Long,
+    val totalUsers: Int,
+    val onlineUsers: Int,
+    val activeUsers: Int,
+    val expiredUsers: Int,
+    val limitedUsers: Int,
+    val inBand: Long,
+    val outBand: Long,
+    val nodes: List<PanelNodeInfo>,
+    val lastError: String
+) {
+    companion object {
+        fun fromJson(o: JSONObject): PanelState {
+            val nodes = mutableListOf<PanelNodeInfo>()
+            val na = o.optJSONArray("nodes")
+            if (na != null) for (i in 0 until na.length()) {
+                val n = na.optJSONObject(i) ?: continue
+                nodes.add(PanelNodeInfo(
+                    id = n.optInt("id"),
+                    name = n.optString("name"),
+                    status = n.optString("status"),
+                    uplink = n.optLong("uplink"),
+                    downlink = n.optLong("downlink")
+                ))
+            }
+            return PanelState(
+                configured = o.optBoolean("configured", false),
+                ok = o.optBoolean("ok", false),
+                version = o.optString("version"),
+                uptimeSec = o.optLong("uptime_seconds"),
+                totalUsers = o.optInt("total_user"),
+                onlineUsers = o.optInt("online_users"),
+                activeUsers = o.optInt("active_users"),
+                expiredUsers = o.optInt("expired_users"),
+                limitedUsers = o.optInt("limited_users"),
+                inBand = o.optLong("incoming_bandwidth"),
+                outBand = o.optLong("outgoing_bandwidth"),
+                nodes = nodes,
+                lastError = o.optString("last_error")
+            )
+        }
+    }
+}
 data class HistPoint(val t: Long, val cpu: Float, val mem: Float, val rx: Double, val tx: Double)
 
 data class Metrics(
@@ -150,6 +199,7 @@ object JsonParse {
                 time = TimeUtil.parseIso(e.optString("time")),
                 type = e.optString("type"),
                 value = e.optDouble("value").toFloat(),
+                detail = e.optString("detail"),
                 top = top
             ))
         }

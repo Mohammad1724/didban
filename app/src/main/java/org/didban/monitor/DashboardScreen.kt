@@ -52,6 +52,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
+    var panel by remember { mutableStateOf<PanelState?>(null) }
 
     // Live refresh loop for the overview tab
     LaunchedEffect(server.id) {
@@ -64,6 +65,10 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             }
             try {
                 hist = api.history(server)
+            } catch (e: Exception) {
+            }
+            try {
+                panel = api.panel(server)
             } catch (e: Exception) {
             }
             delay(10_000)
@@ -119,6 +124,8 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             TabChip(t.processes, tab == 1) { tab = 1 }
             Spacer(Modifier.width(8.dp))
             TabChip(t.events, tab == 2) { tab = 2 }
+            Spacer(Modifier.width(8.dp))
+            TabChip(t.panel, tab == 3) { tab = 3 }
         }
 
         // ── Content ──
@@ -126,6 +133,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             0 -> OverviewTab(t, metrics, hist, err)
             1 -> ProcessesTab(t, procs)
             2 -> EventsTab(t, events)
+            3 -> PanelTab(t, panel)
         }
     }
 }
@@ -261,20 +269,42 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
         return
     }
     val fmt = SimpleDateFormat("MMM d, HH:mm:ss", Locale.getDefault())
+
+    fun eventStyle(type: String): Triple<String, String, Color> = when (type) {
+        "cpu" -> Triple("🔥", t.spikeCpu, Color(0xFFF87171))
+        "memory" -> Triple("🧠", t.spikeMem, Color(0xFF93C5FD))
+        "node_down" -> Triple("🔴", t.eventNodeDown, Color(0xFFF87171))
+        "node_up" -> Triple("🟢", t.eventNodeUp, Color(0xFF4ADE80))
+        "process_down" -> Triple("💀", t.eventProcessDown, Color(0xFFF87171))
+        "process_up" -> Triple("✅", t.eventProcessUp, Color(0xFF4ADE80))
+        "disk" -> Triple("💽", t.eventDisk, Color(0xFFFBBF24))
+        "steal" -> Triple("🥷", t.eventSteal, Color(0xFFC084FC))
+        "panel_down" -> Triple("🔌", t.eventPanelDown, Color(0xFFF87171))
+        "panel_up" -> Triple("⚡", t.eventPanelUp, Color(0xFF4ADE80))
+        "agent_restart" -> Triple("🔄", t.eventAgentRestart, Color(0xFF94A3B8))
+        else -> Triple("•", type, Color(0xFF94A3B8))
+    }
+
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(events, key = { "${it.time}-${it.value}" }) { e ->
+        items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
+            val (emoji, label, color) = eventStyle(e.type)
             Surface(shape = RoundedCornerShape(12.dp),
-                color = if (e.type == "cpu") Color(0xFF2A1B1B) else Color(0xFF1B2338)) {
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (e.type == "cpu") "🔥 ${t.spikeCpu}" else "🧠 ${t.spikeMem}",
+                        Text("$emoji $label",
                             fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                            color = if (e.type == "cpu") Color(0xFFF87171) else Color(0xFF93C5FD))
+                            color = color)
                         Spacer(Modifier.weight(1f))
                         Text(fmt.format(Date(e.time)), fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(Fmt.pct(e.value), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    if (e.detail.isNotBlank()) {
+                        Text(e.detail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (e.value > 0f) {
+                        Text(Fmt.pct(e.value), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    }
                     if (e.top.isNotEmpty()) {
                         Spacer(Modifier.height(4.dp))
                         Text(t.topProcesses, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -289,6 +319,100 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
             }
         }
         item { Spacer(Modifier.height(20.dp)) }
+    }
+}
+
+// ── PasarGuard Panel tab ─────────────────────────────────────────────────────
+
+@Composable
+private fun PanelTab(t: Str, panel: PanelState?) {
+    if (panel == null || !panel.configured) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                Text("🔌", fontSize = 32.sp)
+                Text(t.panelNotConfigured, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(t.panelNotConfiguredHint, fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp))
+            }
+        }
+        return
+    }
+    if (!panel.ok) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("❌ ${t.eventPanelDown}", color = Color(0xFFF87171), fontWeight = FontWeight.Bold)
+                Text(panel.lastError, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        return
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            Surface(shape = RoundedCornerShape(14.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("🛡️ PasarGuard", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        Text("v${panel.version}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        StatCell(t.usersTotal, panel.totalUsers.toString())
+                        StatCell(t.usersOnline, panel.onlineUsers.toString(), highlight = true)
+                        StatCell(t.usersActive, panel.activeUsers.toString())
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        StatCell(t.usersExpired, panel.expiredUsers.toString())
+                        StatCell(t.usersLimited, panel.limitedUsers.toString())
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("${t.bandwidthIn}: ${Fmt.bytes(panel.inBand)}   ${t.bandwidthOut}: ${Fmt.bytes(panel.outBand)}",
+                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        item {
+            Text(t.nodes, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(Modifier.height(6.dp))
+        }
+        items(panel.nodes, key = { it.id }) { n ->
+            val up = n.status == "connected" || n.status == "connecting"
+            Surface(shape = RoundedCornerShape(12.dp),
+                color = if (up) Color(0xFF12291C) else Color(0xFF2A1B1B),
+                modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).background(
+                        when (n.status) {
+                            "connected" -> Color(0xFF4ADE80)
+                            "connecting" -> Color(0xFFFBBF24)
+                            "error" -> Color(0xFFF87171)
+                            "limited" -> Color(0xFFFBBF24)
+                            else -> Color(0xFF94A3B8)
+                        }, RoundedCornerShape(5.dp)))
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(n.name, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                        Text("↓ ${Fmt.bytes(n.downlink)}  ↑ ${Fmt.bytes(n.uplink)}",
+                            fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(n.status, fontSize = 11.sp,
+                        color = if (up) Color(0xFF4ADE80) else Color(0xFFF87171))
+                }
+            }
+        }
+        item { Spacer(Modifier.height(20.dp)) }
+    }
+}
+
+@Composable
+private fun StatCell(label: String, value: String, highlight: Boolean = false) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+            color = if (highlight) Color(0xFF4ADE80) else MaterialTheme.colorScheme.primary)
+        Text(label, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
