@@ -49,11 +49,17 @@ class MonitorService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val openApp = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val notif = NotificationCompat.Builder(this, CHANNEL_STATUS)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("Didban — دیدبان")
             .setContentText("Monitoring servers")
             .setOngoing(true)
+            .setContentIntent(openApp)
             .build()
         if (Build.VERSION.SDK_INT >= 29) {
             startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
