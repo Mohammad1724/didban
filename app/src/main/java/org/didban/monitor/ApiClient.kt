@@ -90,6 +90,4 @@ class ApiClient {
     suspend fun history(server: ServerConfig, hours: Int = 24): List<HistPoint> =
         withContext(Dispatchers.IO) { JsonParse.history(get(server, "/api/history?hours=$hours")) }
 
-    suspend fun panel(server: ServerConfig): PanelState =
-        withContext(Dispatchers.IO) { PanelState.fromJson(get(server, "/api/panel")) }
 }

@@ -118,23 +118,6 @@ cd agent && go build -o didban-agent .
 رویدادها بعد از ری‌استارت هم می‌مانند (`events.jsonl`)، محدود به نرخ (۶۰ ثانیه برای CPU، ۵ دقیقه برای رم) و ۵۰۰ رویداد آخر نگه داشته می‌شوند.
 
 
-## مانیتورینگ پنل پاسارگارد (اختیاری)
-
-ایجنت می‌تواند [پنل پاسارگارد](https://github.com/PasarGuard/panel) را هم زیر نظر بگیرد: هر ۶۰ ثانیه API پنل را
-می‌پرسد و **قطع/وصل شدن نودها را به‌عنوان رویداد ثبت می‌کند** — دیگر هیچ #Error_Node ای از چشمت پنهان نمی‌ماند.
-روی سرور پنل، فایل `/etc/didban/agent.conf` را ویرایش کن:
-
-```bash
-DIDBAN_PANEL_URL=http://127.0.0.1:8000
-DIDBAN_PANEL_USER=admin
-DIDBAN_PANEL_PASS=رمز-پنل
-# DIDBAN_PANEL_INSECURE=1   # فقط برای https با cert خوداموقع
-# DIDBAN_WATCH=xray,pg-node-service   # هشدار وقتی پروسه‌ای مُرد
-```
-
-بعد `systemctl restart didban-agent`. در تب **پنل** اپ: کاربران (کل/آنلاین/فعال)، پهنای‌باند و
-وضعیت زنده‌ی نودها را می‌بینی.
-
 ## امنیت
 
 - HTTPS با cert خوداموقع (۱۰ سال، همه IPهای سرور در SAN)

@@ -10,13 +10,12 @@ import (
 
 // API serves the authenticated JSON endpoints.
 type API struct {
-	cfg   *Config
-	mon   *Monitor
-	panel *PanelMonitor
+	cfg *Config
+	mon *Monitor
 }
 
-func newAPI(cfg *Config, mon *Monitor, panel *PanelMonitor) *API {
-	return &API{cfg: cfg, mon: mon, panel: panel}
+func newAPI(cfg *Config, mon *Monitor) *API {
+	return &API{cfg: cfg, mon: mon}
 }
 
 func (a *API) routes() http.Handler {
@@ -26,7 +25,6 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
-	mux.HandleFunc("/api/panel", a.auth(a.handlePanel))
 	return mux
 }
 
@@ -92,14 +90,6 @@ func (a *API) handleHistory(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"points": a.mon.History(time.Duration(hours) * time.Hour),
 	})
-}
-
-func (a *API) handlePanel(w http.ResponseWriter, r *http.Request) {
-	if a.panel == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"configured": false, "ok": false})
-		return
-	}
-	writeJSON(w, http.StatusOK, a.panel.State())
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

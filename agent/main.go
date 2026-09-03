@@ -33,11 +33,6 @@ type Config struct {
 	MemThreshold   float64 // percent, spike event threshold
 	StealThreshold float64 // percent, steal event threshold
 	DiskThreshold  float64 // percent, disk usage event threshold
-	// PasarGuard panel monitoring (optional)
-	PanelURL      string
-	PanelUser     string
-	PanelPass     string
-	PanelInsecure bool
 	// Process watchlist (optional)
 	WatchProcs []string
 }
@@ -88,10 +83,6 @@ func main() {
 		}
 	}
 
-	cfg.PanelURL = envOr("DIDBAN_PANEL_URL", "")
-	cfg.PanelUser = envOr("DIDBAN_PANEL_USER", "")
-	cfg.PanelPass = envOr("DIDBAN_PANEL_PASS", "")
-	cfg.PanelInsecure = os.Getenv("DIDBAN_PANEL_INSECURE") == "1"
 	if w := os.Getenv("DIDBAN_WATCH"); w != "" {
 		for _, name := range strings.Split(w, ",") {
 			if name = strings.TrimSpace(name); name != "" {
@@ -105,15 +96,9 @@ func main() {
 	defer stop()
 	go mon.Run(ctx)
 
-	var panel *PanelMonitor
-	if cfg.PanelURL != "" && cfg.PanelUser != "" {
-		panel = NewPanelMonitor(cfg, mon.events)
-		go panel.Run(ctx)
-	}
-
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newAPI(cfg, mon, panel).routes(),
+		Handler:           newAPI(cfg, mon).routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -182,9 +167,6 @@ func banner(cfg *Config, fingerprint string) {
 	}
 	fmt.Printf("  Data dir:     %s\n", cfg.DataDir)
 	fmt.Printf("  Thresholds:   cpu>%.0f%%  mem>%.0f%%  steal>%.0f%%  disk>%.0f%%\n", cfg.CPUThreshold, cfg.MemThreshold, cfg.StealThreshold, cfg.DiskThreshold)
-	if cfg.PanelURL != "" {
-		fmt.Printf("  Panel watch:  %s (user: %s)\n", cfg.PanelURL, cfg.PanelUser)
-	}
 	if len(cfg.WatchProcs) > 0 {
 		fmt.Printf("  Process watch: %s\n", strings.Join(cfg.WatchProcs, ", "))
 	}

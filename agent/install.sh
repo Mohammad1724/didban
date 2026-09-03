@@ -79,14 +79,6 @@ DIDBAN_DATA=$DATA_DIR
 # Uncomment to disable TLS (NOT recommended):
 # DIDBAN_PLAIN=1
 
-# ── Optional: PasarGuard panel monitoring ────────────────────────
-# The agent polls the panel API every 60s and records node up/down
-# events + user stats (visible in the app's "Panel" tab).
-# DIDBAN_PANEL_URL=http://127.0.0.1:8000
-# DIDBAN_PANEL_USER=admin
-# DIDBAN_PANEL_PASS=your-panel-password
-# DIDBAN_PANEL_INSECURE=1    # only if the panel uses a self-signed cert over https
-
 # ── Optional: process watchlist (alert when a process dies) ──────
 # DIDBAN_WATCH=xray,pg-node-service
 EOF
