@@ -138,7 +138,7 @@ If you expose the port to the internet, keep TLS on and use a long token. Firewa
 ## Roadmap
 
 - [x] Phase 1 — agent (this repo, `agent/`)
-- [ ] Phase 2 — Android app: server manager, live dashboard, charts, spike log, notifications (فارسی + English)
+- [x] Phase 2 — Android app: server manager, live dashboard, charts, spike log, notifications, SSH-assisted install (فارسی + English)
 - [ ] Phase 3 — ideas: alert rules, multi-user, Telegram alerts, metrics push
 
 ## License
