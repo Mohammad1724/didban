@@ -3,6 +3,7 @@
 package org.didban.monitor
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -115,8 +116,9 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
         if (server.useTls && server.fingerprint.isEmpty()) {
             val fp = api.lastSeenFingerprint
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xFF3B2F14),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF2E2410),
+                border = BorderStroke(1.dp, Color(0xFF5C4A1E)),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
             ) {
                 Column(Modifier.padding(10.dp)) {
@@ -267,8 +269,9 @@ private fun ProcessesTab(t: Str, procs: List<ProcInfo>) {
     }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         items(procs, key = { "${it.pid}-${it.name}" }) { p ->
-            Surface(shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
+            Surface(shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
                     Column(Modifier.weight(1f)) {
                         Text(p.name, fontWeight = FontWeight.Medium, fontSize = 13.sp)
@@ -313,9 +316,10 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
             val (emoji, label, color) = eventStyle(e.type)
-            Surface(shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)) {
-                Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            Surface(shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("$emoji $label",
                             fontWeight = FontWeight.Bold, fontSize = 14.sp,
@@ -353,7 +357,8 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
 private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = if (selected) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
@@ -361,7 +366,7 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color(0xFF0B1220) else MaterialTheme.colorScheme.onSurface
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -369,8 +374,9 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun Card(title: String, bigValue: String?, pct: Float?, content: @Composable () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(14.dp)) {

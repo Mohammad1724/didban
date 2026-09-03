@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import android.content.Intent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -102,8 +103,9 @@ fun ServersScreen(
 
         // ── Monitoring toggle ──
         Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (monitoring) Color(0xFF123524) else Color(0xFF351414),
+            shape = RoundedCornerShape(14.dp),
+            color = if (monitoring) Color(0xFF0E2A1E) else Color(0xFF331717),
+            border = BorderStroke(1.dp, if (monitoring) Color(0xFF1E5C40) else Color(0xFF6B2C2C)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -193,6 +195,7 @@ fun ServersScreen(
     deletedServer?.let { ds ->
         AlertDialog(
             onDismissRequest = { deletedServer = null },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             title = { Text(t.confirmDelete) },
             text = { Text("${ds.name} (${ds.host})") },
             confirmButton = {
@@ -219,8 +222,9 @@ private fun ServerCard(
     onDelete: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth().clickable { onOpen() }
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -264,6 +268,7 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         title = { Text(t.addServer) },
         text = {
             Column {
@@ -287,7 +292,8 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(8.dp),
-        color = if (selected) Color(0xFFFFFFFF) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
@@ -295,7 +301,7 @@ private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color(0xFF0B1220) else MaterialTheme.colorScheme.onSurface
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -438,6 +444,7 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         title = { Text("${t.edit} — ${server.name}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -489,6 +496,7 @@ private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         title = { Text(t.settings) },
         text = {
             Column {
