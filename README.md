@@ -34,22 +34,47 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 └────────────────────────────────────────┘
 ```
 
-## Quick start (server)
+## Install (one command per server)
+
+Run on each server (Ubuntu/Debian, any arch — amd64/arm64/arm/386):
 
 ```bash
-# from a release, after cloning this repo:
-cd agent
-sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh
+sudo bash didban-install.sh
 ```
 
-The installer prints the **URL**, **token** and **certificate fingerprint** — keep them for the app.
+If you use a firewall, open the port:
 
-Manual run for testing:
+```bash
+sudo ufw allow 8686
+```
+
+The installer downloads the binary from the latest GitHub Release, generates a token, installs a hardened systemd service, and prints the **URL**, **token** and **certificate fingerprint** — save these three for the Android app.
+
+Verify it works:
+
+```bash
+curl -sk https://YOUR_SERVER_IP:8686/api/metrics -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+<details>
+<summary>Alternative: clone the repo</summary>
+
+```bash
+git clone https://github.com/Mohammad1724/didban.git
+cd didban/agent
+sudo bash install.sh
+```
+</details>
+
+<details>
+<summary>Alternative: manual run for testing (no install)</summary>
 
 ```bash
 cd agent && go build -o didban-agent .
 ./didban-agent -addr 127.0.0.1:8686 -token mytoken -data ./data -plain
 ```
+</details>
 
 ## API
 

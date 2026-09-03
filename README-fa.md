@@ -34,22 +34,47 @@
 └────────────────────────────────────────┘
 ```
 
-## شروع سریع (روی سرور)
+## نصب (یک دستور برای هر سرور)
+
+روی هر سرور اجرا کن (اوبونتو/دبیان، هر معماری — amd64/arm64/arm/386):
 
 ```bash
-# بعد از clone کردن این ریپو:
-cd agent
-sudo bash install.sh
+curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh
+sudo bash didban-install.sh
 ```
 
-نصب‌کننده **آدرس**، **توکن** و **fingerprint سرتیفیکیت** را چاپ می‌کند — برای اپ نگهشان دار.
+اگه فایروال داری، پورت رو باز کن:
 
-اجرای دستی برای تست:
+```bash
+sudo ufw allow 8686
+```
+
+نصب‌کننده باینری را از آخرین Release گیت‌هاب می‌گیرد، توکن می‌سازد، سرویس systemd هاردند نصب می‌کند و **آدرس**، **توکن** و **fingerprint سرتیفیکیت** را چاپ می‌کند — این سه را برای اپ اندروید نگه دارید.
+
+تست نهایی:
+
+```bash
+curl -sk https://IP_سرور:8686/api/metrics -H "Authorization: Bearer توکن"
+```
+
+<details>
+<summary>روش جایگزین: کلون کردن ریپو</summary>
+
+```bash
+git clone https://github.com/Mohammad1724/didban.git
+cd didban/agent
+sudo bash install.sh
+```
+</details>
+
+<details>
+<summary>روش جایگزین: اجرای دستی برای تست (بدون نصب)</summary>
 
 ```bash
 cd agent && go build -o didban-agent .
 ./didban-agent -addr 127.0.0.1:8686 -token mytoken -data ./data -plain
 ```
+</details>
 
 ## API
 
