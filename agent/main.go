@@ -189,7 +189,12 @@ func banner(cfg *Config, fingerprint string, alertsActive bool) {
 		fmt.Println("  Alerts:       Disabled (configure Telegram, Discord, or Webhook)")
 	}
 	fmt.Println("──────────────────────────────────────────────────────")
-	fmt.Printf("  Test:  curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",
+	if fingerprint != "" {
+		fmt.Printf("  Mobile Link:  didban://%s?token=%s&fp=%s\n", addr, cfg.Token, fingerprint)
+	} else {
+		fmt.Printf("  Mobile Link:  didban://%s?token=%s\n", addr, cfg.Token)
+	}
+	fmt.Printf("  Test:         curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",
 		scheme, addr, cfg.Token)
 	fmt.Println("──────────────────────────────────────────────────────")
 }

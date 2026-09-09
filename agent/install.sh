@@ -48,14 +48,27 @@ else
   URL="$REPO/releases/latest/download/didban-agent-linux-$GOARCH.tar.gz"
   echo ">> Downloading: $URL"
   TMP="$(mktemp -d)"
-  if ! curl -fsSL "$URL" -o "$TMP/agent.tar.gz"; then
-    echo "Error: download failed. Edit the REPO variable at the top of this" >&2
-    echo "script (set it to your GitHub repository URL), or build locally:" >&2
-    echo "  cd agent && go build -o didban-agent ." >&2
-    exit 1
+  if curl -fsSL "$URL" -o "$TMP/agent.tar.gz" 2>/dev/null; then
+    tar -xzf "$TMP/agent.tar.gz" -C "$TMP"
+    BIN="$TMP/didban-agent"
+  else
+    # Fallback: if Go is installed on this machine, build directly from repository
+    if command -v go >/dev/null 2>&1; then
+      echo ">> Download failed, attempting to build from source using local Go toolchain..."
+      git clone "$REPO.git" "$TMP/repo" 2>/dev/null || true
+      if [[ -d "$TMP/repo/agent" ]]; then
+        (cd "$TMP/repo/agent" && go build -o "$TMP/didban-agent" .)
+        BIN="$TMP/didban-agent"
+      fi
+    fi
+
+    if [[ -z "$BIN" || ! -x "$BIN" ]]; then
+      echo "Error: binary download failed. Edit the REPO variable at the top of this" >&2
+      echo "script (set it to your GitHub repository URL), or build locally:" >&2
+      echo "  cd agent && go build -o didban-agent ." >&2
+      exit 1
+    fi
   fi
-  tar -xzf "$TMP/agent.tar.gz" -C "$TMP"
-  BIN="$TMP/didban-agent"
 fi
 
 install -m 0755 "$BIN" /usr/local/bin/didban-agent
@@ -141,11 +154,14 @@ echo ""
 echo "══════════════════════════════════════════════════════════"
 echo "  Didban agent installed successfully! — نصب موفق"
 echo "══════════════════════════════════════════════════════════"
-echo "  URL:         https://${SERVER_IP}:${PORT}"
-echo "  Token:       ${TOKEN}"
+echo "  URL:          https://${SERVER_IP}:${PORT}"
+echo "  Token:        ${TOKEN}"
 if [[ -n "$FINGERPRINT" ]]; then
-  echo "  Cert SHA256: ${FINGERPRINT}"
+  echo "  Cert SHA256:  ${FINGERPRINT}"
 fi
+echo ""
+echo "  📲 One-Click Mobile Import Link (کپی این خط برای اتصال فوری در اپ):"
+echo "  didban://${SERVER_IP}:${PORT}?token=${TOKEN}&fp=${FINGERPRINT}&name=${SERVER_IP}"
 echo ""
 echo "  Save these — you will enter them in the Didban Android app."
 echo "  این اطلاعات را در اپ اندروید دیدبان وارد کنید."
