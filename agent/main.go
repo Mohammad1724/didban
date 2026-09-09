@@ -35,11 +35,13 @@ type Config struct {
 	DiskThreshold  float64 // percent, disk usage event threshold
 	// Process watchlist (optional)
 	WatchProcs []string
-	// Telegram alerts
+	// Alerts
 	TelegramToken  string
 	TelegramChatID string
 	TelegramProxy  string
-	TelegramAlerts bool
+	DiscordWebhook string
+	GenericWebhook string
+	EnableAlerts   bool
 }
 
 func envOr(key, def string) string {
@@ -62,7 +64,9 @@ func main() {
 	flag.StringVar(&cfg.TelegramToken, "tg-token", os.Getenv("DIDBAN_TG_TOKEN"), "Telegram Bot Token for alerts")
 	flag.StringVar(&cfg.TelegramChatID, "tg-chat", os.Getenv("DIDBAN_TG_CHAT_ID"), "Telegram Chat/Channel ID for alerts")
 	flag.StringVar(&cfg.TelegramProxy, "tg-proxy", os.Getenv("DIDBAN_TG_PROXY"), "HTTP/SOCKS5 proxy for Telegram API")
-	flag.BoolVar(&cfg.TelegramAlerts, "tg-alerts", os.Getenv("DIDBAN_TG_ALERTS") != "0", "Enable Telegram alerts")
+	flag.StringVar(&cfg.DiscordWebhook, "discord-webhook", os.Getenv("DIDBAN_DISCORD_WEBHOOK"), "Discord Webhook URL for alerts")
+	flag.StringVar(&cfg.GenericWebhook, "webhook-url", os.Getenv("DIDBAN_WEBHOOK_URL"), "Generic Webhook URL for alerts")
+	flag.BoolVar(&cfg.EnableAlerts, "alerts", os.Getenv("DIDBAN_ALERTS") != "0", "Enable outbound alerts")
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -111,7 +115,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	banner(cfg, fingerprint, mon.notifier.IsEnabled())
+	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders())
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -151,13 +155,12 @@ func loadOrCreateToken(path string) string {
 	return tok
 }
 
-func banner(cfg *Config, fingerprint string, tgEnabled bool) {
+func banner(cfg *Config, fingerprint string, alertsActive bool) {
 	scheme := "https"
 	host := firstLocalIP()
 	if cfg.PlainHTTP {
 		scheme = "http"
 	}
-	// For display: expand ":port" or "0.0.0.0:port" into a real reachable address.
 	addr := cfg.Addr
 	if strings.HasPrefix(addr, "0.0.0.0:") {
 		addr = ":" + strings.TrimPrefix(addr, "0.0.0.0:")
@@ -170,6 +173,7 @@ func banner(cfg *Config, fingerprint string, tgEnabled bool) {
 	fmt.Println("──────────────────────────────────────────────────────")
 	fmt.Printf("  Version:      %s\n", version)
 	fmt.Printf("  Listening:    %s://%s\n", scheme, addr)
+	fmt.Printf("  Status Page:  %s://%s/status\n", scheme, addr)
 	fmt.Printf("  Token:        %s\n", cfg.Token)
 	if fingerprint != "" {
 		fmt.Printf("  Cert SHA256:  %s\n", fingerprint)
@@ -179,10 +183,10 @@ func banner(cfg *Config, fingerprint string, tgEnabled bool) {
 	if len(cfg.WatchProcs) > 0 {
 		fmt.Printf("  Process watch: %s\n", strings.Join(cfg.WatchProcs, ", "))
 	}
-	if tgEnabled {
-		fmt.Printf("  Telegram:     Enabled (Chat ID: %s)\n", cfg.TelegramChatID)
+	if alertsActive {
+		fmt.Printf("  Alerts:       Enabled (Telegram/Discord/Webhook)\n")
 	} else {
-		fmt.Println("  Telegram:     Disabled (set DIDBAN_TG_TOKEN & DIDBAN_TG_CHAT_ID)")
+		fmt.Println("  Alerts:       Disabled (configure Telegram, Discord, or Webhook)")
 	}
 	fmt.Println("──────────────────────────────────────────────────────")
 	fmt.Printf("  Test:  curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",

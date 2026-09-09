@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// API serves the authenticated JSON endpoints.
+// API serves the authenticated JSON endpoints and public status page.
 type API struct {
 	cfg *Config
 	mon *Monitor
@@ -21,11 +21,14 @@ func newAPI(cfg *Config, mon *Monitor) *API {
 func (a *API) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", a.handleHealth)
+	mux.HandleFunc("/status", a.handleStatusPage)
+	mux.HandleFunc("/api/status", a.handleStatusPage)
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/processes/kill", a.auth(a.handleProcessKill))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
-	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleTelegramTest))
+	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
+	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
 	return mux
@@ -54,11 +57,12 @@ func (a *API) handleHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":           "ok",
-		"version":          version,
-		"agent":            "didban",
-		"telegram_enabled": a.mon.notifier.IsEnabled(),
-		"timestamp":        time.Now().Unix(),
+		"status":          "ok",
+		"version":         version,
+		"agent":           "didban",
+		"alerts_active":   a.mon.dispatcher.HasActiveProviders(),
+		"telegram_active": a.mon.dispatcher.IsTelegramEnabled(),
+		"timestamp":       time.Now().Unix(),
 	})
 }
 
@@ -104,7 +108,6 @@ func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&req)
 	}
 
-	// Also support query parameters: ?pid=1234&signal=SIGTERM
 	if req.PID == 0 {
 		if p, err := strconv.Atoi(r.URL.Query().Get("pid")); err == nil {
 			req.PID = p
@@ -128,14 +131,14 @@ func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, res)
 }
 
-func (a *API) handleTelegramTest(w http.ResponseWriter, r *http.Request) {
+func (a *API) handleAlertsTest(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost && r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
 
-	if !a.mon.notifier.IsEnabled() {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Telegram alerts are not configured. Set DIDBAN_TG_TOKEN and DIDBAN_TG_CHAT_ID."})
+	if !a.mon.dispatcher.HasActiveProviders() {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "No alert channels are configured. Configure Telegram, Discord, or Webhook."})
 		return
 	}
 
@@ -143,14 +146,14 @@ func (a *API) handleTelegramTest(w http.ResponseWriter, r *http.Request) {
 	host := a.mon.snap.Hostname
 	a.mon.mu.RUnlock()
 
-	if err := a.mon.notifier.SendTest(host); err != nil {
+	if err := a.mon.dispatcher.SendTest(host); err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"message": "Telegram test alert sent successfully",
+		"message": "Test alert dispatched to configured notification channels successfully",
 	})
 }
 

@@ -84,13 +84,13 @@ type netCounters struct {
 // Monitor samples the system and keeps the latest snapshot,
 // the top processes, history and spike events.
 type Monitor struct {
-	mu       sync.RWMutex
-	cfg      *Config
-	snap     Snapshot
-	procs    []ProcessInfo
-	hist     []HistPoint
-	events   *EventLog
-	notifier *TelegramNotifier
+	mu         sync.RWMutex
+	cfg        *Config
+	snap       Snapshot
+	procs      []ProcessInfo
+	hist       []HistPoint
+	events     *EventLog
+	dispatcher *AlertDispatcher
 
 	// internals (only touched from the Run goroutine)
 	prevCPU         *cpuTicks
@@ -116,7 +116,7 @@ func NewMonitor(cfg *Config) *Monitor {
 	return &Monitor{
 		cfg:           cfg,
 		events:        NewEventLog(cfg.DataDir + "/events.jsonl"),
-		notifier:      NewTelegramNotifier(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy),
+		dispatcher:    NewAlertDispatcher(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy, cfg.DiscordWebhook, cfg.GenericWebhook),
 		uidMap:        loadUserMap(),
 		lastDiskEvent: make(map[string]time.Time),
 		watchState:    make(map[string]bool),
@@ -128,15 +128,15 @@ func NewMonitor(cfg *Config) *Monitor {
 	}
 }
 
-// RecordEvent records an event in memory, disk, and dispatches to Telegram.
+// RecordEvent records an event in memory, disk, and dispatches to notification channels.
 func (m *Monitor) RecordEvent(ev Event) {
 	m.events.Add(ev)
-	if m.notifier.IsEnabled() && m.cfg.TelegramAlerts {
+	if m.dispatcher.HasActiveProviders() && m.cfg.EnableAlerts {
 		m.mu.RLock()
 		h := m.snap.Hostname
 		m.mu.RUnlock()
 		go func(e Event, host string) {
-			_ = m.notifier.SendAlert(e, host)
+			m.dispatcher.SendAlert(e, host)
 		}(ev, h)
 	}
 }

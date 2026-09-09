@@ -138,12 +138,16 @@ class Str(
     val start: String,
     val stop: String,
     val calculate: String,
+    // Uptime Kuma Engine
+    val uptimeMonitoring: String,
+    val addMonitor: String,
+    val noMonitorsHint: String,
     val navServers: String,
+    val navUptime: String,
     val navNetwork: String,
     val navCloudflare: String,
     val navVault: String,
-    val navTools: String,
-    val navShare: String
+    val navTools: String
 )
 
 object Locales {
@@ -282,12 +286,15 @@ object Locales {
         start = "شروع",
         stop = "توقف",
         calculate = "محاسبه",
+        uptimeMonitoring = "پایش آپ‌تایم سرویس‌ها",
+        addMonitor = "افزودن مانیتور",
+        noMonitorsHint = "هنوز سایتی برای پایش پایداری اضافه نشده است",
         navServers = "سرورها",
+        navUptime = "آپ‌تایم",
         navNetwork = "شبکه",
         navCloudflare = "کلودفلر",
         navVault = "گاوصندوق",
-        navTools = "ابزارها",
-        navShare = "اشتراک"
+        navTools = "ابزارها"
     )
 
     val en = Str(
@@ -425,11 +432,14 @@ object Locales {
         start = "Start",
         stop = "Stop",
         calculate = "Calculate",
+        uptimeMonitoring = "Uptime Monitoring",
+        addMonitor = "Add Monitor",
+        noMonitorsHint = "No uptime monitors configured yet",
         navServers = "Servers",
+        navUptime = "Uptime",
         navNetwork = "Network",
         navCloudflare = "Cloudflare",
         navVault = "Vault",
-        navTools = "Dev Lab",
-        navShare = "Share"
+        navTools = "Dev Lab"
     )
 }

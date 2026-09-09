@@ -75,4 +75,26 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("vault_notes_enc", enc).apply()
     }
+
+    fun loadUptimeTargets(ctx: Context): List<UptimeTarget> {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val raw = sp.getString("uptime_targets", null) ?: return emptyList()
+        val list = mutableListOf<UptimeTarget>()
+        return try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                list.add(UptimeTarget.fromJson(arr.getJSONObject(i)))
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveUptimeTargets(ctx: Context, targets: List<UptimeTarget>) {
+        val arr = JSONArray()
+        targets.forEach { arr.put(it.toJson()) }
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("uptime_targets", arr.toString()).apply()
+    }
 }

@@ -130,7 +130,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
-    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Network, 2: Cloudflare, 3: Vault, 4: DevLab, 5: Share
+    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Uptime, 2: Network, 3: Cloudflare, 4: Vault, 5: DevLab
 
     val t = if (lang == "fa") Locales.fa else Locales.en
 
@@ -162,11 +162,11 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                                 },
                                 onOpen = { openServer = it }
                             )
-                            1 -> NetworkHubScreen(t = t)
-                            2 -> CloudflareScreen(t = t)
-                            3 -> VaultScreen(t = t)
-                            4 -> DevLabScreen(t = t)
-                            5 -> LocalServerScreen(t = t)
+                            1 -> UptimeScreen(t = t)
+                            2 -> NetworkHubScreen(t = t)
+                            3 -> CloudflareScreen(t = t)
+                            4 -> VaultScreen(t = t)
+                            5 -> DevLabScreen(t = t)
                         }
                     }
 
@@ -182,11 +182,11 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             NavItem("👁️", t.navServers, currentNav == 0) { currentNav = 0 }
-                            NavItem("🛰️", t.navNetwork, currentNav == 1) { currentNav = 1 }
-                            NavItem("☁️", t.navCloudflare, currentNav == 2) { currentNav = 2 }
-                            NavItem("🔐", t.navVault, currentNav == 3) { currentNav = 3 }
-                            NavItem("🛠️", t.navTools, currentNav == 4) { currentNav = 4 }
-                            NavItem("📡", t.navShare, currentNav == 5) { currentNav = 5 }
+                            NavItem("⏱️", t.navUptime, currentNav == 1) { currentNav = 1 }
+                            NavItem("🛰️", t.navNetwork, currentNav == 2) { currentNav = 2 }
+                            NavItem("☁️", t.navCloudflare, currentNav == 3) { currentNav = 3 }
+                            NavItem("🔐", t.navVault, currentNav == 4) { currentNav = 4 }
+                            NavItem("🛠️", t.navTools, currentNav == 5) { currentNav = 5 }
                         }
                     }
                 }

@@ -11,72 +11,111 @@ import (
 	"time"
 )
 
-// TelegramNotifier handles sending formatted alerts to Telegram chat/channel.
-type TelegramNotifier struct {
-	token   string
-	chatID  string
-	client  *http.Client
-	enabled bool
+// AlertDispatcher handles dispatching alerts to Telegram, Discord, and Webhooks.
+type AlertDispatcher struct {
+	tgToken        string
+	tgChatID       string
+	discordWebhook string
+	genericWebhook string
+	client         *http.Client
+	tgEnabled      bool
+	discordEnabled bool
+	webhookEnabled bool
 }
 
-func NewTelegramNotifier(token, chatID, proxyURL string) *TelegramNotifier {
-	token = strings.TrimSpace(token)
-	chatID = strings.TrimSpace(chatID)
-	if token == "" || chatID == "" {
-		return &TelegramNotifier{enabled: false}
-	}
+func NewAlertDispatcher(tgToken, tgChatID, tgProxy, discordWebhook, genericWebhook string) *AlertDispatcher {
+	tgToken = strings.TrimSpace(tgToken)
+	tgChatID = strings.TrimSpace(tgChatID)
+	discordWebhook = strings.TrimSpace(discordWebhook)
+	genericWebhook = strings.TrimSpace(genericWebhook)
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	if proxyURL = strings.TrimSpace(proxyURL); proxyURL != "" {
-		if parsed, err := url.Parse(proxyURL); err == nil {
+	if tgProxy = strings.TrimSpace(tgProxy); tgProxy != "" {
+		if parsed, err := url.Parse(tgProxy); err == nil {
 			client.Transport = &http.Transport{
 				Proxy: http.ProxyURL(parsed),
 			}
 		}
 	}
 
-	return &TelegramNotifier{
-		token:   token,
-		chatID:  chatID,
-		client:  client,
-		enabled: true,
+	return &AlertDispatcher{
+		tgToken:        tgToken,
+		tgChatID:       tgChatID,
+		discordWebhook: discordWebhook,
+		genericWebhook: genericWebhook,
+		client:         client,
+		tgEnabled:      tgToken != "" && tgChatID != "",
+		discordEnabled: discordWebhook != "",
+		webhookEnabled: genericWebhook != "",
 	}
 }
 
-func (tn *TelegramNotifier) IsEnabled() bool {
-	return tn != nil && tn.enabled
+func (ad *AlertDispatcher) HasActiveProviders() bool {
+	return ad != nil && (ad.tgEnabled || ad.discordEnabled || ad.webhookEnabled)
 }
 
-// SendAlert formats an Event and sends it to Telegram.
-func (tn *TelegramNotifier) SendAlert(ev Event, hostname string) error {
-	if !tn.IsEnabled() {
-		return nil
+func (ad *AlertDispatcher) IsTelegramEnabled() bool {
+	return ad != nil && ad.tgEnabled
+}
+
+// SendAlert broadcasts the event to all configured notification channels.
+func (ad *AlertDispatcher) SendAlert(ev Event, hostname string) {
+	if !ad.HasActiveProviders() {
+		return
 	}
-	msg := formatTelegramEvent(ev, hostname)
-	return tn.sendMessage(msg)
-}
-
-// SendTest sends a test message to verify Telegram setup.
-func (tn *TelegramNotifier) SendTest(hostname string) error {
-	if !tn.IsEnabled() {
-		return fmt.Errorf("telegram alerts not configured (token or chat_id missing)")
+	if ad.tgEnabled {
+		_ = ad.sendTelegram(formatTelegramEvent(ev, hostname))
 	}
-	msg := fmt.Sprintf("✅ <b>Didban Alert Test</b>\n\n"+
-		"Notifications are working successfully for <code>%s</code>!\n"+
-		"⏱ <i>%s</i>",
-		html.EscapeString(hostname),
-		time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
-	)
-	return tn.sendMessage(msg)
+	if ad.discordEnabled {
+		_ = ad.sendDiscord(ev, hostname)
+	}
+	if ad.webhookEnabled {
+		_ = ad.sendGenericWebhook(ev, hostname)
+	}
 }
 
-func (tn *TelegramNotifier) sendMessage(htmlText string) error {
-	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", tn.token)
+// SendTest sends a test notification to all configured channels.
+func (ad *AlertDispatcher) SendTest(hostname string) error {
+	if !ad.HasActiveProviders() {
+		return fmt.Errorf("no notification channels configured (set Telegram, Discord, or Webhook)")
+	}
+	var errs []string
+	if ad.tgEnabled {
+		msg := fmt.Sprintf("✅ <b>Didban Alert Test</b>\n\n"+
+			"Notifications are working successfully for <code>%s</code>!\n"+
+			"⏱ <i>%s</i>",
+			html.EscapeString(hostname),
+			time.Now().UTC().Format("2006-01-02 15:04:05 UTC"),
+		)
+		if err := ad.sendTelegram(msg); err != nil {
+			errs = append(errs, "Telegram: "+err.Error())
+		}
+	}
+	if ad.discordEnabled {
+		testEv := Event{Time: time.Now(), Type: "test", Detail: "Test notification from Didban Agent"}
+		if err := ad.sendDiscord(testEv, hostname); err != nil {
+			errs = append(errs, "Discord: "+err.Error())
+		}
+	}
+	if ad.webhookEnabled {
+		testEv := Event{Time: time.Now(), Type: "test", Detail: "Test notification from Didban Agent"}
+		if err := ad.sendGenericWebhook(testEv, hostname); err != nil {
+			errs = append(errs, "Webhook: "+err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (ad *AlertDispatcher) sendTelegram(htmlText string) error {
+	apiURL := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", ad.tgToken)
 	payload := map[string]any{
-		"chat_id":                  tn.chatID,
+		"chat_id":                  ad.tgChatID,
 		"text":                     htmlText,
 		"parse_mode":               "HTML",
 		"disable_web_page_preview": true,
@@ -93,7 +132,7 @@ func (tn *TelegramNotifier) sendMessage(htmlText string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := tn.client.Do(req)
+	resp, err := ad.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("telegram request failed: %w", err)
 	}
@@ -102,6 +141,76 @@ func (tn *TelegramNotifier) sendMessage(htmlText string) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("telegram API returned HTTP %d", resp.StatusCode)
 	}
+	return nil
+}
+
+func (ad *AlertDispatcher) sendDiscord(ev Event, hostname string) error {
+	color := 16278897 // red
+	if ev.Type == "process_up" || ev.Type == "test" {
+		color = 4906880 // green
+	} else if ev.Type == "memory" {
+		color = 9684477 // blue
+	}
+
+	var procsText strings.Builder
+	for _, p := range ev.Top {
+		procsText.WriteString(fmt.Sprintf("• `%s` (PID %d): **%.1f%% CPU** | %.0f MB RAM\n",
+			p.Name, p.PID, p.CPU, p.MemMB))
+	}
+
+	embed := map[string]any{
+		"title":       fmt.Sprintf("🚨 Didban Alert — %s", strings.ToUpper(ev.Type)),
+		"description": fmt.Sprintf("**Server:** `%s`\n**Detail:** %s", hostname, ev.Detail),
+		"color":       color,
+		"timestamp":   ev.Time.UTC().Format(time.RFC3339),
+	}
+
+	if procsText.Len() > 0 {
+		embed["fields"] = []map[string]any{
+			{"name": "Top Culprit Processes", "value": procsText.String(), "inline": false},
+		}
+	}
+
+	payload := map[string]any{
+		"username": "Didban Bot",
+		"embeds":   []any{embed},
+	}
+
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequest(http.MethodPost, ad.discordWebhook, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ad.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
+func (ad *AlertDispatcher) sendGenericWebhook(ev Event, hostname string) error {
+	payload := map[string]any{
+		"app":       "didban",
+		"server":    hostname,
+		"event":     ev,
+		"timestamp": time.Now().Unix(),
+	}
+
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequest(http.MethodPost, ad.genericWebhook, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ad.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 	return nil
 }
 
