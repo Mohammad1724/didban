@@ -30,19 +30,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AltRoute
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.RocketLaunch
-import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.AlertDialog
@@ -54,9 +48,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -99,7 +93,7 @@ fun TunnelScreen(t: Str) {
     LaunchedEffect(Unit) {
         while (true) {
             for (tun in tunnels) {
-                if (tun.isEnabled && tun.iranHost.isNotBlank()) {
+                if (tun.isEnabled && (tun.iranHost.isNotBlank() || tun.foreignHost.isNotBlank())) {
                     val (ok, lat) = TunnelEngine.testTunnel(tun)
                     tun.lastStatus = if (ok) 1 else 0
                     tun.lastLatencyMs = lat
@@ -155,13 +149,13 @@ fun TunnelScreen(t: Str) {
         // ── Guide Card ──
         item {
             FeatureGuideCard(
-                title = "راهنمای تانل دو سرور (Iran Node ➔ Foreign Node)",
+                title = "راهنمای هاب تانل دو سرور (Iran Node ➔ Foreign Node)",
                 description = t.guideTunnels,
                 bullets = listOf(
+                    "BackPack 🎒: تانل نسل جدید Go با رمزنگاری Stealth، دور زدن کرنل PCK و گیمینگ KCP+FEC",
                     "Backhaul: تانل معکوس پایدار و ضد فیلتر با WebSocket و انتقال مالتی‌پورت",
                     "Rathole: هسته فوق‌سبک Rust با مصرف ناچیز رم و امنیت Noise Protocol",
-                    "GOST: رله و فوروارد ترافیک TCP/UDP/WS/gRPC بین سرور ایران و خارج",
-                    "Chisel & FRP: پوشش ترافیک در قالب وب و ریورس پروکسی چندکاناله"
+                    "GOST & Chisel: رله و فوروارد ترافیک TCP/UDP/WS/gRPC و پوشش ترافیک در قالب وب"
                 )
             )
         }
@@ -206,7 +200,7 @@ fun TunnelScreen(t: Str) {
                         Text("هنوز تانلی بین دو سرور تعریف نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و دستورات نصب خودکار با هسته‌های Backhaul، Rathole یا GOST را دریافت کنید.",
+                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و دستورات نصب خودکار با هسته‌های BackPack، Backhaul، Rathole یا GOST را دریافت کنید.",
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -223,6 +217,7 @@ fun TunnelScreen(t: Str) {
         } else {
             items(tunnels, key = { it.id }) { tun ->
                 val coreBadgeColor = when (tun.core) {
+                    TunnelCore.BACKPACK -> Color(0xFFF97316)
                     TunnelCore.BACKHAUL -> Color(0xFF0D9488)
                     TunnelCore.RATHOLE -> Color(0xFFEA580C)
                     TunnelCore.GOST -> Color(0xFF2563EB)
@@ -255,6 +250,19 @@ fun TunnelScreen(t: Str) {
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                        }
+
+                        if (tun.core == TunnelCore.BACKPACK) {
+                            Spacer(Modifier.width(4.dp))
+                            Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF10B981).copy(alpha = 0.12f)) {
+                                Text(
+                                    tun.preset.uppercase(),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF059669)
+                                )
+                            }
                         }
 
                         Spacer(Modifier.weight(1f))
@@ -404,7 +412,7 @@ fun TunnelScreen(t: Str) {
                 save()
                 showAddDialog = false
                 editingTunnel = null
-                viewCodeTunnel = savedTun // Automatically open instructions for convenience!
+                viewCodeTunnel = savedTun
             }
         )
     }
@@ -454,14 +462,21 @@ private fun AddOrEditTunnelDialog(
     val servers = remember { Prefs.loadServers(ctx) }
 
     var name by remember { mutableStateOf(existing?.name ?: "تونل جدید") }
-    var core by remember { mutableStateOf(existing?.core ?: TunnelCore.BACKHAUL) }
-    var transport by remember { mutableStateOf(existing?.transport ?: TunnelTransport.TCP) }
+    var core by remember { mutableStateOf(existing?.core ?: TunnelCore.BACKPACK) }
+    var transport by remember {
+        mutableStateOf(
+            existing?.transport ?: if (core == TunnelCore.BACKPACK) TunnelTransport.STEALTH else TunnelTransport.TCP
+        )
+    }
     var iranHost by remember { mutableStateOf(existing?.iranHost ?: "") }
     var iranPort by remember { mutableStateOf(existing?.iranPort?.toString() ?: "443") }
     var foreignHost by remember { mutableStateOf(existing?.foreignHost ?: "") }
     var foreignPort by remember { mutableStateOf(existing?.foreignPort?.toString() ?: "8443") }
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
-    var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken()) }
+    var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
+    var preset by remember { mutableStateOf(existing?.preset ?: "turbo") }
+    var acceptUdp by remember { mutableStateOf(existing?.acceptUdp ?: true) }
+    var proxyProtocol by remember { mutableStateOf(existing?.proxyProtocol ?: false) }
 
     var showIranServerDropdown by remember { mutableStateOf(false) }
     var showForeignServerDropdown by remember { mutableStateOf(false) }
@@ -475,14 +490,14 @@ private fun AddOrEditTunnelDialog(
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().height(420.dp).imePadding()
+                modifier = Modifier.fillMaxWidth().height(440.dp).imePadding()
             ) {
                 // 1. Name
                 item {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("نام دلخواه تانل (مثلاً ایران آروان -> آلمان هتزنر)") },
+                        label = { Text("نام دلخواه تانل (مثلاً بک‌پک شاتل -> آلمان)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -498,13 +513,24 @@ private fun AddOrEditTunnelDialog(
                     ) {
                         TunnelCore.values().forEach { c ->
                             val isSel = core == c
+                            val badgeColor = when (c) {
+                                TunnelCore.BACKPACK -> Color(0xFFF97316)
+                                TunnelCore.BACKHAUL -> Color(0xFF0D9488)
+                                TunnelCore.RATHOLE -> Color(0xFFEA580C)
+                                TunnelCore.GOST -> Color(0xFF2563EB)
+                                TunnelCore.CHISEL -> Color(0xFF7C3AED)
+                                TunnelCore.FRP -> Color(0xFFDC2626)
+                                TunnelCore.IPTABLES -> Color(0xFF475569)
+                            }
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                                color = if (isSel) badgeColor else MaterialTheme.colorScheme.surfaceContainer,
                                 border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier.clickable {
                                     core = c
-                                    if (c == TunnelCore.IPTABLES) {
+                                    if (c == TunnelCore.BACKPACK) {
+                                        transport = TunnelTransport.STEALTH
+                                    } else if (c == TunnelCore.IPTABLES) {
                                         transport = TunnelTransport.TCP
                                     }
                                 }
@@ -527,8 +553,115 @@ private fun AddOrEditTunnelDialog(
                     Text(core.description, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                // 3. Transport Protocol (for Backhaul / GOST)
-                if (core == TunnelCore.BACKHAUL || core == TunnelCore.GOST) {
+                // 3. Transport Protocol
+                if (core == TunnelCore.BACKPACK) {
+                    item {
+                        Text("پروتکل انتقال BackPack (ضد فیلترینگ):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                TunnelTransport.STEALTH,
+                                TunnelTransport.PCK,
+                                TunnelTransport.KCP_FEC,
+                                TunnelTransport.WSSMUX,
+                                TunnelTransport.WSMUX,
+                                TunnelTransport.QUIC,
+                                TunnelTransport.TCPMUX,
+                                TunnelTransport.TCP,
+                                TunnelTransport.XDI,
+                                TunnelTransport.SPOOF
+                            ).forEach { tp ->
+                                val isSel = transport == tp
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSel) Color(0xFFF97316) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.clickable { transport = tp }
+                                ) {
+                                    Text(
+                                        tp.displayName,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                        if (transport.description.isNotBlank()) {
+                            Text(transport.description, fontSize = 10.5.sp, color = Color(0xFF059669), modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+
+                    // Performance Preset (BackPack)
+                    item {
+                        Text("پریست عملکرد و بهینه‌سازی (Preset):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                "turbo" to "⚡ توربو (Turbo)",
+                                "balance" to "⚖️ متعادل (Balance)",
+                                "aggressive" to "🔥 تهاجمی (Aggressive)",
+                                "gaming" to "🎮 گیمینگ کم‌تاخیر (Gaming)"
+                            ).forEach { (pKey, pLabel) ->
+                                val isSel = preset == pKey
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.clickable { preset = pKey }
+                                ) {
+                                    Text(
+                                        pLabel,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Toggles: Accept UDP & PROXY Protocol
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("انتقال ترافیک UDP (UDP Forwarding)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                        Text("مناسب برای V2Ray/Xray، WireGuard، DNS و بازی‌های آنلاین", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Switch(checked = acceptUdp, onCheckedChange = { acceptUdp = it })
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("پروتکل PROXY v2 (Real Client IP)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                        Text("ارسال IP واقعی کاربران به سرور مقصد", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    Switch(checked = proxyProtocol, onCheckedChange = { proxyProtocol = it })
+                                }
+                            }
+                        }
+                    }
+                } else if (core == TunnelCore.BACKHAUL || core == TunnelCore.GOST) {
                     item {
                         Text("پروتکل انتقال (Transport):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(4.dp))
@@ -674,7 +807,7 @@ private fun AddOrEditTunnelDialog(
                                 label = { Text("توکن امنیتی") },
                                 singleLine = true,
                                 trailingIcon = {
-                                    IconButton(onClick = { token = TunnelEngine.generateRandomToken() }) {
+                                    IconButton(onClick = { token = TunnelEngine.generateRandomToken(24) }) {
                                         Icon(Icons.Rounded.AutoAwesome, contentDescription = "Gen Token", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                     }
                                 },
@@ -699,6 +832,9 @@ private fun AddOrEditTunnelDialog(
                             this.foreignPort = foreignPort.toIntOrNull() ?: 8443
                             this.corePort = corePort.toIntOrNull() ?: 3080
                             this.token = token.trim()
+                            this.preset = preset
+                            this.acceptUdp = acceptUdp
+                            this.proxyProtocol = proxyProtocol
                         } ?: TunnelConfig(
                             id = System.currentTimeMillis(),
                             name = name.trim(),
@@ -709,7 +845,10 @@ private fun AddOrEditTunnelDialog(
                             foreignHost = foreignHost.trim(),
                             foreignPort = foreignPort.toIntOrNull() ?: 8443,
                             corePort = corePort.toIntOrNull() ?: 3080,
-                            token = token.trim()
+                            token = token.trim(),
+                            preset = preset,
+                            acceptUdp = acceptUdp,
+                            proxyProtocol = proxyProtocol
                         )
                         onSave(newTun)
                     }

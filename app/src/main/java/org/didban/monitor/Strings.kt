@@ -293,7 +293,7 @@ object Locales {
         // Dual-Node Tunnels
         navTunnels = "تانل‌ها",
         tunnelsHub = "مرکز تانل بین دو سرور",
-        guideTunnels = "مدیریت و برقراری تانل‌های معکوس و رله پرسرعت (Backhaul, Rathole, GOST, Chisel, FRP, IPTables) بین سرور ایران و خارج همراه با تولید دستورات نصب خودکار.",
+        guideTunnels = "مدیریت و برقراری تانل‌های معکوس و رله پرسرعت (BackPack 🎒, Backhaul, Rathole, GOST, Chisel, FRP, IPTables) بین سرور ایران و خارج همراه با تولید دستورات نصب خودکار.",
         addTunnel = "ساخت تانل جدید",
         editTunnel = "ویرایش مشخصات تانل",
         deleteTunnel = "حذف تانل",
@@ -471,7 +471,7 @@ object Locales {
         // Dual-Node Tunnels
         navTunnels = "Tunnels",
         tunnelsHub = "Dual-Node Tunnel Hub",
-        guideTunnels = "Manage high-performance reverse & relay tunnels (Backhaul, Rathole, GOST, Chisel, FRP, IPTables) between Iran and foreign servers with 1-click auto scripts.",
+        guideTunnels = "Manage high-performance reverse & relay tunnels (BackPack 🎒, Backhaul, Rathole, GOST, Chisel, FRP, IPTables) between Iran and foreign servers with 1-click auto scripts.",
         addTunnel = "New Tunnel",
         editTunnel = "Edit Tunnel",
         deleteTunnel = "Delete Tunnel",

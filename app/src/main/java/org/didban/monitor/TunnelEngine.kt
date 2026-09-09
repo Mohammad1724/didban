@@ -20,6 +20,7 @@ object TunnelEngine {
 
     fun generateCode(cfg: TunnelConfig): GeneratedTunnelCode {
         return when (cfg.core) {
+            TunnelCore.BACKPACK -> generateBackpack(cfg)
             TunnelCore.BACKHAUL -> generateBackhaul(cfg)
             TunnelCore.RATHOLE -> generateRathole(cfg)
             TunnelCore.GOST -> generateGost(cfg)
@@ -27,6 +28,150 @@ object TunnelEngine {
             TunnelCore.FRP -> generateFrp(cfg)
             TunnelCore.IPTABLES -> generateIptables(cfg)
         }
+    }
+
+    // ── 0. BackPack Generator (AminMGMT/BackPack) ─────────────────────────────
+
+    private fun generateBackpack(cfg: TunnelConfig): GeneratedTunnelCode {
+        val transportStr = when (cfg.transport) {
+            TunnelTransport.STEALTH -> "stealth"
+            TunnelTransport.PCK -> "pck"
+            TunnelTransport.KCP_FEC -> "kcp"
+            TunnelTransport.QUIC -> "quic"
+            TunnelTransport.WS -> "ws"
+            TunnelTransport.WSMUX -> "wsmux"
+            TunnelTransport.WSSMUX -> "wssmux"
+            TunnelTransport.TCPMUX -> "tcpmux"
+            TunnelTransport.XDI -> "xdi"
+            TunnelTransport.SPOOF -> "spoof"
+            TunnelTransport.UDP -> "udp"
+            else -> "tcp"
+        }
+        val token = cfg.token.ifBlank { generateRandomToken(24) }
+        val iranIp = cfg.iranHost.ifBlank { "IRAN_IP" }
+        val preset = cfg.preset.ifBlank { "turbo" }
+        val acceptUdpStr = if (cfg.acceptUdp) "accept_udp = true\n" else ""
+        val proxyProtoStr = if (cfg.proxyProtocol) "proxy_protocol = true\n" else ""
+
+        // Server Config (Iran Node)
+        val iranConfig = """
+[server]
+bind_addr = "0.0.0.0:${cfg.corePort}"
+transport = "$transportStr"
+token = "$token"
+ports = ["${cfg.iranPort}=127.0.0.1:${cfg.foreignPort}"]
+nodelay = true
+keepalive_period = 30
+preset = "$preset"
+${acceptUdpStr}${proxyProtoStr}channel_size = 2048
+log_level = "info"
+web_port = 0
+""".trimIndent()
+
+        // Client Config (Kharej Node)
+        val foreignConfig = """
+[client]
+remote_addr = "$iranIp:${cfg.corePort}"
+transport = "$transportStr"
+token = "$token"
+connection_pool = 8
+retry_interval = 3
+nodelay = true
+keepalive_period = 30
+preset = "$preset"
+log_level = "info"
+web_port = 0
+""".trimIndent()
+
+        val iranInstall = """
+# ── نصب خودکار BackPack روی سرور ایران ──
+sudo mkdir -p /etc/backpack /root/BackPack /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
+curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
+tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack && \
+cat << 'EOF' > /etc/backpack/server.toml
+$iranConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/backpack-server.service
+[Unit]
+Description=Backpack Tunnel Server (Iran Node)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/backpack server -c /etc/backpack/server.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now backpack-server && systemctl status backpack-server --no-pager
+""".trimIndent()
+
+        val foreignInstall = """
+# ── نصب خودکار BackPack روی سرور خارج ──
+sudo mkdir -p /etc/backpack /root/BackPack /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
+curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
+tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack && \
+cat << 'EOF' > /etc/backpack/client.toml
+$foreignConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/backpack-client.service
+[Unit]
+Description=Backpack Tunnel Client (Kharej Node)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/backpack client -c /etc/backpack/client.toml
+Restart=always
+RestartSec=3
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now backpack-client && systemctl status backpack-client --no-pager
+""".trimIndent()
+
+        val dockerIran = """
+version: '3.8'
+services:
+  backpack-server:
+    image: ghcr.io/aminmgmt/backpack:latest
+    container_name: backpack_server
+    restart: always
+    network_mode: host
+    volumes:
+      - ./server.toml:/etc/backpack/server.toml
+    command: server -c /etc/backpack/server.toml
+""".trimIndent()
+
+        val dockerForeign = """
+version: '3.8'
+services:
+  backpack-client:
+    image: ghcr.io/aminmgmt/backpack:latest
+    container_name: backpack_client
+    restart: always
+    network_mode: host
+    volumes:
+      - ./client.toml:/etc/backpack/client.toml
+    command: client -c /etc/backpack/client.toml
+""".trimIndent()
+
+        return GeneratedTunnelCode(
+            iranConfig = iranConfig,
+            iranInstallCommand = iranInstall,
+            foreignConfig = foreignConfig,
+            foreignInstallCommand = foreignInstall,
+            dockerComposeIran = dockerIran,
+            dockerComposeForeign = dockerForeign,
+            description = "تانل قدرتمند BackPack (توسعه‌یافته توسط AminMGMT): اتصال پورت ${cfg.iranPort} ایران به ${cfg.foreignPort} خارج با رمزنگاری ${cfg.transport.displayName} و پریست ${cfg.preset}."
+        )
     }
 
     // ── 1. Backhaul Generator ────────────────────────────────────────────────
