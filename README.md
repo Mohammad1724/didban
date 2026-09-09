@@ -1,6 +1,6 @@
 # Didban — دیدبان 👁️
 
-**Monitor your Linux servers from your pocket. Simple, elegant, and it tells you *what* ate your CPU last night.**
+**Your all-in-one Linux server monitoring & DevOps command center. Simple, featherweight, and it tells you *what* ate your CPU last night.**
 
 🇮🇷 [فارسی](README-fa.md) | 🇬🇧 English
 
@@ -8,37 +8,45 @@
 
 ## Why Didban?
 
-Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram alerts**, allows **1-tap process termination**, and probes your server globally with **Check-Host**.
+Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram alerts**, provides **live open ports & sockets**, allows **1-tap process termination**, and pairs with a powerhouse **mobile DevOps toolkit** (Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
 
-- 📊 **Live metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
-- 🕵️ **Spike log** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
-- ✈️ **Telegram instant alerts** — get rich Telegram alerts with top culprit processes whenever CPU/RAM spikes occur (proxy-friendly)
-- 🛑 **Remote process management** — search, inspect, and terminate (SIGTERM/SIGKILL) heavy or runaway processes straight from the app or API
-- 🌐 **Global Check-Host** — test server reachability (Ping, HTTP, TCP, DNS) from 20+ nodes worldwide (Germany, USA, Iran, France, etc.)
-- 📈 **History** — 24h of minute-resolution charts
-- 📱 **Android app** — bilingual (فارسی/English), dark theme, 1-click SSH auto-installer
+- 📊 **Live server metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
+- 🕵️ **Spike forensics** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
+- ✈️ **Telegram instant alerts** — get rich alerts with top culprit processes whenever CPU/RAM spikes occur (proxy-friendly)
+- 👂 **Listening ports & active connections** — live inspection of server ports, sockets, connected remote IPs, matched to PIDs and process names
+- 🛑 **Remote process killer** — search, inspect, and terminate (SIGTERM/SIGKILL) heavy or runaway processes straight from the app or API
+- ☁️ **Cloudflare DNS manager** — manage zones and DNS records (A, AAAA, CNAME, TXT, MX), toggle proxy status, and adjust TTL
+- 🌐 **Global Check-Host** — probe server reachability (Ping, HTTP, TCP, DNS) from 20+ nodes worldwide (Germany, USA, Iran, France, etc.)
+- 🛰️ **Network diagnostics** — multi-threaded Port Scanner, SSL Inspector (expiry countdown, SANs, chain), IP & GeoIP lookup, and TCP Pinger
+- 🔐 **Encrypted Vault & backup** — store confidential notes & credentials with AES-256-GCM encryption and export/import full backups
+- 📡 **Local Web Server & QR Code** — share files and text across local Wi-Fi with instant QR code downloading
+- 🛠️ **Developer Lab (String Lab)** — Base64, JSON formatter/minifier, Subnet/CIDR calculator, JWT decoder, Hashes, and UUID/Password generator
+- 📱 **Android app** — bilingual (فارسی/English), Obsidian dark theme, 1-click SSH auto-installer
 - 🔐 **Secure by default** — HTTPS with self-signed certs + token auth; the app pins the certificate fingerprint (SSH-style trust-on-first-use)
 - 🪶 **Featherweight** — single static Go binary (~8 MB), zero external dependencies, ~10 MB RAM, systemd-hardened
 
 ## Architecture
 
 ```
-┌────────────── Your phone ──────────────┐
-│  Didban Android app                    │
-│  • live dashboard + charts             │
-│  • spike log: "what ate the CPU?"      │
-│  • process killer (SIGTERM / SIGKILL)  │
-│  • global check-host multi-node probe  │
-└───────────────┬────────────────────────┘
-                │ HTTPS + Bearer token + cert pinning
-┌───────────────▼────────────────────────┐
-│  didban-agent (each server)            │
-│  • /api/metrics  /api/processes        │
-│  • /api/events   /api/history          │
-│  • /api/processes/kill                 │
-│  • instant Telegram alert dispatcher   │
-│  • records spikes 24/7 to disk         │
-└────────────────────────────────────────┘
+┌────────────────────────── Your phone ──────────────────────────┐
+│  Didban Android App (All-in-One Command Center)                │
+│  • Server Fleet Dashboard & 24h Charts                         │
+│  • Spike Log ("what ate the CPU?") + Process Killer            │
+│  • Listening Ports & Active Socket Connections                 │
+│  • Cloudflare DNS Manager (Zones, Records, Proxy)              │
+│  • Network Hub (Port Scanner, SSL Inspector, GeoIP, Ping)      │
+│  • Encrypted Vault & Backup (AES-256-GCM)                      │
+│  • Local File Sharing Server & QR Generator                    │
+│  • Developer Lab (Base64, JSON, CIDR, JWT, Generators)         │
+└───────────────────────────────┬────────────────────────────────┘
+                                │ HTTPS + Bearer token + cert pinning
+┌───────────────────────────────▼────────────────────────────────┐
+│  didban-agent (each server)                                    │
+│  • /api/metrics  /api/processes  /api/network/sockets          │
+│  • /api/events   /api/history    /api/processes/kill           │
+│  • Instant Telegram Alert Dispatcher                           │
+│  • records spikes 24/7 to disk                                 │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Install (one command per server)
@@ -114,6 +122,7 @@ All `/api/*` endpoints require `Authorization: Bearer <token>` (or `?token=`).
 | `GET` | `/health` | liveness (no auth) |
 | `GET` | `/api/metrics` | CPU (usage/user/system/iowait/**steal**), memory, swap, disks, network rates, load, uptime |
 | `GET` | `/api/processes` | top 25 processes by CPU (instant %, memory, user, cmd) |
+| `GET` | `/api/network/sockets` | listening ports & active TCP/UDP sockets matched to PIDs and process names |
 | `POST` | `/api/processes/kill` | terminate a runaway process safely (`{"pid": 1234, "signal": "SIGTERM"}`) |
 | `POST` | `/api/alerts/telegram/test` | dispatch a test alert to the configured Telegram chat |
 | `GET` | `/api/events?limit=50` | spike events (newest first) with top culprit processes |
@@ -161,6 +170,7 @@ Flags (or environment variables via `/etc/didban/agent.conf`):
 - HTTPS with an auto-generated self-signed certificate (10 years, all local IPs in SANs)
 - The Android app pins the certificate SHA-256 fingerprint — trust on first use, exactly like SSH host keys
 - Bearer-token auth, constant-time comparison, token stored `0600`
+- Encrypted Vault with AES-256-GCM + PBKDF2 (100,000 iterations)
 - Process killer safeguards: PID <= 1 and agent self-PID are strictly protected against signals
 - systemd hardening: read-only filesystem except data dir, no new privileges, private tmp
 

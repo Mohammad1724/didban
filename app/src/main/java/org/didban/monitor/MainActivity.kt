@@ -7,7 +7,21 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -16,9 +30,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
@@ -54,8 +73,6 @@ class MainActivity : ComponentActivity() {
 }
 
 // ── "Obsidian" premium dark palette ─────────────────────────────────────────
-// Every role is set explicitly — nothing is left to library defaults, so no
-// dark-on-dark text can ever appear.
 
 private val Bg0 = Color(0xFF090D16)        // deepest background
 private val Bg1 = Color(0xFF0D1320)        // surface
@@ -113,6 +130,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
+    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Network, 2: Cloudflare, 3: Vault, 4: DevLab, 5: Share
 
     val t = if (lang == "fa") Locales.fa else Locales.en
 
@@ -130,18 +148,67 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
         LocalLayoutDirection provides if (lang == "fa") LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
         MaterialTheme(colorScheme = DidbanColors) {
-            if (openServer == null) {
-                ServersScreen(
-                    t = t,
-                    onLanguage = { new ->
-                        lang = new
-                        Prefs.setLanguage(ctx, new)
-                    },
-                    onOpen = { openServer = it }
-                )
-            } else {
+            if (openServer != null) {
                 DashboardScreen(t = t, server = openServer!!, onBack = { openServer = null })
+            } else {
+                Column(Modifier.fillMaxSize().background(Bg0)) {
+                    Box(Modifier.weight(1f)) {
+                        when (currentNav) {
+                            0 -> ServersScreen(
+                                t = t,
+                                onLanguage = { new ->
+                                    lang = new
+                                    Prefs.setLanguage(ctx, new)
+                                },
+                                onOpen = { openServer = it }
+                            )
+                            1 -> NetworkHubScreen(t = t)
+                            2 -> CloudflareScreen(t = t)
+                            3 -> VaultScreen(t = t)
+                            4 -> DevLabScreen(t = t)
+                            5 -> LocalServerScreen(t = t)
+                        }
+                    }
+
+                    // ── Bottom Navigation Bar ──
+                    Surface(
+                        color = Bg1,
+                        modifier = Modifier.fillMaxWidth().height(60.dp),
+                        shadowElevation = 8.dp
+                    ) {
+                        Row(
+                            Modifier.fillMaxSize().padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            NavItem("👁️", t.navServers, currentNav == 0) { currentNav = 0 }
+                            NavItem("🛰️", t.navNetwork, currentNav == 1) { currentNav = 1 }
+                            NavItem("☁️", t.navCloudflare, currentNav == 2) { currentNav = 2 }
+                            NavItem("🔐", t.navVault, currentNav == 3) { currentNav = 3 }
+                            NavItem("🛠️", t.navTools, currentNav == 4) { currentNav = 4 }
+                            NavItem("📡", t.navShare, currentNav == 5) { currentNav = 5 }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun NavItem(emoji: String, label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .clickable { onClick() }
+            .padding(vertical = 4.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(emoji, fontSize = 16.sp)
+        Text(
+            label,
+            fontSize = 9.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

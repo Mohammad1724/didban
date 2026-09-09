@@ -53,6 +53,22 @@ data class ProcBrief(val name: String, val pid: Int, val cpu: Float, val memMb: 
 data class SpikeEvent(val time: Long, val type: String, val value: Float, val detail: String, val top: List<ProcBrief>)
 data class HistPoint(val t: Long, val cpu: Float, val mem: Float, val rx: Double, val tx: Double)
 
+data class SocketItem(
+    val proto: String,
+    val localIp: String,
+    val localPort: Int,
+    val remoteIp: String,
+    val remotePort: Int,
+    val state: String,
+    val pid: Int,
+    val process: String
+)
+
+data class SocketsData(
+    val listening: List<SocketItem>,
+    val connections: List<SocketItem>
+)
+
 data class ProcessKillResponse(
     val pid: Int,
     val name: String,
@@ -179,6 +195,51 @@ object JsonParse {
             ))
         }
         return out
+    }
+
+    fun sockets(o: JSONObject): SocketsData {
+        val listeningList = mutableListOf<SocketItem>()
+        val connList = mutableListOf<SocketItem>()
+
+        val la = o.optJSONArray("listening")
+        if (la != null) {
+            for (i in 0 until la.length()) {
+                val s = la.optJSONObject(i) ?: continue
+                listeningList.add(
+                    SocketItem(
+                        proto = s.optString("proto"),
+                        localIp = s.optString("local_ip"),
+                        localPort = s.optInt("local_port"),
+                        remoteIp = s.optString("remote_ip"),
+                        remotePort = s.optInt("remote_port"),
+                        state = s.optString("state"),
+                        pid = s.optInt("pid"),
+                        process = s.optString("process")
+                    )
+                )
+            }
+        }
+
+        val ca = o.optJSONArray("connections")
+        if (ca != null) {
+            for (i in 0 until ca.length()) {
+                val s = ca.optJSONObject(i) ?: continue
+                connList.add(
+                    SocketItem(
+                        proto = s.optString("proto"),
+                        localIp = s.optString("local_ip"),
+                        localPort = s.optInt("local_port"),
+                        remoteIp = s.optString("remote_ip"),
+                        remotePort = s.optInt("remote_port"),
+                        state = s.optString("state"),
+                        pid = s.optInt("pid"),
+                        process = s.optString("process")
+                    )
+                )
+            }
+        }
+
+        return SocketsData(listening = listeningList, connections = connList)
     }
 
     fun killResult(o: JSONObject): ProcessKillResponse {

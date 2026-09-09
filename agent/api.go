@@ -24,6 +24,7 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/processes/kill", a.auth(a.handleProcessKill))
+	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
 	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleTelegramTest))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
@@ -77,6 +78,14 @@ func (a *API) handleProcesses(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"processes": a.mon.Procs(),
 	})
+}
+
+func (a *API) handleNetworkSockets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, GetNetworkSockets())
 }
 
 type killRequest struct {

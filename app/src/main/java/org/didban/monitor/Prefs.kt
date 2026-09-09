@@ -47,4 +47,32 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("poll_sec", seconds.toString()).apply()
     }
+
+    fun getCfToken(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("cf_token", "") ?: ""
+
+    fun setCfToken(ctx: Context, token: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("cf_token", token.trim()).apply()
+    }
+
+    fun loadVaultNotes(ctx: Context, password: String): List<VaultNote> {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val rawEncrypted = sp.getString("vault_notes_enc", null) ?: return emptyList()
+        val jsonStr = EncryptedVault.decrypt(rawEncrypted, password)
+        val arr = JSONArray(jsonStr)
+        val list = mutableListOf<VaultNote>()
+        for (i in 0 until arr.length()) {
+            list.add(VaultNote.fromJson(arr.getJSONObject(i)))
+        }
+        return list
+    }
+
+    fun saveVaultNotes(ctx: Context, notes: List<VaultNote>, password: String) {
+        val arr = JSONArray()
+        notes.forEach { arr.put(it.toJson()) }
+        val enc = EncryptedVault.encrypt(arr.toString(), password)
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("vault_notes_enc", enc).apply()
+    }
 }

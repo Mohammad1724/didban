@@ -62,7 +62,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val api = remember { ApiClient() }
     var tab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 4 }
+    val pagerState = rememberPagerState(initialPage = 0) { 5 }
     val scope = rememberCoroutineScope()
 
     // Keep the tab chips and the pager in sync (swipe ↔ chip tap)
@@ -77,6 +77,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
+    var socketsData by remember { mutableStateOf<SocketsData?>(null) }
 
     // Kill process dialog state
     var procToKill by remember { mutableStateOf<Pair<Int, String>?>(null) } // (pid, name)
@@ -89,6 +90,12 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     fun refreshProcs() {
         scope.launch {
             try { procs = api.processes(server) } catch (_: Exception) { }
+        }
+    }
+
+    fun refreshSockets() {
+        scope.launch {
+            try { socketsData = api.sockets(server) } catch (_: Exception) { }
         }
     }
 
@@ -113,12 +120,12 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
         }
     }
 
-    // Fetch processes / events when their tab is opened
+    // Fetch tab data on switch
     LaunchedEffect(server.id, tab) {
-        if (tab == 1) {
-            try { procs = api.processes(server) } catch (_: Exception) { }
-        } else if (tab == 2) {
-            try { events = api.events(server, 50) } catch (_: Exception) { }
+        when (tab) {
+            1 -> refreshProcs()
+            2 -> { try { events = api.events(server, 50) } catch (_: Exception) { } }
+            3 -> refreshSockets()
         }
     }
 
@@ -179,7 +186,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             }
         }
 
-        // ── Tabs (Horizontal Scrollable Chips) ──
+        // ── Tabs (Horizontal Chips) ──
         Row(
             Modifier
                 .fillMaxWidth()
@@ -189,7 +196,8 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             TabChip(t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
             TabChip(t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
             TabChip(t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
-            TabChip(t.globalCheck, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
+            TabChip(t.portsAndSockets, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
+            TabChip(t.globalCheck, tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
             if (tab == 2) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { shareEvents(ctx, t, server, events) }) {
@@ -219,7 +227,8 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
                         killSignal = "SIGTERM"
                     }
                 )
-                3 -> GlobalCheckTab(t = t, defaultHost = server.host)
+                3 -> SocketsTab(t = t, data = socketsData, onRefresh = { refreshSockets() })
+                4 -> GlobalCheckTab(t = t, defaultHost = server.host)
             }
         }
     }
@@ -388,7 +397,7 @@ private fun OverviewTab(t: Str, m: Metrics?, hist: List<HistPoint>, err: String?
     }
 }
 
-// ── Processes Tab (with Search, Sort, and Kill action) ────────────────────────
+// ── Processes Tab ────────────────────────────────────────────────────────────
 
 @Composable
 private fun ProcessesTab(
@@ -407,7 +416,6 @@ private fun ProcessesTab(
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Search & Filter bar
         Row(
             Modifier.fillMaxWidth().padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -463,7 +471,6 @@ private fun ProcessesTab(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
-                            // Kill Button
                             Text(
                                 "🛑 ${t.kill}",
                                 fontSize = 11.sp,
@@ -481,7 +488,7 @@ private fun ProcessesTab(
     }
 }
 
-// ── Events ("what ate my CPU?") Tab (with Quick-Kill) ────────────────────────
+// ── Events Tab ───────────────────────────────────────────────────────────────
 
 @Composable
 private fun EventsTab(
@@ -564,13 +571,122 @@ private fun EventsTab(
     }
 }
 
-// ── Global Check-Host Tab (Check reachability from worldwide nodes) ──────────
+// ── Sockets & Ports Tab (Listening Ports & Active Connections) ───────────────
+
+@Composable
+private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
+    if (data == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    var showListeningOnly by remember { mutableStateOf(true) }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.clickable { showListeningOnly = true }
+            ) {
+                Text(
+                    "👂 ${t.listeningPorts} (${data.listening.size})",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 12.sp,
+                    color = if (showListeningOnly) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (!showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.clickable { showListeningOnly = false }
+            ) {
+                Text(
+                    "🔗 ${t.activeConnections} (${data.connections.size})",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 12.sp,
+                    color = if (!showListeningOnly) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onRefresh) { Text("🔄", fontSize = 14.sp) }
+        }
+
+        val itemsToShow = if (showListeningOnly) data.listening else data.connections
+
+        if (itemsToShow.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            return@Column
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(itemsToShow, key = { "${it.proto}-${it.localIp}-${it.localPort}-${it.remoteIp}-${it.remotePort}-${it.pid}" }) { s ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                        ) {
+                            Text(
+                                s.proto.uppercase(),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (showListeningOnly) "${s.localIp}:${s.localPort}" else "${s.localIp}:${s.localPort} ➔ ${s.remoteIp}:${s.remotePort}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (s.process.isNotEmpty()) {
+                                Text(
+                                    "${s.process} (PID ${s.pid})",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Text(
+                            s.state,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (s.state == "LISTEN" || s.state == "ESTABLISHED") Color(0xFF4ADE80) else Color(0xFF94A3B8)
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(20.dp)) }
+        }
+    }
+}
+
+// ── Global Check-Host Tab ───────────────────────────────────────────────────
 
 @Composable
 private fun GlobalCheckTab(t: Str, defaultHost: String) {
     val scope = rememberCoroutineScope()
     var targetHost by remember { mutableStateOf(defaultHost) }
-    var selectedType by remember { mutableStateOf("ping") } // ping, http, tcp, dns
+    var selectedType by remember { mutableStateOf("ping") }
     var tcpPort by remember { mutableStateOf("80") }
     var isChecking by remember { mutableStateOf(false) }
     var statusText by remember { mutableStateOf("") }
@@ -596,10 +712,9 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
                 for (i in 0 until 12) {
                     delay(1500)
                     val done = CheckHostService.pollResults(reqId, selectedType, nodes)
-                    nodes = nodes.toList() // trigger recompose
+                    nodes = nodes.toList()
                     if (done) break
                 }
-                // Mark remaining pending as failed
                 nodes.forEach { if (it.state == 0) { it.state = 2; it.resultText = "timeout" } }
                 nodes = nodes.toList()
                 val currentOk = nodes.count { it.state == 1 }
@@ -613,7 +728,6 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        // Target & Type Configuration
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -681,7 +795,6 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
             }
         }
 
-        // Status summary
         if (statusText.isNotBlank()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
@@ -695,7 +808,6 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
             }
         }
 
-        // Nodes list
         if (nodes.isEmpty() && !isChecking) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -729,8 +841,8 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = when (node.state) {
-                                1 -> Color(0xFF4ADE80) // OK green
-                                2 -> Color(0xFFF87171) // Fail red
+                                1 -> Color(0xFF4ADE80)
+                                2 -> Color(0xFFF87171)
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )

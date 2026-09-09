@@ -122,6 +122,9 @@ class ApiClient {
     suspend fun history(server: ServerConfig, hours: Int = 24): List<HistPoint> =
         withContext(Dispatchers.IO) { JsonParse.history(get(server, "/api/history?hours=$hours")) }
 
+    suspend fun sockets(server: ServerConfig): SocketsData =
+        withContext(Dispatchers.IO) { JsonParse.sockets(get(server, "/api/network/sockets")) }
+
     suspend fun killProcess(server: ServerConfig, pid: Int, signal: String = "SIGTERM"): ProcessKillResponse =
         withContext(Dispatchers.IO) {
             val body = JSONObject().apply {
