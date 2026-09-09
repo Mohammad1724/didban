@@ -4,9 +4,7 @@ package org.didban.monitor
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +13,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -32,15 +30,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,10 +42,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -99,216 +88,167 @@ fun UptimeScreen(t: Str) {
     val downCount = targets.count { it.lastStatus == 0 }
     val totalCount = targets.size
 
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
-        // ── Header ──
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconBadge(
-                    icon = Icons.Rounded.Timer,
-                    tint = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    size = 36.dp,
-                    iconSize = 18.dp
-                )
-                Text(t.uptimeMonitoring, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(Modifier.weight(1f))
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xFF0D9488),
-                modifier = Modifier.clickable { showAddDialog = true }
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("+ ${t.addMonitor}", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            }
-        }
-
-        // ── Explanatory Guide Card ──
-        FeatureGuideCard(
-            title = "پایش پایداری و سلامت سرویس‌ها",
-            description = t.guideUptime
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        PageHeader(
+            icon = Icons.Rounded.Timer,
+            title = t.uptimeMonitoring,
+            actionLabel = t.addMonitor,
+            onAction = { showAddDialog = true }
         )
 
-        Spacer(Modifier.height(8.dp))
-
-        // ── Summary Stats ──
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ModernSummaryCard("کل مانیتورها", totalCount.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-            ModernSummaryCard("آنلاین", upCount.toString(), Color(0xFF10B981), Modifier.weight(1f))
-            ModernSummaryCard("دارای قطعی", downCount.toString(), if (downCount > 0) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
-        }
-
-        Spacer(Modifier.height(10.dp))
-
-        // ── Monitors List or Empty State ──
-        if (targets.isEmpty()) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item {
-                    ModernCard(padding = 18.dp) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            IconBadge(
-                                icon = Icons.Rounded.Timer,
-                                tint = MaterialTheme.colorScheme.primary,
-                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                                size = 56.dp,
-                                iconSize = 28.dp
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Text("هنوز مانیتوری ثبت نشده است", fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                "با افزودن اولین مانیتور، وضعیت در دسترس بودن سرویس‌های شما به صورت خودکار چک می‌شود.",
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.5.sp,
-                                lineHeight = 16.sp
-                            )
-                            Spacer(Modifier.height(14.dp))
-                            PrimaryActionButton(
-                                text = "＋  ${t.addMonitor}",
-                                onClick = { showAddDialog = true }
-                            )
-                        }
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // ── Summary strip ──
+            item {
+                ModernCard(padding = 14.dp) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        SummaryTile(t.monitorsTotalLbl, totalCount.toString(), Ds.accent, Modifier.weight(1f))
+                        VerticalHairline()
+                        SummaryTile(t.upLbl, upCount.toString(), Ds.ok, Modifier.weight(1f))
+                        VerticalHairline()
+                        SummaryTile(t.withDowntimeLbl, downCount.toString(), if (downCount > 0) Ds.danger else Ds.textSecondary, Modifier.weight(1f))
                     }
                 }
             }
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            // ── Monitors list or empty state ──
+            if (targets.isEmpty()) {
+                item {
+                    ModernCard(padding = 18.dp) {
+                        EmptyState(
+                            title = t.noMonitorsTitle,
+                            hint = t.noMonitorsBody,
+                            radar = true
+                        )
+                        PrimaryActionButton(
+                            text = t.addMonitor,
+                            icon = Icons.Rounded.Add,
+                            onClick = { showAddDialog = true }
+                        )
+                    }
+                }
+            } else {
                 items(targets, key = { it.id }) { item ->
                     val isExpanded = expandedTargetId == item.id
 
                     ModernCard(
-                        padding = 12.dp,
-                        modifier = Modifier.clickable { expandedTargetId = if (isExpanded) null else item.id }
+                        padding = 14.dp,
+                        onClick = { expandedTargetId = if (isExpanded) null else item.id }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Status Dot
-                            PulseDot(
-                                isOnline = item.lastStatus == 1,
-                                size = 10.dp
-                            )
+                            PulseDot(isOnline = item.lastStatus == 1, size = 9.dp)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                    Spacer(Modifier.width(6.dp))
-                                    Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                        Text(item.type, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
-                                    }
+                                    Text(
+                                        item.name,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Ds.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    Spacer(Modifier.width(7.dp))
+                                    ValuePill(item.type, Ds.accent)
                                 }
-                                Text(item.target, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace)
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    item.target,
+                                    fontSize = 11.sp,
+                                    color = Ds.textTertiary,
+                                    fontFamily = Telemetry,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     "%.1f%%".format(Locale.US, item.uptimePct),
-                                    fontSize = 13.5.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (item.uptimePct > 98f) Color(0xFF10B981) else Color(0xFFEF4444)
+                                    fontFamily = Telemetry,
+                                    color = if (item.uptimePct > 98f) Ds.ok else Ds.danger
                                 )
                                 Text(
                                     if (item.lastLatencyMs > 0) "${item.lastLatencyMs} ms" else "—",
                                     fontSize = 10.5.sp,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = Ds.accent,
+                                    fontFamily = Telemetry
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
 
-                        // ── 30 Heartbeat Bars (Uptime Kuma Style) ──
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(2.5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val emptyBars = (30 - item.heartbeats.size).coerceAtLeast(0)
-                            repeat(emptyBars) {
-                                Box(
-                                    Modifier.weight(1f).height(14.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), RoundedCornerShape(3.dp))
-                                )
-                            }
-                            item.heartbeats.takeLast(30).forEach { hb ->
-                                Box(
-                                    Modifier.weight(1f).height(14.dp)
-                                        .background(
-                                            if (hb.status == 1) Color(0xFF10B981) else Color(0xFFEF4444),
-                                            RoundedCornerShape(3.dp)
-                                        )
-                                )
-                            }
-                        }
+                        // ── 30 Heartbeat bars (Uptime Kuma style) ──
+                        HeartbeatBar(statuses = item.heartbeats.map { it.status })
 
-                        // ── Expanded Incidents & Actions ──
+                        // ── Expanded: incidents & actions ──
                         if (isExpanded) {
-                            Spacer(Modifier.height(10.dp))
-                            Text("تاریخچه حوادث و قطعی‌ها:", fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
-                            Spacer(Modifier.height(3.dp))
+                            Spacer(Modifier.height(14.dp))
+                            SectionLabel(t.incidentHistory)
+                            Spacer(Modifier.height(6.dp))
 
                             if (item.incidents.isEmpty()) {
-                                Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(t.noIncidents, fontSize = 10.5.sp, color = Ds.textTertiary)
                             } else {
                                 val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
                                 item.incidents.takeLast(3).reversed().forEach { inc ->
-                                    val start = fmt.format(Date(inc.startTime))
-                                    val dur = inc.durationSec
                                     Text(
-                                        "• $start — قطعی به مدت ${dur} ثانیه (${inc.error})",
+                                        t.incidentTpl.format(fmt.format(Date(inc.startTime)), inc.durationSec, inc.error),
                                         fontSize = 10.5.sp,
-                                        color = Color(0xFFEF4444)
+                                        color = Ds.danger,
+                                        lineHeight = 15.5.sp
                                     )
                                 }
                             }
 
-                            Spacer(Modifier.height(8.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(onClick = {
-                                    item.isPaused = !item.isPaused
-                                    saveTargets()
-                                }) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(13.dp))
-                                        Text(if (item.isPaused) "ادامه پایش" else "توقف موقت", fontSize = 11.sp)
-                                    }
-                                }
-                                TextButton(onClick = {
-                                    scope.launch {
-                                        UptimeEngine.checkTarget(item, ctx)
+                            Spacer(Modifier.height(10.dp))
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SoftButton(
+                                    text = if (item.isPaused) t.resumeWatch else t.pauseWatch,
+                                    onClick = {
+                                        item.isPaused = !item.isPaused
                                         saveTargets()
-                                        Toast.makeText(ctx, "وضعیت به‌روزرسانی شد", Toast.LENGTH_SHORT).show()
-                                    }
-                                }) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
-                                        Text("بررسی مجدد", fontSize = 11.sp)
-                                    }
-                                }
-                                TextButton(onClick = {
-                                    deleteTarget = item
-                                }) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
-                                        Text("حذف", color = Color(0xFFEF4444), fontSize = 11.sp)
-                                    }
-                                }
+                                    },
+                                    icon = if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                SoftButton(
+                                    text = t.recheckNow,
+                                    onClick = {
+                                        scope.launch {
+                                            UptimeEngine.checkTarget(item, ctx)
+                                            saveTargets()
+                                            Toast.makeText(ctx, t.statusUpdated, Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    icon = Icons.Rounded.Refresh
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                SoftButton(
+                                    text = t.delete,
+                                    onClick = { deleteTarget = item },
+                                    icon = Icons.Rounded.DeleteOutline,
+                                    tone = Ds.danger,
+                                    toneDim = Ds.dangerDim
+                                )
                             }
                         }
                     }
                 }
                 item {
-                    Spacer(Modifier.height(6.dp))
-                    PrimaryActionButton(
-                        text = "＋  ${t.addMonitor}",
+                    Spacer(Modifier.height(4.dp))
+                    SecondaryActionCard(
+                        title = t.addMonitor,
+                        icon = Icons.Rounded.Add,
                         onClick = { showAddDialog = true }
                     )
                     Spacer(Modifier.height(40.dp))
@@ -335,20 +275,28 @@ fun UptimeScreen(t: Str) {
         )
     }
 
+    editTarget?.let { et ->
+        AddOrEditMonitorDialog(
+            t = t,
+            existing = et,
+            onDismiss = { editTarget = null },
+            onSave = { editTarget = null; saveTargets() }
+        )
+    }
+
     // ── Delete Confirmation Dialog ──
     deleteTarget?.let { dt ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("حذف مانیتور", fontWeight = FontWeight.Bold) },
-            text = { Text("آیا از حذف مانیتور «${dt.name}» اطمینان دارید؟") },
+            title = { Text(t.deleteMonitorTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(t.confirmDeleteMonitorTpl.format(dt.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     targets = targets.filter { it.id != dt.id }
                     saveTargets()
                     deleteTarget = null
                 }) {
-                    Text("حذف", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text(t.delete, color = Ds.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -358,7 +306,32 @@ fun UptimeScreen(t: Str) {
     }
 }
 
-// ── Add/Edit Monitor Dialog Form ────────────────────────────────────────────
+@Composable
+private fun SummaryTile(label: String, value: String, tone: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = Telemetry,
+            color = tone
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
+    }
+}
+
+@Composable
+private fun VerticalHairline() {
+    Box(
+        Modifier
+            .width(1.dp)
+            .height(34.dp)
+            .background(Ds.hairline)
+    )
+}
+
+// ── Add/Edit Monitor Dialog ─────────────────────────────────────────────────
 
 @Composable
 private fun AddOrEditMonitorDialog(
@@ -380,81 +353,71 @@ private fun AddOrEditMonitorDialog(
     var testResult by remember { mutableStateOf<String?>(null) }
     var testSuccess by remember { mutableStateOf(false) }
 
+    val types = listOf("HTTP", "TCP", "PING", "KEYWORD", "SSL")
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
         title = {
-            Text(if (existing == null) t.addMonitor else "ویرایش مانیتور", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(if (existing == null) t.addMonitor else t.editMonitorTitle, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         },
         text = {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth().height(380.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth().height(400.dp).imePadding()
             ) {
                 item {
-                    OutlinedTextField(
+                    DTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("نام دلخواه مانیتور") },
-                        singleLine = true,
+                        label = t.monitorNameLbl,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 item {
-                    Text("نوع پروتکل:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        listOf("HTTP", "TCP", "PING", "KEYWORD", "SSL").forEach { tp ->
-                            val isSel = type == tp
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
-                                border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier.clickable {
-                                    type = tp
-                                    if (tp == "SSL" && port == "80") port = "443"
-                                    if (tp == "TCP" && port == "80") port = "5432"
-                                }
-                            ) {
-                                Text(
-                                    tp,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
-                                    fontSize = 10.sp,
-                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                    Column {
+                        Text(
+                            t.protocolTypeLbl,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Ds.textTertiary,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                        )
+                        SegmentedTabs(
+                            tabs = types.map { TabSpec(it) },
+                            selected = types.indexOf(type),
+                            onSelect = {
+                                type = types[it]
+                                if (type == "SSL" && port == "80") port = "443"
+                                if (type == "TCP" && port == "80") port = "5432"
+                            },
+                            scrollable = true
+                        )
                     }
                 }
 
                 item {
-                    OutlinedTextField(
+                    DTextField(
                         value = targetUrl,
                         onValueChange = { targetUrl = it },
-                        label = {
-                            Text(
-                                when (type) {
-                                    "TCP" -> "آدرس IP یا هاست (مثلاً 1.2.3.4)"
-                                    "PING" -> "آدرس IP یا دامنه (مثلاً 8.8.8.8)"
-                                    "SSL" -> "دامنه (مثلاً google.com)"
-                                    else -> "آدرس وبسایت (مثلاً https://example.com)"
-                                }
-                            )
+                        label = when (type) {
+                            "TCP" -> "IP / host (e.g. 1.2.3.4)"
+                            "PING" -> "IP / domain (e.g. 8.8.8.8)"
+                            "SSL" -> "domain (e.g. google.com)"
+                            else -> "https://example.com"
                         },
-                        singleLine = true,
+                        mono = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 if (type == "TCP" || type == "SSL") {
                     item {
-                        OutlinedTextField(
+                        DTextField(
                             value = port,
                             onValueChange = { port = it },
-                            label = { Text("شماره پورت (مثلاً 443, 80, 5432, 3306, 6379, 22)") },
-                            singleLine = true,
+                            label = t.monitorPortLbl,
+                            mono = true,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -462,51 +425,33 @@ private fun AddOrEditMonitorDialog(
 
                 if (type == "KEYWORD") {
                     item {
-                        OutlinedTextField(
+                        DTextField(
                             value = keyword,
                             onValueChange = { keyword = it },
-                            label = { Text("کلمه کلیدی مورد انتظار (مثلاً ok یا status)") },
-                            singleLine = true,
+                            label = t.monitorKeywordLbl,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
 
-                // Live Test Feedback
+                // Live test feedback
                 if (testResult != null) {
                     item {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (testSuccess) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
-                                    contentDescription = null,
-                                    tint = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626),
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    testResult!!,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626)
-                                )
-                            }
-                        }
+                        Banner(
+                            tone = if (testSuccess) BannerTone.Ok else BannerTone.Danger,
+                            text = testResult!!,
+                            icon = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline
+                        )
                     }
                 }
 
-                // Quick Test Button
+                // Quick test button
                 item {
-                    OutlinedButton(
+                    SecondaryActionCard(
+                        title = t.testBeforeSave,
+                        icon = Icons.Rounded.Bolt,
                         onClick = {
-                            if (targetUrl.isBlank()) return@OutlinedButton
+                            if (targetUrl.isBlank()) return@SecondaryActionCard
                             isTesting = true
                             testResult = null
                             scope.launch {
@@ -522,30 +467,19 @@ private fun AddOrEditMonitorDialog(
                                 isTesting = false
                                 if (hb.status == 1) {
                                     testSuccess = true
-                                    testResult = "پاسخ دریافت شد! (زمان پاسخ: ${hb.latencyMs} میلی‌ثانیه)"
+                                    testResult = t.probeOkTpl.format(hb.latencyMs)
                                 } else {
                                     testSuccess = false
-                                    testResult = "پاسخ دریافت نشد یا خطایی رخ داد"
+                                    testResult = t.probeFail
                                 }
                             }
-                        },
-                        enabled = !isTesting && targetUrl.isNotBlank(),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth().height(42.dp)
-                    ) {
-                        if (isTesting) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
-                        else {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(15.dp))
-                                Text("تست اتصال قبل از ذخیره", fontSize = 11.sp)
-                            }
                         }
-                    }
+                    )
                 }
             }
         },
         confirmButton = {
-            Button(
+            androidx.compose.material3.Button(
                 onClick = {
                     if (name.isNotBlank() && targetUrl.isNotBlank()) {
                         val newTarget = existing ?: UptimeTarget(
@@ -567,23 +501,21 @@ private fun AddOrEditMonitorDialog(
                     }
                 },
                 enabled = name.isNotBlank() && targetUrl.isNotBlank(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = Ds.accent,
+                    contentColor = Ds.onAccent
+                )
             ) {
-                Text(t.save, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                if (isTesting) {
+                    CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = Ds.onAccent)
+                } else {
+                    Text(t.save, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(t.cancel, fontSize = 12.sp) }
         }
     )
-}
-
-@Composable
-private fun ModernSummaryCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    ModernCard(modifier = modifier, padding = 10.dp) {
-        Text(title, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = color)
-    }
 }

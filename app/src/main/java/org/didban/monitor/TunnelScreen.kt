@@ -142,55 +142,18 @@ fun TunnelScreen(t: Str) {
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // ── 1. Top Hero Header ──
+        // ── 1. Page header ──
         item {
-            Spacer(Modifier.height(4.dp))
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    IconBadge(
-                        icon = Icons.Rounded.SwapHoriz,
-                        tint = Color(0xFF0D9488),
-                        background = Color(0xFF0D9488).copy(alpha = 0.15f),
-                        size = 40.dp,
-                        iconSize = 24.dp
-                    )
-                    Column {
-                        Text(
-                            t.tunnelsHub,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "مدیریت و استقرار هوشمند تانل دو سرور",
-                            fontSize = 10.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF0D9488),
-                    modifier = Modifier.clickable { showAddDialog = true }
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Text(t.addTunnel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-            }
+            PageHeader(
+                icon = Icons.Rounded.SwapHoriz,
+                title = t.tunnelsHub,
+                subtitle = "مدیریت و استقرار هوشمند تانل دو سرور",
+                actionLabel = t.addTunnel,
+                onAction = { showAddDialog = true }
+            )
         }
 
         // ── 2. Bento Stat Summary ──
@@ -207,12 +170,12 @@ fun TunnelScreen(t: Str) {
                         Text("آنلاین و متصل", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.height(2.dp))
-                    Text(activeTunnels.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF10B981))
+                    Text(activeTunnels.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Ds.ok)
                 }
                 ModernCard(Modifier.weight(1f), padding = 10.dp) {
                     Text("هسته‌های فعال", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(2.dp))
-                    Text(uniqueCores.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF6366F1))
+                    Text(uniqueCores.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Ds.violet)
                 }
             }
         }
@@ -341,16 +304,16 @@ fun TunnelScreen(t: Str) {
         } else {
             items(filteredTunnels, key = { it.id }) { tun ->
                 val coreBadgeColor = when (tun.core) {
-                    TunnelCore.BACKPACK -> Color(0xFFF97316)
-                    TunnelCore.PAQET -> Color(0xFF0284C7)
-                    TunnelCore.NARNIA -> Color(0xFF8B5CF6)
-                    TunnelCore.SPOOF_TUNNEL -> Color(0xFFF43F5E)
-                    TunnelCore.BACKHAUL -> Color(0xFF0D9488)
-                    TunnelCore.RATHOLE -> Color(0xFFEA580C)
-                    TunnelCore.GOST -> Color(0xFF2563EB)
-                    TunnelCore.CHISEL -> Color(0xFF7C3AED)
-                    TunnelCore.FRP -> Color(0xFFDC2626)
-                    TunnelCore.IPTABLES -> Color(0xFF475569)
+                    TunnelCore.BACKPACK -> Ds.warn
+                    TunnelCore.PAQET -> Ds.info
+                    TunnelCore.NARNIA -> Ds.violet
+                    TunnelCore.SPOOF_TUNNEL -> Ds.danger
+                    TunnelCore.BACKHAUL -> Ds.accent
+                    TunnelCore.RATHOLE -> Ds.warn
+                    TunnelCore.GOST -> Ds.info
+                    TunnelCore.CHISEL -> Ds.violet
+                    TunnelCore.FRP -> Ds.danger
+                    TunnelCore.IPTABLES -> Ds.textSecondary
                 }
 
                 val ports = remember(tun) { TunnelEngine.parsePortMappings(tun) }
@@ -376,14 +339,14 @@ fun TunnelScreen(t: Str) {
                         }
                         Spacer(Modifier.width(6.dp))
                         if (tun.autoSync) {
-                            Surface(shape = RoundedCornerShape(7.dp), color = Color(0xFF10B981).copy(alpha = 0.12f)) {
+                            Surface(shape = RoundedCornerShape(7.dp), color = Ds.ok.copy(alpha = 0.12f)) {
                                 Row(
                                     Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Icon(Icons.Rounded.CloudDone, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(11.dp))
-                                    Text("سینک خودکار", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                    Icon(Icons.Rounded.CloudDone, contentDescription = null, tint = Ds.ok, modifier = Modifier.size(11.dp))
+                                    Text("سینک خودکار", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Ds.ok)
                                 }
                             }
                         }
@@ -426,7 +389,7 @@ fun TunnelScreen(t: Str) {
                                         tun.iranHost.ifBlank { "0.0.0.0" },
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace
+                                        fontFamily = Telemetry
                                     )
                                 }
 
@@ -456,7 +419,7 @@ fun TunnelScreen(t: Str) {
                                         tun.foreignHost.ifBlank { "127.0.0.1" },
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        fontFamily = FontFamily.Monospace,
+                                        fontFamily = Telemetry,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -468,9 +431,9 @@ fun TunnelScreen(t: Str) {
                                 Text(
                                     portsSummary,
                                     fontSize = 11.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    fontFamily = Telemetry,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0D9488)
+                                    color = Ds.accent
                                 )
                             }
                         }
@@ -552,7 +515,7 @@ fun TunnelScreen(t: Str) {
                             onClick = { deletingTunnel = tun },
                             modifier = Modifier.size(28.dp)
                         ) {
-                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Ds.danger, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
@@ -635,7 +598,7 @@ fun TunnelScreen(t: Str) {
                         Toast.makeText(ctx, "تانل حذف و سرویس مربوطه خاموش شد", Toast.LENGTH_SHORT).show()
                     }
                 }) {
-                    Text(t.delete, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text(t.delete, color = Ds.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -647,19 +610,7 @@ fun TunnelScreen(t: Str) {
 
 @Composable
 private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
-        )
-    }
+    TagChip(label = label, selected = selected, onClick = onClick)
 }
 
 // ── Add / Edit Tunnel Dialog ────────────────────────────────────────────────
@@ -732,8 +683,8 @@ private fun AddOrEditTunnelDialog(
                 item {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0D9488).copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.25f)),
+                        color = Ds.accent.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, Ds.accent.copy(alpha = 0.25f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -743,8 +694,8 @@ private fun AddOrEditTunnelDialog(
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Rounded.CloudSync, contentDescription = null, tint = Color(0xFF0D9488), modifier = Modifier.size(16.dp))
-                                    Text("همگام‌سازی و اعمال خودکار (Smite)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFF0D9488))
+                                    Icon(Icons.Rounded.CloudSync, contentDescription = null, tint = Ds.accent, modifier = Modifier.size(16.dp))
+                                    Text("همگام‌سازی و اعمال خودکار (Smite)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Ds.accent)
                                 }
                                 Text("نصب و روشن شدن خودکار تانل روی هر دو سرور بدون نیاز به اجرای دستور در SSH.", fontSize = 9.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -777,16 +728,16 @@ private fun AddOrEditTunnelDialog(
                         TunnelCore.values().forEach { c ->
                             val isSel = core == c
                             val badgeColor = when (c) {
-                                TunnelCore.BACKPACK -> Color(0xFFF97316)
-                                TunnelCore.PAQET -> Color(0xFF0284C7)
-                                TunnelCore.NARNIA -> Color(0xFF8B5CF6)
-                                TunnelCore.SPOOF_TUNNEL -> Color(0xFFF43F5E)
-                                TunnelCore.BACKHAUL -> Color(0xFF0D9488)
-                                TunnelCore.RATHOLE -> Color(0xFFEA580C)
-                                TunnelCore.GOST -> Color(0xFF2563EB)
-                                TunnelCore.CHISEL -> Color(0xFF7C3AED)
-                                TunnelCore.FRP -> Color(0xFFDC2626)
-                                TunnelCore.IPTABLES -> Color(0xFF475569)
+                                TunnelCore.BACKPACK -> Ds.warn
+                                TunnelCore.PAQET -> Ds.info
+                                TunnelCore.NARNIA -> Ds.violet
+                                TunnelCore.SPOOF_TUNNEL -> Ds.danger
+                                TunnelCore.BACKHAUL -> Ds.accent
+                                TunnelCore.RATHOLE -> Ds.warn
+                                TunnelCore.GOST -> Ds.info
+                                TunnelCore.CHISEL -> Ds.violet
+                                TunnelCore.FRP -> Ds.danger
+                                TunnelCore.IPTABLES -> Ds.textSecondary
                             }
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
@@ -809,7 +760,7 @@ private fun AddOrEditTunnelDialog(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     fontSize = 11.sp,
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                    color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -855,15 +806,15 @@ private fun AddOrEditTunnelDialog(
                         // Live Parsed Ports Info
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF0D9488).copy(alpha = 0.1f),
+                            color = Ds.accent.copy(alpha = 0.1f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 "📡 پورت‌های تشخیص‌داده‌شده (${parsedPorts.size} پورت): " + parsedPorts.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF0D9488),
+                                fontFamily = Telemetry,
+                                color = Ds.accent,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -897,7 +848,7 @@ private fun AddOrEditTunnelDialog(
                                     val isSel = transport == tp
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Color(0xFFF97316) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        color = if (isSel) Ds.warn else MaterialTheme.colorScheme.surfaceContainerHigh,
                                         modifier = Modifier.clickable { transport = tp }
                                     ) {
                                         Text(
@@ -905,7 +856,7 @@ private fun AddOrEditTunnelDialog(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             fontSize = 10.5.sp,
                                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -930,7 +881,7 @@ private fun AddOrEditTunnelDialog(
                                     val isSel = preset == pKey
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        color = if (isSel) Ds.accent else MaterialTheme.colorScheme.surfaceContainerHigh,
                                         modifier = Modifier.clickable { preset = pKey }
                                     ) {
                                         Text(
@@ -938,7 +889,7 @@ private fun AddOrEditTunnelDialog(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             fontSize = 10.5.sp,
                                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -985,7 +936,7 @@ private fun AddOrEditTunnelDialog(
                                     val isSel = kcpMode == mKey
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Color(0xFF0284C7) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        color = if (isSel) Ds.info else MaterialTheme.colorScheme.surfaceContainerHigh,
                                         modifier = Modifier.clickable { kcpMode = mKey }
                                     ) {
                                         Text(
@@ -993,7 +944,7 @@ private fun AddOrEditTunnelDialog(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                             fontSize = 10.5.sp,
                                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -1220,7 +1171,7 @@ private fun AddOrEditTunnelDialog(
                     }
                 },
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
             ) {
                 Text(t.save, fontWeight = FontWeight.Bold)
             }
@@ -1287,8 +1238,8 @@ private fun ViewTunnelCodeDialog(
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFF0F172A),
-                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    color = Ds.surfaceLow,
+                    border = BorderStroke(1.dp, Ds.hairlineStrong),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -1298,8 +1249,8 @@ private fun ViewTunnelCodeDialog(
                             Text(
                                 contentToShow,
                                 fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFFF1F5F9),
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary,
                                 lineHeight = 14.sp
                             )
                         }
@@ -1325,18 +1276,5 @@ private fun ViewTunnelCodeDialog(
 
 @Composable
 private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-            fontSize = 10.5.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    TagChip(label = label, selected = selected, onClick = onClick)
 }

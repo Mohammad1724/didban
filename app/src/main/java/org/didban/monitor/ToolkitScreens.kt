@@ -114,18 +114,8 @@ fun NetworkHubScreen(t: Str) {
         Icons.Rounded.Sensors to "پینگ مداوم TCP"
     )
 
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconBadge(
-                icon = Icons.Rounded.Public,
-                tint = MaterialTheme.colorScheme.primary,
-                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                size = 36.dp,
-                iconSize = 18.dp
-            )
-            Text(t.networkHub, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        }
-        Spacer(Modifier.height(8.dp))
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp)) {
+        PageHeader(icon = Icons.Rounded.Public, title = t.networkHub)
 
         // ── Smooth Horizontally Scrollable Tab Bar (Vector Icons) ──
         Row(
@@ -139,8 +129,8 @@ fun NetworkHubScreen(t: Str) {
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    color = if (selected) Ds.accent else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, if (selected) Ds.accent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     shadowElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier.clickable { scope.launch { pagerState.animateScrollToPage(index) } }
                 ) {
@@ -152,14 +142,14 @@ fun NetworkHubScreen(t: Str) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (selected) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             title,
                             fontSize = 11.5.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (selected) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -274,7 +264,7 @@ private fun CheckHostHubTab(t: Str) {
                             val selected = selectedType == type
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                                color = if (selected) Ds.accent else MaterialTheme.colorScheme.surfaceContainer,
                                 border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                                 modifier = Modifier.clickable { selectedType = type }
                             ) {
@@ -283,7 +273,7 @@ private fun CheckHostHubTab(t: Str) {
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                     fontSize = 11.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (selected) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -356,8 +346,8 @@ private fun CheckHostHubTab(t: Str) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = when (node.state) {
-                                1 -> Color(0xFF10B981).copy(alpha = 0.15f)
-                                2 -> Color(0xFFEF4444).copy(alpha = 0.15f)
+                                1 -> Ds.ok.copy(alpha = 0.15f)
+                                2 -> Ds.danger.copy(alpha = 0.15f)
                                 else -> MaterialTheme.colorScheme.surfaceContainerHigh
                             }
                         ) {
@@ -367,8 +357,8 @@ private fun CheckHostHubTab(t: Str) {
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when (node.state) {
-                                    1 -> Color(0xFF047857)
-                                    2 -> Color(0xFFDC2626)
+                                    1 -> Ds.ok
+                                    2 -> Ds.danger
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
                             )
@@ -449,10 +439,10 @@ private fun CensorshipTab(t: Str) {
                             onClick = { runTest() },
                             enabled = !isTesting && host.isNotBlank(),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+                            colors = ButtonDefaults.buttonColors(containerColor = Ds.accent),
                             modifier = Modifier.weight(1f).height(50.dp)
                         ) {
-                            if (isTesting) CircularProgressIndicator(Modifier.size(15.dp), color = Color.White)
+                            if (isTesting) CircularProgressIndicator(Modifier.size(15.dp), color = Ds.onAccent)
                             else {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -469,15 +459,15 @@ private fun CensorshipTab(t: Str) {
             item {
                 ModernCard(
                     padding = 12.dp,
-                    containerColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
-                    borderColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.35f) else Color(0xFF10B981).copy(alpha = 0.35f)
+                    containerColor = if (r.isFiltered) Ds.danger.copy(alpha = 0.12f) else Ds.ok.copy(alpha = 0.12f),
+                    borderColor = if (r.isFiltered) Ds.danger.copy(alpha = 0.35f) else Ds.ok.copy(alpha = 0.35f)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             r.diagnosis,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (r.isFiltered) Color(0xFFDC2626) else Color(0xFF047857)
+                            color = if (r.isFiltered) Ds.danger else Ds.ok
                         )
                         Text("مقصد: ${r.host}:${r.port} (تاخیر: ${r.latencyMs}ms)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(3.dp))
@@ -488,10 +478,10 @@ private fun CensorshipTab(t: Str) {
                                 Icon(
                                     imageVector = if (r.tcpReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                                     contentDescription = null,
-                                    tint = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    tint = if (r.tcpReachable) Ds.ok else Ds.danger,
                                     modifier = Modifier.size(14.dp)
                                 )
-                                Text(if (r.tcpReachable) "متصل شد" else "ناموفق", fontWeight = FontWeight.Bold, color = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 11.sp)
+                                Text(if (r.tcpReachable) "متصل شد" else "ناموفق", fontWeight = FontWeight.Bold, color = if (r.tcpReachable) Ds.ok else Ds.danger, fontSize = 11.sp)
                             }
                         }
 
@@ -501,15 +491,15 @@ private fun CensorshipTab(t: Str) {
                                 Icon(
                                     imageVector = if (r.tlsReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                                     contentDescription = null,
-                                    tint = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    tint = if (r.tlsReachable) Ds.ok else Ds.danger,
                                     modifier = Modifier.size(14.dp)
                                 )
-                                Text(if (r.tlsReachable) "موفق" else "اختلال فیلترینگ", fontWeight = FontWeight.Bold, color = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 11.sp)
+                                Text(if (r.tlsReachable) "موفق" else "اختلال فیلترینگ", fontWeight = FontWeight.Bold, color = if (r.tlsReachable) Ds.ok else Ds.danger, fontSize = 11.sp)
                             }
                         }
 
                         Spacer(Modifier.height(3.dp))
-                        Text("گزارش:\n${r.details}", fontSize = 10.5.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("گزارش:\n${r.details}", fontSize = 10.5.sp, fontFamily = Telemetry, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -592,15 +582,15 @@ private fun PortScannerTab(t: Str) {
             items(results, key = { it.port }) { r ->
                 ModernCard(padding = 9.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF10B981).copy(alpha = 0.15f)) {
-                            Text("PORT ${r.port}", modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp), fontSize = 10.5.sp, color = Color(0xFF047857), fontWeight = FontWeight.Bold)
+                        Surface(shape = RoundedCornerShape(6.dp), color = Ds.ok.copy(alpha = 0.15f)) {
+                            Text("PORT ${r.port}", modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp), fontSize = 10.5.sp, color = Ds.ok, fontWeight = FontWeight.Bold)
                         }
                         Spacer(Modifier.width(8.dp))
                         Column(Modifier.weight(1f)) {
                             Text(r.service, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                             Text("${r.latencyMs} ms", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("OPEN", fontSize = 11.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
+                        Text("OPEN", fontSize = 11.sp, color = Ds.ok, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -676,10 +666,10 @@ private fun SslInspectorTab(t: Str) {
                             onClick = { checkSsl() },
                             enabled = !isLoading && host.isNotBlank(),
                             shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+                            colors = ButtonDefaults.buttonColors(containerColor = Ds.accent),
                             modifier = Modifier.weight(1f).height(50.dp)
                         ) {
-                            if (isLoading) CircularProgressIndicator(Modifier.size(15.dp), color = Color.White)
+                            if (isLoading) CircularProgressIndicator(Modifier.size(15.dp), color = Ds.onAccent)
                             else {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                     Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(15.dp))
@@ -695,8 +685,8 @@ private fun SslInspectorTab(t: Str) {
         if (err != null) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                    Text("خطا: $err", color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                    Text("خطا: $err", color = Ds.danger, fontSize = 11.5.sp)
                 }
             }
         }
@@ -705,21 +695,21 @@ private fun SslInspectorTab(t: Str) {
             item {
                 ModernCard(
                     padding = 12.dp,
-                    containerColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
-                    borderColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.35f) else Color(0xFF10B981).copy(alpha = 0.35f)
+                    containerColor = if (c.isExpired || c.daysRemaining < 7) Ds.danger.copy(alpha = 0.12f) else Ds.ok.copy(alpha = 0.12f),
+                    borderColor = if (c.isExpired || c.daysRemaining < 7) Ds.danger.copy(alpha = 0.35f) else Ds.ok.copy(alpha = 0.35f)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         Icon(
                             imageVector = if (c.isExpired) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle,
                             contentDescription = null,
-                            tint = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857),
+                            tint = if (c.isExpired) Ds.danger else Ds.ok,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
                             if (c.isExpired) "گواهی منقضی شده است!" else "معتبر (${c.daysRemaining} روز باقی‌مانده)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857)
+                            color = if (c.isExpired) Ds.danger else Ds.ok
                         )
                     }
                     Spacer(Modifier.height(3.dp))
@@ -730,9 +720,9 @@ private fun SslInspectorTab(t: Str) {
             item {
                 ModernCard(padding = 10.dp) {
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("دامنه (Subject): ${c.subject}", fontSize = 10.5.sp, fontFamily = FontFamily.Monospace)
-                        Text("صادرکننده (Issuer): ${c.issuer}", fontSize = 10.5.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("اثر انگشت SHA-256:\n${c.fingerprintSha256}", fontSize = 9.5.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
+                        Text("دامنه (Subject): ${c.subject}", fontSize = 10.5.sp, fontFamily = Telemetry)
+                        Text("صادرکننده (Issuer): ${c.issuer}", fontSize = 10.5.sp, fontFamily = Telemetry, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("اثر انگشت SHA-256:\n${c.fingerprintSha256}", fontSize = 9.5.sp, fontFamily = Telemetry, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -803,12 +793,12 @@ private fun IpInfoTab(t: Str) {
             item {
                 ModernCard(
                     padding = 10.dp,
-                    containerColor = Color(0xFFEF4444).copy(alpha = 0.12f),
-                    borderColor = Color(0xFFEF4444).copy(alpha = 0.35f)
+                    containerColor = Ds.danger.copy(alpha = 0.12f),
+                    borderColor = Ds.danger.copy(alpha = 0.35f)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                        Text(err!!, color = Color(0xFFEF4444), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(16.dp))
+                        Text(err!!, color = Ds.danger, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -912,7 +902,7 @@ private fun TcpPingTab(t: Str) {
                             onClick = { startPing() },
                             shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isPinging) Color(0xFFEF4444) else Color(0xFF0D9488)
+                                containerColor = if (isPinging) Ds.danger else Ds.accent
                             ),
                             modifier = Modifier.weight(1f).height(50.dp)
                         ) {
@@ -934,8 +924,8 @@ private fun TcpPingTab(t: Str) {
                     line,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     fontSize = 10.5.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = if (line.contains("time=")) Color(0xFF10B981) else Color(0xFFEF4444)
+                    fontFamily = Telemetry,
+                    color = if (line.contains("time=")) Ds.ok else Ds.danger
                 )
             }
         }
@@ -1002,20 +992,11 @@ fun CloudflareScreen(t: Str) {
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(14.dp).imePadding(),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp).imePadding(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconBadge(
-                    icon = Icons.Rounded.Cloud,
-                    tint = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                    size = 36.dp,
-                    iconSize = 18.dp
-                )
-                Text(t.cloudflareDns, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            }
+            PageHeader(icon = Icons.Rounded.Cloud, title = t.cloudflareDns)
         }
 
         item {
@@ -1063,7 +1044,7 @@ fun CloudflareScreen(t: Str) {
                     Button(
                         onClick = { showAddDialog = true },
                         shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                        colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                     ) { Text("+ ${t.addRecord}", fontSize = 11.sp) }
                 }
             }
@@ -1080,20 +1061,20 @@ fun CloudflareScreen(t: Str) {
         if (err != null) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                    Text(err!!, color = Color(0xFFEF4444), fontSize = 11.sp)
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                    Text(err!!, color = Ds.danger, fontSize = 11.sp)
                 }
             }
         }
 
         items(records, key = { it.id }) { rec ->
             val badgeColor = when (rec.type.uppercase()) {
-                "A" -> Color(0xFF0D9488)
-                "AAAA" -> Color(0xFF3B82F6)
-                "CNAME" -> Color(0xFF8B5CF6)
-                "TXT" -> Color(0xFF64748B)
-                "MX" -> Color(0xFFF59E0B)
-                else -> Color(0xFF6366F1)
+                "A" -> Ds.accent
+                "AAAA" -> Ds.info
+                "CNAME" -> Ds.violet
+                "TXT" -> Ds.textSecondary
+                "MX" -> Ds.warn
+                else -> Ds.violet
             }
 
             ModernCard(padding = 10.dp) {
@@ -1123,13 +1104,13 @@ fun CloudflareScreen(t: Str) {
                             Icon(
                                 Icons.Rounded.Cloud,
                                 contentDescription = null,
-                                tint = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8),
+                                tint = if (rec.proxied) Ds.warn else Ds.textSecondary,
                                 modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 if (rec.proxied) "پروکسی" else "فقط DNS",
                                 fontSize = 9.5.sp,
-                                color = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8)
+                                color = if (rec.proxied) Ds.warn else Ds.textSecondary
                             )
                         }
                         Spacer(Modifier.width(6.dp))
@@ -1145,7 +1126,7 @@ fun CloudflareScreen(t: Str) {
                         },
                         modifier = Modifier.size(26.dp)
                     ) {
-                        Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                        Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Ds.danger, modifier = Modifier.size(15.dp))
                     }
                 }
             }
@@ -1186,7 +1167,7 @@ fun CloudflareScreen(t: Str) {
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                 ) { Text(t.save, fontWeight = FontWeight.Bold, fontSize = 11.5.sp) }
             },
             dismissButton = {
@@ -1256,7 +1237,7 @@ fun VaultScreen(t: Str) {
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(14.dp).imePadding(),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp).imePadding(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
@@ -1264,17 +1245,7 @@ fun VaultScreen(t: Str) {
                 Modifier.fillMaxWidth().padding(bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconBadge(
-                        icon = Icons.Rounded.Security,
-                        tint = MaterialTheme.colorScheme.primary,
-                        background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                        size = 36.dp,
-                        iconSize = 18.dp
-                    )
-                    Text(t.encryptedVault, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(Modifier.weight(1f))
+                PageHeader(icon = Icons.Rounded.Security, title = t.encryptedVault, modifier = Modifier.weight(1f))
                 if (isUnlocked) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
@@ -1292,12 +1263,12 @@ fun VaultScreen(t: Str) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
+                            Icon(Icons.Rounded.Lock, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(12.dp))
                             Text(
                                 "قفل کردن",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF4444)
+                                color = Ds.danger
                             )
                         }
                     }
@@ -1349,8 +1320,8 @@ fun VaultScreen(t: Str) {
 
                         if (authError != null) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                                Text(authError!!, color = Color(0xFFEF4444), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                                Text(authError!!, color = Ds.danger, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -1398,8 +1369,8 @@ fun VaultScreen(t: Str) {
 
                         if (authError != null) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                                Text(authError!!, color = Color(0xFFEF4444), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                                Text(authError!!, color = Ds.danger, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -1486,10 +1457,10 @@ fun VaultScreen(t: Str) {
                     val isRevealed = revealedNoteIds.contains(n.id)
 
                     val tagColor = when (n.tags) {
-                        "کلید SSH" -> Color(0xFF0D9488)
-                        "پسورد" -> Color(0xFF6366F1)
-                        "توکن API" -> Color(0xFFF59E0B)
-                        else -> Color(0xFF10B981)
+                        "کلید SSH" -> Ds.accent
+                        "پسورد" -> Ds.violet
+                        "توکن API" -> Ds.warn
+                        else -> Ds.ok
                     }
 
                     ModernCard(padding = 10.dp) {
@@ -1532,7 +1503,7 @@ fun VaultScreen(t: Str) {
                                 Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
                             }
                             IconButton(onClick = { deleteNote = n }, modifier = Modifier.size(26.dp)) {
-                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
+                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Ds.danger, modifier = Modifier.size(14.dp))
                             }
                         }
 
@@ -1547,7 +1518,7 @@ fun VaultScreen(t: Str) {
                                 if (isRevealed) n.content else "••••••••••••••••••••••••",
                                 modifier = Modifier.padding(7.dp),
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = Telemetry,
                                 color = if (isRevealed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -1584,14 +1555,14 @@ fun VaultScreen(t: Str) {
                             val isSel = tag == tg
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                                color = if (isSel) Ds.accent else MaterialTheme.colorScheme.surfaceContainer,
                                 modifier = Modifier.clickable { tag = tg }
                             ) {
                                 Text(
                                     tg,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                                     fontSize = 9.5.sp,
-                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -1623,7 +1594,7 @@ fun VaultScreen(t: Str) {
                             editingNote = null
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                 ) { Text(t.save, fontWeight = FontWeight.Bold, fontSize = 11.5.sp) }
             },
             dismissButton = {
@@ -1645,7 +1616,7 @@ fun VaultScreen(t: Str) {
                     Prefs.saveVaultNotes(ctx, notes, masterPass)
                     deleteNote = null
                 }) {
-                    Text("حذف", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Text("حذف", color = Ds.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1679,7 +1650,7 @@ fun VaultScreen(t: Str) {
                         Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
                         showBackupDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                 ) { Text(t.copy, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showBackupDialog = false }) { Text(t.close) } }
@@ -1714,8 +1685,8 @@ fun VaultScreen(t: Str) {
                     )
                     if (restoreErr != null) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                            Text(restoreErr!!, color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                            Text(restoreErr!!, color = Ds.danger, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1738,7 +1709,7 @@ fun VaultScreen(t: Str) {
                             restoreErr = "خطا: رمز عبور اشتباه است یا رشته بکاپ معتبر نیست"
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                 ) { Text("بازیابی", fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showRestoreDialog = false }) { Text(t.cancel) } }
@@ -1766,18 +1737,8 @@ fun DevLabScreen(t: Str) {
         Icons.Rounded.Key to "تولید پسورد و UUID"
     )
 
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconBadge(
-                icon = Icons.Rounded.Terminal,
-                tint = MaterialTheme.colorScheme.primary,
-                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                size = 36.dp,
-                iconSize = 18.dp
-            )
-            Text(t.devLab, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        }
-        Spacer(Modifier.height(8.dp))
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 10.dp)) {
+        PageHeader(icon = Icons.Rounded.Terminal, title = t.devLab)
 
         // ── Smooth Horizontally Scrollable Tab Bar (Vector Icons) ──
         Row(
@@ -1791,8 +1752,8 @@ fun DevLabScreen(t: Str) {
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    color = if (selected) Ds.accent else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, if (selected) Ds.accent else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     shadowElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier.clickable { scope.launch { pagerState.animateScrollToPage(index) } }
                 ) {
@@ -1804,14 +1765,14 @@ fun DevLabScreen(t: Str) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (selected) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             title,
                             fontSize = 11.5.sp,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (selected) Ds.onAccent else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -1868,7 +1829,7 @@ private fun JsonBase64Tab(t: Str) {
                     ) {
                         Button(
                             onClick = { output = DevLabTools.formatJson(input) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                            colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                 Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(12.dp))
@@ -1941,7 +1902,7 @@ private fun JsonBase64Tab(t: Str) {
                         onValueChange = {},
                         readOnly = true,
                         modifier = Modifier.fillMaxWidth().height(130.dp),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry)
                     )
                 }
             }
@@ -2032,8 +1993,8 @@ private fun SubnetCalcTab(t: Str) {
         if (err != null) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                    Text(err!!, color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                    Text(err!!, color = Ds.danger, fontSize = 11.5.sp)
                 }
             }
         }
@@ -2044,15 +2005,15 @@ private fun SubnetCalcTab(t: Str) {
                     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("آدرس شبکه:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(s.network, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
+                            Text(s.network, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = Telemetry)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("آدرس برادکست:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(s.broadcast, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Text(s.broadcast, fontWeight = FontWeight.Bold, fontFamily = Telemetry)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("بازه هاست‌ها:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${s.firstHost}  ➔  ${s.lastHost}", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontSize = 10.5.sp)
+                            Text("${s.firstHost}  ➔  ${s.lastHost}", fontWeight = FontWeight.Bold, color = Ds.ok, fontFamily = Telemetry, fontSize = 10.5.sp)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("تعداد هاست‌ها:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2060,7 +2021,7 @@ private fun SubnetCalcTab(t: Str) {
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("ساب‌نت ماسک:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(s.netmask, fontFamily = FontFamily.Monospace)
+                            Text(s.netmask, fontFamily = Telemetry)
                         }
                     }
                 }
@@ -2120,8 +2081,8 @@ private fun JwtDecoderTab(t: Str) {
         if (err != null) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                    Text(err!!, color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(14.dp))
+                    Text(err!!, color = Ds.danger, fontSize = 11.5.sp)
                 }
             }
         }
@@ -2136,13 +2097,13 @@ private fun JwtDecoderTab(t: Str) {
             item {
                 Text("اطلاعات بدنه (Payload):", fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
                 ModernCard(padding = 9.dp) {
-                    Text(j.payload, fontFamily = FontFamily.Monospace, fontSize = 10.5.sp)
+                    Text(j.payload, fontFamily = Telemetry, fontSize = 10.5.sp)
                 }
             }
             item {
                 Text("هدر توکن (Header):", fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
                 ModernCard(padding = 9.dp) {
-                    Text(j.header, fontFamily = FontFamily.Monospace, fontSize = 10.5.sp)
+                    Text(j.header, fontFamily = Telemetry, fontSize = 10.5.sp)
                 }
             }
         }
@@ -2182,7 +2143,7 @@ private fun GeneratorTab(t: Str) {
                 Text(
                     generatedPass,
                     fontSize = 14.sp,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = Telemetry,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
@@ -2195,7 +2156,7 @@ private fun GeneratorTab(t: Str) {
                         val isSel = passLength == len
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            color = if (isSel) Ds.accent else MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier.clickable {
                                 passLength = len
                                 generatedPass = DevLabTools.generatePassword(len)
@@ -2206,7 +2167,7 @@ private fun GeneratorTab(t: Str) {
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                                 fontSize = 10.sp,
                                 fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -2216,7 +2177,7 @@ private fun GeneratorTab(t: Str) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Button(
                         onClick = { generatedPass = DevLabTools.generatePassword(passLength) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                        colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                     ) { Text("تولید مجدد", fontWeight = FontWeight.Bold, fontSize = 11.sp) }
 
                     OutlinedButton(onClick = {
@@ -2242,7 +2203,7 @@ private fun GeneratorTab(t: Str) {
                 Text(
                     generatedUuid,
                     fontSize = 12.5.sp,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = Telemetry,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
@@ -2250,7 +2211,7 @@ private fun GeneratorTab(t: Str) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Button(
                         onClick = { generatedUuid = DevLabTools.generateUuid() },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                        colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
                     ) { Text("تولید UUID جدید", fontWeight = FontWeight.Bold, fontSize = 11.sp) }
 
                     OutlinedButton(onClick = {

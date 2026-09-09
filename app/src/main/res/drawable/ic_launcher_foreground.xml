@@ -1,13 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- ═══ Didban · Nightwatch radar mark ═══
+         Concentric sentinel rings, a sweeping sector, and two echoes.
+         Everything lives inside the 66dp adaptive-icon safe zone. -->
+
+    <!-- outer ring r=26 -->
     <path
-        android:pathData="M28,54 L40,54 L46,36 L56,72 L62,46 L66,54 L80,54"
-        android:strokeColor="#38BDF8"
-        android:strokeWidth="5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
+        android:pathData="M28,54 A26,26 0 1,0 80,54 A26,26 0 1,0 28,54"
+        android:strokeColor="#22D3EE"
+        android:strokeAlpha="0.62"
+        android:strokeWidth="2.6"
         android:fillColor="#00000000" />
+
+    <!-- middle ring r=16.5 -->
+    <path
+        android:pathData="M37.5,54 A16.5,16.5 0 1,0 70.5,54 A16.5,16.5 0 1,0 37.5,54"
+        android:strokeColor="#22D3EE"
+        android:strokeAlpha="0.34"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+
+    <!-- inner ring r=7 -->
+    <path
+        android:pathData="M47,54 A7,7 0 1,0 61,54 A7,7 0 1,0 47,54"
+        android:strokeColor="#22D3EE"
+        android:strokeAlpha="0.20"
+        android:strokeWidth="1.8"
+        android:fillColor="#00000000" />
+
+    <!-- compass ticks -->
+    <path
+        android:pathData="M54,32 L54,28 M54,80 L54,76 M32,54 L28,54 M80,54 L76,54"
+        android:strokeColor="#22D3EE"
+        android:strokeAlpha="0.55"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- sweeping sector (wide, faint) -->
+    <path
+        android:pathData="M54,54 L54,28 A26,26 0 0,1 76.5,41 Z"
+        android:fillColor="#22D3EE"
+        android:fillAlpha="0.14" />
+
+    <!-- sweeping sector (narrow, bright) -->
+    <path
+        android:pathData="M54,54 L54,28 A26,26 0 0,1 67,31.5 Z"
+        android:fillColor="#22D3EE"
+        android:fillAlpha="0.22" />
+
+    <!-- echo blip + halo -->
+    <path
+        android:pathData="M66,42 m-4.4,0 a4.4,4.4 0 1,0 8.8,0 a4.4,4.4 0 1,0 -8.8,0"
+        android:fillColor="#22D3EE"
+        android:fillAlpha="0.22" />
+    <path
+        android:pathData="M66,42 m-2.3,0 a2.3,2.3 0 1,0 4.6,0 a2.3,2.3 0 1,0 -4.6,0"
+        android:fillColor="#7FF0DF" />
+
+    <!-- core dot -->
+    <path
+        android:pathData="M54,54 m-3.6,0 a3.6,3.6 0 1,0 7.2,0 a3.6,3.6 0 1,0 -7.2,0"
+        android:fillColor="#22D3EE" />
+    <path
+        android:pathData="M54,54 m-6.6,0 a6.6,6.6 0 1,0 13.2,0 a6.6,6.6 0 1,0 -13.2,0"
+        android:fillColor="#22D3EE"
+        android:fillAlpha="0.20" />
 </vector>

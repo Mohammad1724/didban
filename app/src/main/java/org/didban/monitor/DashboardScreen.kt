@@ -2,12 +2,9 @@
 
 package org.didban.monitor
 
-import android.content.Intent
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,19 +21,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Block
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Dashboard
-import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.LightMode
@@ -58,12 +52,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,8 +69,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -102,9 +92,8 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(0) }
     val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
-    val tabScrollState = rememberScrollState()
 
-    // Keep tab chips and pager synchronized
+    // Keep segmented tabs and pager synchronized
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { tab = it }
     }
@@ -179,118 +168,84 @@ fun DashboardScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(14.dp)) {
-        // ── Top Bar ──
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        // ── Top bar ──
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                shadowElevation = 1.dp,
-                modifier = Modifier.clickable { onBack() }
-            ) {
-                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back",
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+            CircleIconButton(
+                icon = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = t.back,
+                onClick = onBack
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    server.name.ifEmpty { server.host },
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Ds.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${server.host}:${server.port}",
+                    color = Ds.textTertiary,
+                    fontSize = 10.sp,
+                    fontFamily = Telemetry
+                )
             }
-
-            Spacer(Modifier.width(6.dp))
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                shadowElevation = 1.dp,
-                modifier = Modifier.clickable { onToggleTheme() }
-            ) {
-                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                    Icon(
-                        if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                        contentDescription = "Theme",
-                        modifier = Modifier.size(17.dp),
-                        tint = if (isDarkMode) Color(0xFFFBBF24) else Color(0xFFF59E0B)
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(6.dp))
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                shadowElevation = 1.dp,
-                modifier = Modifier.clickable { refreshAll() }
-            ) {
-                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(17.dp))
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(server.name.ifEmpty { server.host }, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
-                Text("${server.host}:${server.port}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.5.sp, fontFamily = FontFamily.Monospace)
-            }
+            CircleIconButton(
+                icon = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                contentDescription = "Theme",
+                tint = Ds.warn,
+                onClick = onToggleTheme
+            )
+            Spacer(Modifier.width(8.dp))
+            CircleIconButton(
+                icon = Icons.Rounded.Refresh,
+                contentDescription = "Refresh",
+                onClick = { refreshAll() }
+            )
         }
 
         // ── Pin certificate banner if unpinned ──
         if (server.useTls && server.fingerprint.isEmpty()) {
             val fp = api.lastSeenFingerprint
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFEF3C7),
-                border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.4f)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(t.pinCertHint, fontSize = 11.sp, color = Color(0xFF92400E), modifier = Modifier.weight(1f))
-                    if (fp != null) {
-                        TextButton(onClick = {
-                            server.fingerprint = fp
-                            val list = Prefs.loadServers(ctx).map { if (it.id == server.id) server else it }
-                            Prefs.saveServers(ctx, list)
-                        }) {
-                            Text(t.pinCert, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
-                        }
-                    }
-                }
-            }
+            Banner(
+                tone = BannerTone.Warn,
+                text = t.pinCertHint,
+                actionLabel = if (fp != null) t.pinCert else null,
+                onAction = {
+                    server.fingerprint = fp!!
+                    val list = Prefs.loadServers(ctx).map { if (it.id == server.id) server else it }
+                    Prefs.saveServers(ctx, list)
+                },
+                modifier = Modifier.padding(bottom = 10.dp)
+            )
         }
 
-        // ── Tabs Bar ──
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(tabScrollState)
-                .padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            TabChip(Icons.Rounded.Dashboard, t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
-            TabChip(Icons.Rounded.Layers, "Docker", tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
-            TabChip(Icons.Rounded.Timeline, t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
-            TabChip(Icons.Rounded.Sensors, t.listeningPorts, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
-            TabChip(Icons.Rounded.Memory, t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
-            TabChip(Icons.Rounded.Public, t.globalCheck, tab == 5) { scope.launch { pagerState.animateScrollToPage(5) } }
-        }
+        // ── Segmented tabs ──
+        SegmentedTabs(
+            tabs = listOf(
+                TabSpec(t.overview, Icons.Rounded.Dashboard),
+                TabSpec(t.processes, Icons.Rounded.Memory),
+                TabSpec(t.events, Icons.Rounded.Timeline),
+                TabSpec(t.listeningPorts, Icons.Rounded.Sensors),
+                TabSpec("Docker", Icons.Rounded.Layers),
+                TabSpec(t.globalCheck, Icons.Rounded.Public)
+            ),
+            selected = tab,
+            onSelect = { scope.launch { pagerState.animateScrollToPage(it) } },
+            scrollable = true,
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
 
-        // ── Content Pages ──
+        // ── Content pages ──
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> ModernOverviewTab(
+                0 -> OverviewTab(
                     t = t,
                     server = server,
                     m = metrics,
@@ -335,7 +290,7 @@ fun DashboardScreen(
                     }
                 )
                 3 -> SocketsTab(t = t, data = socketsData, onRefresh = { refreshSockets() })
-                4 -> DockerTab(server = server, data = dockerData, onRefresh = { refreshDocker() })
+                4 -> DockerTab(t = t, server = server, data = dockerData, onRefresh = { refreshDocker() })
                 5 -> GlobalCheckTab(t = t, defaultHost = server.host)
             }
         }
@@ -349,13 +304,17 @@ fun DashboardScreen(
             text = {
                 Column {
                     Text(t.killConfirm, fontSize = 13.sp)
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clickable { killSignal = "SIGTERM" }
                     ) {
-                        RadioButton(selected = killSignal == "SIGTERM", onClick = { killSignal = "SIGTERM" })
+                        RadioButton(
+                            selected = killSignal == "SIGTERM",
+                            onClick = { killSignal = "SIGTERM" },
+                            colors = RadioButtonDefaults.colors(selectedColor = Ds.accent, unselectedColor = Ds.textTertiary)
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text(t.sigtermDesc, fontSize = 12.sp)
                     }
@@ -364,9 +323,13 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clickable { killSignal = "SIGKILL" }
                     ) {
-                        RadioButton(selected = killSignal == "SIGKILL", onClick = { killSignal = "SIGKILL" })
+                        RadioButton(
+                            selected = killSignal == "SIGKILL",
+                            onClick = { killSignal = "SIGKILL" },
+                            colors = RadioButtonDefaults.colors(selectedColor = Ds.danger, unselectedColor = Ds.textTertiary)
+                        )
                         Spacer(Modifier.width(8.dp))
-                        Text(t.sigkillDesc, fontSize = 12.sp, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                        Text(t.sigkillDesc, fontSize = 12.sp, color = Ds.danger, fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -388,32 +351,31 @@ fun DashboardScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (killSignal == "SIGKILL") Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
+                        containerColor = if (killSignal == "SIGKILL") Ds.danger else Ds.accent,
+                        contentColor = if (killSignal == "SIGKILL") Color.White else Ds.onAccent
                     ),
                     enabled = !isKilling
                 ) {
                     if (isKilling) {
-                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
                     } else {
                         Text(t.kill, fontWeight = FontWeight.Bold)
                     }
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { procToKill = null }, enabled = !isKilling) {
-                    Text(t.cancel)
-                }
+                TextButton(onClick = { procToKill = null }, enabled = !isKilling) { Text(t.cancel) }
             }
         )
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// MODERN OVERVIEW TAB
+// OVERVIEW — hero telemetry
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun ModernOverviewTab(
+private fun OverviewTab(
     t: Str,
     server: ServerConfig,
     m: Metrics?,
@@ -425,21 +387,14 @@ private fun ModernOverviewTab(
     onTestAlert: () -> Unit
 ) {
     if (m == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (err != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                        Text(t.error, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(err, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.height(8.dp))
-                    Text(t.connecting, fontSize = 13.sp)
-                }
-            }
+        if (err != null) {
+            EmptyState(
+                title = t.error,
+                hint = err,
+                icon = Icons.Rounded.ErrorOutline
+            )
+        } else {
+            LoadingState(t.connecting)
         }
         return
     }
@@ -448,112 +403,95 @@ private fun ModernOverviewTab(
     val diskPrimary = m.disks.firstOrNull()
     val diskFreePct = if (diskPrimary != null) (100f - diskPrimary.pct).coerceIn(0f, 100f) else 100f
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // ── 1. Top Identity Card ──
+    @Composable
+    fun cpuTone(v: Float): Color = when {
+        v > 85f -> Ds.danger
+        v > 60f -> Ds.warn
+        else -> Ds.ok
+    }
+
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().imePadding()
+    ) {
+        // ── 1. Hero card: identity + CPU gauge + quick stats ──
         item {
-            ModernCard(padding = 12.dp) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                        modifier = Modifier.clickable { onTestAlert() }
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(Icons.Rounded.Send, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(12.dp))
-                            Text(
-                                t.testTelegram,
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+            ModernCard(padding = 16.dp) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            StatusPill(if (isOnline) t.online else t.offline, isOnline = isOnline)
+                            Spacer(Modifier.width(8.dp))
+                            if (latency >= 0f) {
+                                Text(
+                                    "${latency.toInt()} ms",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontFamily = Telemetry,
+                                    color = if (latency > 250f) Ds.warn else Ds.textSecondary
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row {
+                            SoftButton(
+                                text = t.testTelegram,
+                                onClick = onTestAlert,
+                                icon = Icons.Rounded.Send
                             )
                         }
                     }
-
-                    Spacer(Modifier.weight(1f))
-
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(server.name.ifEmpty { server.host }, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
-                        Spacer(Modifier.height(2.dp))
-                        StatusPill(if (isOnline) t.online else t.offline, isOnline = isOnline)
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    IconBadge(
-                        icon = Icons.Rounded.Dns,
-                        tint = Color.White,
-                        background = Color(0xFF0D9488),
-                        size = 38.dp,
-                        iconSize = 20.dp
-                    )
-                }
-            }
-        }
-
-        // ── 2. Hero Resource Gauge Card ──
-        item {
-            ModernCard(padding = 16.dp) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(
-                        Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ResourceStatRow("مصرف پردازنده", Fmt.pct(m.cpuUsage), Color.Unspecified)
-                        ResourceStatRow("حافظه رم", "${Fmt.bytes(m.memUsed)} / ${Fmt.bytes(m.memTotal)}", Color.Unspecified)
-                        if (diskPrimary != null) {
-                            ResourceStatRow("فضای آزاد دیسک", "${Fmt.bytes(diskPrimary.total - diskPrimary.used)} (${Fmt.pct(100f - diskPrimary.pct)})", Color(0xFF10B981))
-                        }
-                        ResourceStatRow("آپ‌تایم سیستم", Fmt.uptime(m.uptime), Color(0xFF10B981))
-                    }
-
                     Spacer(Modifier.width(14.dp))
-
                     CircularGauge(
                         percentage = m.cpuUsage,
                         label = "CPU",
-                        size = 105.dp,
+                        size = 108.dp,
                         strokeWidth = 9.dp,
-                        activeColor = when {
-                            m.cpuUsage > 85f -> Color(0xFFEF4444)
-                            m.cpuUsage > 60f -> Color(0xFFF59E0B)
-                            else -> Color(0xFF10B981)
-                        }
+                        activeColor = cpuTone(m.cpuUsage)
                     )
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Hairline()
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    HeroStat(t.lblCpuUse, Fmt.pct(m.cpuUsage), cpuTone(m.cpuUsage))
+                    HeroStat(t.lblRamUse, Fmt.pct(m.memPct), Ds.violet)
+                    HeroStat(
+                        t.lblDiskFree,
+                        if (diskPrimary != null) Fmt.pct(100f - diskPrimary.pct) else "—",
+                        Ds.accent
+                    )
+                    HeroStat(t.lblUptime, Fmt.uptime(m.uptime), Ds.textSecondary)
                 }
             }
         }
 
-        // ── 3. Quick Action Button ──
+        // ── 2. Primary action ──
         item {
             PrimaryActionButton(
-                text = "پایش زنده و رصد سریع پروسه‌ها",
-                icon = Icons.Rounded.Bolt,
+                text = t.liveProcessWatch,
+                icon = Icons.Rounded.Memory,
                 onClick = { onNavigateTab(1) }
             )
         }
 
-        // ── 4. 2x2 Quick Tiles Grid ──
+        // ── 3. Quick tiles 2×2 ──
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
-                        title = "کانتینرهای داکر",
+                        title = t.dockerContainersLbl,
                         icon = Icons.Rounded.Layers,
                         onClick = { onNavigateTab(4) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
-                        title = "کارآگاه اسپایک",
+                        title = t.spikeDetective,
                         icon = Icons.Rounded.Timeline,
                         onClick = { onNavigateTab(2) },
                         modifier = Modifier.weight(1f)
@@ -561,13 +499,13 @@ private fun ModernOverviewTab(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
-                        title = "پورت‌ها و سوکت‌ها",
+                        title = t.portsAndSockets,
                         icon = Icons.Rounded.Sensors,
                         onClick = { onNavigateTab(3) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
-                        title = "مدیریت پروسه‌ها",
+                        title = t.processManager,
                         icon = Icons.Rounded.Memory,
                         onClick = { onNavigateTab(1) },
                         modifier = Modifier.weight(1f)
@@ -576,46 +514,65 @@ private fun ModernOverviewTab(
             }
         }
 
-        // ── 5. Linear Progress Bar Card ──
+        // ── 4. Resource detail card ──
         item {
-            ModernCard(padding = 14.dp) {
+            ModernCard(padding = 16.dp) {
+                DataRow(t.lblRamUse, "${Fmt.bytes(m.memUsed)} / ${Fmt.bytes(m.memTotal)}", Ds.violet)
+                Hairline(Modifier.padding(vertical = 10.dp))
+                if (diskPrimary != null) {
+                    DataRow(
+                        t.lblDiskFree,
+                        "${Fmt.bytes(diskPrimary.total - diskPrimary.used)} (${Fmt.pct(100f - diskPrimary.pct)})",
+                        Ds.accent
+                    )
+                    Hairline(Modifier.padding(vertical = 10.dp))
+                }
+                DataRow(t.lblNetLive, m.nets.firstOrNull()?.let { "↓ ${Fmt.rate(it.rx)}   ↑ ${Fmt.rate(it.tx)}" } ?: "—", Ds.info)
+                Hairline(Modifier.padding(vertical = 10.dp))
+                DataRow(
+                    t.lblLoad1m,
+                    "%.2f (%d ${t.cores})".format(Locale.US, m.load1, m.cores),
+                    Ds.textPrimary
+                )
+                Spacer(Modifier.height(12.dp))
                 ProgressMetricBar(
-                    title = "فضای آزاد دیسک اصلی (NVMe / SSD)",
+                    title = t.lblDiskFree,
                     percentage = diskFreePct,
-                    progressColor = Color(0xFF6366F1)
+                    progressColor = Ds.accent
                 )
             }
         }
 
-        // ── 6. 2x2 Metric Stat Cards Grid ──
+        // ── 5. 2×2 metric tiles ──
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricStatCard(
                         icon = Icons.Rounded.SwapVert,
-                        title = "ترافیک زنده شبکه",
-                        value = if (m.nets.isNotEmpty()) "↓ ${Fmt.rate(m.nets[0].rx)}\n↑ ${Fmt.rate(m.nets[0].tx)}" else "—",
+                        title = t.lblNetLive,
+                        value = if (m.nets.isNotEmpty()) "↓${Fmt.rate(m.nets[0].rx)}\n↑${Fmt.rate(m.nets[0].tx)}" else "—",
                         modifier = Modifier.weight(1f),
-                        valueColor = MaterialTheme.colorScheme.primary
+                        iconTint = Ds.info,
+                        valueColor = Ds.textPrimary
                     )
                     MetricStatCard(
                         icon = Icons.Rounded.Speed,
-                        title = "لود پردازنده (Load 1m)",
-                        value = "%.2f (%d cores)".format(Locale.US, m.load1, m.cores),
+                        title = t.lblLoad1m,
+                        value = "%.2f".format(Locale.US, m.load1),
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricStatCard(
                         icon = Icons.Rounded.Public,
-                        title = "زمان پاسخ (Latency)",
+                        title = t.lblLatency,
                         value = if (latency >= 0f) "${latency.toInt()} ms" else "—",
                         modifier = Modifier.weight(1f),
-                        valueColor = if (latency > 250f) Color(0xFFEF4444) else Color(0xFF10B981)
+                        valueColor = if (latency > 250f) Ds.danger else Ds.ok
                     )
                     MetricStatCard(
                         icon = Icons.Rounded.AccessTime,
-                        title = "آپتایم سرور",
+                        title = t.lblUptimeServer,
                         value = Fmt.uptime(m.uptime),
                         modifier = Modifier.weight(1f)
                     )
@@ -623,50 +580,75 @@ private fun ModernOverviewTab(
             }
         }
 
-        // ── 7. Charts Sparklines ──
+        // ── 6. 24h telemetry charts ──
         item {
-            ModernCard(padding = 14.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Rounded.Timeline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Text("نمودار تغییرات ۲۴ ساعته پردازنده و رم", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
-                }
-                Spacer(Modifier.height(8.dp))
+            ModernCard(padding = 15.dp) {
+                SectionLabel(t.lblCharts24h, icon = Icons.Rounded.Timeline)
+                Spacer(Modifier.height(12.dp))
                 if (hist.isNotEmpty()) {
-                    Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(44.dp), color = Color(0xFF0D9488))
-                    Spacer(Modifier.height(6.dp))
-                    Sparkline(hist.map { it.mem }, Modifier.fillMaxWidth().height(44.dp), color = Color(0xFF6366F1))
+                    Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(46.dp), color = Ds.accent)
+                    Spacer(Modifier.height(4.dp))
+                    ChartLegend(t.cpu, Ds.accent)
+                    Spacer(Modifier.height(10.dp))
+                    Sparkline(hist.map { it.mem }, Modifier.fillMaxWidth().height(46.dp), color = Ds.violet)
+                    Spacer(Modifier.height(4.dp))
+                    ChartLegend(t.memory, Ds.violet)
                 } else {
-                    Text("در حال جمع‌آوری تاریخچه…", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(t.lblCollecting, fontSize = 11.5.sp, color = Ds.textTertiary)
                 }
             }
         }
 
-        item { Spacer(Modifier.height(24.dp)) }
+        item { Spacer(Modifier.height(26.dp)) }
     }
 }
 
 @Composable
-private fun ResourceStatRow(title: String, value: String, valueColor: Color) {
+private fun HeroStat(label: String, value: String, tone: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = Telemetry,
+            color = tone,
+            maxLines = 1
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(label, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+    }
+}
+
+@Composable
+private fun DataRow(label: String, value: String, tone: Color) {
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Text(label, fontSize = 12.sp, color = Ds.textSecondary)
         Text(
             value,
             fontSize = 12.5.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (valueColor != Color.Unspecified) valueColor else MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            title,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = Telemetry,
+            color = tone
         )
     }
 }
 
-// ── Processes Tab ────────────────────────────────────────────────────────────
+@Composable
+private fun ChartLegend(label: String, tone: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).background(tone, RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(6.dp))
+        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PROCESSES
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun ProcessesTab(
@@ -686,7 +668,7 @@ private fun ProcessesTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Row(
@@ -694,90 +676,94 @@ private fun ProcessesTab(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                DTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text(t.searchProcesses, fontSize = 11.5.sp) },
-                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(17.dp)) },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Rounded.Clear, contentDescription = "Clear", modifier = Modifier.size(15.dp))
-                            }
-                        }
-                    },
+                    placeholder = t.searchProcesses,
                     modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    trailing = {
+                        if (query.isNotEmpty()) {
+                            Icon(
+                                Icons.Rounded.Clear,
+                                contentDescription = "Clear",
+                                tint = Ds.textTertiary,
+                                modifier = Modifier
+                                    .size(17.dp)
+                                    .clickable { query = "" }
+                            )
+                        }
+                    }
                 )
-
-                OutlinedButton(
-                    onClick = { sortByMem = !sortByMem },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.height(52.dp)
-                ) {
-                    Text(if (sortByMem) t.sortByMem else t.sortByCpu, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                }
+                SoftButton(
+                    text = if (sortByMem) t.sortByMem else t.sortByCpu,
+                    onClick = { sortByMem = !sortByMem }
+                )
             }
         }
 
         if (filtered.isEmpty()) {
-            item {
-                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                    Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            item { EmptyState(title = t.noData, radar = true) }
         } else {
             items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
-                ModernCard(padding = 10.dp) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(p.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Spacer(Modifier.width(6.dp))
-                                Text("PID ${p.pid}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 11.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "${p.user}  •  ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())} RAM",
-                                fontSize = 10.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                p.name,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = Ds.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.width(7.dp))
+                            Text(
+                                "PID ${p.pid}",
+                                fontSize = 10.sp,
+                                color = Ds.textTertiary,
+                                fontFamily = Telemetry
                             )
                         }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                Fmt.pct(p.cpu),
-                                color = if (p.cpu > 50) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.5.sp
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                modifier = Modifier
-                                    .clickable { onKill(p.pid, p.name) }
-                                    .padding(top = 2.dp)
-                            ) {
-                                Icon(Icons.Rounded.Block, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(11.dp))
-                                Text(
-                                    t.kill,
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFEF4444)
-                                )
-                            }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${p.user} · ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())} RAM",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            Fmt.pct(p.cpu),
+                            color = if (p.cpu > 50) Ds.danger else Ds.accent,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                            fontFamily = Telemetry
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier
+                                .clickable { onKill(p.pid, p.name) }
+                                .padding(top = 3.dp)
+                        ) {
+                            Icon(Icons.Rounded.Block, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(11.dp))
+                            Text(t.kill, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Ds.danger)
                         }
                     }
                 }
+                Hairline()
             }
             item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
 
-// ── Events Tab (Spike Forensics) ───────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// EVENTS — spike forensics
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun EventsTab(
@@ -787,77 +773,92 @@ private fun EventsTab(
 ) {
     val fmt = SimpleDateFormat("MMM d, HH:mm:ss", Locale.getDefault())
 
+    @Composable
     fun eventStyle(type: String): Triple<ImageVector, String, Color> = when (type) {
-        "cpu" -> Triple(Icons.Rounded.LocalFireDepartment, t.spikeCpu, Color(0xFFEF4444))
-        "memory" -> Triple(Icons.Rounded.Memory, t.spikeMem, Color(0xFF6366F1))
-        "container_down" -> Triple(Icons.Rounded.ErrorOutline, "Container Down", Color(0xFFEF4444))
-        "container_up" -> Triple(Icons.Rounded.CheckCircle, "Container Up", Color(0xFF10B981))
-        "process_down" -> Triple(Icons.Rounded.ErrorOutline, t.eventProcessDown, Color(0xFFEF4444))
-        "process_up" -> Triple(Icons.Rounded.CheckCircle, t.eventProcessUp, Color(0xFF10B981))
-        "disk" -> Triple(Icons.Rounded.Storage, t.eventDisk, Color(0xFFF59E0B))
-        "steal" -> Triple(Icons.Rounded.Speed, t.eventSteal, Color(0xFFA855F7))
-        "agent_restart" -> Triple(Icons.Rounded.Refresh, t.eventAgentRestart, Color(0xFF64748B))
-        else -> Triple(Icons.Rounded.Timeline, type, Color(0xFF64748B))
+        "cpu" -> Triple(Icons.Rounded.LocalFireDepartment, t.spikeCpu, Ds.danger)
+        "memory" -> Triple(Icons.Rounded.Memory, t.spikeMem, Ds.violet)
+        "container_down" -> Triple(Icons.Rounded.ErrorOutline, "Container Down", Ds.danger)
+        "container_up" -> Triple(Icons.Rounded.CheckCircle, "Container Up", Ds.ok)
+        "process_down" -> Triple(Icons.Rounded.ErrorOutline, t.eventProcessDown, Ds.danger)
+        "process_up" -> Triple(Icons.Rounded.CheckCircle, t.eventProcessUp, Ds.ok)
+        "disk" -> Triple(Icons.Rounded.Storage, t.eventDisk, Ds.warn)
+        "steal" -> Triple(Icons.Rounded.Speed, t.eventSteal, Ds.violet)
+        "agent_restart" -> Triple(Icons.Rounded.Refresh, t.eventAgentRestart, Ds.neutral)
+        else -> Triple(Icons.Rounded.Timeline, type, Ds.neutral)
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (events.isEmpty()) {
             item {
-                Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconBadge(
-                            icon = Icons.Rounded.CheckCircle,
-                            tint = Color(0xFF10B981),
-                            background = Color(0xFF10B981).copy(alpha = 0.12f),
-                            size = 52.dp,
-                            iconSize = 28.dp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text("هیچ اسپایکی در ۲۴ ساعت گذشته ثبت نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.5.sp)
-                    }
-                }
+                EmptyState(
+                    title = t.noSpikes24h,
+                    icon = Icons.Rounded.CheckCircle
+                )
             }
         } else {
             items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
                 val (icon, label, color) = eventStyle(e.type)
-                ModernCard(padding = 12.dp) {
+                ModernCard(padding = 14.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = icon, tint = color, background = color.copy(alpha = 0.15f), size = 26.dp, iconSize = 14.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(label, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = color)
-                        Spacer(Modifier.weight(1f))
-                        Text(fmt.format(Date(e.time)), fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        IconBadge(icon = icon, tint = color, background = color.copy(alpha = 0.13f), size = 30.dp, iconSize = 15.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = color, modifier = Modifier.weight(1f))
+                        Text(
+                            fmt.format(Date(e.time)),
+                            fontSize = 10.sp,
+                            color = Ds.textTertiary,
+                            fontFamily = Telemetry
+                        )
                     }
                     if (e.detail.isNotBlank()) {
-                        Spacer(Modifier.height(3.dp))
-                        Text(e.detail, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(6.dp))
+                        Text(e.detail, fontSize = 11.sp, color = Ds.textSecondary)
                     }
                     if (e.value > 0f) {
-                        Text(Fmt.pct(e.value), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            Fmt.pct(e.value),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Telemetry,
+                            color = color
+                        )
                     }
                     if (e.top.isNotEmpty()) {
+                        Spacer(Modifier.height(10.dp))
+                        SectionLabel(t.topProcesses)
                         Spacer(Modifier.height(6.dp))
-                        Text(t.topProcesses, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         e.top.take(4).forEach { p ->
                             Row(
-                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("• ${p.name}", fontSize = 12.sp)
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Text("· ${p.name}", fontSize = 12.sp, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Spacer(Modifier.width(6.dp))
-                                    Text("PID ${p.pid}", fontSize = 9.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("PID ${p.pid}", fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(Fmt.pct(p.cpu), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                    Spacer(Modifier.width(8.dp))
-                                    IconButton(onClick = { onKill(p.pid, p.name) }, modifier = Modifier.size(22.dp)) {
-                                        Icon(Icons.Rounded.Block, contentDescription = "Kill", tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
-                                    }
+                                    Text(
+                                        Fmt.pct(p.cpu),
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Ds.accent,
+                                        fontFamily = Telemetry
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Icon(
+                                        Icons.Rounded.Block,
+                                        contentDescription = "Kill",
+                                        tint = Ds.danger,
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                            .clickable { onKill(p.pid, p.name) }
+                                    )
                                 }
                             }
                         }
@@ -869,14 +870,14 @@ private fun EventsTab(
     }
 }
 
-// ── Sockets & Ports Tab ──────────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// SOCKETS & PORTS
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
     if (data == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        LoadingState(t.connecting)
         return
     }
 
@@ -884,7 +885,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
             Row(
@@ -892,233 +893,180 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.clickable { showListeningOnly = true }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Sensors,
-                            contentDescription = null,
-                            tint = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            "${t.listeningPorts} (${data.listening.size})",
-                            fontSize = 11.sp,
-                            fontWeight = if (showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                            color = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (!showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                    modifier = Modifier.clickable { showListeningOnly = false }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Link,
-                            contentDescription = null,
-                            tint = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            "${t.activeConnections} (${data.connections.size})",
-                            fontSize = 11.sp,
-                            fontWeight = if (!showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                            color = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onRefresh, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(15.dp))
-                }
+                SegmentedTabs(
+                    tabs = listOf(
+                        TabSpec(t.listeningPorts, badge = "${data.listening.size}"),
+                        TabSpec(t.activeConnections, badge = "${data.connections.size}")
+                    ),
+                    selected = if (showListeningOnly) 0 else 1,
+                    onSelect = { showListeningOnly = it == 0 },
+                    modifier = Modifier.weight(1f)
+                )
+                CircleIconButton(
+                    icon = Icons.Rounded.Refresh,
+                    contentDescription = "Refresh",
+                    onClick = onRefresh
+                )
             }
         }
 
         val itemsToShow = if (showListeningOnly) data.listening else data.connections
 
         if (itemsToShow.isEmpty()) {
-            item {
-                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                    Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            item { EmptyState(title = t.noData, radar = true) }
         } else {
             items(itemsToShow, key = { "${it.proto}-${it.localIp}-${it.localPort}-${it.remoteIp}-${it.remotePort}-${it.pid}" }) { s ->
-                ModernCard(padding = 9.dp) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (s.proto.lowercase() == "tcp") Color(0xFF0D9488).copy(alpha = 0.15f) else Color(0xFF6366F1).copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                s.proto.uppercase(),
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (s.proto.lowercase() == "tcp") Color(0xFF0D9488) else Color(0xFF6366F1)
-                            )
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                if (showListeningOnly) "${s.localIp}:${s.localPort}" else "${s.localIp}:${s.localPort} ➔ ${s.remoteIp}:${s.remotePort}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            if (s.process.isNotEmpty()) {
-                                Text(
-                                    "${s.process} (PID ${s.pid})",
-                                    fontSize = 10.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ValuePill(
+                        s.proto.uppercase(),
+                        if (s.proto.lowercase().startsWith("tcp")) Ds.accent else Ds.violet
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
                         Text(
-                            s.state,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (s.state == "LISTEN" || s.state == "ESTABLISHED") Color(0xFF10B981) else Color(0xFF64748B)
+                            if (showListeningOnly) "${s.localIp}:${s.localPort}" else "${s.localIp}:${s.localPort} → ${s.remoteIp}:${s.remotePort}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = Telemetry,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
+                        if (s.process.isNotEmpty()) {
+                            Text(
+                                "${s.process} · PID ${s.pid}",
+                                fontSize = 10.5.sp,
+                                color = Ds.textTertiary
+                            )
+                        }
                     }
+                    Spacer(Modifier.width(8.dp))
+                    val stateTone = when (s.state) {
+                        "LISTEN", "ESTABLISHED" -> Ds.ok
+                        else -> Ds.neutral
+                    }
+                    ValuePill(s.state, stateTone)
                 }
+                Hairline()
             }
             item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
 
-// ── Docker Containers Tab ───────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// DOCKER
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh: () -> Unit) {
+private fun DockerTab(t: Str, server: ServerConfig, data: DockerSummaryData?, onRefresh: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val api = remember { ApiClient() }
 
     if (data == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
+        LoadingState("…")
         return
     }
 
     if (!data.installed) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                IconBadge(
-                    icon = Icons.Rounded.Layers,
-                    tint = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    size = 52.dp,
-                    iconSize = 26.dp
-                )
-                Spacer(Modifier.height(8.dp))
-                Text("سرویس Docker روی این سرور در حال اجرا نیست", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            }
-        }
+        EmptyState(
+            title = t.dockerNotRunning,
+            icon = Icons.Rounded.Layers
+        )
         return
     }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("کانتینرهای فعال (${data.containers.size})", fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                IconButton(onClick = onRefresh, modifier = Modifier.size(30.dp)) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(15.dp))
-                }
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SectionLabel("Docker", icon = Icons.Rounded.Layers)
+                Spacer(Modifier.width(8.dp))
+                ValuePill("${data.containers.size}", Ds.accent)
+                Spacer(Modifier.weight(1f))
+                CircleIconButton(
+                    icon = Icons.Rounded.Refresh,
+                    contentDescription = "Refresh",
+                    onClick = onRefresh
+                )
             }
         }
 
         items(data.containers, key = { it.id }) { c ->
             val isRunning = c.state == "running"
-            ModernCard(padding = 10.dp) {
+            ModernCard(padding = 14.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(9.dp).background(
-                            if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444),
-                            CircleShape
-                        )
+                        Modifier
+                            .size(9.dp)
+                            .background(if (isRunning) Ds.ok else Ds.danger, CircleShape)
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(c.name, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, modifier = Modifier.weight(1f))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = if (isRunning) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
-                    ) {
-                        Text(
-                            c.state.uppercase(),
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444)
-                        )
-                    }
+                    Spacer(Modifier.width(9.dp))
+                    Text(
+                        c.name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        color = Ds.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    ValuePill(c.state, if (isRunning) Ds.ok else Ds.danger)
                 }
 
-                Spacer(Modifier.height(3.dp))
-                Text(c.image, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
-                Text(c.status, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(7.dp))
+                Text(c.image, fontSize = 10.5.sp, color = Ds.accent, fontFamily = Telemetry, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(c.status, fontSize = 10.5.sp, color = Ds.textTertiary)
 
                 Spacer(Modifier.height(6.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = {
-                        scope.launch {
-                            try {
-                                api.dockerRestart(server, c.id)
-                                Toast.makeText(ctx, "کانتینر ${c.name} ری‌استارت شد", Toast.LENGTH_SHORT).show()
-                                onRefresh()
-                            } catch (e: Exception) {
-                                Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(12.dp))
-                            Text("ری‌استارت", fontSize = 10.5.sp)
-                        }
-                    }
-
-                    if (isRunning) {
-                        TextButton(onClick = {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SoftButton(
+                        text = t.restartLbl,
+                        onClick = {
                             scope.launch {
                                 try {
-                                    api.dockerStop(server, c.id)
-                                    Toast.makeText(ctx, "کانتینر ${c.name} متوقف شد", Toast.LENGTH_SHORT).show()
+                                    api.dockerRestart(server, c.id)
+                                    Toast.makeText(ctx, t.containerRestartedTpl.format(c.name), Toast.LENGTH_SHORT).show()
                                     onRefresh()
                                 } catch (e: Exception) {
-                                    Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        }) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Icon(Icons.Rounded.Stop, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
-                                Text("توقف", color = Color(0xFFEF4444), fontSize = 10.5.sp)
-                            }
-                        }
+                        },
+                        icon = Icons.Rounded.Refresh
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    if (isRunning) {
+                        SoftButton(
+                            text = t.stopShort,
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        api.dockerStop(server, c.id)
+                                        Toast.makeText(ctx, t.containerStoppedTpl.format(c.name), Toast.LENGTH_SHORT).show()
+                                        onRefresh()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            icon = Icons.Rounded.Stop,
+                            tone = Ds.danger,
+                            toneDim = Ds.dangerDim
+                        )
                     }
                 }
             }
@@ -1127,7 +1075,9 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
     }
 }
 
-// ── Global Check-Host Tab ───────────────────────────────────────────────────
+// ═════════════════════════════════════════════════════════════════════════════
+// GLOBAL CHECK (Check-Host)
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun GlobalCheckTab(t: Str, defaultHost: String) {
@@ -1176,68 +1126,38 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            ModernCard(padding = 12.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DTextField(
                         value = targetHost,
                         onValueChange = { targetHost = it },
-                        label = { Text(t.probeTarget, fontSize = 11.5.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        label = t.probeTarget,
+                        mono = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
-
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        listOf("ping", "http", "tcp", "dns").forEach { type ->
-                            val selected = selectedType == type
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
-                                border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier.clickable { selectedType = type }
-                            ) {
-                                Text(
-                                    type.uppercase(Locale.US),
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-                                    fontSize = 10.5.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        if (selectedType == "tcp") {
-                            Spacer(Modifier.width(4.dp))
-                            OutlinedTextField(
-                                value = tcpPort,
-                                onValueChange = { tcpPort = it },
-                                label = { Text("Port", fontSize = 9.5.sp) },
-                                modifier = Modifier.width(65.dp),
-                                singleLine = true
-                            )
-                        }
-
-                        Spacer(Modifier.weight(1f))
-
-                        Button(
-                            onClick = { startProbe() },
-                            enabled = !isChecking && targetHost.isNotBlank(),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                        ) {
-                            if (isChecking) {
-                                CircularProgressIndicator(Modifier.size(15.dp), color = Color.White)
-                            } else {
-                                Text(t.runProbe, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    SegmentedTabs(
+                        tabs = listOf("ping", "http", "tcp", "dns").map { TabSpec(it.uppercase()) },
+                        selected = listOf("ping", "http", "tcp", "dns").indexOf(selectedType),
+                        onSelect = { selectedType = listOf("ping", "http", "tcp", "dns")[it] }
+                    )
+                    if (selectedType == "tcp") {
+                        DTextField(
+                            value = tcpPort,
+                            onValueChange = { tcpPort = it },
+                            label = t.portNumber,
+                            mono = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
+                    PrimaryActionButton(
+                        text = if (isChecking) t.probing else t.runProbe,
+                        onClick = { startProbe() },
+                        enabled = !isChecking && targetHost.isNotBlank(),
+                        icon = Icons.Rounded.Public
+                    )
                 }
             }
         }
@@ -1248,90 +1168,54 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
                     Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(statusText, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(statusText, fontSize = 12.sp, color = Ds.accent, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                     if (totalCount > 0) {
-                        Spacer(Modifier.weight(1f))
-                        Text("$okCount/$totalCount", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "$okCount/$totalCount",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Telemetry,
+                            color = Ds.textPrimary
+                        )
                     }
                 }
             }
         }
 
         if (nodes.isEmpty() && !isChecking) {
-            item {
-                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconBadge(
-                            icon = Icons.Rounded.Public,
-                            tint = MaterialTheme.colorScheme.primary,
-                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                            size = 50.dp,
-                            iconSize = 25.dp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(t.enterTarget, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+            item { EmptyState(title = t.enterTarget, icon = Icons.Rounded.Public, hint = t.globalCheck) }
         } else {
             items(nodes, key = { it.nodeKey }) { node ->
-                ModernCard(padding = 9.dp) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(node.flag, fontSize = 16.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(node.location.ifEmpty { node.countryCode }, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            Text(node.nodeKey, fontSize = 9.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(node.flag, fontSize = 16.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
                         Text(
-                            node.resultText,
-                            fontSize = 11.sp,
+                            node.location.ifEmpty { node.countryCode },
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = when (node.state) {
-                                1 -> Color(0xFF10B981)
-                                2 -> Color(0xFFEF4444)
-                                else -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
+                            color = Ds.textPrimary
                         )
+                        Text(node.nodeKey, fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                    Text(
+                        node.resultText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = Telemetry,
+                        color = when (node.state) {
+                            1 -> Ds.ok
+                            2 -> Ds.danger
+                            else -> Ds.textTertiary
+                        }
+                    )
                 }
+                Hairline()
             }
             item { Spacer(Modifier.height(30.dp)) }
-        }
-    }
-}
-
-// ── Tab Chip with Vector Icon ───────────────────────────────────────────────
-
-@Composable
-private fun TabChip(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        shadowElevation = if (selected) 1.5.dp else 0.dp,
-        modifier = Modifier.clickable { onClick() }
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(13.dp)
-            )
-            Text(
-                label,
-                fontSize = 11.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

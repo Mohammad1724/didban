@@ -26,7 +26,7 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 - 🔐 **Encrypted Vault & backup** — store confidential notes & credentials with AES-256-GCM encryption and export/import full backups
 - 📡 **Local Web Server & QR Code** — share files and text across local Wi-Fi with instant QR code downloading
 - 🛠️ **Developer Lab (String Lab)** — Base64, JSON formatter/minifier, Subnet/CIDR calculator, JWT decoder, Hashes, and UUID/Password generator
-- 📱 **Android app** — bilingual (فارسی/English), Obsidian dark theme, 1-click SSH auto-installer
+- 📱 **Android app** — bilingual (Persian/English), “Nightwatch” design language (dark & light themes, Inter + tabular telemetry numerals, animated radar mark), 1-click SSH install
 - 🔐 **Secure by default** — HTTPS with self-signed certs + token auth; the app pins the certificate fingerprint (SSH-style trust-on-first-use)
 - 🪶 **Featherweight** — single static Go binary (~8 MB), zero external dependencies, ~10 MB RAM, systemd-hardened
 
