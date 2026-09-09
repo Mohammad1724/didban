@@ -17,13 +17,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +37,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 1. MODERN SOFT-CARD CONTAINER (Matching Modern SaaS Dashboard Design)
+// 1. MODERN SOFT-CARD CONTAINER (Matching SaaS Dashboard Design)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -71,14 +77,43 @@ fun PanelCard(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 2. NOTICE BANNER (Purple/Lavender Lightbulb Banner matching Screenshot)
+// 2. ICON BADGE (Crisp vector icon inside a tinted rounded container)
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun IconBadge(
+    icon: ImageVector,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    background: Color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+    size: Dp = 40.dp,
+    iconSize: Dp = 20.dp,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = background,
+        modifier = modifier.size(size)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3. NOTICE BANNER (Lavender Lightbulb Banner with Vector Icon)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 fun NoticeBanner(
     text: String,
     modifier: Modifier = Modifier,
-    icon: String = "💡",
+    icon: ImageVector = Icons.Rounded.Lightbulb,
     onDismiss: (() -> Unit)? = null
 ) {
     Surface(
@@ -91,7 +126,12 @@ fun NoticeBanner(
             Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(icon, fontSize = 18.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
             Spacer(Modifier.width(10.dp))
             Text(
                 text,
@@ -115,7 +155,7 @@ fun NoticeBanner(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 3. FEATURE GUIDE & CLARIFICATION CARD (Detailed Explanations for User)
+// 4. FEATURE GUIDE & CLARIFICATION CARD (Vector Icon Header)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -123,6 +163,7 @@ fun FeatureGuideCard(
     title: String,
     description: String,
     bullets: List<String> = emptyList(),
+    icon: ImageVector = Icons.Rounded.Info,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -133,7 +174,12 @@ fun FeatureGuideCard(
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("ℹ️", fontSize = 16.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
             }
@@ -157,7 +203,7 @@ fun FeatureGuideCard(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. CIRCULAR GAUGE RING (Matching the 0% Gauge in the Screenshot)
+// 5. CIRCULAR GAUGE RING (Matching Modern Gauge in Screenshot)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -217,7 +263,7 @@ fun CircularGauge(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 5. PRIMARY ACTION BUTTON (Vibrant Emerald Teal matching "اتصال مستقیم")
+// 6. PRIMARY ACTION BUTTON (Vibrant Emerald Teal)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -225,6 +271,7 @@ fun PrimaryActionButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
     enabled: Boolean = true,
     containerColor: Color = Color(0xFF0D9488) // Vibrant Emerald Teal
 ) {
@@ -240,12 +287,18 @@ fun PrimaryActionButton(
             .fillMaxWidth()
             .height(50.dp)
     ) {
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(imageVector = icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 6. SECONDARY ACTION CARD BUTTON (Matching the 2x2 Grid in Screenshot)
+// 7. SECONDARY ACTION CARD BUTTON (With Vector Icon)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -253,7 +306,8 @@ fun SecondaryActionCard(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: String? = null
+    icon: ImageVector? = null,
+    iconTint: Color = MaterialTheme.colorScheme.primary
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -271,7 +325,12 @@ fun SecondaryActionCard(
             horizontalArrangement = Arrangement.Center
         ) {
             if (icon != null) {
-                Text(icon, fontSize = 15.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(8.dp))
             }
             Text(
@@ -285,7 +344,7 @@ fun SecondaryActionCard(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 7. LINEAR PROGRESS BAR WITH LABEL & PERCENTAGE
+// 8. LINEAR PROGRESS BAR WITH LABEL & PERCENTAGE
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -335,15 +394,16 @@ fun ProgressMetricBar(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 8. METRIC STAT CARD (2x2 Grid Cards with Icon + Value + Subtitle)
+// 9. METRIC STAT CARD (Vector Icon + Title + Value)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 fun MetricStatCard(
-    icon: String,
+    icon: ImageVector,
     title: String,
     value: String,
     modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
     valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Surface(
@@ -368,12 +428,17 @@ fun MetricStatCard(
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Text(icon, fontSize = 18.sp)
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(18.dp)
+                )
             }
             Spacer(Modifier.height(4.dp))
             Text(
                 value,
-                fontSize = 14.sp,
+                fontSize = 13.5.sp,
                 fontWeight = FontWeight.Bold,
                 color = valueColor,
                 lineHeight = 18.sp
@@ -383,7 +448,7 @@ fun MetricStatCard(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 9. STATUS PILL BADGE (• فعال / • آنلاین / • قطع)
+// 10. STATUS PILL BADGE (• فعال / • آنلاین / • قطع)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -421,7 +486,7 @@ fun StatusPill(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 10. MODERN TOP HEADER BAR (Logo + Refresh + Theme Toggle + Language)
+// 11. MODERN TOP HEADER BAR (Vector Icons for Theme / Refresh / Language)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -451,7 +516,12 @@ fun ModernTopBar(
                 modifier = Modifier.clickable { onToggleTheme() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Text(if (isDarkMode) "🌙" else "☀️", fontSize = 16.sp)
+                    Icon(
+                        imageVector = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                        contentDescription = "Theme",
+                        tint = if (isDarkMode) Color(0xFFFBBF24) else Color(0xFFF59E0B),
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
@@ -463,7 +533,12 @@ fun ModernTopBar(
                 modifier = Modifier.clickable { onRefresh() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Text("🔄", fontSize = 15.sp)
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = "Refresh",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
@@ -474,7 +549,17 @@ fun ModernTopBar(
                 shadowElevation = 1.dp,
                 modifier = Modifier.clickable { onToggleLang() }
             ) {
-                Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
+                Row(
+                    Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Translate,
+                        contentDescription = "Language",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
                     Text(langLabel, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                 }
             }

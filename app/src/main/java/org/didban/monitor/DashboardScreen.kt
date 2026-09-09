@@ -24,10 +24,36 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AccessTime
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Dashboard
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +72,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -85,7 +112,6 @@ fun DashboardScreen(
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
     var socketsData by remember { mutableStateOf<SocketsData?>(null) }
     var dockerData by remember { mutableStateOf<DockerSummaryData?>(null) }
-    var showGuideDialog by remember { mutableStateOf(false) }
 
     // Kill process dialog state
     var procToKill by remember { mutableStateOf<Pair<Int, String>?>(null) }
@@ -148,7 +174,7 @@ fun DashboardScreen(
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // ── Top Bar (Matching Screenshot with Theme & Refresh & Back) ──
+        // ── Top Bar (Vector Buttons) ──
         Row(
             Modifier.fillMaxWidth().padding(bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -161,7 +187,7 @@ fun DashboardScreen(
                 modifier = Modifier.clickable { onBack() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Text("‹", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -175,7 +201,12 @@ fun DashboardScreen(
                 modifier = Modifier.clickable { onToggleTheme() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Text(if (isDarkMode) "🌙" else "☀️", fontSize = 16.sp)
+                    Icon(
+                        if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                        contentDescription = "Theme",
+                        modifier = Modifier.size(18.dp),
+                        tint = if (isDarkMode) Color(0xFFFBBF24) else Color(0xFFD97706)
+                    )
                 }
             }
 
@@ -189,7 +220,7 @@ fun DashboardScreen(
                 modifier = Modifier.clickable { refreshAll() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Text("🔄", fontSize = 15.sp)
+                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -201,9 +232,9 @@ fun DashboardScreen(
             }
         }
 
-        // ── Notice Banner (Lightbulb / Context Note matching Screenshot) ──
+        // ── Notice Banner ──
         NoticeBanner(
-            text = "💡 اطلاعات منابع و وضعیت سرور هر چند ثانیه به‌صورت زنده از ایجنت پرسرعت Go دریافت می‌شود.",
+            text = "اطلاعات منابع و وضعیت سرور هر چند ثانیه به‌صورت زنده از ایجنت پرسرعت Go دریافت می‌شود.",
             modifier = Modifier.padding(bottom = 10.dp)
         )
 
@@ -231,17 +262,17 @@ fun DashboardScreen(
             }
         }
 
-        // ── Tabs (Horizontal Chips) ──
+        // ── Tabs (Horizontal Chips with Vector Icons) ──
         Row(
             Modifier.fillMaxWidth().padding(bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            TabChip("📊 ${t.overview}", tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
-            TabChip("🐳 Docker", tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
-            TabChip("🕵️ ${t.events}", tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
-            TabChip("👂 ${t.listeningPorts}", tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
-            TabChip("🛑 ${t.processes}", tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
-            TabChip("🌐 ${t.globalCheck}", tab == 5) { scope.launch { pagerState.animateScrollToPage(5) } }
+            TabChip(Icons.Rounded.Dashboard, t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
+            TabChip(Icons.Rounded.Layers, "Docker", tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
+            TabChip(Icons.Rounded.Timeline, t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
+            TabChip(Icons.Rounded.Sensors, t.listeningPorts, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
+            TabChip(Icons.Rounded.Memory, t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
+            TabChip(Icons.Rounded.Public, t.globalCheck, tab == 5) { scope.launch { pagerState.animateScrollToPage(5) } }
         }
 
         // ── Content Pages ──
@@ -366,7 +397,7 @@ fun DashboardScreen(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// MODERN OVERVIEW TAB (Matching the exact card layout in user's screenshot)
+// MODERN OVERVIEW TAB (Matching reference UI with Vector Icons)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -385,7 +416,10 @@ private fun ModernOverviewTab(
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (err != null) {
-                    Text("❌ ${t.error}", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                        Text(t.error, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text(err, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
@@ -403,26 +437,32 @@ private fun ModernOverviewTab(
     val diskFreePct = if (diskPrimary != null) (100f - diskPrimary.pct).coerceIn(0f, 100f) else 100f
 
     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // ── 1. Top Profile / Identity Card (Matching Top Card in Screenshot) ──
+        // ── 1. Top Profile / Identity Card ──
         item {
             ModernCard(padding = 14.dp) {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left: Pill action (e.g. Test Alert or Guide)
+                    // Left: Pill action (Test Telegram Alert)
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
                         modifier = Modifier.clickable { onTestAlert() }
                     ) {
-                        Text(
-                            "✈️ ${t.testTelegram}",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Rounded.Send, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(12.dp))
+                            Text(
+                                t.testTelegram,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
                     }
 
                     Spacer(Modifier.weight(1f))
@@ -436,20 +476,18 @@ private fun ModernOverviewTab(
 
                     Spacer(Modifier.width(10.dp))
 
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = Color(0xFF0D9488),
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("👁️", fontSize = 20.sp)
-                        }
-                    }
+                    IconBadge(
+                        icon = Icons.Rounded.Dns,
+                        tint = Color.White,
+                        background = Color(0xFF0D9488),
+                        size = 44.dp,
+                        iconSize = 22.dp
+                    )
                 }
             }
         }
 
-        // ── 2. Hero Resource Gauge Card (The centerpiece of user's screenshot!) ──
+        // ── 2. Hero Resource Gauge Card ──
         item {
             ModernCard(padding = 18.dp) {
                 Row(
@@ -471,7 +509,7 @@ private fun ModernOverviewTab(
 
                     Spacer(Modifier.width(16.dp))
 
-                    // Circular Progress Gauge Ring (Matching the 0% gauge in screenshot!)
+                    // Circular Progress Gauge Ring
                     CircularGauge(
                         percentage = m.cpuUsage,
                         label = "مصرف CPU",
@@ -487,37 +525,37 @@ private fun ModernOverviewTab(
             }
         }
 
-        // ── 3. Primary Full-Width Action Button (Matching "اتصال مستقیم") ──
+        // ── 3. Primary Full-Width Action Button ──
         item {
             PrimaryActionButton(
-                text = "⚡ پایش زنده و رصد سریع پروسه‌ها",
-                onClick = { onNavigateTab(1) } // Switch to Processes tab
+                text = "پایش زنده و رصد سریع پروسه‌ها",
+                onClick = { onNavigateTab(1) }
             )
         }
 
-        // ── 4. 2x2 Secondary Action Cards Grid (Matching the 4 buttons in screenshot) ──
+        // ── 4. 2x2 Secondary Action Cards Grid ──
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
-                        title = "🐳 کانتینرهای داکر",
+                        title = "کانتینرهای داکر",
                         onClick = { onNavigateTab(4) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
-                        title = "🕵️ کارآگاه اسپایک",
+                        title = "کارآگاه اسپایک",
                         onClick = { onNavigateTab(2) },
                         modifier = Modifier.weight(1f)
                     )
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
-                        title = "👂 پورت‌ها و اتصالات",
+                        title = "پورت‌ها و اتصالات",
                         onClick = { onNavigateTab(3) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
-                        title = "🛑 بستن پروسه‌ها",
+                        title = "مدیریت پروسه‌ها",
                         onClick = { onNavigateTab(1) },
                         modifier = Modifier.weight(1f)
                     )
@@ -525,7 +563,7 @@ private fun ModernOverviewTab(
             }
         }
 
-        // ── 5. Linear Progress Bar Card (Matching "زمان باقی‌مانده 98%" in screenshot) ──
+        // ── 5. Linear Progress Bar Card ──
         item {
             ModernCard(padding = 16.dp) {
                 ProgressMetricBar(
@@ -536,19 +574,19 @@ private fun ModernOverviewTab(
             }
         }
 
-        // ── 6. 2x2 Metric Stat Cards Grid (Matching the 4 lower cards in screenshot) ──
+        // ── 6. 2x2 Metric Stat Cards Grid ──
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricStatCard(
-                        icon = "📊",
+                        icon = Icons.Rounded.SwapVert,
                         title = "ترافیک لحظه‌ای شبکه",
                         value = if (m.nets.isNotEmpty()) "↓ ${Fmt.rate(m.nets[0].rx)}\n↑ ${Fmt.rate(m.nets[0].tx)}" else "—",
                         modifier = Modifier.weight(1f),
                         valueColor = MaterialTheme.colorScheme.primary
                     )
                     MetricStatCard(
-                        icon = "⏱️",
+                        icon = Icons.Rounded.Speed,
                         title = "لود پردازنده (Load 1m)",
                         value = "%.2f (%d cores)".format(Locale.US, m.load1, m.cores),
                         modifier = Modifier.weight(1f)
@@ -556,14 +594,14 @@ private fun ModernOverviewTab(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MetricStatCard(
-                        icon = "🌐",
+                        icon = Icons.Rounded.Public,
                         title = "زمان پاسخ (Latency)",
                         value = if (latency >= 0f) "${latency.toInt()} ms" else "—",
                         modifier = Modifier.weight(1f),
                         valueColor = if (latency > 250f) Color(0xFFEF4444) else Color(0xFF10B981)
                     )
                     MetricStatCard(
-                        icon = "📅",
+                        icon = Icons.Rounded.AccessTime,
                         title = "آپتایم سرور",
                         value = Fmt.uptime(m.uptime),
                         modifier = Modifier.weight(1f)
@@ -575,7 +613,10 @@ private fun ModernOverviewTab(
         // ── 7. Charts & History Sparklines ──
         item {
             ModernCard(padding = 14.dp) {
-                Text("📈 نمودار تغییرات ۲۴ ساعته پردازنده و رم", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Rounded.Timeline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Text("نمودار تغییرات ۲۴ ساعته پردازنده و رم", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
                 Spacer(Modifier.height(8.dp))
                 if (hist.isNotEmpty()) {
                     Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(48.dp), color = Color(0xFF0D9488))
@@ -633,7 +674,7 @@ private fun ProcessesTab(
     Column(Modifier.fillMaxSize()) {
         // Explanatory Help Card
         FeatureGuideCard(
-            title = "🛑 راهنمای مدیریت و بستن پروسه‌ها",
+            title = "راهنمای مدیریت و بستن پروسه‌ها",
             description = "اگر برنامه‌ای مصرف غیرعادی CPU یا رم دارد یا هنگ کرده است، می‌توانید بدون نیاز به SSH با دکمه قرمز آن را متوقف (Kill) کنید."
         )
 
@@ -695,15 +736,21 @@ private fun ProcessesTab(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
-                            Text(
-                                "🛑 ${t.kill}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF4444),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier
                                     .clickable { onKill(p.pid, p.name) }
                                     .padding(top = 2.dp)
-                            )
+                            ) {
+                                Icon(Icons.Rounded.Block, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(12.dp))
+                                Text(
+                                    t.kill,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFEF4444)
+                                )
+                            }
                         }
                     }
                 }
@@ -723,22 +770,22 @@ private fun EventsTab(
 ) {
     val fmt = SimpleDateFormat("MMM d, HH:mm:ss", Locale.getDefault())
 
-    fun eventStyle(type: String): Triple<String, String, Color> = when (type) {
-        "cpu" -> Triple("🔥", t.spikeCpu, Color(0xFFEF4444))
-        "memory" -> Triple("🧠", t.spikeMem, Color(0xFF6366F1))
-        "container_down" -> Triple("💀", "Container Down", Color(0xFFEF4444))
-        "container_up" -> Triple("✅", "Container Up", Color(0xFF10B981))
-        "process_down" -> Triple("💀", t.eventProcessDown, Color(0xFFEF4444))
-        "process_up" -> Triple("✅", t.eventProcessUp, Color(0xFF10B981))
-        "disk" -> Triple("💽", t.eventDisk, Color(0xFFF59E0B))
-        "steal" -> Triple("🥷", t.eventSteal, Color(0xFFA855F7))
-        "agent_restart" -> Triple("🔄", t.eventAgentRestart, Color(0xFF64748B))
-        else -> Triple("•", type, Color(0xFF64748B))
+    fun eventStyle(type: String): Triple<ImageVector, String, Color> = when (type) {
+        "cpu" -> Triple(Icons.Rounded.LocalFireDepartment, t.spikeCpu, Color(0xFFEF4444))
+        "memory" -> Triple(Icons.Rounded.Memory, t.spikeMem, Color(0xFF6366F1))
+        "container_down" -> Triple(Icons.Rounded.ErrorOutline, "Container Down", Color(0xFFEF4444))
+        "container_up" -> Triple(Icons.Rounded.CheckCircle, "Container Up", Color(0xFF10B981))
+        "process_down" -> Triple(Icons.Rounded.ErrorOutline, t.eventProcessDown, Color(0xFFEF4444))
+        "process_up" -> Triple(Icons.Rounded.CheckCircle, t.eventProcessUp, Color(0xFF10B981))
+        "disk" -> Triple(Icons.Rounded.Storage, t.eventDisk, Color(0xFFF59E0B))
+        "steal" -> Triple(Icons.Rounded.Speed, t.eventSteal, Color(0xFFA855F7))
+        "agent_restart" -> Triple(Icons.Rounded.Refresh, t.eventAgentRestart, Color(0xFF64748B))
+        else -> Triple(Icons.Rounded.Timeline, type, Color(0xFF64748B))
     }
 
     Column(Modifier.fillMaxSize()) {
         FeatureGuideCard(
-            title = "🕵️ راهنمای کارآگاه اسپایک (Spike Forensics)",
+            title = "راهنمای کارآگاه اسپایک (Spike Forensics)",
             description = t.guideSpikes
         )
 
@@ -747,8 +794,14 @@ private fun EventsTab(
         if (events.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🎉", fontSize = 36.sp)
-                    Spacer(Modifier.height(6.dp))
+                    IconBadge(
+                        icon = Icons.Rounded.CheckCircle,
+                        tint = Color(0xFF10B981),
+                        background = Color(0xFF10B981).copy(alpha = 0.12f),
+                        size = 56.dp,
+                        iconSize = 30.dp
+                    )
+                    Spacer(Modifier.height(10.dp))
                     Text("هیچ اسپایک یا اتفاق غیرعادی در ۲۴ ساعت گذشته ثبت نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                 }
             }
@@ -757,10 +810,12 @@ private fun EventsTab(
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
-                val (emoji, label, color) = eventStyle(e.type)
+                val (icon, label, color) = eventStyle(e.type)
                 ModernCard(padding = 14.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$emoji $label", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
+                        IconBadge(icon = icon, tint = color, background = color.copy(alpha = 0.15f), size = 28.dp, iconSize = 15.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(label, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
                         Spacer(Modifier.weight(1f))
                         Text(fmt.format(Date(e.time)), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -788,11 +843,9 @@ private fun EventsTab(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("${Fmt.pct(p.cpu)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        "🛑",
-                                        fontSize = 12.sp,
-                                        modifier = Modifier.clickable { onKill(p.pid, p.name) }
-                                    )
+                                    IconButton(onClick = { onKill(p.pid, p.name) }, modifier = Modifier.size(24.dp)) {
+                                        Icon(Icons.Rounded.Block, contentDescription = "Kill", tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                                    }
                                 }
                             }
                         }
@@ -819,7 +872,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         FeatureGuideCard(
-            title = "👂 راهنمای پورت‌ها و سوکت‌های فعال",
+            title = "راهنمای پورت‌ها و سوکت‌های فعال",
             description = t.guideSockets
         )
 
@@ -836,13 +889,24 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.clickable { showListeningOnly = true }
             ) {
-                Text(
-                    "👂 ${t.listeningPorts} (${data.listening.size})",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    fontSize = 12.sp,
-                    fontWeight = if (showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                    color = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Sensors,
+                        contentDescription = null,
+                        tint = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "${t.listeningPorts} (${data.listening.size})",
+                        fontSize = 11.5.sp,
+                        fontWeight = if (showListeningOnly) FontWeight.Bold else FontWeight.Normal,
+                        color = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Surface(
@@ -851,17 +915,30 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 modifier = Modifier.clickable { showListeningOnly = false }
             ) {
-                Text(
-                    "🔗 ${t.activeConnections} (${data.connections.size})",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    fontSize = 12.sp,
-                    fontWeight = if (!showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                    color = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Link,
+                        contentDescription = null,
+                        tint = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        "${t.activeConnections} (${data.connections.size})",
+                        fontSize = 11.5.sp,
+                        fontWeight = if (!showListeningOnly) FontWeight.Bold else FontWeight.Normal,
+                        color = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onRefresh) { Text("🔄", fontSize = 14.sp) }
+            IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+            }
         }
 
         val itemsToShow = if (showListeningOnly) data.listening else data.connections
@@ -939,8 +1016,14 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
     if (!data.installed) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🐳", fontSize = 36.sp)
-                Spacer(Modifier.height(6.dp))
+                IconBadge(
+                    icon = Icons.Rounded.Layers,
+                    tint = MaterialTheme.colorScheme.primary,
+                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    size = 56.dp,
+                    iconSize = 28.dp
+                )
+                Spacer(Modifier.height(10.dp))
                 Text("سرویس Docker روی این سرور در حال اجرا نیست", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
             }
         }
@@ -949,7 +1032,7 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
 
     Column(Modifier.fillMaxSize()) {
         FeatureGuideCard(
-            title = "🐳 راهنمای کانتینرهای داکر (Docker)",
+            title = "راهنمای کانتینرهای داکر (Docker)",
             description = "تمام کانتینرهای فعال و متوقف Docker را بدون نیاز به دستورات SSH مشاهده و مدیریت کنید. می‌توانید هر کانتینر را با یک کلیک ری‌استارت یا استاپ کنید."
         )
 
@@ -957,7 +1040,9 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
 
         Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("کانتینرهای فعال (${data.containers.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = onRefresh) { Text("🔄", fontSize = 14.sp) }
+            IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+            }
         }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -992,7 +1077,7 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
                     Text(c.status, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
                     Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = {
                             scope.launch {
                                 try {
@@ -1003,7 +1088,12 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
                                     Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        }) { Text("🔄 ری‌استارت", fontSize = 11.sp) }
+                        }) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Text("ری‌استارت", fontSize = 11.sp)
+                            }
+                        }
 
                         if (isRunning) {
                             TextButton(onClick = {
@@ -1016,7 +1106,12 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
                                         Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            }) { Text("🛑 توقف", color = Color(0xFFEF4444), fontSize = 11.sp) }
+                            }) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Rounded.Stop, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                                    Text("توقف", color = Color(0xFFEF4444), fontSize = 11.sp)
+                                }
+                            }
                         }
                     }
                 }
@@ -1075,7 +1170,7 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
 
     Column(Modifier.fillMaxSize()) {
         FeatureGuideCard(
-            title = "🌐 راهنمای تست دسترسی جهانی (Check-Host)",
+            title = "راهنمای تست دسترسی جهانی (Check-Host)",
             description = "وضعیت در دسترس بودن سرور و پاسخ‌دهی پورت‌ها را از ۲۰ نود در سراسر دنیا (اروپا، آمریکا، آسیا و ایران) ارزیابی کنید."
         )
 
@@ -1160,8 +1255,14 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
         if (nodes.isEmpty() && !isChecking) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🌐", fontSize = 36.sp)
-                    Spacer(Modifier.height(6.dp))
+                    IconBadge(
+                        icon = Icons.Rounded.Public,
+                        tint = MaterialTheme.colorScheme.primary,
+                        background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        size = 56.dp,
+                        iconSize = 28.dp
+                    )
+                    Spacer(Modifier.height(10.dp))
                     Text(t.enterTarget, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -1199,10 +1300,10 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
     }
 }
 
-// ── Small Tab Chip ──────────────────────────────────────────────────────────
+// ── Tab Chip with Vector Icon ───────────────────────────────────────────────
 
 @Composable
-private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun TabChip(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
@@ -1210,12 +1311,23 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
         shadowElevation = if (selected) 2.dp else 0.dp,
         modifier = Modifier.clickable { onClick() }
     ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(13.dp)
+            )
+            Text(
+                label,
+                fontSize = 11.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

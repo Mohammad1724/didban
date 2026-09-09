@@ -23,11 +23,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.ContentPaste
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.RocketLaunch
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -109,9 +124,9 @@ fun ServersScreen(
             langLabel = t.langButton
         )
 
-        // ── Notice Banner (Matching Screenshot) ──
+        // ── Notice Banner (Matching Reference UI) ──
         NoticeBanner(
-            text = "💡 با اتصال سرور لینوکسی، مصرف لحظه‌ای CPU، رم، دیسک، کانتینرهای داکر و اسپایک‌ها به‌صورت زنده ثبت می‌شوند.",
+            text = "با اتصال سرور لینوکسی، مصرف لحظه‌ای پردازنده، رم، دیسک، کانتینرهای داکر و رویدادهای سرور به‌صورت زنده و بدون وقفه ثبت می‌شوند.",
             modifier = Modifier.padding(bottom = 10.dp)
         )
 
@@ -161,13 +176,24 @@ fun ServersScreen(
                         }
                     }
                 ) {
-                    Text(
-                        if (monitoring) "توقف پایش ■" else "شروع پایش ▶",
+                    Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (monitoring) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            if (monitoring) "توقف پایش" else "شروع پایش",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -181,8 +207,14 @@ fun ServersScreen(
                     ModernCard(padding = 16.dp) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🚀", fontSize = 22.sp)
-                                Spacer(Modifier.width(8.dp))
+                                IconBadge(
+                                    icon = Icons.Rounded.RocketLaunch,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    size = 36.dp,
+                                    iconSize = 18.dp
+                                )
+                                Spacer(Modifier.width(10.dp))
                                 Text("راهنمای سریع اتصال اولین سرور", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
                             }
 
@@ -212,8 +244,13 @@ fun ServersScreen(
                                                 Toast.makeText(ctx, "دستور نصب در حافظه کپی شد!", Toast.LENGTH_SHORT).show()
                                             }
                                         ) {
-                                            Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                                Text("📋 کپی دستور", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                                            Row(
+                                                Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
+                                                Text("کپی دستور", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -328,15 +365,13 @@ private fun ModernServerCard(
         padding = 14.dp
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (isOnline) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f),
-                modifier = Modifier.size(42.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(if (isOnline) "🟢" else "🔴", fontSize = 16.sp)
-                }
-            }
+            IconBadge(
+                icon = if (isOnline) Icons.Rounded.Dns else Icons.Rounded.ErrorOutline,
+                tint = if (isOnline) Color(0xFF10B981) else Color(0xFFEF4444),
+                background = if (isOnline) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
+                size = 42.dp,
+                iconSize = 22.dp
+            )
 
             Spacer(Modifier.width(12.dp))
 
@@ -386,12 +421,12 @@ private fun ModernServerCard(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                TextButton(onClick = onEdit) {
-                    Text("✏️", fontSize = 14.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 }
-                TextButton(onClick = onDelete) {
-                    Text("🗑️", fontSize = 14.sp)
+                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(17.dp))
                 }
             }
         }
@@ -515,7 +550,7 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
             }
 
             if (found) {
-                Toast.makeText(ctx, "اطلاعات سرور از کلیپ‌بورد شناسایی و پر شد! ✅", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, "اطلاعات سرور از کلیپ‌بورد شناسایی و پر شد!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(ctx, "فرمت مشخصات در کلیپ‌بورد یافت نشد", Toast.LENGTH_SHORT).show()
             }
@@ -546,7 +581,14 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                                 Toast.makeText(ctx, "دستور در کلیپ‌بورد کپی شد!", Toast.LENGTH_SHORT).show()
                             }
                         ) {
-                            Text("📋 کپی دستور", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(11.dp))
+                                Text("کپی دستور", fontSize = 10.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     Spacer(Modifier.height(4.dp))
@@ -574,7 +616,9 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Text("📋 الصاق خودکار اطلاعات از کلیپ‌بورد", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Icon(Icons.Rounded.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("الصاق خودکار اطلاعات از کلیپ‌بورد", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
         }
@@ -614,13 +658,24 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                     color = if (testSuccess) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        testResult!!,
+                    Row(
                         modifier = Modifier.padding(8.dp),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626)
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            testResult!!,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626)
+                        )
+                    }
                 }
             }
         }
@@ -648,10 +703,10 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                                 val m = ApiClient().metrics(testCfg)
                                 val elapsed = System.currentTimeMillis() - t0
                                 testSuccess = true
-                                testResult = "✅ اتصال با موفقیت برقرار شد! (تاخیر: ${elapsed}ms - پردازنده: ${Fmt.pct(m.cpuUsage)})"
+                                testResult = "اتصال با موفقیت برقرار شد! (تاخیر: ${elapsed}ms - پردازنده: ${Fmt.pct(m.cpuUsage)})"
                             } catch (e: Exception) {
                                 testSuccess = false
-                                testResult = "❌ خطا در اتصال: ${e.message}\n(مطمئن شوید پورت $port در فایروال با sudo ufw allow $port باز است)"
+                                testResult = "خطا در اتصال: ${e.message}\n(مطمئن شوید پورت $port با sudo ufw allow $port باز است)"
                             } finally {
                                 isTesting = false
                             }
@@ -662,7 +717,12 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                     modifier = Modifier.weight(1f).height(48.dp)
                 ) {
                     if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                    else Text("⚡ تست اتصال", fontSize = 11.5.sp)
+                    else {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Text("تست اتصال", fontSize = 11.5.sp)
+                        }
+                    }
                 }
 
                 Button(
@@ -722,10 +782,18 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
         }
 
         result?.let { r ->
-            if (r.success) {
-                Text("✅ ${t.installDone}", color = Color(0xFF10B981), fontSize = 13.sp)
-            } else {
-                Text("❌ ${t.installFailed}: ${r.error}", color = Color(0xFFEF4444), fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    imageVector = if (r.success) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                    contentDescription = null,
+                    tint = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    if (r.success) t.installDone else "${t.installFailed}: ${r.error}",
+                    color = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
+                    fontSize = 12.sp
+                )
             }
         }
 

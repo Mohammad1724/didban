@@ -22,10 +22,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -94,7 +105,16 @@ fun UptimeScreen(t: Str) {
             Modifier.fillMaxWidth().padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("⏱️ ${t.uptimeMonitoring}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconBadge(
+                    icon = Icons.Rounded.Timer,
+                    tint = MaterialTheme.colorScheme.primary,
+                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    size = 36.dp,
+                    iconSize = 20.dp
+                )
+                Text(t.uptimeMonitoring, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            }
             Spacer(Modifier.weight(1f))
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -112,7 +132,7 @@ fun UptimeScreen(t: Str) {
 
         // ── Explanatory Guide Card ──
         FeatureGuideCard(
-            title = "⏱️ راهنمای پایش پایداری و ضربان قلب (Uptime Kuma)",
+            title = "راهنمای پایش پایداری و ضربان قلب (Uptime Kuma)",
             description = t.guideUptime
         )
 
@@ -136,8 +156,14 @@ fun UptimeScreen(t: Str) {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("⏱️", fontSize = 48.sp)
-                            Spacer(Modifier.height(8.dp))
+                            IconBadge(
+                                icon = Icons.Rounded.Timer,
+                                tint = MaterialTheme.colorScheme.primary,
+                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                size = 64.dp,
+                                iconSize = 34.dp
+                            )
+                            Spacer(Modifier.height(12.dp))
                             Text("هنوز مانیتوری ثبت نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Spacer(Modifier.height(4.dp))
                             Text(
@@ -237,7 +263,7 @@ fun UptimeScreen(t: Str) {
                             Spacer(Modifier.height(4.dp))
 
                             if (item.incidents.isEmpty()) {
-                                Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است 🎉", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
                                 item.incidents.takeLast(3).reversed().forEach { inc ->
@@ -252,12 +278,15 @@ fun UptimeScreen(t: Str) {
                             }
 
                             Spacer(Modifier.height(10.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = {
                                     item.isPaused = !item.isPaused
                                     saveTargets()
                                 }) {
-                                    Text(if (item.isPaused) "▶️ ادامه پایش" else "⏸️ توقف موقت", fontSize = 12.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Text(if (item.isPaused) "ادامه پایش" else "توقف موقت", fontSize = 11.5.sp)
+                                    }
                                 }
                                 TextButton(onClick = {
                                     scope.launch {
@@ -266,12 +295,18 @@ fun UptimeScreen(t: Str) {
                                         Toast.makeText(ctx, "وضعیت به‌روزرسانی شد", Toast.LENGTH_SHORT).show()
                                     }
                                 }) {
-                                    Text("🔄 بررسی مجدد", fontSize = 12.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Text("بررسی مجدد", fontSize = 11.5.sp)
+                                    }
                                 }
                                 TextButton(onClick = {
                                     deleteTarget = item
                                 }) {
-                                    Text("🗑️ حذف", color = Color(0xFFEF4444), fontSize = 12.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
+                                        Text("حذف", color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                                    }
                                 }
                             }
                         }
@@ -289,7 +324,7 @@ fun UptimeScreen(t: Str) {
         }
     }
 
-    // ── Add Monitor Dialog (Unconditionally Rendered) ──
+    // ── Add Monitor Dialog ──
     if (showAddDialog) {
         AddOrEditMonitorDialog(
             t = t,
@@ -452,13 +487,24 @@ private fun AddOrEditMonitorDialog(
                             color = if (testSuccess) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                testResult!!,
+                            Row(
                                 modifier = Modifier.padding(8.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626)
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    testResult!!,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626)
+                                )
+                            }
                         }
                     }
                 }
@@ -483,10 +529,10 @@ private fun AddOrEditMonitorDialog(
                                 isTesting = false
                                 if (hb.status == 1) {
                                     testSuccess = true
-                                    testResult = "✅ پاسخ دریافت شد! (زمان پاسخ: ${hb.latencyMs} میلی‌ثانیه)"
+                                    testResult = "پاسخ دریافت شد! (زمان پاسخ: ${hb.latencyMs} میلی‌ثانیه)"
                                 } else {
                                     testSuccess = false
-                                    testResult = "❌ پاسخ دریافت نشد یا خطایی رخ داد"
+                                    testResult = "پاسخ دریافت نشد یا خطایی رخ داد"
                                 }
                             }
                         },
@@ -495,7 +541,12 @@ private fun AddOrEditMonitorDialog(
                         modifier = Modifier.fillMaxWidth().height(44.dp)
                     ) {
                         if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                        else Text("⚡ تست اتصال قبل از ذخیره", fontSize = 11.5.sp)
+                        else {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Text("تست اتصال قبل از ذخیره", fontSize = 11.5.sp)
+                            }
+                        }
                     }
                 }
             }

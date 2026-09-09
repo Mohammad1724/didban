@@ -20,6 +20,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Cloud
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -240,7 +249,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                         }
                     }
 
-                    // ── Modern Bottom Navigation Bar ──
+                    // ── Modern Bottom Navigation Bar (Vector Icons) ──
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
                         border = androidx.compose.foundation.BorderStroke(
@@ -255,12 +264,12 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                             horizontalArrangement = Arrangement.SpaceAround,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            NavItem("👁️", t.navServers, currentNav == 0) { currentNav = 0 }
-                            NavItem("⏱️", t.navUptime, currentNav == 1) { currentNav = 1 }
-                            NavItem("🛰️", t.navNetwork, currentNav == 2) { currentNav = 2 }
-                            NavItem("☁️", t.navCloudflare, currentNav == 3) { currentNav = 3 }
-                            NavItem("🔐", t.navVault, currentNav == 4) { currentNav = 4 }
-                            NavItem("🛠️", t.navTools, currentNav == 5) { currentNav = 5 }
+                            NavItem(Icons.Rounded.Dns, t.navServers, currentNav == 0) { currentNav = 0 }
+                            NavItem(Icons.Rounded.Timer, t.navUptime, currentNav == 1) { currentNav = 1 }
+                            NavItem(Icons.Rounded.Hub, t.navNetwork, currentNav == 2) { currentNav = 2 }
+                            NavItem(Icons.Rounded.Cloud, t.navCloudflare, currentNav == 3) { currentNav = 3 }
+                            NavItem(Icons.Rounded.Security, t.navVault, currentNav == 4) { currentNav = 4 }
+                            NavItem(Icons.Rounded.Terminal, t.navTools, currentNav == 5) { currentNav = 5 }
                         }
                     }
                 }
@@ -270,7 +279,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
 }
 
 @Composable
-private fun NavItem(emoji: String, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
@@ -282,10 +291,16 @@ private fun NavItem(emoji: String, label: String, selected: Boolean, onClick: ()
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(emoji, fontSize = 17.sp)
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.height(2.dp))
             Text(
                 label,
-                fontSize = 10.sp,
+                fontSize = 10.5.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
