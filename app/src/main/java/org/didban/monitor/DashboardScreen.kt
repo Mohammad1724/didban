@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,14 +24,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Dns
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Speed
@@ -97,6 +102,7 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(0) }
     val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
+    val tabScrollState = rememberScrollState()
 
     // Keep the tab chips and the pager in sync
     LaunchedEffect(pagerState) {
@@ -174,7 +180,7 @@ fun DashboardScreen(
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // ── Top Bar (Vector Buttons) ──
+        // ── Top Bar (AutoMirrored Back Button for Persian/English RTL/LTR) ──
         Row(
             Modifier.fillMaxWidth().padding(bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -187,7 +193,12 @@ fun DashboardScreen(
                 modifier = Modifier.clickable { onBack() }
             ) {
                 Box(Modifier.size(38.dp), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Back", modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
@@ -205,7 +216,7 @@ fun DashboardScreen(
                         if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
                         contentDescription = "Theme",
                         modifier = Modifier.size(18.dp),
-                        tint = if (isDarkMode) Color(0xFFFBBF24) else Color(0xFFD97706)
+                        tint = if (isDarkMode) Color(0xFFFBBF24) else Color(0xFFF59E0B)
                     )
                 }
             }
@@ -262,10 +273,13 @@ fun DashboardScreen(
             }
         }
 
-        // ── Tabs (Horizontal Chips with Vector Icons) ──
+        // ── Tabs (Smooth Horizontally Scrollable Chips with Vector Icons) ──
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(tabScrollState)
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             TabChip(Icons.Rounded.Dashboard, t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
             TabChip(Icons.Rounded.Layers, "Docker", tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
@@ -333,7 +347,7 @@ fun DashboardScreen(
     procToKill?.let { (pid, name) ->
         AlertDialog(
             onDismissRequest = { if (!isKilling) procToKill = null },
-            title = { Text("${t.killProcessTitle}: $name (PID $pid)") },
+            title = { Text("${t.killProcessTitle}: $name (PID $pid)", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     Text(t.killConfirm, fontSize = 13.sp)
@@ -354,7 +368,7 @@ fun DashboardScreen(
                     ) {
                         RadioButton(selected = killSignal == "SIGKILL", onClick = { killSignal = "SIGKILL" })
                         Spacer(Modifier.width(8.dp))
-                        Text(t.sigkillDesc, fontSize = 12.sp, color = Color(0xFFEF4444))
+                        Text(t.sigkillDesc, fontSize = 12.sp, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -383,7 +397,7 @@ fun DashboardScreen(
                     if (isKilling) {
                         CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
                     } else {
-                        Text(t.kill)
+                        Text(t.kill, fontWeight = FontWeight.Bold)
                     }
                 }
             },
@@ -529,21 +543,24 @@ private fun ModernOverviewTab(
         item {
             PrimaryActionButton(
                 text = "پایش زنده و رصد سریع پروسه‌ها",
+                icon = Icons.Rounded.Bolt,
                 onClick = { onNavigateTab(1) }
             )
         }
 
-        // ── 4. 2x2 Secondary Action Cards Grid ──
+        // ── 4. 2x2 Secondary Action Cards Grid (With Vector Icons) ──
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
                         title = "کانتینرهای داکر",
+                        icon = Icons.Rounded.Layers,
                         onClick = { onNavigateTab(4) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
                         title = "کارآگاه اسپایک",
+                        icon = Icons.Rounded.Timeline,
                         onClick = { onNavigateTab(2) },
                         modifier = Modifier.weight(1f)
                     )
@@ -551,11 +568,13 @@ private fun ModernOverviewTab(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SecondaryActionCard(
                         title = "پورت‌ها و اتصالات",
+                        icon = Icons.Rounded.Sensors,
                         onClick = { onNavigateTab(3) },
                         modifier = Modifier.weight(1f)
                     )
                     SecondaryActionCard(
                         title = "مدیریت پروسه‌ها",
+                        icon = Icons.Rounded.Memory,
                         onClick = { onNavigateTab(1) },
                         modifier = Modifier.weight(1f)
                     )
@@ -671,41 +690,58 @@ private fun ProcessesTab(
         if (sortByMem) it.memMb else it.cpu
     }
 
-    Column(Modifier.fillMaxSize()) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         // Explanatory Help Card
-        FeatureGuideCard(
-            title = "راهنمای مدیریت و بستن پروسه‌ها",
-            description = "اگر برنامه‌ای مصرف غیرعادی CPU یا رم دارد یا هنگ کرده است، می‌توانید بدون نیاز به SSH با دکمه قرمز آن را متوقف (Kill) کنید."
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = { Text(t.searchProcesses, fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                singleLine = true
+        item {
+            FeatureGuideCard(
+                title = "راهنمای مدیریت و بستن پروسه‌ها",
+                description = "اگر برنامه‌ای مصرف غیرعادی CPU یا رم دارد یا هنگ کرده است، می‌توانید بدون نیاز به SSH با دکمه قرمز آن را متوقف (Kill) کنید."
             )
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(
-                onClick = { sortByMem = !sortByMem },
-                shape = RoundedCornerShape(12.dp)
+        }
+
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(if (sortByMem) t.sortByMem else t.sortByCpu, fontSize = 11.sp)
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(t.searchProcesses, fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    trailingIcon = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Rounded.Clear, contentDescription = "Clear", modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedButton(
+                    onClick = { sortByMem = !sortByMem },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(54.dp)
+                ) {
+                    Text(if (sortByMem) t.sortByMem else t.sortByCpu, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
 
         if (filtered.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(t.noData) }
-            return@Column
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            item {
+                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                    Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
             items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -755,7 +791,7 @@ private fun ProcessesTab(
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
@@ -783,32 +819,34 @@ private fun EventsTab(
         else -> Triple(Icons.Rounded.Timeline, type, Color(0xFF64748B))
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای کارآگاه اسپایک (Spike Forensics)",
-            description = t.guideSpikes
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        if (events.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconBadge(
-                        icon = Icons.Rounded.CheckCircle,
-                        tint = Color(0xFF10B981),
-                        background = Color(0xFF10B981).copy(alpha = 0.12f),
-                        size = 56.dp,
-                        iconSize = 30.dp
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text("هیچ اسپایک یا اتفاق غیرعادی در ۲۴ ساعت گذشته ثبت نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
-            }
-            return@Column
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای کارآگاه اسپایک (Spike Forensics)",
+                description = t.guideSpikes
+            )
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (events.isEmpty()) {
+            item {
+                Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconBadge(
+                            icon = Icons.Rounded.CheckCircle,
+                            tint = Color(0xFF10B981),
+                            background = Color(0xFF10B981).copy(alpha = 0.12f),
+                            size = 56.dp,
+                            iconSize = 30.dp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text("هیچ اسپایک یا اتفاق غیرعادی در ۲۴ ساعت گذشته ثبت نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    }
+                }
+            }
+        } else {
             items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
                 val (icon, label, color) = eventStyle(e.type)
                 ModernCard(padding = 14.dp) {
@@ -852,7 +890,7 @@ private fun EventsTab(
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
@@ -870,87 +908,91 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
 
     var showListeningOnly by remember { mutableStateOf(true) }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای پورت‌ها و سوکت‌های فعال",
-            description = t.guideSockets
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای پورت‌ها و سوکت‌های فعال",
+                description = t.guideSockets
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
-
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.clickable { showListeningOnly = true }
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable { showListeningOnly = true }
                 ) {
-                    Icon(
-                        Icons.Rounded.Sensors,
-                        contentDescription = null,
-                        tint = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        "${t.listeningPorts} (${data.listening.size})",
-                        fontSize = 11.5.sp,
-                        fontWeight = if (showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                        color = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Sensors,
+                            contentDescription = null,
+                            tint = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            "${t.listeningPorts} (${data.listening.size})",
+                            fontSize = 11.5.sp,
+                            fontWeight = if (showListeningOnly) FontWeight.Bold else FontWeight.Normal,
+                            color = if (showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
 
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (!showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                modifier = Modifier.clickable { showListeningOnly = false }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (!showListeningOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable { showListeningOnly = false }
                 ) {
-                    Icon(
-                        Icons.Rounded.Link,
-                        contentDescription = null,
-                        tint = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        "${t.activeConnections} (${data.connections.size})",
-                        fontSize = 11.5.sp,
-                        fontWeight = if (!showListeningOnly) FontWeight.Bold else FontWeight.Normal,
-                        color = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Link,
+                            contentDescription = null,
+                            tint = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            "${t.activeConnections} (${data.connections.size})",
+                            fontSize = 11.5.sp,
+                            fontWeight = if (!showListeningOnly) FontWeight.Bold else FontWeight.Normal,
+                            color = if (!showListeningOnly) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
 
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                }
             }
         }
 
         val itemsToShow = if (showListeningOnly) data.listening else data.connections
 
         if (itemsToShow.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                    Text(t.noData, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            return@Column
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        } else {
             items(itemsToShow, key = { "${it.proto}-${it.localIp}-${it.localPort}-${it.remoteIp}-${it.remotePort}-${it.pid}" }) { s ->
                 ModernCard(padding = 10.dp) {
                     Row(
@@ -959,14 +1001,14 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                            color = if (s.proto.lowercase() == "tcp") Color(0xFF0D9488).copy(alpha = 0.15f) else Color(0xFF6366F1).copy(alpha = 0.15f)
                         ) {
                             Text(
                                 s.proto.uppercase(),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                color = if (s.proto.lowercase() == "tcp") Color(0xFF0D9488) else Color(0xFF6366F1)
                             )
                         }
                         Spacer(Modifier.width(10.dp))
@@ -993,7 +1035,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
@@ -1030,59 +1072,81 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
         return
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای کانتینرهای داکر (Docker)",
-            description = "تمام کانتینرهای فعال و متوقف Docker را بدون نیاز به دستورات SSH مشاهده و مدیریت کنید. می‌توانید هر کانتینر را با یک کلیک ری‌استارت یا استاپ کنید."
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای کانتینرهای داکر (Docker)",
+                description = "تمام کانتینرهای فعال و متوقف Docker را بدون نیاز به دستورات SSH مشاهده و مدیریت کنید. می‌توانید هر کانتینر را با یک کلیک ری‌استارت یا استاپ کنید."
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
-
-        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("کانتینرهای فعال (${data.containers.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+        item {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("کانتینرهای فعال (${data.containers.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                }
             }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(data.containers, key = { it.id }) { c ->
-                val isRunning = c.state == "running"
-                ModernCard(padding = 12.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier.size(10.dp).background(
-                                if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444),
-                                CircleShape
-                            )
+        items(data.containers, key = { it.id }) { c ->
+            val isRunning = c.state == "running"
+            ModernCard(padding = 12.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(10.dp).background(
+                            if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444),
+                            CircleShape
                         )
-                        Spacer(Modifier.width(8.dp))
-                        Text(c.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (isRunning) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                c.state.uppercase(),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444)
-                            )
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(c.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = if (isRunning) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            c.state.uppercase(),
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isRunning) Color(0xFF10B981) else Color(0xFFEF4444)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+                Text(c.image, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
+                Text(c.status, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                Spacer(Modifier.height(8.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        scope.launch {
+                            try {
+                                api.dockerRestart(server, c.id)
+                                Toast.makeText(ctx, "کانتینر ${c.name} ری‌استارت شد", Toast.LENGTH_SHORT).show()
+                                onRefresh()
+                            } catch (e: Exception) {
+                                Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Text("ری‌استارت", fontSize = 11.sp)
                         }
                     }
 
-                    Spacer(Modifier.height(4.dp))
-                    Text(c.image, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
-                    Text(c.status, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                    Spacer(Modifier.height(8.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    if (isRunning) {
                         TextButton(onClick = {
                             scope.launch {
                                 try {
-                                    api.dockerRestart(server, c.id)
-                                    Toast.makeText(ctx, "کانتینر ${c.name} ری‌استارت شد", Toast.LENGTH_SHORT).show()
+                                    api.dockerStop(server, c.id)
+                                    Toast.makeText(ctx, "کانتینر ${c.name} متوقف شد", Toast.LENGTH_SHORT).show()
                                     onRefresh()
                                 } catch (e: Exception) {
                                     Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -1090,34 +1154,15 @@ private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh:
                             }
                         }) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
-                                Text("ری‌استارت", fontSize = 11.sp)
-                            }
-                        }
-
-                        if (isRunning) {
-                            TextButton(onClick = {
-                                scope.launch {
-                                    try {
-                                        api.dockerStop(server, c.id)
-                                        Toast.makeText(ctx, "کانتینر ${c.name} متوقف شد", Toast.LENGTH_SHORT).show()
-                                        onRefresh()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(ctx, "خطا: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Rounded.Stop, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
-                                    Text("توقف", color = Color(0xFFEF4444), fontSize = 11.sp)
-                                }
+                                Icon(Icons.Rounded.Stop, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                                Text("توقف", color = Color(0xFFEF4444), fontSize = 11.sp)
                             }
                         }
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -1168,108 +1213,113 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای تست دسترسی جهانی (Check-Host)",
-            description = "وضعیت در دسترس بودن سرور و پاسخ‌دهی پورت‌ها را از ۲۰ نود در سراسر دنیا (اروپا، آمریکا، آسیا و ایران) ارزیابی کنید."
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            OutlinedTextField(
-                value = targetHost,
-                onValueChange = { targetHost = it },
-                label = { Text(t.probeTarget, fontSize = 12.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای تست دسترسی جهانی (Check-Host)",
+                description = "وضعیت در دسترس بودن سرور و پاسخ‌دهی پورت‌ها را از ۲۰ نود در سراسر دنیا (اروپا، آمریکا، آسیا و ایران) ارزیابی کنید."
             )
+        }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf("ping", "http", "tcp", "dns").forEach { type ->
-                    val selected = selectedType == type
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.clickable { selectedType = type }
-                    ) {
-                        Text(
-                            type.uppercase(Locale.US),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (selectedType == "tcp") {
-                    Spacer(Modifier.width(4.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
-                        value = tcpPort,
-                        onValueChange = { tcpPort = it },
-                        label = { Text("Port", fontSize = 10.sp) },
-                        modifier = Modifier.width(70.dp),
+                        value = targetHost,
+                        onValueChange = { targetHost = it },
+                        label = { Text(t.probeTarget, fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                }
 
-                Spacer(Modifier.weight(1f))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf("ping", "http", "tcp", "dns").forEach { type ->
+                            val selected = selectedType == type
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                                border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.clickable { selectedType = type }
+                            ) {
+                                Text(
+                                    type.uppercase(Locale.US),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
-                Button(
-                    onClick = { startProbe() },
-                    enabled = !isChecking && targetHost.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    if (isChecking) {
-                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    } else {
-                        Text(t.runProbe, fontSize = 12.sp)
+                        if (selectedType == "tcp") {
+                            Spacer(Modifier.width(4.dp))
+                            OutlinedTextField(
+                                value = tcpPort,
+                                onValueChange = { tcpPort = it },
+                                label = { Text("Port", fontSize = 10.sp) },
+                                modifier = Modifier.width(70.dp),
+                                singleLine = true
+                            )
+                        }
+
+                        Spacer(Modifier.weight(1f))
+
+                        Button(
+                            onClick = { startProbe() },
+                            enabled = !isChecking && targetHost.isNotBlank(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                        ) {
+                            if (isChecking) {
+                                CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                            } else {
+                                Text(t.runProbe, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
         if (statusText.isNotBlank()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                if (totalCount > 0) {
-                    Spacer(Modifier.weight(1f))
-                    Text("$okCount/$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    if (totalCount > 0) {
+                        Spacer(Modifier.weight(1f))
+                        Text("$okCount/$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
 
         if (nodes.isEmpty() && !isChecking) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconBadge(
-                        icon = Icons.Rounded.Public,
-                        tint = MaterialTheme.colorScheme.primary,
-                        background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        size = 56.dp,
-                        iconSize = 28.dp
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text(t.enterTarget, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconBadge(
+                            icon = Icons.Rounded.Public,
+                            tint = MaterialTheme.colorScheme.primary,
+                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            size = 56.dp,
+                            iconSize = 28.dp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(t.enterTarget, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
-            return@Column
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        } else {
             items(nodes, key = { it.nodeKey }) { node ->
                 ModernCard(padding = 10.dp) {
                     Row(
@@ -1295,7 +1345,7 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
                     }
                 }
             }
-            item { Spacer(Modifier.height(20.dp)) }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
@@ -1312,7 +1362,7 @@ private fun TabChip(icon: ImageVector, label: String, selected: Boolean, onClick
         modifier = Modifier.clickable { onClick() }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -1320,11 +1370,11 @@ private fun TabChip(icon: ImageVector, label: String, selected: Boolean, onClick
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(13.dp)
+                modifier = Modifier.size(14.dp)
             )
             Text(
                 label,
-                fontSize = 11.sp,
+                fontSize = 11.5.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
             )

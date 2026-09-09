@@ -84,6 +84,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -1096,6 +1098,15 @@ fun CloudflareScreen(t: Str) {
         }
 
         items(records, key = { it.id }) { rec ->
+            val badgeColor = when (rec.type.uppercase()) {
+                "A" -> Color(0xFF0D9488)
+                "AAAA" -> Color(0xFF3B82F6)
+                "CNAME" -> Color(0xFF8B5CF6)
+                "TXT" -> Color(0xFF64748B)
+                "MX" -> Color(0xFFF59E0B)
+                else -> Color(0xFF6366F1)
+            }
+
             ModernCard(padding = 12.dp) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -1103,14 +1114,14 @@ fun CloudflareScreen(t: Str) {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = badgeColor.copy(alpha = 0.15f)
                     ) {
                         Text(
                             rec.type,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = badgeColor
                         )
                     }
                     Spacer(Modifier.width(10.dp))
@@ -1164,10 +1175,10 @@ fun CloudflareScreen(t: Str) {
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(t.addDnsRecord, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = recType, onValueChange = { recType = it }, label = { Text("نوع رکورد (A, AAAA, CNAME, TXT)") })
-                    OutlinedTextField(value = recName, onValueChange = { recName = it }, label = { Text("نام (@ یا زیردامنه)") })
-                    OutlinedTextField(value = recContent, onValueChange = { recContent = it }, label = { Text("مقدار / آی‌پی") })
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().imePadding()) {
+                    OutlinedTextField(value = recType, onValueChange = { recType = it }, label = { Text("نوع رکورد (A, AAAA, CNAME, TXT)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = recName, onValueChange = { recName = it }, label = { Text("نام (@ یا زیردامنه)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = recContent, onValueChange = { recContent = it }, label = { Text("مقدار / آی‌پی") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Switch(checked = proxied, onCheckedChange = { proxied = it })
                         Spacer(Modifier.width(8.dp))
@@ -1187,7 +1198,7 @@ fun CloudflareScreen(t: Str) {
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text(t.save) }
+                ) { Text(t.save, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { showAddDialog = false }) { Text(t.cancel) }
@@ -1208,6 +1219,7 @@ fun VaultScreen(t: Str) {
     var isVaultInit by remember { mutableStateOf(Prefs.isVaultInitialized(ctx)) }
     var masterPass by remember { mutableStateOf("") }
     var confirmPass by remember { mutableStateOf("") }
+    var showMasterPass by remember { mutableStateOf(false) }
     var isUnlocked by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
 
@@ -1328,16 +1340,23 @@ fun VaultScreen(t: Str) {
                             value = masterPass,
                             onValueChange = { masterPass = it; authError = null },
                             label = { Text("رمز عبور اصلی جدید", fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            visualTransformation = if (showMasterPass) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showMasterPass = !showMasterPass }) {
+                                    Icon(if (showMasterPass) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         OutlinedTextField(
                             value = confirmPass,
                             onValueChange = { confirmPass = it; authError = null },
                             label = { Text("تکرار رمز عبور اصلی", fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            visualTransformation = if (showMasterPass) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         if (authError != null) {
@@ -1381,8 +1400,14 @@ fun VaultScreen(t: Str) {
                             value = masterPass,
                             onValueChange = { masterPass = it; authError = null },
                             label = { Text(t.masterPassword, fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            singleLine = true,
+                            visualTransformation = if (showMasterPass) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailingIcon = {
+                                IconButton(onClick = { showMasterPass = !showMasterPass }) {
+                                    Icon(if (showMasterPass) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         if (authError != null) {
@@ -1486,18 +1511,25 @@ fun VaultScreen(t: Str) {
                 items(notes, key = { it.id }) { n ->
                     val isRevealed = revealedNoteIds.contains(n.id)
 
+                    val tagColor = when (n.tags) {
+                        "کلید SSH" -> Color(0xFF0D9488)
+                        "پسورد" -> Color(0xFF6366F1)
+                        "توکن API" -> Color(0xFFF59E0B)
+                        else -> Color(0xFF10B981)
+                    }
+
                     ModernCard(padding = 12.dp) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
+                                color = tagColor.copy(alpha = 0.15f)
                             ) {
                                 Text(
                                     if (n.tags.isNotBlank()) n.tags else "محرمانه",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    fontSize = 10.sp,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    color = tagColor
                                 )
                             }
                             Spacer(Modifier.width(8.dp))
@@ -1564,7 +1596,7 @@ fun VaultScreen(t: Str) {
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(if (isEdit) "ویرایش یادداشت محرمانه" else t.addNote, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().imePadding()) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -1655,7 +1687,7 @@ fun VaultScreen(t: Str) {
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("پشتیبان‌گیری از اطلاعات", fontWeight = FontWeight.Bold) },
             text = {
-                Column {
+                Column(modifier = Modifier.imePadding()) {
                     Text(t.backupCopyHint, fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
@@ -1691,7 +1723,7 @@ fun VaultScreen(t: Str) {
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("بازیابی اطلاعات از بکاپ", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.imePadding()) {
                     Text("رشته پشتیبان رمزنگاری‌شده را در کادر زیر وارد کنید:", fontSize = 12.sp)
                     OutlinedTextField(
                         value = restorePayload,

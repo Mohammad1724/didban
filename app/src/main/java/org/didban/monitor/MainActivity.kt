@@ -213,17 +213,24 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
             val appBg = if (isDarkMode) DarkBg else LightBg
 
             if (openServer != null) {
-                DashboardScreen(
-                    t = t,
-                    server = openServer!!,
-                    isDarkMode = isDarkMode,
-                    onToggleTheme = {
-                        val newMode = if (isDarkMode) "light" else "dark"
-                        themeMode = newMode
-                        Prefs.setThemeMode(ctx, newMode)
-                    },
-                    onBack = { openServer = null }
-                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .background(appBg)
+                ) {
+                    DashboardScreen(
+                        t = t,
+                        server = openServer!!,
+                        isDarkMode = isDarkMode,
+                        onToggleTheme = {
+                            val newMode = if (isDarkMode) "light" else "dark"
+                            themeMode = newMode
+                            Prefs.setThemeMode(ctx, newMode)
+                        },
+                        onBack = { openServer = null }
+                    )
+                }
             } else {
                 Column(
                     Modifier

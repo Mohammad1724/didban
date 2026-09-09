@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,8 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RocketLaunch
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -63,6 +66,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -444,7 +449,7 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
         containerColor = MaterialTheme.colorScheme.surface,
         title = { Text(t.addServer, fontWeight = FontWeight.Bold, fontSize = 17.sp) },
         text = {
-            Column {
+            Column(modifier = Modifier.imePadding()) {
                 Row(Modifier.fillMaxWidth()) {
                     TabButton(t.manual, mode == 1) { mode = 1 }
                     Spacer(Modifier.width(8.dp))
@@ -763,76 +768,114 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
     var sshPort by remember { mutableStateOf("22") }
     var user by remember { mutableStateOf("root") }
     var pass by remember { mutableStateOf("") }
+    var showPass by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<SshSetup.Result?>(null) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(t.sshInstallHint, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true)
-        OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true)
-        OutlinedTextField(value = sshPort, onValueChange = { sshPort = it }, label = { Text(t.port) }, singleLine = true)
-        OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text(t.sshUser) }, singleLine = true)
-        OutlinedTextField(value = pass, onValueChange = { pass = it }, label = { Text(t.sshPassword) }, singleLine = true)
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().height(420.dp)
+    ) {
+        item {
+            Text(t.sshInstallHint, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        item {
+            OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        item {
+            OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        item {
+            OutlinedTextField(value = sshPort, onValueChange = { sshPort = it }, label = { Text(t.port) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        item {
+            OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text(t.sshUser) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        }
+        item {
+            OutlinedTextField(
+                value = pass,
+                onValueChange = { pass = it },
+                label = { Text(t.sshPassword) },
+                singleLine = true,
+                visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { showPass = !showPass }) {
+                        Icon(
+                            imageVector = if (showPass) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            contentDescription = if (showPass) "Hide password" else "Show password",
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         if (busy) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                Text(t.installing, fontSize = 13.sp)
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Text(t.installing, fontSize = 13.sp)
+                }
             }
         }
 
         result?.let { r ->
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(
-                    imageVector = if (r.success) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
-                    contentDescription = null,
-                    tint = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    if (r.success) t.installDone else "${t.installFailed}: ${r.error}",
-                    color = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
-                    fontSize = 12.sp
-                )
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(
+                        imageVector = if (r.success) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                        contentDescription = null,
+                        tint = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        if (r.success) t.installDone else "${t.installFailed}: ${r.error}",
+                        color = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
 
-        PrimaryActionButton(
-            text = if (busy) t.installing else t.install,
-            onClick = {
-                busy = true
-                result = null
-                scope.launch {
-                    val r = SshSetup.installAgent(
-                        host = host.trim(),
-                        sshPort = sshPort.toIntOrNull() ?: 22,
-                        user = user.trim(),
-                        password = pass
-                    )
-                    if (r.success && r.token != null) {
-                        val list = Prefs.loadServers(ctx)
-                        list.add(ServerConfig(
-                            id = System.currentTimeMillis(),
-                            name = name.ifBlank { host },
+        item {
+            PrimaryActionButton(
+                text = if (busy) t.installing else t.install,
+                onClick = {
+                    busy = true
+                    result = null
+                    scope.launch {
+                        val r = SshSetup.installAgent(
                             host = host.trim(),
-                            port = r.port ?: 8686,
-                            token = r.token ?: "",
-                            useTls = r.fingerprint != null,
-                            fingerprint = r.fingerprint ?: ""
-                        ))
-                        Prefs.saveServers(ctx, list)
-                        busy = false
-                        result = r
-                        onSaved()
-                    } else {
-                        busy = false
-                        result = r
+                            sshPort = sshPort.toIntOrNull() ?: 22,
+                            user = user.trim(),
+                            password = pass
+                        )
+                        if (r.success && r.token != null) {
+                            val list = Prefs.loadServers(ctx)
+                            list.add(ServerConfig(
+                                id = System.currentTimeMillis(),
+                                name = name.ifBlank { host },
+                                host = host.trim(),
+                                port = r.port ?: 8686,
+                                token = r.token ?: "",
+                                useTls = r.fingerprint != null,
+                                fingerprint = r.fingerprint ?: ""
+                            ))
+                            Prefs.saveServers(ctx, list)
+                            busy = false
+                            result = r
+                            onSaved()
+                        } else {
+                            busy = false
+                            result = r
+                        }
+                        pass = ""
                     }
-                    pass = ""
-                }
-            },
-            enabled = !busy && host.isNotBlank() && pass.isNotBlank()
-        )
+                },
+                enabled = !busy && host.isNotBlank() && pass.isNotBlank()
+            )
+        }
     }
 }
 
@@ -855,38 +898,60 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
         containerColor = MaterialTheme.colorScheme.surface,
         title = { Text("${t.edit} — ${server.name}", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true)
-                OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true)
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(t.port) }, singleLine = true)
-                OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text(t.token) }, singleLine = true)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = tls, onCheckedChange = { tls = it })
-                    Text(t.useTls, fontSize = 13.sp)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().height(380.dp).imePadding()
+            ) {
+                item {
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
-                OutlinedTextField(value = fp, onValueChange = { fp = it }, label = { Text(t.fingerprint) }, singleLine = true)
-                OutlinedTextField(value = cpuAlert, onValueChange = { cpuAlert = it }, label = { Text(t.cpuAlertLbl) }, singleLine = true)
-                OutlinedTextField(value = memAlert, onValueChange = { memAlert = it }, label = { Text(t.memAlertLbl) }, singleLine = true)
-                PrimaryActionButton(
-                    text = t.save,
-                    onClick = {
-                        val list = Prefs.loadServers(ctx)
-                        val idx = list.indexOfFirst { it.id == server.id }
-                        if (idx >= 0) {
-                            list[idx].name = name
-                            list[idx].host = host.trim()
-                            list[idx].port = port.toIntOrNull() ?: server.port
-                            list[idx].token = token.trim()
-                            list[idx].useTls = tls
-                            list[idx].fingerprint = fp.trim()
-                            list[idx].cpuAlert = cpuAlert.toIntOrNull() ?: server.cpuAlert
-                            list[idx].memAlert = memAlert.toIntOrNull() ?: server.memAlert
-                            Prefs.saveServers(ctx, list)
-                            onSaved()
-                        }
-                    },
-                    enabled = host.isNotBlank() && token.isNotBlank()
-                )
+                item {
+                    OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(t.port) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    OutlinedTextField(value = token, onValueChange = { token = it }, label = { Text(t.token) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = tls, onCheckedChange = { tls = it })
+                        Text(t.useTls, fontSize = 13.sp)
+                    }
+                }
+                item {
+                    OutlinedTextField(value = fp, onValueChange = { fp = it }, label = { Text(t.fingerprint) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    OutlinedTextField(value = cpuAlert, onValueChange = { cpuAlert = it }, label = { Text(t.cpuAlertLbl) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    OutlinedTextField(value = memAlert, onValueChange = { memAlert = it }, label = { Text(t.memAlertLbl) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                }
+                item {
+                    Spacer(Modifier.height(4.dp))
+                    PrimaryActionButton(
+                        text = t.save,
+                        onClick = {
+                            val list = Prefs.loadServers(ctx)
+                            val idx = list.indexOfFirst { it.id == server.id }
+                            if (idx >= 0) {
+                                list[idx].name = name
+                                list[idx].host = host.trim()
+                                list[idx].port = port.toIntOrNull() ?: server.port
+                                list[idx].token = token.trim()
+                                list[idx].useTls = tls
+                                list[idx].fingerprint = fp.trim()
+                                list[idx].cpuAlert = cpuAlert.toIntOrNull() ?: server.cpuAlert
+                                list[idx].memAlert = memAlert.toIntOrNull() ?: server.memAlert
+                                Prefs.saveServers(ctx, list)
+                                onSaved()
+                            }
+                        },
+                        enabled = host.isNotBlank() && token.isNotBlank()
+                    )
+                }
             }
         },
         confirmButton = {},
