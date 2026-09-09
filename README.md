@@ -10,7 +10,7 @@
 
 Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram/Discord/Webhook alerts**, provides an **embeddable public HTML status page**, monitors website **uptime with Uptime Kuma style heartbeat bars**, and packs a powerhouse **mobile DevOps toolkit** (Docker Manager, DPI Censorship Inspector, Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
 
-- 🚀 **Dual-Node Tunnel Hub (Iran Node ➔ Foreign Node)** — manage, generate, and monitor anti-censorship reverse tunnels and relays between Iran and Foreign nodes with full support for **BackPack 🎒 (by AminMGMT with Stealth Noise encryption, PCK kernel bypass, and KCP+FEC gaming mode)**, **Backhaul**, **Rathole**, **GOST**, **Chisel**, **FRP**, and **IPTables**; supports WebSocket, WSMux, gRPC, TCPMux, TCP, Noise NNpsk0, xDi ICMP, 1-click bash installers, systemd services, and Docker Compose configurations
+- 🚀 **Dual-Node Tunnel Hub (Iran Node ➔ Foreign Node)** — manage, generate, and monitor anti-censorship reverse, raw-socket, ICMP ping, and IP spoofing tunnels between Iran and Foreign nodes with full support for **BackPack 🎒 (by AminMGMT)**, **Paqet (Raw Socket KCP by behzadea12)**, **Narnia (ICMP Ping Tunnel by Dnt3e)**, **Spoof Tunnel (Mutual IP Spoofing by ParsaKSH)**, **Backhaul**, **Rathole**, **GOST**, **Chisel**, **FRP**, and **IPTables**; supports Noise NNpsk0, PCK kernel bypass, KCP+FEC, WSS Chrome TLS, 1-click bash installers, systemd services, and Docker Compose configurations
 - 📊 **Live server metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
 - 🕵️ **Spike forensics** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
 - 🐳 **Docker Container Watcher & Remote Control** — monitor all Docker containers via native socket (`/var/run/docker.sock`, zero dependencies), detect crashed/unhealthy containers with instant alerts, and restart/stop containers on the go
@@ -85,20 +85,16 @@ curl -sk https://YOUR_SERVER_IP:8686/api/metrics -H "Authorization: Bearer YOUR_
 
 Didban allows you to easily configure, deploy, and monitor dual-node tunnels between an Iran Bridge / Relay node and a Foreign Upstream / Server node using industry-standard high-performance tunneling cores:
 
-1. **BackPack 🎒 (by AminMGMT)**: Cutting-edge Go reverse & direct tunnel engine purpose-built for Iran ⇄ Kharej links:
-   - **TCP + Stealth**: Noise NNpsk0 encrypted layer with no TLS ClientHello fingerprint, rendering the tunnel invisible to DPI.
-   - **TCP + PCK**: Packet socket implementation bypassing Linux conntrack/netfilter to prevent RST injections and throttling.
-   - **UDP + KCP + FEC**: Real-time gaming-grade transport with always-on Forward Error Correction (FEC) for zero packet loss.
-   - **WSS / WSS Mux**: Real Chrome TLS fingerprinting with camouflage decoy website responding to active probes.
-   - **xDi (ICMP Ping)**: Tunnels data through ICMP echo requests/replies when both TCP and UDP are blocked.
-   - **IP Spoofing Carrier**: L3 forged source IP routing for evading network-level IP blocking.
-   - **Tuning Presets**: Turbo, Balance, Aggressive, and Gaming Low Latency.
-2. **Backhaul**: High-throughput multiplexed WebSocket & TCP reverse tunneling with multi-port forwarding and automatic reconnection.
-3. **Rathole**: Ultra-lightweight Rust reverse proxy with Noise Protocol end-to-end encryption and minimal memory footprint (< 10 MB RAM).
-4. **GOST (GO Simple Tunnel)**: Versatile multi-protocol forwarding engine with support for TLS, WebSocket, gRPC, TCPMux, and UDP.
-5. **Chisel**: Fast TCP/UDP tunnel over HTTP/WebSocket secured via SSH, perfect for bypassing restrictive deep-packet inspection firewalls.
-6. **FRP (Fast Reverse Proxy)**: Battle-tested multi-channel reverse proxy for exposing internal services.
-7. **IPTables**: Direct in-kernel packet forwarding with zero user-space latency.
+1. **BackPack 🎒 (by AminMGMT)**: Cutting-edge Go reverse & direct tunnel engine with Noise NNpsk0 Stealth encryption, Linux conntrack bypass (PCK), gaming-grade UDP+KCP+FEC, real Chrome TLS fingerprinting (WSS Decoy), ICMP ping carrier (xDi), and Turbo/Gaming presets.
+2. **Paqet (by behzadea12 / hanselime)**: High-throughput Raw Socket & KCP tunnel designed for bypassing DPI and stateful firewalls with customizable KCP tuning (Fast, Fast2, Fast3) and AES-GCM/ChaCha20 encryption.
+3. **Narnia (by Dnt3e)**: Invisible Layer-3 tunnel encapsulated entirely within standard ICMP Ping packets with ChaCha20 encryption, dynamic MTU negotiation, and seamless virtual interface networking.
+4. **Spoof Tunnel (by ParsaKSH & variants)**: Bidirectional Mutual IP Spoofing across Layer 3 and 4 with userspace Reliability Layer, Reed-Solomon Forward Error Correction (FEC), and cryptographic key authentication.
+5. **Backhaul**: High-throughput multiplexed WebSocket & TCP reverse tunneling with multi-port forwarding and automatic reconnection.
+6. **Rathole**: Ultra-lightweight Rust reverse proxy with Noise Protocol end-to-end encryption and minimal memory footprint (< 10 MB RAM).
+7. **GOST (GO Simple Tunnel)**: Versatile multi-protocol forwarding engine with support for TLS, WebSocket, gRPC, TCPMux, and UDP.
+8. **Chisel**: Fast TCP/UDP tunnel over HTTP/WebSocket secured via SSH, perfect for bypassing restrictive deep-packet inspection firewalls.
+9. **FRP (Fast Reverse Proxy)**: Battle-tested multi-channel reverse proxy for exposing internal services.
+10. **IPTables**: Direct in-kernel packet forwarding with zero user-space latency.
 
 For every configured tunnel:
 - **1-Click Installer Scripts**: Ready-to-paste one-line bash scripts for Iran and Foreign nodes.

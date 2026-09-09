@@ -149,13 +149,14 @@ fun TunnelScreen(t: Str) {
         // ── Guide Card ──
         item {
             FeatureGuideCard(
-                title = "راهنمای هاب تانل دو سرور (Iran Node ➔ Foreign Node)",
+                title = "راهنمای جامع هاب تانل دو سرور (Iran Node ➔ Foreign Node)",
                 description = t.guideTunnels,
                 bullets = listOf(
-                    "BackPack 🎒: تانل نسل جدید Go با رمزنگاری Stealth، دور زدن کرنل PCK و گیمینگ KCP+FEC",
-                    "Backhaul: تانل معکوس پایدار و ضد فیلتر با WebSocket و انتقال مالتی‌پورت",
-                    "Rathole: هسته فوق‌سبک Rust با مصرف ناچیز رم و امنیت Noise Protocol",
-                    "GOST & Chisel: رله و فوروارد ترافیک TCP/UDP/WS/gRPC و پوشش ترافیک در قالب وب"
+                    "BackPack 🎒: تانل نسل جدید Go با رمزنگاری Stealth Noise، دور زدن کرنل PCK و گیمینگ KCP+FEC",
+                    "Paqet: تانل سوکت خام (Raw Socket) و KCP جهت عبور از سخت‌ترین فیلترها و DPI",
+                    "Narnia: تانل پنهان درون پکت‌های ICMP Ping با رمزنگاری ChaCha20 و ایجاد شبکه مجازی",
+                    "Spoof Tunnel: جعل دوطرفه IP مبدا با لایه Reliability و تصحیح خطای Reed-Solomon FEC",
+                    "Backhaul & Rathole & GOST: تانل‌های معکوس و رله فوق سریع WebSocket/gRPC/Rust"
                 )
             )
         }
@@ -200,7 +201,7 @@ fun TunnelScreen(t: Str) {
                         Text("هنوز تانلی بین دو سرور تعریف نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و دستورات نصب خودکار با هسته‌های BackPack، Backhaul، Rathole یا GOST را دریافت کنید.",
+                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و دستورات نصب خودکار با هسته‌های BackPack، Paqet، Narnia، Spoof Tunnel، Backhaul یا GOST را دریافت کنید.",
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -218,6 +219,9 @@ fun TunnelScreen(t: Str) {
             items(tunnels, key = { it.id }) { tun ->
                 val coreBadgeColor = when (tun.core) {
                     TunnelCore.BACKPACK -> Color(0xFFF97316)
+                    TunnelCore.PAQET -> Color(0xFF0284C7)
+                    TunnelCore.NARNIA -> Color(0xFF8B5CF6)
+                    TunnelCore.SPOOF_TUNNEL -> Color(0xFFF43F5E)
                     TunnelCore.BACKHAUL -> Color(0xFF0D9488)
                     TunnelCore.RATHOLE -> Color(0xFFEA580C)
                     TunnelCore.GOST -> Color(0xFF2563EB)
@@ -261,6 +265,17 @@ fun TunnelScreen(t: Str) {
                                     fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF059669)
+                                )
+                            }
+                        } else if (tun.core == TunnelCore.PAQET) {
+                            Spacer(Modifier.width(4.dp))
+                            Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF0284C7).copy(alpha = 0.12f)) {
+                                Text(
+                                    tun.kcpMode.uppercase(),
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0284C7)
                                 )
                             }
                         }
@@ -316,9 +331,21 @@ fun TunnelScreen(t: Str) {
                                 Text("🌍 مقصد خارج:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Text("${tun.foreignHost.ifBlank { "127.0.0.1" }}:${tun.foreignPort}", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
                             }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("🔌 پورت ارتباطی تانل:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("Port ${tun.corePort}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            if (tun.core == TunnelCore.NARNIA) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("📡 اینترفیس مجازی ICMP:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${tun.virtualIpIran} ➔ ${tun.virtualIpKharej}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF8B5CF6))
+                                }
+                            } else if (tun.core == TunnelCore.SPOOF_TUNNEL) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🎭 آی‌پی جعل‌شده (Spoofed):", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("${tun.spoofSrcIp} ⇄ ${tun.spoofPeerIp}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFF43F5E))
+                                }
+                            } else {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🔌 پورت ارتباطی تانل:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Port ${tun.corePort}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                }
                             }
                         }
                     }
@@ -465,7 +492,13 @@ private fun AddOrEditTunnelDialog(
     var core by remember { mutableStateOf(existing?.core ?: TunnelCore.BACKPACK) }
     var transport by remember {
         mutableStateOf(
-            existing?.transport ?: if (core == TunnelCore.BACKPACK) TunnelTransport.STEALTH else TunnelTransport.TCP
+            existing?.transport ?: when (core) {
+                TunnelCore.BACKPACK -> TunnelTransport.STEALTH
+                TunnelCore.PAQET -> TunnelTransport.RAW_KCP
+                TunnelCore.NARNIA -> TunnelTransport.ICMP_CHACHA
+                TunnelCore.SPOOF_TUNNEL -> TunnelTransport.IP_SPOOF_UDP
+                else -> TunnelTransport.TCP
+            }
         )
     }
     var iranHost by remember { mutableStateOf(existing?.iranHost ?: "") }
@@ -475,6 +508,13 @@ private fun AddOrEditTunnelDialog(
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
     var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
     var preset by remember { mutableStateOf(existing?.preset ?: "turbo") }
+    var kcpMode by remember { mutableStateOf(existing?.kcpMode ?: "fast") }
+    var encryption by remember { mutableStateOf(existing?.encryption ?: "aes-128-gcm") }
+    var spoofSrcIp by remember { mutableStateOf(existing?.spoofSrcIp ?: "1.1.1.1") }
+    var spoofPeerIp by remember { mutableStateOf(existing?.spoofPeerIp ?: "8.8.8.8") }
+    var virtualIpIran by remember { mutableStateOf(existing?.virtualIpIran ?: "10.200.200.2") }
+    var virtualIpKharej by remember { mutableStateOf(existing?.virtualIpKharej ?: "10.200.200.1") }
+    var mtu by remember { mutableStateOf(existing?.mtu?.toString() ?: "1350") }
     var acceptUdp by remember { mutableStateOf(existing?.acceptUdp ?: true) }
     var proxyProtocol by remember { mutableStateOf(existing?.proxyProtocol ?: false) }
 
@@ -490,14 +530,14 @@ private fun AddOrEditTunnelDialog(
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().height(440.dp).imePadding()
+                modifier = Modifier.fillMaxWidth().height(460.dp).imePadding()
             ) {
                 // 1. Name
                 item {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("نام دلخواه تانل (مثلاً بک‌پک شاتل -> آلمان)") },
+                        label = { Text("نام دلخواه تانل (مثلاً تانل شاتل به هتزنر)") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -515,6 +555,9 @@ private fun AddOrEditTunnelDialog(
                             val isSel = core == c
                             val badgeColor = when (c) {
                                 TunnelCore.BACKPACK -> Color(0xFFF97316)
+                                TunnelCore.PAQET -> Color(0xFF0284C7)
+                                TunnelCore.NARNIA -> Color(0xFF8B5CF6)
+                                TunnelCore.SPOOF_TUNNEL -> Color(0xFFF43F5E)
                                 TunnelCore.BACKHAUL -> Color(0xFF0D9488)
                                 TunnelCore.RATHOLE -> Color(0xFFEA580C)
                                 TunnelCore.GOST -> Color(0xFF2563EB)
@@ -528,10 +571,13 @@ private fun AddOrEditTunnelDialog(
                                 border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                                 modifier = Modifier.clickable {
                                     core = c
-                                    if (c == TunnelCore.BACKPACK) {
-                                        transport = TunnelTransport.STEALTH
-                                    } else if (c == TunnelCore.IPTABLES) {
-                                        transport = TunnelTransport.TCP
+                                    when (c) {
+                                        TunnelCore.BACKPACK -> transport = TunnelTransport.STEALTH
+                                        TunnelCore.PAQET -> transport = TunnelTransport.RAW_KCP
+                                        TunnelCore.NARNIA -> transport = TunnelTransport.ICMP_CHACHA
+                                        TunnelCore.SPOOF_TUNNEL -> transport = TunnelTransport.IP_SPOOF_UDP
+                                        TunnelCore.IPTABLES -> transport = TunnelTransport.TCP
+                                        else -> {}
                                     }
                                 }
                             ) {
@@ -553,146 +599,304 @@ private fun AddOrEditTunnelDialog(
                     Text(core.description, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                // 3. Transport Protocol
-                if (core == TunnelCore.BACKPACK) {
-                    item {
-                        Text("پروتکل انتقال BackPack (ضد فیلترینگ):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(
-                                TunnelTransport.STEALTH,
-                                TunnelTransport.PCK,
-                                TunnelTransport.KCP_FEC,
-                                TunnelTransport.WSSMUX,
-                                TunnelTransport.WSMUX,
-                                TunnelTransport.QUIC,
-                                TunnelTransport.TCPMUX,
-                                TunnelTransport.TCP,
-                                TunnelTransport.XDI,
-                                TunnelTransport.SPOOF
-                            ).forEach { tp ->
-                                val isSel = transport == tp
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isSel) Color(0xFFF97316) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.clickable { transport = tp }
-                                ) {
-                                    Text(
-                                        tp.displayName,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        fontSize = 10.5.sp,
-                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
+                // ── 3. Specific Options by Core ──
+                when (core) {
+                    TunnelCore.BACKPACK -> {
+                        item {
+                            Text("پروتکل انتقال BackPack (ضد فیلترینگ):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    TunnelTransport.STEALTH,
+                                    TunnelTransport.PCK,
+                                    TunnelTransport.KCP_FEC,
+                                    TunnelTransport.WSSMUX,
+                                    TunnelTransport.WSMUX,
+                                    TunnelTransport.QUIC,
+                                    TunnelTransport.TCPMUX,
+                                    TunnelTransport.TCP,
+                                    TunnelTransport.XDI,
+                                    TunnelTransport.SPOOF
+                                ).forEach { tp ->
+                                    val isSel = transport == tp
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFFF97316) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { transport = tp }
+                                    ) {
+                                        Text(
+                                            tp.displayName,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                            if (transport.description.isNotBlank()) {
+                                Text(transport.description, fontSize = 10.5.sp, color = Color(0xFF059669), modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
+
+                        // Performance Preset (BackPack)
+                        item {
+                            Text("پریست عملکرد و بهینه‌سازی (Preset):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    "turbo" to "⚡ توربو (Turbo)",
+                                    "balance" to "⚖️ متعادل (Balance)",
+                                    "aggressive" to "🔥 تهاجمی (Aggressive)",
+                                    "gaming" to "🎮 گیمینگ کم‌تاخیر (Gaming)"
+                                ).forEach { (pKey, pLabel) ->
+                                    val isSel = preset == pKey
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { preset = pKey }
+                                    ) {
+                                        Text(
+                                            pLabel,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
                         }
-                        if (transport.description.isNotBlank()) {
-                            Text(transport.description, fontSize = 10.5.sp, color = Color(0xFF059669), modifier = Modifier.padding(top = 4.dp))
+
+                        // Toggles: Accept UDP & PROXY Protocol
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("انتقال ترافیک UDP (UDP Forwarding)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                            Text("مناسب برای V2Ray/Xray، WireGuard، DNS و بازی‌ها", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Switch(checked = acceptUdp, onCheckedChange = { acceptUdp = it })
+                                    }
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("پروتکل PROXY v2 (Real Client IP)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                            Text("ارسال IP واقعی کاربران به سرور مقصد", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Switch(checked = proxyProtocol, onCheckedChange = { proxyProtocol = it })
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // Performance Preset (BackPack)
-                    item {
-                        Text("پریست عملکرد و بهینه‌سازی (Preset):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(
-                                "turbo" to "⚡ توربو (Turbo)",
-                                "balance" to "⚖️ متعادل (Balance)",
-                                "aggressive" to "🔥 تهاجمی (Aggressive)",
-                                "gaming" to "🎮 گیمینگ کم‌تاخیر (Gaming)"
-                            ).forEach { (pKey, pLabel) ->
-                                val isSel = preset == pKey
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.clickable { preset = pKey }
-                                ) {
-                                    Text(
-                                        pLabel,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        fontSize = 10.5.sp,
-                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
+                    TunnelCore.PAQET -> {
+                        item {
+                            Text("مود عملکرد KCP (Paqet):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    "fast" to "⚡ سریع (Fast - پیشنهادی)",
+                                    "fast2" to "🚀 توربو (Fast2)",
+                                    "fast3" to "🔥 حداکثر توان (Fast3)",
+                                    "normal" to "⚖️ عادی (Normal)"
+                                ).forEach { (mKey, mLabel) ->
+                                    val isSel = kcpMode == mKey
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFF0284C7) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { kcpMode = mKey }
+                                    ) {
+                                        Text(
+                                            mLabel,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Text("الگوریتم رمزنگاری دیتای سوکت خام:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    "aes-128-gcm" to "AES-128-GCM (پیش‌فرض)",
+                                    "aes-256-gcm" to "AES-256-GCM",
+                                    "chacha20-poly1305" to "ChaCha20-Poly1305",
+                                    "none" to "بدون رمزنگاری (None)"
+                                ).forEach { (eKey, eLabel) ->
+                                    val isSel = encryption == eKey
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFF0284C7) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { encryption = eKey }
+                                    ) {
+                                        Text(
+                                            eLabel,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // Toggles: Accept UDP & PROXY Protocol
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("انتقال ترافیک UDP (UDP Forwarding)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                        Text("مناسب برای V2Ray/Xray، WireGuard، DNS و بازی‌های آنلاین", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                    Switch(checked = acceptUdp, onCheckedChange = { acceptUdp = it })
+                    TunnelCore.NARNIA -> {
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFF8B5CF6).copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.3f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("📡 تانل لایه ۳ درون پکت‌های Ping (ICMP)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFF8B5CF6))
+                                    Text("نارنیا تمام ترافیک را با رمزنگاری ChaCha20 داخل بسته‌های عادی پینگ بسته‌بندی می‌کند تا فایروال آن را ترافیک عادی شبکه ببیند.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
-                                Row(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("پروتکل PROXY v2 (Real Client IP)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                        Text("ارسال IP واقعی کاربران به سرور مقصد", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+
+                        item {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = virtualIpIran,
+                                    onValueChange = { virtualIpIran = it },
+                                    label = { Text("IP مجازی ایران") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = virtualIpKharej,
+                                    onValueChange = { virtualIpKharej = it },
+                                    label = { Text("IP مجازی خارج") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    TunnelCore.SPOOF_TUNNEL -> {
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color(0xFFF43F5E).copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, Color(0xFFF43F5E).copy(alpha = 0.3f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("🎭 جعل دوطرفه IP مبدا (Mutual IP Spoofing)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFFF43F5E))
+                                    Text("تغییر هدر Source IP بسته‌ها برای عبور از فیلترینگ IP لایه‌های ۳ و ۴ با لایه اختصاصی بازسازی پکت‌ها و FEC.", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        item {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedTextField(
+                                    value = spoofSrcIp,
+                                    onValueChange = { spoofSrcIp = it },
+                                    label = { Text("IP جعلی ایران (فرستنده)") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = spoofPeerIp,
+                                    onValueChange = { spoofPeerIp = it },
+                                    label = { Text("IP جعلی خارج (گیرنده)") },
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        item {
+                            Text("ترنسپورت ارسال پکت‌های جعلی:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf(
+                                    TunnelTransport.IP_SPOOF_UDP to "UDP Raw Socket",
+                                    TunnelTransport.IP_SPOOF_ICMP to "ICMP Echo/Reply"
+                                ).forEach { (tp, label) ->
+                                    val isSel = transport == tp
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFFF43F5E) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { transport = tp }
+                                    ) {
+                                        Text(
+                                            label,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
-                                    Switch(checked = proxyProtocol, onCheckedChange = { proxyProtocol = it })
                                 }
                             }
                         }
                     }
-                } else if (core == TunnelCore.BACKHAUL || core == TunnelCore.GOST) {
-                    item {
-                        Text("پروتکل انتقال (Transport):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(
-                                TunnelTransport.TCP,
-                                TunnelTransport.WS,
-                                TunnelTransport.WSMUX,
-                                TunnelTransport.GRPC,
-                                TunnelTransport.TCPMUX
-                            ).forEach { tp ->
-                                val isSel = transport == tp
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isSel) Color(0xFF6366F1) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.clickable { transport = tp }
-                                ) {
-                                    Text(
-                                        tp.displayName,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        fontSize = 10.5.sp,
-                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
+
+                    TunnelCore.BACKHAUL, TunnelCore.GOST -> {
+                        item {
+                            Text("پروتکل انتقال (Transport):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.height(4.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    TunnelTransport.TCP,
+                                    TunnelTransport.WS,
+                                    TunnelTransport.WSMUX,
+                                    TunnelTransport.GRPC,
+                                    TunnelTransport.TCPMUX
+                                ).forEach { tp ->
+                                    val isSel = transport == tp
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isSel) Color(0xFF6366F1) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        modifier = Modifier.clickable { transport = tp }
+                                    ) {
+                                        Text(
+                                            tp.displayName,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+
+                    else -> {}
                 }
 
                 // 4. Iran Server & Listening Port
@@ -833,6 +1037,13 @@ private fun AddOrEditTunnelDialog(
                             this.corePort = corePort.toIntOrNull() ?: 3080
                             this.token = token.trim()
                             this.preset = preset
+                            this.kcpMode = kcpMode
+                            this.encryption = encryption
+                            this.spoofSrcIp = spoofSrcIp.trim()
+                            this.spoofPeerIp = spoofPeerIp.trim()
+                            this.virtualIpIran = virtualIpIran.trim()
+                            this.virtualIpKharej = virtualIpKharej.trim()
+                            this.mtu = mtu.toIntOrNull() ?: 1350
                             this.acceptUdp = acceptUdp
                             this.proxyProtocol = proxyProtocol
                         } ?: TunnelConfig(
@@ -847,6 +1058,13 @@ private fun AddOrEditTunnelDialog(
                             corePort = corePort.toIntOrNull() ?: 3080,
                             token = token.trim(),
                             preset = preset,
+                            kcpMode = kcpMode,
+                            encryption = encryption,
+                            spoofSrcIp = spoofSrcIp.trim(),
+                            spoofPeerIp = spoofPeerIp.trim(),
+                            virtualIpIran = virtualIpIran.trim(),
+                            virtualIpKharej = virtualIpKharej.trim(),
+                            mtu = mtu.toIntOrNull() ?: 1350,
                             acceptUdp = acceptUdp,
                             proxyProtocol = proxyProtocol
                         )

@@ -21,6 +21,9 @@ object TunnelEngine {
     fun generateCode(cfg: TunnelConfig): GeneratedTunnelCode {
         return when (cfg.core) {
             TunnelCore.BACKPACK -> generateBackpack(cfg)
+            TunnelCore.PAQET -> generatePaqet(cfg)
+            TunnelCore.NARNIA -> generateNarnia(cfg)
+            TunnelCore.SPOOF_TUNNEL -> generateSpoofTunnel(cfg)
             TunnelCore.BACKHAUL -> generateBackhaul(cfg)
             TunnelCore.RATHOLE -> generateRathole(cfg)
             TunnelCore.GOST -> generateGost(cfg)
@@ -174,7 +177,450 @@ services:
         )
     }
 
-    // ── 1. Backhaul Generator ────────────────────────────────────────────────
+    // ── 1. Paqet Generator (behzadea12 / hanselime) ──────────────────────────
+
+    private fun generatePaqet(cfg: TunnelConfig): GeneratedTunnelCode {
+        val token = cfg.token.ifBlank { generateRandomToken(16) }
+        val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+        val kcpMode = cfg.kcpMode.ifBlank { "fast" }
+        val encryption = cfg.encryption.ifBlank { "aes-128-gcm" }
+
+        val foreignConfig = """
+server:
+  listen_port: ${cfg.corePort}
+  key: "$token"
+  kcp_mode: "$kcpMode"
+  conn: 4
+  mtu: ${cfg.mtu}
+  encryption: "$encryption"
+  pcap_sockbuf: 4194304
+  tcp_buffer: 4194304
+  udp_buffer: 4194304
+""".trimIndent()
+
+        val iranConfig = """
+client:
+  remote_addr: "$foreignIp:${cfg.corePort}"
+  key: "$token"
+  kcp_mode: "$kcpMode"
+  conn: 4
+  mtu: ${cfg.mtu}
+  encryption: "$encryption"
+  pcap_sockbuf: 4194304
+  tcp_buffer: 4194304
+  udp_buffer: 4194304
+  forwards:
+    - listen: "0.0.0.0:${cfg.iranPort}"
+      target: "127.0.0.1:${cfg.foreignPort}"
+      proto: "tcp/udp"
+""".trimIndent()
+
+        val foreignInstall = """
+# ── نصب سرور Paqet روی سرور خارج ──
+sudo mkdir -p /etc/paqet /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
+curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz && \
+tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet && chmod +x /usr/local/bin/paqet && \
+cat << 'EOF' > /etc/paqet/server.yaml
+$foreignConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/paqet-server.service
+[Unit]
+Description=Paqet Tunnel Server (Raw Socket KCP)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/paqet server -c /etc/paqet/server.yaml
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now paqet-server && systemctl status paqet-server --no-pager
+""".trimIndent()
+
+        val iranInstall = """
+# ── نصب کلاینت Paqet روی سرور ایران ──
+sudo mkdir -p /etc/paqet /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
+curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz && \
+tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet && chmod +x /usr/local/bin/paqet && \
+cat << 'EOF' > /etc/paqet/client.yaml
+$iranConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/paqet-client.service
+[Unit]
+Description=Paqet Tunnel Client (Iran Entry)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/paqet client -c /etc/paqet/client.yaml
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now paqet-client && systemctl status paqet-client --no-pager
+""".trimIndent()
+
+        val dockerForeign = """
+version: '3.8'
+services:
+  paqet-server:
+    image: hanselime/paqet:latest
+    container_name: paqet_server
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - ./server.yaml:/etc/paqet/server.yaml
+    command: server -c /etc/paqet/server.yaml
+""".trimIndent()
+
+        val dockerIran = """
+version: '3.8'
+services:
+  paqet-client:
+    image: hanselime/paqet:latest
+    container_name: paqet_client
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - ./client.yaml:/etc/paqet/client.yaml
+    command: client -c /etc/paqet/client.yaml
+""".trimIndent()
+
+        return GeneratedTunnelCode(
+            iranConfig = iranConfig,
+            iranInstallCommand = iranInstall,
+            foreignConfig = foreignConfig,
+            foreignInstallCommand = foreignInstall,
+            dockerComposeIran = dockerIran,
+            dockerComposeForeign = dockerForeign,
+            description = "تانل فوق سریع Paqet بر بستر Raw Socket و KCP: دور زدن فیلترینگ بدون ردپای سوکت معمولی با رمزنگاری $encryption و مود $kcpMode."
+        )
+    }
+
+    // ── 2. Narnia Generator (Dnt3e/Narnia - ICMP Ping Tunnel) ─────────────────
+
+    private fun generateNarnia(cfg: TunnelConfig): GeneratedTunnelCode {
+        val key = cfg.token.ifBlank { generateRandomToken(16) }
+        val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+        val vIpKharej = cfg.virtualIpKharej.ifBlank { "10.200.200.1" }
+        val vIpIran = cfg.virtualIpIran.ifBlank { "10.200.200.2" }
+        val mtu = cfg.mtu.coerceAtLeast(1200)
+
+        val foreignCmd = "/usr/local/bin/narnia -l -k \"$key\" -o ip:30:$vIpKharej:$vIpIran:dynamic:50 -t $mtu"
+        val iranCmd = "/usr/local/bin/narnia -r $foreignIp -k \"$key\" -t $mtu"
+
+        val foreignInstall = """
+# ── راه‌اندازی سرور Narnia (ICMP Ping Tunnel) روی سرور خارج ──
+sudo mkdir -p /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh && \
+chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
+echo 1 > /proc/sys/net/ipv4/ip_forward && \
+cat << 'EOF' > /etc/systemd/system/narnia.service
+[Unit]
+Description=Narnia ICMP Tunnel Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$foreignCmd
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
+""".trimIndent()
+
+        val iranInstall = """
+# ── راه‌اندازی کلاینت Narnia و فوروارد پورت روی سرور ایران ──
+sudo mkdir -p /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh && \
+chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
+echo 1 > /proc/sys/net/ipv4/ip_forward && \
+iptables -t nat -A PREROUTING -p tcp --dport ${cfg.iranPort} -j DNAT --to-destination $vIpKharej:${cfg.foreignPort} && \
+iptables -t nat -A PREROUTING -p udp --dport ${cfg.iranPort} -j DNAT --to-destination $vIpKharej:${cfg.foreignPort} && \
+iptables -t nat -A POSTROUTING -j MASQUERADE && \
+cat << 'EOF' > /etc/systemd/system/narnia.service
+[Unit]
+Description=Narnia ICMP Tunnel Client
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$iranCmd
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
+""".trimIndent()
+
+        val dockerForeign = """
+version: '3.8'
+services:
+  narnia-server:
+    image: dnt3e/narnia:latest
+    container_name: narnia_server
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    command: -l -k "$key" -o ip:30:$vIpKharej:$vIpIran:dynamic:50 -t $mtu
+""".trimIndent()
+
+        val dockerIran = """
+version: '3.8'
+services:
+  narnia-client:
+    image: dnt3e/narnia:latest
+    container_name: narnia_client
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    command: -r $foreignIp -k "$key" -t $mtu
+""".trimIndent()
+
+        return GeneratedTunnelCode(
+            iranConfig = iranCmd,
+            iranInstallCommand = iranInstall,
+            foreignConfig = foreignCmd,
+            foreignInstallCommand = foreignInstall,
+            dockerComposeIran = dockerIran,
+            dockerComposeForeign = dockerForeign,
+            description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): ارتباط امن لایه ۳ بر بستر ChaCha20 با ایجاد اینترفیس مجازی بین $vIpIran و $vIpKharej بدون نیاز به پورت باز TCP/UDP."
+        )
+    }
+
+    // ── 3. Spoof Tunnel Generator (ParsaKSH/spoof-tunnel & forks) ────────────
+
+    private fun generateSpoofTunnel(cfg: TunnelConfig): GeneratedTunnelCode {
+        val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+        val iranIp = cfg.iranHost.ifBlank { "IRAN_IP" }
+        val spoofSrc = cfg.spoofSrcIp.ifBlank { "1.1.1.1" }
+        val spoofPeer = cfg.spoofPeerIp.ifBlank { "8.8.8.8" }
+        val isIcmp = cfg.transport == TunnelTransport.IP_SPOOF_ICMP
+        val transportType = if (isIcmp) "icmp" else "udp"
+
+        val serverPrivKey = generateRandomToken(32)
+        val clientPrivKey = generateRandomToken(32)
+
+        val foreignConfig = """
+{
+  "mode": "server",
+  "listen": {
+    "address": "0.0.0.0",
+    "port": ${cfg.corePort}
+  },
+  "transport": {
+    "type": "$transportType",
+    "icmp_mode": "reply"
+  },
+  "spoof": {
+    "source_ip": "$spoofPeer",
+    "peer_spoof_ip": "$spoofSrc",
+    "client_real_ip": "$iranIp"
+  },
+  "crypto": {
+    "private_key": "$serverPrivKey",
+    "peer_public_key": "$clientPrivKey"
+  },
+  "performance": {
+    "buffer_size": 4194304,
+    "mtu": ${cfg.mtu},
+    "workers": 4
+  },
+  "reliability": {
+    "enabled": true,
+    "window_size": 128,
+    "retransmit_timeout_ms": 200,
+    "ack_interval_ms": 20
+  },
+  "fec": {
+    "enabled": true,
+    "data_shards": 10,
+    "parity_shards": 3
+  }
+}
+""".trimIndent()
+
+        val iranConfig = """
+{
+  "mode": "client",
+  "listen": {
+    "address": "0.0.0.0",
+    "port": ${cfg.iranPort}
+  },
+  "remote": "$foreignIp",
+  "remote_port": ${cfg.corePort},
+  "forward": "127.0.0.1:${cfg.foreignPort}",
+  "transport": {
+    "type": "$transportType",
+    "icmp_mode": "echo"
+  },
+  "spoof": {
+    "source_ip": "$spoofSrc",
+    "peer_spoof_ip": "$spoofPeer"
+  },
+  "crypto": {
+    "private_key": "$clientPrivKey",
+    "peer_public_key": "$serverPrivKey"
+  },
+  "performance": {
+    "buffer_size": 4194304,
+    "mtu": ${cfg.mtu},
+    "workers": 4
+  },
+  "reliability": {
+    "enabled": true,
+    "window_size": 128,
+    "retransmit_timeout_ms": 200,
+    "ack_interval_ms": 20
+  },
+  "fec": {
+    "enabled": true,
+    "data_shards": 10,
+    "parity_shards": 3
+  }
+}
+""".trimIndent()
+
+        val foreignInstall = """
+# ── راه‌اندازی سرور Spoof Tunnel (جعل دوطرفه IP مبدا) ──
+sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
+tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh && \
+chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
+cat << 'EOF' > /etc/spoof-tunnel/server.json
+$foreignConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
+[Unit]
+Description=Mutual IP Spoofing Tunnel Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/spoof-tunnel -c /etc/spoof-tunnel/server.json
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_BPF
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now spoof-tunnel && systemctl status spoof-tunnel --no-pager
+""".trimIndent()
+
+        val iranInstall = """
+# ── راه‌اندازی کلاینت Spoof Tunnel روی سرور ایران ──
+sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
+tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh && \
+chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
+cat << 'EOF' > /etc/spoof-tunnel/client.json
+$iranConfig
+EOF
+cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
+[Unit]
+Description=Mutual IP Spoofing Tunnel Client
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/spoof-tunnel -c /etc/spoof-tunnel/client.json
+Restart=always
+RestartSec=3
+LimitNOFILE=65535
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_BPF
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload && systemctl enable --now spoof-tunnel && systemctl status spoof-tunnel --no-pager
+""".trimIndent()
+
+        val dockerForeign = """
+version: '3.8'
+services:
+  spoof-server:
+    image: parsaksh/spoof-tunnel:latest
+    container_name: spoof_tunnel_server
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - ./server.json:/etc/spoof-tunnel/server.json
+    command: -c /etc/spoof-tunnel/server.json
+""".trimIndent()
+
+        val dockerIran = """
+version: '3.8'
+services:
+  spoof-client:
+    image: parsaksh/spoof-tunnel:latest
+    container_name: spoof_tunnel_client
+    restart: always
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - ./client.json:/etc/spoof-tunnel/client.json
+    command: -c /etc/spoof-tunnel/client.json
+""".trimIndent()
+
+        return GeneratedTunnelCode(
+            iranConfig = iranConfig,
+            iranInstallCommand = iranInstall,
+            foreignConfig = foreignConfig,
+            foreignInstallCommand = foreignInstall,
+            dockerComposeIran = dockerIran,
+            dockerComposeForeign = dockerForeign,
+            description = "تانل جعل دوطرفه IP مبدا (Mutual IP Spoofing): تغییر فیلد Source IP در سطح Raw Socket با لایه تضمین تحویل پکت‌ها و بازیابی خطای Reed-Solomon FEC."
+        )
+    }
+
+    // ── 4. Backhaul Generator ────────────────────────────────────────────────
 
     private fun generateBackhaul(cfg: TunnelConfig): GeneratedTunnelCode {
         val transportStr = when (cfg.transport) {
@@ -307,7 +753,7 @@ services:
         )
     }
 
-    // ── 2. Rathole Generator ─────────────────────────────────────────────────
+    // ── 5. Rathole Generator ─────────────────────────────────────────────────
 
     private fun generateRathole(cfg: TunnelConfig): GeneratedTunnelCode {
         val token = cfg.token.ifBlank { "didban_rathole_token" }
@@ -428,7 +874,7 @@ services:
         )
     }
 
-    // ── 3. GOST Generator ────────────────────────────────────────────────────
+    // ── 6. GOST Generator ────────────────────────────────────────────────────
 
     private fun generateGost(cfg: TunnelConfig): GeneratedTunnelCode {
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
@@ -531,7 +977,7 @@ services:
         )
     }
 
-    // ── 4. Chisel Generator ──────────────────────────────────────────────────
+    // ── 7. Chisel Generator ──────────────────────────────────────────────────
 
     private fun generateChisel(cfg: TunnelConfig): GeneratedTunnelCode {
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
@@ -619,7 +1065,7 @@ services:
         )
     }
 
-    // ── 5. FRP Generator ─────────────────────────────────────────────────────
+    // ── 8. FRP Generator ─────────────────────────────────────────────────────
 
     private fun generateFrp(cfg: TunnelConfig): GeneratedTunnelCode {
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
@@ -673,7 +1119,7 @@ systemctl daemon-reload && systemctl enable --now frps && systemctl status frps 
 sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
-tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc && \
+tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frps && \
 cat << 'EOF' > /etc/frp/frpc.toml
 $iranConfig
 EOF
@@ -730,7 +1176,7 @@ services:
         )
     }
 
-    // ── 6. IPTables Port Forwarding Generator ────────────────────────────────
+    // ── 9. IPTables Port Forwarding Generator ────────────────────────────────
 
     private fun generateIptables(cfg: TunnelConfig): GeneratedTunnelCode {
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
