@@ -8,6 +8,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -55,40 +57,56 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 1. NETWORK HUB SCREEN (Port Scanner · DPI Censorship · SSL · IP · Ping)
+// 1. NETWORK HUB SCREEN (Check-Host · DPI Censorship · Port Scan · SSL · IP · Ping)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 fun NetworkHubScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 5 }
+    val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
 
+    val tabs = listOf(
+        "🌐 چک‌هاست جهانی",
+        "🛡️ تست فیلترینگ و DPI",
+        "🔍 پورت اسکنر",
+        "🔒 بازرس SSL",
+        "🌍 اطلاعات IP و دامنه",
+        "📶 پینگ مداوم TCP"
+    )
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("🛰️ ${t.networkHub}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(10.dp))
 
+        // ── Smooth Horizontally Scrollable Tab Bar (No squashing or wrapping) ──
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("پورت اسکنر", "🛡️ تست فیلترینگ", "بازرس SSL", "اطلاعات IP", "پینگ TCP").forEachIndexed { index, title ->
+            tabs.forEachIndexed { index, title ->
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier.clickable { scope.launch { pagerState.animateScrollToPage(index) } }
                 ) {
                     Text(
                         title,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                        fontSize = 11.5.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        fontSize = 12.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -96,15 +114,217 @@ fun NetworkHubScreen(t: Str) {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> PortScannerTab(t)
+                0 -> CheckHostHubTab(t)
                 1 -> CensorshipTab(t)
-                2 -> SslInspectorTab(t)
-                3 -> IpInfoTab(t)
-                4 -> TcpPingTab(t)
+                2 -> PortScannerTab(t)
+                3 -> SslInspectorTab(t)
+                4 -> IpInfoTab(t)
+                5 -> TcpPingTab(t)
             }
         }
     }
 }
+
+// ── Tab 0: Check-Host.net Global Reachability Suite ──────────────────────────
+
+@Composable
+private fun CheckHostHubTab(t: Str) {
+    val scope = rememberCoroutineScope()
+    var targetHost by remember { mutableStateOf("") }
+    var selectedType by remember { mutableStateOf("ping") }
+    var tcpPort by remember { mutableStateOf("80") }
+    var isChecking by remember { mutableStateOf(false) }
+    var statusText by remember { mutableStateOf("") }
+    var nodes by remember { mutableStateOf<List<CheckHostNode>>(emptyList()) }
+
+    val okCount = nodes.count { it.state == 1 }
+    val totalCount = nodes.size
+
+    fun cleanTarget(raw: String): String {
+        return raw.trim()
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .substringBefore("/")
+    }
+
+    fun startProbe() {
+        if (isChecking) return
+        val clean = cleanTarget(targetHost)
+        if (clean.isEmpty()) return
+
+        val hostToTest = if (selectedType == "tcp") "$clean:$tcpPort" else clean
+
+        isChecking = true
+        statusText = "در حال ارسال درخواست به ۲۰ نود در سراسر دنیا…"
+        nodes = emptyList()
+
+        scope.launch {
+            try {
+                val (reqId, initialNodes) = CheckHostService.startCheck(hostToTest, selectedType, 20)
+                nodes = initialNodes
+
+                for (i in 0 until 14) {
+                    delay(1500)
+                    val done = CheckHostService.pollResults(reqId, selectedType, nodes)
+                    nodes = nodes.toList() // trigger UI update
+                    if (done) break
+                }
+                nodes.forEach { if (it.state == 0) { it.state = 2; it.resultText = "تایم‌اوت" } }
+                nodes = nodes.toList()
+                val currentOk = nodes.count { it.state == 1 }
+                statusText = "$currentOk از $totalCount نود جهانی در دسترس هستند ✅"
+            } catch (e: Exception) {
+                statusText = "خطا در تست: ${e.message}"
+            } finally {
+                isChecking = false
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        FeatureGuideCard(
+            title = "🌐 راهنمای چک‌هاست جهانی (Check-Host.net)",
+            description = "تست وضعیت اتصال، پینگ، پورت باز و سلامت سایت از ۲۰ نود در کشورهای مختلف (آلمان، آمریکا، ایران، فرانسه، انگلستان، هلند و...):",
+            bullets = listOf(
+                "PING: تست پکت‌لاس و میانگین زمان پاسخ به میلی‌ثانیه از نقاط مختلف جهان",
+                "HTTP: بررسی بالا بودن وبسایت و کد پاسخ سرور (200 OK, 403, 301)",
+                "TCP: تست باز بودن پورت‌های SSH، دیتابیس یا پنل از خارج کشور",
+                "DNS: بررسی رزولوشن و انتشار رکوردهای دامنه در سرورهای نام جهان"
+            )
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        ModernCard(padding = 12.dp) {
+            OutlinedTextField(
+                value = targetHost,
+                onValueChange = { targetHost = it },
+                label = { Text("دامنه یا آی‌پی (مثلاً google.com یا 1.2.3.4)", fontSize = 12.sp) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf("ping", "http", "tcp", "dns").forEach { type ->
+                    val selected = selectedType == type
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.clickable { selectedType = type }
+                    ) {
+                        Text(
+                            type.uppercase(Locale.US),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            fontSize = 11.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                if (selectedType == "tcp") {
+                    Spacer(Modifier.width(4.dp))
+                    OutlinedTextField(
+                        value = tcpPort,
+                        onValueChange = { tcpPort = it },
+                        label = { Text("Port", fontSize = 10.sp) },
+                        modifier = Modifier.width(70.dp),
+                        singleLine = true
+                    )
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                Button(
+                    onClick = { startProbe() },
+                    enabled = !isChecking && targetHost.isNotBlank(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
+                    if (isChecking) {
+                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                    } else {
+                        Text(t.runProbe, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        if (statusText.isNotBlank()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                if (totalCount > 0) {
+                    Spacer(Modifier.weight(1f))
+                    StatusPill("$okCount / $totalCount", isOnline = okCount > 0)
+                }
+            }
+        }
+
+        if (nodes.isEmpty() && !isChecking) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🌐", fontSize = 42.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("آدرس دامنه یا آی‌پی را وارد کرده و دکمه شروع تست را بزنید", fontSize = 12.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            return@Column
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(nodes, key = { it.nodeKey }) { node ->
+                ModernCard(padding = 10.dp) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(node.flag, fontSize = 22.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(node.location.ifEmpty { node.countryCode }, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(node.nodeKey, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = when (node.state) {
+                                1 -> Color(0xFF10B981).copy(alpha = 0.15f)
+                                2 -> Color(0xFFEF4444).copy(alpha = 0.15f)
+                                else -> MaterialTheme.colorScheme.surfaceContainerHigh
+                            }
+                        ) {
+                            Text(
+                                node.resultText,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when (node.state) {
+                                    1 -> Color(0xFF047857)
+                                    2 -> Color(0xFFDC2626)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(30.dp)) }
+        }
+    }
+}
+
+// ── Tab 1: Censorship & DPI Tester ──────────────────────────────────────────
 
 @Composable
 private fun CensorshipTab(t: Str) {
@@ -115,12 +335,13 @@ private fun CensorshipTab(t: Str) {
     var result by remember { mutableStateOf<CensorshipDiagnosticResult?>(null) }
 
     fun runTest() {
-        if (host.isBlank() || isTesting) return
+        val clean = host.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
+        if (clean.isBlank() || isTesting) return
         isTesting = true
         result = null
         scope.launch {
             try {
-                result = CensorshipTester.diagnose(host.trim(), port.toIntOrNull() ?: 443)
+                result = CensorshipTester.diagnose(clean, port.toIntOrNull() ?: 443)
             } finally {
                 isTesting = false
             }
@@ -158,9 +379,13 @@ private fun CensorshipTab(t: Str) {
                     singleLine = true
                 )
                 Spacer(Modifier.width(6.dp))
-                Button(onClick = { runTest() }, enabled = !isTesting && host.isNotBlank()) {
+                Button(
+                    onClick = { runTest() },
+                    enabled = !isTesting && host.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
                     if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text("عیب‌یابی")
+                    else Text("عیب‌یابی", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -201,6 +426,8 @@ private fun CensorshipTab(t: Str) {
     }
 }
 
+// ── Tab 2: Port Scanner ─────────────────────────────────────────────────────
+
 @Composable
 private fun PortScannerTab(t: Str) {
     val scope = rememberCoroutineScope()
@@ -212,14 +439,15 @@ private fun PortScannerTab(t: Str) {
     val portsToScan = remember { COMMON_PORTS.map { it.first } }
 
     fun runScan() {
-        if (host.isBlank() || isScanning) return
+        val clean = host.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
+        if (clean.isBlank() || isScanning) return
         isScanning = true
         results = emptyList()
         scannedCount = 0
 
         scope.launch {
             try {
-                PortScanner.scanPorts(host.trim(), portsToScan, concurrency = 10) { res ->
+                PortScanner.scanPorts(clean, portsToScan, concurrency = 10) { res ->
                     scannedCount++
                     if (res.isOpen) {
                         results = (results + res).sortedBy { it.port }
@@ -249,9 +477,13 @@ private fun PortScannerTab(t: Str) {
                     singleLine = true
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { runScan() }, enabled = !isScanning && host.isNotBlank()) {
+                Button(
+                    onClick = { runScan() },
+                    enabled = !isScanning && host.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
                     if (isScanning) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.scan)
+                    else Text(t.scan, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -290,6 +522,8 @@ private fun PortScannerTab(t: Str) {
     }
 }
 
+// ── Tab 3: SSL Inspector ────────────────────────────────────────────────────
+
 @Composable
 private fun SslInspectorTab(t: Str) {
     val scope = rememberCoroutineScope()
@@ -300,13 +534,14 @@ private fun SslInspectorTab(t: Str) {
     var err by remember { mutableStateOf<String?>(null) }
 
     fun checkSsl() {
-        if (host.isBlank() || isLoading) return
+        val clean = host.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
+        if (clean.isBlank() || isLoading) return
         isLoading = true
         err = null
         certInfo = null
         scope.launch {
             try {
-                certInfo = SslInspector.inspect(host.trim(), port.toIntOrNull() ?: 443)
+                certInfo = SslInspector.inspect(clean, port.toIntOrNull() ?: 443)
             } catch (e: Exception) {
                 err = e.message
             } finally {
@@ -328,7 +563,7 @@ private fun SslInspectorTab(t: Str) {
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
-                    label = { Text("دامنه (مثلا google.com)", fontSize = 12.sp) },
+                    label = { Text("دامنه (مثلاً google.com)", fontSize = 12.sp) },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
@@ -341,9 +576,13 @@ private fun SslInspectorTab(t: Str) {
                     singleLine = true
                 )
                 Spacer(Modifier.width(6.dp))
-                Button(onClick = { checkSsl() }, enabled = !isLoading && host.isNotBlank()) {
+                Button(
+                    onClick = { checkSsl() },
+                    enabled = !isLoading && host.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
                     if (isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.inspect)
+                    else Text(t.inspect, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -391,6 +630,8 @@ private fun SslInspectorTab(t: Str) {
     }
 }
 
+// ── Tab 4: IP & GeoIP Info ──────────────────────────────────────────────────
+
 @Composable
 private fun IpInfoTab(t: Str) {
     val scope = rememberCoroutineScope()
@@ -400,11 +641,12 @@ private fun IpInfoTab(t: Str) {
     var err by remember { mutableStateOf<String?>(null) }
 
     fun lookup() {
+        val clean = targetIp.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
         isLoading = true
         err = null
         scope.launch {
             try {
-                geoData = IpInfoService.lookup(targetIp)
+                geoData = IpInfoService.lookup(clean)
             } catch (e: Exception) {
                 err = e.message
             } finally {
@@ -417,8 +659,8 @@ private fun IpInfoTab(t: Str) {
 
     Column(Modifier.fillMaxSize()) {
         FeatureGuideCard(
-            title = "🌍 راهنمای استعلام اطلاعات آی‌پی (GeoIP)",
-            description = "مشاهده کشور، شهر، شرکت ارائه‌دهنده اینترنت (ISP)، شماره ASN و مختصات جغرافیایی هر آی‌پی یا دامنه."
+            title = "🌍 راهنمای استعلام اطلاعات آی‌پی و دامنه (GeoIP)",
+            description = "مشاهده کشور، شهر، شرکت ارائه‌دهنده اینترنت (ISP)، شماره ASN و مختصات جغرافیایی هر آی‌پی یا دامنه اینترنتی."
         )
 
         Spacer(Modifier.height(10.dp))
@@ -428,14 +670,18 @@ private fun IpInfoTab(t: Str) {
                 OutlinedTextField(
                     value = targetIp,
                     onValueChange = { targetIp = it },
-                    label = { Text("آی‌پی (خالی = آی‌پی من)", fontSize = 12.sp) },
+                    label = { Text("آی‌پی یا دامنه (خالی = آی‌پی من)", fontSize = 12.sp) },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { lookup() }, enabled = !isLoading) {
+                Button(
+                    onClick = { lookup() },
+                    enabled = !isLoading,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) {
                     if (isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.lookup)
+                    else Text(t.lookup, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -461,11 +707,13 @@ private fun IpInfoTab(t: Str) {
                 Text("ارائه‌دهنده / سازمان: ${g.isp} (${g.org})", fontSize = 12.sp)
                 Text("شماره ASN: ${g.asn}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                 Text("منطقه زمانی: ${g.timezone}", fontSize = 12.sp)
-                Text("مختصات: ${g.lat}, ${g.lon}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("مختصات جغرافیایی: ${g.lat}, ${g.lon}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
 }
+
+// ── Tab 5: TCP Continuous Ping ──────────────────────────────────────────────
 
 @Composable
 private fun TcpPingTab(t: Str) {
@@ -476,7 +724,8 @@ private fun TcpPingTab(t: Str) {
     var logs by remember { mutableStateOf<List<String>>(emptyList()) }
 
     fun startPing() {
-        if (host.isBlank()) return
+        val clean = host.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
+        if (clean.isBlank()) return
         if (isPinging) {
             isPinging = false
             return
@@ -489,10 +738,10 @@ private fun TcpPingTab(t: Str) {
             while (isPinging) {
                 try {
                     val p = port.toIntOrNull() ?: 80
-                    val lat = TcpPinger.ping(host.trim(), p, 1500)
-                    logs = (listOf("seq=$seq host=$host:$p time=${lat}ms") + logs).take(50)
+                    val lat = TcpPinger.ping(clean, p, 1500)
+                    logs = (listOf("seq=$seq host=$clean:$p time=${lat}ms") + logs).take(50)
                 } catch (e: Exception) {
-                    logs = (listOf("seq=$seq host=$host timeout (${e.message})") + logs).take(50)
+                    logs = (listOf("seq=$seq host=$clean timeout (${e.message})") + logs).take(50)
                 }
                 seq++
                 delay(1000)
@@ -529,10 +778,10 @@ private fun TcpPingTab(t: Str) {
                 Button(
                     onClick = { startPing() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPinging) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
+                        containerColor = if (isPinging) Color(0xFFEF4444) else Color(0xFF0D9488)
                     )
                 ) {
-                    Text(if (isPinging) t.stop else t.start)
+                    Text(if (isPinging) t.stop else t.start, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -658,7 +907,10 @@ fun CloudflareScreen(t: Str) {
                 )
                 TextButton(onClick = { isTokenSaved = false }) { Text(t.changeToken, fontSize = 11.sp) }
                 TextButton(onClick = { selectedZone?.let { loadRecords(it) } }) { Text("🔄", fontSize = 14.sp) }
-                Button(onClick = { showAddDialog = true }) { Text("+ ${t.addRecord}") }
+                Button(
+                    onClick = { showAddDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("+ ${t.addRecord}") }
             }
         }
 
@@ -742,15 +994,18 @@ fun CloudflareScreen(t: Str) {
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    scope.launch {
-                        selectedZone?.let { z ->
-                            CloudflareService.saveRecord(apiToken, z.id, null, recType, recName, recContent, proxied)
-                            showAddDialog = false
-                            loadRecords(z)
+                Button(
+                    onClick = {
+                        scope.launch {
+                            selectedZone?.let { z ->
+                                CloudflareService.saveRecord(apiToken, z.id, null, recType, recName, recContent, proxied)
+                                showAddDialog = false
+                                loadRecords(z)
+                            }
                         }
-                    }
-                }) { Text(t.save) }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text(t.save) }
             },
             dismissButton = {
                 TextButton(onClick = { showAddDialog = false }) { Text(t.cancel) }
@@ -821,7 +1076,10 @@ fun VaultScreen(t: Str) {
                     backupString = b64
                     showBackupDialog = true
                 }) { Text("📦 ${t.backup}", fontSize = 12.sp) }
-                Button(onClick = { showAddNote = true }) { Text("+ ${t.addNote}") }
+                Button(
+                    onClick = { showAddNote = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("+ ${t.addNote}") }
             }
 
             Spacer(Modifier.height(10.dp))
@@ -862,13 +1120,16 @@ fun VaultScreen(t: Str) {
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    if (title.isNotBlank()) {
-                        notes = notes + VaultNote(System.currentTimeMillis(), title, content)
-                        Prefs.saveVaultNotes(ctx, notes, masterPass)
-                        showAddNote = false
-                    }
-                }) { Text(t.save) }
+                Button(
+                    onClick = {
+                        if (title.isNotBlank()) {
+                            notes = notes + VaultNote(System.currentTimeMillis(), title, content)
+                            Prefs.saveVaultNotes(ctx, notes, masterPass)
+                            showAddNote = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text(t.save) }
             },
             dismissButton = { TextButton(onClick = { showAddNote = false }) { Text(t.cancel) } }
         )
@@ -887,11 +1148,14 @@ fun VaultScreen(t: Str) {
                 }
             },
             confirmButton = {
-                Button(onClick = {
-                    clipboard.setPrimaryClip(ClipData.newPlainText("backup", backupString))
-                    Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
-                    showBackupDialog = false
-                }) { Text(t.copy) }
+                Button(
+                    onClick = {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("backup", backupString))
+                        Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                        showBackupDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text(t.copy) }
             },
             dismissButton = { TextButton(onClick = { showBackupDialog = false }) { Text(t.close) } }
         )
@@ -907,6 +1171,7 @@ fun DevLabScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
     val pagerState = rememberPagerState(initialPage = 0) { 4 }
     val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
 
@@ -922,24 +1187,29 @@ fun DevLabScreen(t: Str) {
         Spacer(Modifier.height(10.dp))
 
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 10.dp),
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scrollState)
+                .padding(bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             listOf("JSON & Base64", "ساب‌نت CIDR", "دیکودر JWT", "تولیدکننده پسورد").forEachIndexed { index, title ->
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.outlineVariant),
                     shadowElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier.clickable { scope.launch { pagerState.animateScrollToPage(index) } }
                 ) {
                     Text(
                         title,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                         fontSize = 11.5.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -1019,7 +1289,10 @@ private fun SubnetCalcTab(t: Str) {
                 singleLine = true
             )
             Spacer(Modifier.width(8.dp))
-            Button(onClick = { calc() }) { Text(t.calculate) }
+            Button(
+                onClick = { calc() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+            ) { Text(t.calculate) }
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1068,7 +1341,11 @@ private fun JwtDecoderTab(t: Str) {
         )
 
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { decode() }, modifier = Modifier.fillMaxWidth()) { Text("دیکود و بررسی توکن") }
+        Button(
+            onClick = { decode() },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+        ) { Text("دیکود و بررسی توکن") }
 
         Spacer(Modifier.height(10.dp))
 
@@ -1111,7 +1388,10 @@ private fun GeneratorTab(t: Str) {
             Text(generatedPass, fontSize = 16.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row {
-                Button(onClick = { generatedPass = DevLabTools.generatePassword(18) }) { Text("تولید جدید") }
+                Button(
+                    onClick = { generatedPass = DevLabTools.generatePassword(18) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("تولید جدید") }
                 Spacer(Modifier.width(8.dp))
                 OutlinedButton(onClick = {
                     clipboard.setPrimaryClip(ClipData.newPlainText("password", generatedPass))
@@ -1126,7 +1406,10 @@ private fun GeneratorTab(t: Str) {
             Text(generatedUuid, fontSize = 14.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row {
-                Button(onClick = { generatedUuid = DevLabTools.generateUuid() }) { Text("تولید UUID") }
+                Button(
+                    onClick = { generatedUuid = DevLabTools.generateUuid() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("تولید UUID") }
                 Spacer(Modifier.width(8.dp))
                 OutlinedButton(onClick = {
                     clipboard.setPrimaryClip(ClipData.newPlainText("uuid", generatedUuid))
