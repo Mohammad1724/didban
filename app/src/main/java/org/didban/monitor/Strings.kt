@@ -293,7 +293,7 @@ object Locales {
         // Dual-Node Tunnels
         navTunnels = "تانل‌ها",
         tunnelsHub = "مرکز تانل بین دو سرور",
-        guideTunnels = "مدیریت و برقراری تانل‌های معکوس، سوکت خام، پینگ ICMP و IP Spoofing (شامل BackPack 🎒، Paqet، Narnia، Spoof Tunnel، Backhaul، Rathole، GOST، Chisel، FRP و IPTables) بین سرور ایران و خارج همراه با تولید دستورات نصب خودکار.",
+        guideTunnels = "مدیریت و برقراری تانل‌های معکوس، سوکت خام، پینگ ICMP و IP Spoofing (شامل BackPack 🎒، Paqet، Narnia، Spoof Tunnel، Backhaul، Rathole، GOST، Chisel، FRP و IPTables) بین سرور ایران و خارج همراه با استقرار خودکار ۱-کلیکه مانند پنل Smite.",
         addTunnel = "ساخت تانل جدید",
         editTunnel = "ویرایش مشخصات تانل",
         deleteTunnel = "حذف تانل",
@@ -471,7 +471,7 @@ object Locales {
         // Dual-Node Tunnels
         navTunnels = "Tunnels",
         tunnelsHub = "Dual-Node Tunnel Hub",
-        guideTunnels = "Manage high-performance reverse, raw-socket, ICMP ping, and IP spoofing tunnels (BackPack 🎒, Paqet, Narnia, Spoof Tunnel, Backhaul, Rathole, GOST, Chisel, FRP, IPTables) between Iran and foreign servers with 1-click auto scripts.",
+        guideTunnels = "Manage high-performance reverse, raw-socket, ICMP ping, and IP spoofing tunnels (BackPack 🎒, Paqet, Narnia, Spoof Tunnel, Backhaul, Rathole, GOST, Chisel, FRP, IPTables) with Smite-style zero-touch auto-sync.",
         addTunnel = "New Tunnel",
         editTunnel = "Edit Tunnel",
         deleteTunnel = "Delete Tunnel",

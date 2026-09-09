@@ -1,7 +1,9 @@
 package org.didban.monitor
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.SecureRandom
@@ -127,11 +129,10 @@ web_port = 0
 """.trimIndent()
 
         val iranInstall = """
-# ── نصب خودکار BackPack روی سرور ایران ──
-sudo mkdir -p /etc/backpack /root/BackPack /usr/local/bin && \
+sudo mkdir -p /etc/backpack /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
-curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
-tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack && \
+(curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
+tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
 cat << 'EOF' > /etc/backpack/server.toml
 $iranConfig
 EOF
@@ -154,11 +155,10 @@ systemctl daemon-reload && systemctl enable --now backpack-server && systemctl s
 """.trimIndent()
 
         val foreignInstall = """
-# ── نصب خودکار BackPack روی سرور خارج ──
-sudo mkdir -p /etc/backpack /root/BackPack /usr/local/bin && \
+sudo mkdir -p /etc/backpack /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
-curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
-tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack && \
+(curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
+tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
 cat << 'EOF' > /etc/backpack/client.toml
 $foreignConfig
 EOF
@@ -262,12 +262,11 @@ $forwardsYaml
 """.trimIndent()
 
         val foreignInstall = """
-# ── نصب سرور Paqet روی سرور خارج ──
 sudo mkdir -p /etc/paqet /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
-curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz && \
-tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet && chmod +x /usr/local/bin/paqet && \
+(curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
+curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
+tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
 cat << 'EOF' > /etc/paqet/server.yaml
 $foreignConfig
 EOF
@@ -291,12 +290,11 @@ systemctl daemon-reload && systemctl enable --now paqet-server && systemctl stat
 """.trimIndent()
 
         val iranInstall = """
-# ── نصب کلاینت Paqet روی سرور ایران ──
 sudo mkdir -p /etc/paqet /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
-curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz && \
-tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet && chmod +x /usr/local/bin/paqet && \
+(curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
+curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
+tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
 cat << 'EOF' > /etc/paqet/client.yaml
 $iranConfig
 EOF
@@ -382,11 +380,10 @@ services:
         }
 
         val foreignInstall = """
-# ── راه‌اندازی سرور Narnia (ICMP Ping Tunnel) روی سرور خارج ──
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh && \
+(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
 chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
 echo 1 > /proc/sys/net/ipv4/ip_forward && \
 cat << 'EOF' > /etc/systemd/system/narnia.service
@@ -409,11 +406,10 @@ systemctl daemon-reload && systemctl enable --now narnia && systemctl status nar
 """.trimIndent()
 
         val iranInstall = """
-# ── راه‌اندازی کلاینت Narnia و فوروارد پورت روی سرور ایران ──
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh && \
+(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
 chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
 echo 1 > /proc/sys/net/ipv4/ip_forward && \
 $natRules && \
@@ -574,12 +570,11 @@ services:
 """.trimIndent()
 
         val foreignInstall = """
-# ── راه‌اندازی سرور Spoof Tunnel (جعل دوطرفه IP مبدا) ──
 sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
+(curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh && \
+curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
 cat << 'EOF' > /etc/spoof-tunnel/server.json
 $foreignConfig
@@ -604,12 +599,11 @@ systemctl daemon-reload && systemctl enable --now spoof-tunnel && systemctl stat
 """.trimIndent()
 
         val iranInstall = """
-# ── راه‌اندازی کلاینت Spoof Tunnel روی سرور ایران ──
 sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
+(curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh && \
+curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
 cat << 'EOF' > /etc/spoof-tunnel/client.json
 $iranConfig
@@ -728,8 +722,8 @@ web_port = 0
         val foreignInstall = """
 sudo mkdir -p /etc/backhaul /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
-tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul && \
+(curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
+tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
 cat << 'EOF' > /etc/backhaul/config.toml
 $foreignConfig
 EOF
@@ -754,8 +748,8 @@ systemctl daemon-reload && systemctl enable --now backhaul && systemctl status b
         val iranInstall = """
 sudo mkdir -p /etc/backhaul /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
-tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul && \
+(curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
+tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
 cat << 'EOF' > /etc/backhaul/config.toml
 $iranConfig
 EOF
@@ -979,8 +973,8 @@ services:
         val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
-tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost && \
+(curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
+tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
 cat << 'EOF' > /etc/systemd/system/gost.service
 [Unit]
 Description=GOST Server
@@ -1002,8 +996,8 @@ systemctl daemon-reload && systemctl enable --now gost && systemctl status gost 
         val iranInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
-tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost && \
+(curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
+tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
 cat << 'EOF' > /etc/systemd/system/gost.service
 [Unit]
 Description=GOST Client Forwarder
@@ -1071,8 +1065,8 @@ services:
         val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
-gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel && \
+(curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
+gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
 cat << 'EOF' > /etc/systemd/system/chisel.service
 [Unit]
 Description=Chisel Server
@@ -1094,8 +1088,8 @@ systemctl daemon-reload && systemctl enable --now chisel && systemctl status chi
         val iranInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
-gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel && \
+(curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
+gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
 cat << 'EOF' > /etc/systemd/system/chisel.service
 [Unit]
 Description=Chisel Client
@@ -1180,8 +1174,8 @@ $frpProxies
         val foreignInstall = """
 sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
-tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frps /usr/local/bin/ && chmod +x /usr/local/bin/frps && \
+(curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
+tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frps /usr/local/bin/ && chmod +x /usr/local/bin/frps) || true && \
 cat << 'EOF' > /etc/frp/frps.toml
 $foreignConfig
 EOF
@@ -1206,8 +1200,8 @@ systemctl daemon-reload && systemctl enable --now frps && systemctl status frps 
         val iranInstall = """
 sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
-tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc && \
+(curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
+tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc) || true && \
 cat << 'EOF' > /etc/frp/frpc.toml
 $iranConfig
 EOF
@@ -1282,7 +1276,7 @@ sudo iptables -t nat -A POSTROUTING -p udp -d $foreignIp --dport ${p.foreignPort
 sudo sysctl -w net.ipv4.ip_forward=1
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
 $rules
-sudo apt-get install -y iptables-persistent >/dev/null 2>&1 && sudo netfilter-persistent save
+(sudo apt-get install -y iptables-persistent >/dev/null 2>&1 && sudo netfilter-persistent save) || true
 """.trimIndent()
 
         val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
@@ -1297,6 +1291,141 @@ sudo apt-get install -y iptables-persistent >/dev/null 2>&1 && sudo netfilter-pe
             dockerComposeForeign = "# No setup required",
             description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: روتینگ فوق سریع پورت‌های [$portsDesc] بدون پردازش اضافه."
         )
+    }
+
+    // ── Zero-Touch Auto-Deploy & Sync (Smite Panel Style) ─────────────────────
+
+    suspend fun autoDeployTunnel(
+        ctx: Context,
+        cfg: TunnelConfig,
+        apiClient: ApiClient = ApiClient()
+    ): AutoDeployResult = withContext(Dispatchers.IO) {
+        val servers = Prefs.loadServers(ctx)
+        val code = generateCode(cfg)
+
+        // Find Iran server in registered Didban servers
+        val iranServer = servers.firstOrNull { s ->
+            (cfg.iranServerId != null && s.id == cfg.iranServerId) ||
+            (cfg.iranHost.isNotBlank() && (s.host.trim() == cfg.iranHost.trim() || cfg.iranHost.trim().contains(s.host.trim())))
+        }
+
+        // Find Foreign server in registered Didban servers
+        val foreignServer = servers.firstOrNull { s ->
+            (cfg.foreignServerId != null && s.id == cfg.foreignServerId) ||
+            (cfg.foreignHost.isNotBlank() && (s.host.trim() == cfg.foreignHost.trim() || cfg.foreignHost.trim().contains(s.host.trim())))
+        }
+
+        var iranRes: AutoDeployServerResult? = null
+        var foreignRes: AutoDeployServerResult? = null
+
+        // 1. Deploy to Foreign Server first (if server has agent and core is not IPTables)
+        if (foreignServer != null && cfg.core != TunnelCore.IPTABLES) {
+            try {
+                val reqJson = JSONObject().apply {
+                    put("id", cfg.id.toString())
+                    put("name", "${cfg.name} (خارج)")
+                    put("core", cfg.core.name)
+                    put("role", "foreign")
+                    put("config_content", code.foreignConfig)
+                    put("config_path", "/etc/didban/tunnels/${cfg.id}_foreign.conf")
+                    put("service_name", "didban-tunnel-${cfg.id}")
+                    put("exec_script", code.foreignInstallCommand)
+                    put("multi_ports", cfg.multiPorts)
+                }
+                val resp = apiClient.tunnelApply(foreignServer, reqJson)
+                val success = resp.optBoolean("success", resp.optBoolean("active", false))
+                val status = resp.optString("status", if (success) "active" else "failed")
+                val msg = resp.optString("message", if (success) "سرویس سرور خارج فعال شد" else "خطا در استقرار")
+                val logs = resp.optString("logs", "")
+                foreignRes = AutoDeployServerResult(foreignServer.name, foreignServer.host, "foreign", success, status, msg, logs)
+                cfg.syncStatusForeign = if (success) "active" else "failed"
+            } catch (e: Exception) {
+                foreignRes = AutoDeployServerResult(foreignServer.name, foreignServer.host, "foreign", false, "unreachable", "عدم برقراری ارتباط با ایجنت سرور خارج: ${e.message}")
+                cfg.syncStatusForeign = "failed"
+            }
+        } else if (cfg.core == TunnelCore.IPTABLES) {
+            foreignRes = AutoDeployServerResult("سرور خارج", cfg.foreignHost, "foreign", true, "not_required", "سرور خارج برای IPTables نیاز به ایجنت ندارد")
+            cfg.syncStatusForeign = "active"
+        }
+
+        // 2. Deploy to Iran Server
+        if (iranServer != null) {
+            try {
+                val reqJson = JSONObject().apply {
+                    put("id", cfg.id.toString())
+                    put("name", "${cfg.name} (ایران)")
+                    put("core", cfg.core.name)
+                    put("role", "iran")
+                    put("config_content", code.iranConfig)
+                    put("config_path", "/etc/didban/tunnels/${cfg.id}_iran.conf")
+                    put("service_name", "didban-tunnel-${cfg.id}")
+                    put("exec_script", code.iranInstallCommand)
+                    put("multi_ports", cfg.multiPorts)
+                }
+                val resp = apiClient.tunnelApply(iranServer, reqJson)
+                val success = resp.optBoolean("success", resp.optBoolean("active", false))
+                val status = resp.optString("status", if (success) "active" else "failed")
+                val msg = resp.optString("message", if (success) "سرویس سرور ایران فعال شد" else "خطا در استقرار")
+                val logs = resp.optString("logs", "")
+                iranRes = AutoDeployServerResult(iranServer.name, iranServer.host, "iran", success, status, msg, logs)
+                cfg.syncStatusIran = if (success) "active" else "failed"
+            } catch (e: Exception) {
+                iranRes = AutoDeployServerResult(iranServer.name, iranServer.host, "iran", false, "unreachable", "عدم برقراری ارتباط با ایجنت سرور ایران: ${e.message}")
+                cfg.syncStatusIran = "failed"
+            }
+        }
+
+        val overall = (iranRes?.success != false) && (foreignRes?.success != false)
+        val summary = when {
+            iranRes != null && foreignRes != null && overall -> "✅ تانل با موفقیت روی هر دو سرور ایران و خارج راه‌اندازی و روشن شد!"
+            iranRes != null && overall -> "✅ تانل روی سرور ایران با موفقیت فعال شد!"
+            iranRes?.success == false -> "❌ خطا در سرور ایران: ${iranRes.message}"
+            foreignRes?.success == false -> "❌ خطا در سرور خارج: ${foreignRes.message}"
+            else -> "دستورات آماده شد (جهت همگام‌سازی خودکار سرورها را در لیست سرورهای دیدبان اضافه کنید)."
+        }
+
+        AutoDeployResult(iranRes, foreignRes, overall, summary)
+    }
+
+    suspend fun controlRemoteTunnel(
+        ctx: Context,
+        cfg: TunnelConfig,
+        action: String, // "start", "stop", "restart", "delete"
+        apiClient: ApiClient = ApiClient()
+    ): Boolean = withContext(Dispatchers.IO) {
+        val servers = Prefs.loadServers(ctx)
+        val iranServer = servers.firstOrNull { s ->
+            (cfg.iranServerId != null && s.id == cfg.iranServerId) ||
+            (cfg.iranHost.isNotBlank() && s.host.trim() == cfg.iranHost.trim())
+        }
+        val foreignServer = servers.firstOrNull { s ->
+            (cfg.foreignServerId != null && s.id == cfg.foreignServerId) ||
+            (cfg.foreignHost.isNotBlank() && s.host.trim() == cfg.foreignHost.trim())
+        }
+
+        var ok = true
+        val idStr = cfg.id.toString()
+        if (iranServer != null) {
+            try {
+                when (action) {
+                    "start" -> apiClient.tunnelStart(iranServer, idStr)
+                    "stop" -> apiClient.tunnelStop(iranServer, idStr)
+                    "restart" -> apiClient.tunnelRestart(iranServer, idStr)
+                    "delete" -> apiClient.tunnelDelete(iranServer, idStr)
+                }
+            } catch (_: Exception) { ok = false }
+        }
+        if (foreignServer != null && cfg.core != TunnelCore.IPTABLES) {
+            try {
+                when (action) {
+                    "start" -> apiClient.tunnelStart(foreignServer, idStr)
+                    "stop" -> apiClient.tunnelStop(foreignServer, idStr)
+                    "restart" -> apiClient.tunnelRestart(foreignServer, idStr)
+                    "delete" -> apiClient.tunnelDelete(foreignServer, idStr)
+                }
+            } catch (_: Exception) { ok = false }
+        }
+        ok
     }
 
     // ── Test Tunnel Reachability ─────────────────────────────────────────────

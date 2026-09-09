@@ -105,13 +105,14 @@ func main() {
 	}
 
 	mon := NewMonitor(cfg)
+	tm := NewTunnelManager(cfg.DataDir)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go mon.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newAPI(cfg, mon).routes(),
+		Handler:           newAPI(cfg, mon, tm).routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

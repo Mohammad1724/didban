@@ -154,4 +154,44 @@ class ApiClient {
             post(server, "/api/alerts/test", JSONObject())
         }
 
+    // ── Tunnel Management APIs (Smite / Marzban style auto-sync) ────────────
+
+    suspend fun tunnelApply(server: ServerConfig, req: JSONObject): JSONObject =
+        withContext(Dispatchers.IO) {
+            post(server, "/api/tunnel/apply", req)
+        }
+
+    suspend fun tunnelStart(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/tunnel/start", body)
+        }
+
+    suspend fun tunnelStop(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/tunnel/stop", body)
+        }
+
+    suspend fun tunnelRestart(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/tunnel/restart", body)
+        }
+
+    suspend fun tunnelDelete(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/tunnel/delete", body)
+        }
+
+    suspend fun tunnelStatus(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            get(server, "/api/tunnel/status?id=$id")
+        }
+
+    suspend fun tunnelList(server: ServerConfig): JSONObject =
+        withContext(Dispatchers.IO) {
+            get(server, "/api/tunnel/list")
+        }
 }

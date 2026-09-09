@@ -10,7 +10,7 @@
 
 Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram/Discord/Webhook alerts**, provides an **embeddable public HTML status page**, monitors website **uptime with Uptime Kuma style heartbeat bars**, and packs a powerhouse **mobile DevOps toolkit** (Docker Manager, DPI Censorship Inspector, Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
 
-- 🚀 **Dual-Node Tunnel Hub (Iran Node ➔ Foreign Node)** — manage, generate, and monitor anti-censorship reverse, raw-socket, ICMP ping, and IP spoofing tunnels between Iran and Foreign nodes with full support for **Multi-Port Forwarding (e.g. 2096, 2097, 2098 or 443:8443, 80:8080)** and 10 powerful engines: **BackPack 🎒 (by AminMGMT)**, **Paqet (Raw Socket KCP by behzadea12)**, **Narnia (ICMP Ping Tunnel by Dnt3e)**, **Spoof Tunnel (Mutual IP Spoofing by ParsaKSH)**, **Backhaul**, **Rathole**, **GOST**, **Chisel**, **FRP**, and **IPTables**; supports Noise NNpsk0, PCK kernel bypass, KCP+FEC, WSS Chrome TLS, 1-click bash installers, systemd services, and Docker Compose configurations
+- 🚀 **Dual-Node Tunnel Hub (Iran Node ➔ Foreign Node)** — manage, generate, and monitor anti-censorship reverse, raw-socket, ICMP ping, and IP spoofing tunnels between Iran and Foreign nodes with **Zero-Touch Automated Orchestration (Smite-panel style auto-deployment)**, full support for **Multi-Port Forwarding (e.g. 2096, 2097, 2098 or 443:8443, 80:8080)** and 10 powerful engines: **BackPack 🎒 (by AminMGMT)**, **Paqet (Raw Socket KCP by behzadea12)**, **Narnia (ICMP Ping Tunnel by Dnt3e)**, **Spoof Tunnel (Mutual IP Spoofing by ParsaKSH)**, **Backhaul**, **Rathole**, **GOST**, **Chisel**, **FRP**, and **IPTables**; supports Noise NNpsk0, PCK kernel bypass, KCP+FEC, WSS Chrome TLS, 1-click bash installers, systemd services, and Docker Compose configurations
 - 📊 **Live server metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
 - 🕵️ **Spike forensics** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
 - 🐳 **Docker Container Watcher & Remote Control** — monitor all Docker containers via native socket (`/var/run/docker.sock`, zero dependencies), detect crashed/unhealthy containers with instant alerts, and restart/stop containers on the go
@@ -143,6 +143,12 @@ All `/api/*` endpoints require `Authorization: Bearer <token>` (or `?token=`).
 | `GET` | `/api/docker/containers` | list all Docker containers, health, state, image, and exposed ports |
 | `POST` | `/api/docker/restart` | restart a Docker container (`{"id": "container_id_or_name"}`) |
 | `POST` | `/api/docker/stop` | stop a Docker container (`{"id": "container_id_or_name"}`) |
+| `POST` | `/api/tunnel/apply` | automated zero-touch tunnel deployment & configuration |
+| `POST` | `/api/tunnel/restart` | restart a managed tunnel service (`{"id": "..."}`) |
+| `POST` | `/api/tunnel/stop` | stop a managed tunnel service (`{"id": "..."}`) |
+| `POST` | `/api/tunnel/delete` | tear down tunnel service and remove configurations (`{"id": "..."}`) |
+| `GET` | `/api/tunnel/status` | live service status, PID, uptime, and logs (`?id=...`) |
+| `GET` | `/api/tunnel/list` | list all active tunnels running on this server |
 | `GET` | `/api/processes` | top 25 processes by CPU (instant %, memory, user, cmd) |
 | `GET` | `/api/network/sockets` | listening ports & active TCP/UDP sockets matched to PIDs and process names |
 | `POST` | `/api/processes/kill` | terminate a runaway process safely (`{"pid": 1234, "signal": "SIGTERM"}`) |

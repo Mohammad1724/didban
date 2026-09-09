@@ -12,10 +12,11 @@ import (
 type API struct {
 	cfg *Config
 	mon *Monitor
+	tm  *TunnelManager
 }
 
-func newAPI(cfg *Config, mon *Monitor) *API {
-	return &API{cfg: cfg, mon: mon}
+func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager) *API {
+	return &API{cfg: cfg, mon: mon, tm: tm}
 }
 
 func (a *API) routes() http.Handler {
@@ -30,6 +31,16 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
 	mux.HandleFunc("/api/docker/restart", a.auth(a.handleDockerRestart))
 	mux.HandleFunc("/api/docker/stop", a.auth(a.handleDockerStop))
+
+	// Tunnel Management APIs (Smite / Marzban style auto-orchestration)
+	mux.HandleFunc("/api/tunnel/apply", a.auth(a.handleTunnelApply))
+	mux.HandleFunc("/api/tunnel/start", a.auth(a.handleTunnelStart))
+	mux.HandleFunc("/api/tunnel/stop", a.auth(a.handleTunnelStop))
+	mux.HandleFunc("/api/tunnel/restart", a.auth(a.handleTunnelRestart))
+	mux.HandleFunc("/api/tunnel/delete", a.auth(a.handleTunnelDelete))
+	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
+	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
+
 	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
@@ -140,6 +151,133 @@ func (a *API) handleDockerStop(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Container stopped"})
 }
+
+// ── Tunnel Endpoints ────────────────────────────────────────────────────────
+
+func (a *API) handleTunnelApply(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req TunnelApplyReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json: " + err.Error()})
+		return
+	}
+
+	res, err := a.tm.ApplyTunnel(req)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (a *API) handleTunnelStart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req TunnelActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+
+	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (a *API) handleTunnelStop(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req TunnelActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+
+	res, err := a.tm.StopTunnel(req.ID, req.ServiceName)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (a *API) handleTunnelRestart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req TunnelActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+
+	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (a *API) handleTunnelDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req TunnelActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+
+	if err := a.tm.DeleteTunnel(req.ID, req.ServiceName); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Tunnel removed"})
+}
+
+func (a *API) handleTunnelStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing id parameter"})
+		return
+	}
+
+	res, err := a.tm.GetTunnelStatus(id)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+func (a *API) handleTunnelList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"tunnels": a.tm.ListTunnels(),
+	})
+}
+
+// ── Process & Alerts Endpoints ──────────────────────────────────────────────
 
 type killRequest struct {
 	PID    int    `json:"pid"`

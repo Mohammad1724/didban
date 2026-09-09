@@ -31,12 +31,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AltRoute
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.PauseCircleOutline
+import androidx.compose.material.icons.rounded.PlayCircleOutline
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.AlertDialog
@@ -83,6 +88,8 @@ fun TunnelScreen(t: Str) {
     var deletingTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     var viewCodeTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     var testingTunnelId by remember { mutableStateOf<Long?>(null) }
+    var operatingTunnelId by remember { mutableStateOf<Long?>(null) }
+    var isDeploying by remember { mutableStateOf(false) }
 
     fun save() {
         Prefs.saveTunnels(ctx, tunnels)
@@ -149,13 +156,13 @@ fun TunnelScreen(t: Str) {
         // ── Guide Card ──
         item {
             FeatureGuideCard(
-                title = "راهنمای جامع هاب تانل دو سرور (Iran Node ➔ Foreign Node)",
-                description = t.guideTunnels,
+                title = "هاب تانل دیدبان (همگام‌سازی آنی سرورها مانند پنل Smite)",
+                description = "با تعریف تانل، تنظیمات به طور خودکار از طریق ایجنت دیدبان روی هر دو سرور ایران و خارج نصب، اجرا و همگام‌سازی می‌شود بدون نیاز به اجرای دستی دستورات در SSH.",
                 bullets = listOf(
-                    "پشتیبانی از چندین پورت همزمان (Multi-Port Forwarding): رله همزمان چندین پورت نظیر 2096, 2097, 2098",
-                    "BackPack 🎒: تانل نسل جدید با رمزنگاری Stealth Noise، دور زدن کرنل PCK و گیمینگ KCP+FEC",
-                    "Paqet & Narnia: عبور از فیلترینگ با سوکت خام (Raw Socket) و پنهان‌سازی در پکت‌های ICMP Ping",
-                    "Spoof Tunnel & Backhaul: جعل دوطرفه IP مبدا و رله مالتی‌پورت پرسرعت"
+                    "⚡ استقرار خودکار ۱-کلیکه: دانلود باینری، ساخت کانفیگ و روشن شدن خودکار سرویس‌ها روی هر دو سرور",
+                    "🔌 پشتیبانی از چندین پورت همزمان (Multi-Port): رله همزمان پورت‌ها نظیر 2096, 2097, 2098",
+                    "🎒 هسته‌های ضد فیلترینگ قدرتمند: BackPack، Paqet، Narnia، Spoof Tunnel، Backhaul، Rathole و GOST",
+                    "🔄 کنترل زنده از راه دور: ری‌استارت، روشن/خاموش و پایش پینگ میلی‌ثانیه‌ای تانل‌ها"
                 )
             )
         }
@@ -200,7 +207,7 @@ fun TunnelScreen(t: Str) {
                         Text("هنوز تانلی بین دو سرور تعریف نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و پورت‌های دلخواه (تکی یا چندگانه) را با هسته‌های BackPack، Paqet، Narnia، Spoof Tunnel یا Backhaul به آسانی متصل کنید.",
+                            "با تعریف اولین تانل، سرورهای ایران و خارج را انتخاب کنید تا به صورت خودکار (مانند پنل Smite) تانل با هسته‌های BackPack، Paqet، Narnia، Spoof Tunnel یا Backhaul روی هر دو سرور بالا بیاید.",
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -236,7 +243,7 @@ fun TunnelScreen(t: Str) {
                 }
 
                 ModernCard(padding = 14.dp) {
-                    // Header Row: Core badge + Status dot + Latency
+                    // Header Row: Core badge + Sync Badge + Status dot + Latency
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -251,37 +258,16 @@ fun TunnelScreen(t: Str) {
                             )
                         }
                         Spacer(Modifier.width(6.dp))
-                        Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                            Text(
-                                tun.transport.displayName,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        if (tun.core == TunnelCore.BACKPACK) {
-                            Spacer(Modifier.width(4.dp))
-                            Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF10B981).copy(alpha = 0.12f)) {
-                                Text(
-                                    tun.preset.uppercase(),
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF059669)
-                                )
-                            }
-                        } else if (tun.core == TunnelCore.PAQET) {
-                            Spacer(Modifier.width(4.dp))
-                            Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF0284C7).copy(alpha = 0.12f)) {
-                                Text(
-                                    tun.kcpMode.uppercase(),
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0284C7)
-                                )
+                        if (tun.autoSync) {
+                            Surface(shape = RoundedCornerShape(6.dp), color = Color(0xFF10B981).copy(alpha = 0.15f)) {
+                                Row(
+                                    Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Icon(Icons.Rounded.CloudDone, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(11.dp))
+                                    Text("سینک خودکار", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                }
                             }
                         }
 
@@ -351,21 +337,44 @@ fun TunnelScreen(t: Str) {
 
                     Spacer(Modifier.height(10.dp))
 
-                    // Action Buttons Row: View Configs / Test / Edit / Delete
+                    // Action Buttons Row: View Configs / Remote Restart / Test / Edit / Delete
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 1. View Configs & Commands
-                        TextButton(onClick = { viewCodeTunnel = tun }) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.Terminal, contentDescription = null, modifier = Modifier.size(14.dp))
-                                Text(t.viewConfigs, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        // 1. Remote Restart on Servers (Smite Style)
+                        TextButton(
+                            onClick = {
+                                if (operatingTunnelId == null) {
+                                    operatingTunnelId = tun.id
+                                    scope.launch {
+                                        val ok = TunnelEngine.controlRemoteTunnel(ctx, tun, "restart")
+                                        operatingTunnelId = null
+                                        Toast.makeText(ctx, if (ok) "سرویس تانل روی سرورها ری‌استارت شد 🔄" else "دستور ری‌استارت ارسال شد", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        ) {
+                            if (operatingTunnelId == tun.id) {
+                                CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Text("ری‌استارت", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                                }
                             }
                         }
 
-                        // 2. Test Latency
+                        // 2. View Configs & Commands (Optional)
+                        TextButton(onClick = { viewCodeTunnel = tun }) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Icon(Icons.Rounded.Terminal, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Text("دستورات", fontSize = 11.sp)
+                            }
+                        }
+
+                        // 3. Test Latency
                         TextButton(
                             onClick = {
                                 if (testingTunnelId == null) {
@@ -383,22 +392,25 @@ fun TunnelScreen(t: Str) {
                             }
                         ) {
                             if (testingTunnelId == tun.id) {
-                                CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
                             } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
-                                    Text("تست", fontSize = 11.5.sp)
+                                    Text("تست", fontSize = 11.sp)
                                 }
                             }
                         }
 
-                        // 3. Edit
+                        // 4. Edit
                         IconButton(onClick = { editingTunnel = tun }, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
                         }
 
-                        // 4. Delete
-                        IconButton(onClick = { deletingTunnel = tun }, modifier = Modifier.size(28.dp)) {
+                        // 5. Delete
+                        IconButton(
+                            onClick = { deletingTunnel = tun },
+                            modifier = Modifier.size(28.dp)
+                        ) {
                             Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                         }
                     }
@@ -427,18 +439,29 @@ fun TunnelScreen(t: Str) {
                 editingTunnel = null
             },
             onSave = { savedTun ->
-                if (isEdit) {
-                    val idx = tunnels.indexOfFirst { it.id == savedTun.id }
-                    if (idx >= 0) {
-                        tunnels = tunnels.toMutableList().also { it[idx] = savedTun }
+                scope.launch {
+                    if (savedTun.autoSync) {
+                        Toast.makeText(ctx, "در حال استقرار خودکار تانل روی سرورها...", Toast.LENGTH_SHORT).show()
+                        val res = TunnelEngine.autoDeployTunnel(ctx, savedTun)
+                        Toast.makeText(ctx, res.summaryMessage, Toast.LENGTH_LONG).show()
                     }
-                } else {
-                    tunnels = tunnels + savedTun
+
+                    if (isEdit) {
+                        val idx = tunnels.indexOfFirst { it.id == savedTun.id }
+                        if (idx >= 0) {
+                            tunnels = tunnels.toMutableList().also { it[idx] = savedTun }
+                        }
+                    } else {
+                        tunnels = tunnels + savedTun
+                    }
+                    save()
+                    showAddDialog = false
+                    editingTunnel = null
+
+                    if (!savedTun.autoSync) {
+                        viewCodeTunnel = savedTun
+                    }
                 }
-                save()
-                showAddDialog = false
-                editingTunnel = null
-                viewCodeTunnel = savedTun
             }
         )
     }
@@ -458,12 +481,18 @@ fun TunnelScreen(t: Str) {
             onDismissRequest = { deletingTunnel = null },
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(t.deleteTunnel, fontWeight = FontWeight.Bold) },
-            text = { Text("آیا از حذف تانل «${dt.name}» اطمینان دارید؟") },
+            text = { Text("آیا از حذف تانل «${dt.name}» اطمینان دارید؟ در صورت فعال بودن سینک خودکار، سرویس آن از سرورها نیز پاک خواهد شد.") },
             confirmButton = {
                 TextButton(onClick = {
-                    tunnels = tunnels.filter { it.id != dt.id }
-                    save()
-                    deletingTunnel = null
+                    scope.launch {
+                        if (dt.autoSync) {
+                            TunnelEngine.controlRemoteTunnel(ctx, dt, "delete")
+                        }
+                        tunnels = tunnels.filter { it.id != dt.id }
+                        save()
+                        deletingTunnel = null
+                        Toast.makeText(ctx, "تانل حذف و سرویس مربوطه خاموش شد", Toast.LENGTH_SHORT).show()
+                    }
                 }) {
                     Text(t.delete, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
                 }
@@ -502,6 +531,8 @@ private fun AddOrEditTunnelDialog(
     }
     var iranHost by remember { mutableStateOf(existing?.iranHost ?: "") }
     var foreignHost by remember { mutableStateOf(existing?.foreignHost ?: "") }
+    var iranServerId by remember { mutableStateOf(existing?.iranServerId) }
+    var foreignServerId by remember { mutableStateOf(existing?.foreignServerId) }
     var multiPorts by remember { mutableStateOf(existing?.multiPorts ?: "2096, 2097, 2098") }
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
     var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
@@ -515,6 +546,7 @@ private fun AddOrEditTunnelDialog(
     var mtu by remember { mutableStateOf(existing?.mtu?.toString() ?: "1350") }
     var acceptUdp by remember { mutableStateOf(existing?.acceptUdp ?: true) }
     var proxyProtocol by remember { mutableStateOf(existing?.proxyProtocol ?: false) }
+    var autoSync by remember { mutableStateOf(existing?.autoSync ?: true) }
 
     var showIranServerDropdown by remember { mutableStateOf(false) }
     var showForeignServerDropdown by remember { mutableStateOf(false) }
@@ -535,7 +567,32 @@ private fun AddOrEditTunnelDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth().height(480.dp).imePadding()
             ) {
-                // 1. Name
+                // 1. Auto-Sync Toggle Notice Card (Smite style)
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF0D9488).copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Rounded.CloudSync, contentDescription = null, tint = Color(0xFF0D9488), modifier = Modifier.size(16.dp))
+                                    Text("همگام‌سازی و اعمال خودکار (Smite)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Color(0xFF0D9488))
+                                }
+                                Text("تنظیم خودکار و راه‌اندازی فوری تانل روی هر دو سرور از طریق ایجنت دیدبان بدون نیاز به اجرای دستی دستورات در SSH.", fontSize = 9.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = autoSync, onCheckedChange = { autoSync = it })
+                        }
+                    }
+                }
+
+                // 2. Name
                 item {
                     OutlinedTextField(
                         value = name,
@@ -546,7 +603,7 @@ private fun AddOrEditTunnelDialog(
                     )
                 }
 
-                // 2. Core Selector
+                // 3. Core Selector
                 item {
                     Text("انتخاب هسته تانلینگ:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
@@ -602,7 +659,7 @@ private fun AddOrEditTunnelDialog(
                     Text(core.description, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                // ── 3. Multi-Port Configurator ──
+                // ── 4. Multi-Port Configurator ──
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("پورت‌های فوروارد (تکی، چندگانه یا رنج):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -653,7 +710,7 @@ private fun AddOrEditTunnelDialog(
                     }
                 }
 
-                // ── 4. Specific Options by Core ──
+                // ── 5. Specific Options by Core ──
                 when (core) {
                     TunnelCore.BACKPACK -> {
                         item {
@@ -953,16 +1010,19 @@ private fun AddOrEditTunnelDialog(
                     else -> {}
                 }
 
-                // 5. Iran Server IP
+                // 6. Iran Server Selection & Host
                 item {
-                    Text("مشخصات سرور ایران (Bridge / Relay):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("سرور ایران (Bridge / Relay):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f)) {
                             OutlinedTextField(
                                 value = iranHost,
-                                onValueChange = { iranHost = it },
-                                label = { Text("آی‌پی سرور ایران") },
+                                onValueChange = {
+                                    iranHost = it
+                                    iranServerId = null
+                                },
+                                label = { Text("آی‌پی یا انتخاب سرور ایران") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -976,6 +1036,7 @@ private fun AddOrEditTunnelDialog(
                                             text = { Text("${s.name} (${s.host})") },
                                             onClick = {
                                                 iranHost = s.host
+                                                iranServerId = s.id
                                                 showIranServerDropdown = false
                                             }
                                         )
@@ -992,16 +1053,19 @@ private fun AddOrEditTunnelDialog(
                     }
                 }
 
-                // 6. Foreign Server IP
+                // 7. Foreign Server Selection & Host
                 item {
-                    Text("مشخصات سرور خارج (Upstream / Target):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("سرور خارج (Upstream / Target):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f)) {
                             OutlinedTextField(
                                 value = foreignHost,
-                                onValueChange = { foreignHost = it },
-                                label = { Text("آی‌پی سرور خارج") },
+                                onValueChange = {
+                                    foreignHost = it
+                                    foreignServerId = null
+                                },
+                                label = { Text("آی‌پی یا انتخاب سرور خارج") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -1015,6 +1079,7 @@ private fun AddOrEditTunnelDialog(
                                             text = { Text("${s.name} (${s.host})") },
                                             onClick = {
                                                 foreignHost = s.host
+                                                foreignServerId = s.id
                                                 showForeignServerDropdown = false
                                             }
                                         )
@@ -1031,7 +1096,7 @@ private fun AddOrEditTunnelDialog(
                     }
                 }
 
-                // 7. Core Tunnel Port & Secret Token
+                // 8. Core Tunnel Port & Secret Token
                 if (core != TunnelCore.IPTABLES && core != TunnelCore.NARNIA) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1086,6 +1151,9 @@ private fun AddOrEditTunnelDialog(
                             this.acceptUdp = acceptUdp
                             this.proxyProtocol = proxyProtocol
                             this.multiPorts = multiPorts.trim()
+                            this.autoSync = autoSync
+                            this.iranServerId = iranServerId
+                            this.foreignServerId = foreignServerId
                         } ?: TunnelConfig(
                             id = System.currentTimeMillis(),
                             name = name.trim(),
@@ -1107,7 +1175,10 @@ private fun AddOrEditTunnelDialog(
                             mtu = mtu.toIntOrNull() ?: 1350,
                             acceptUdp = acceptUdp,
                             proxyProtocol = proxyProtocol,
-                            multiPorts = multiPorts.trim()
+                            multiPorts = multiPorts.trim(),
+                            autoSync = autoSync,
+                            iranServerId = iranServerId,
+                            foreignServerId = foreignServerId
                         )
                         onSave(newTun)
                     }
@@ -1143,7 +1214,7 @@ private fun ViewTunnelCodeDialog(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Rounded.Terminal, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                Text("دستورات استقرار ${tunnel.core.displayName}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("دستورات استقرار دستی ${tunnel.core.displayName}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         },
         text = {

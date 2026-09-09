@@ -59,6 +59,11 @@ data class TunnelConfig(
     var wsPath: String = "/tunnel",
     var wsHost: String = "",
     var multiPorts: String = "", // e.g. "443:8443, 80:8080"
+    var autoSync: Boolean = true, // Auto-deploy and configure on servers like Smite panel
+    var iranServerId: Long? = null,
+    var foreignServerId: Long? = null,
+    var syncStatusIran: String = "",
+    var syncStatusForeign: String = "",
     var isEnabled: Boolean = true,
     var lastStatus: Int = -1, // -1: Unknown, 1: Online, 0: Offline
     var lastLatencyMs: Long = -1,
@@ -88,6 +93,11 @@ data class TunnelConfig(
         put("wsPath", wsPath)
         put("wsHost", wsHost)
         put("multiPorts", multiPorts)
+        put("autoSync", autoSync)
+        iranServerId?.let { put("iranServerId", it) }
+        foreignServerId?.let { put("foreignServerId", it) }
+        put("syncStatusIran", syncStatusIran)
+        put("syncStatusForeign", syncStatusForeign)
         put("isEnabled", isEnabled)
         put("lastStatus", lastStatus)
         put("lastLatencyMs", lastLatencyMs)
@@ -126,6 +136,11 @@ data class TunnelConfig(
                 wsPath = o.optString("wsPath", "/tunnel"),
                 wsHost = o.optString("wsHost"),
                 multiPorts = o.optString("multiPorts"),
+                autoSync = o.optBoolean("autoSync", true),
+                iranServerId = if (o.has("iranServerId")) o.optLong("iranServerId") else null,
+                foreignServerId = if (o.has("foreignServerId")) o.optLong("foreignServerId") else null,
+                syncStatusIran = o.optString("syncStatusIran"),
+                syncStatusForeign = o.optString("syncStatusForeign"),
                 isEnabled = o.optBoolean("isEnabled", true),
                 lastStatus = o.optInt("lastStatus", -1),
                 lastLatencyMs = o.optLong("lastLatencyMs", -1),
@@ -143,4 +158,21 @@ data class GeneratedTunnelCode(
     val dockerComposeIran: String,
     val dockerComposeForeign: String,
     val description: String
+)
+
+data class AutoDeployServerResult(
+    val serverName: String,
+    val host: String,
+    val role: String, // "iran" or "foreign"
+    val success: Boolean,
+    val status: String, // "active", "failed", "unreachable", "no_agent"
+    val message: String,
+    val logs: String = ""
+)
+
+data class AutoDeployResult(
+    val iranResult: AutoDeployServerResult?,
+    val foreignResult: AutoDeployServerResult?,
+    val overallSuccess: Boolean,
+    val summaryMessage: String
 )
