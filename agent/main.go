@@ -35,6 +35,11 @@ type Config struct {
 	DiskThreshold  float64 // percent, disk usage event threshold
 	// Process watchlist (optional)
 	WatchProcs []string
+	// Telegram alerts
+	TelegramToken  string
+	TelegramChatID string
+	TelegramProxy  string
+	TelegramAlerts bool
 }
 
 func envOr(key, def string) string {
@@ -54,6 +59,10 @@ func main() {
 	flag.Float64Var(&cfg.MemThreshold, "mem-th", 90, "memory spike event threshold (percent)")
 	flag.Float64Var(&cfg.StealThreshold, "steal-th", 10, "CPU steal event threshold (percent)")
 	flag.Float64Var(&cfg.DiskThreshold, "disk-th", 90, "disk usage event threshold (percent)")
+	flag.StringVar(&cfg.TelegramToken, "tg-token", os.Getenv("DIDBAN_TG_TOKEN"), "Telegram Bot Token for alerts")
+	flag.StringVar(&cfg.TelegramChatID, "tg-chat", os.Getenv("DIDBAN_TG_CHAT_ID"), "Telegram Chat/Channel ID for alerts")
+	flag.StringVar(&cfg.TelegramProxy, "tg-proxy", os.Getenv("DIDBAN_TG_PROXY"), "HTTP/SOCKS5 proxy for Telegram API")
+	flag.BoolVar(&cfg.TelegramAlerts, "tg-alerts", os.Getenv("DIDBAN_TG_ALERTS") != "0", "Enable Telegram alerts")
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -102,7 +111,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	banner(cfg, fingerprint)
+	banner(cfg, fingerprint, mon.notifier.IsEnabled())
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -142,7 +151,7 @@ func loadOrCreateToken(path string) string {
 	return tok
 }
 
-func banner(cfg *Config, fingerprint string) {
+func banner(cfg *Config, fingerprint string, tgEnabled bool) {
 	scheme := "https"
 	host := firstLocalIP()
 	if cfg.PlainHTTP {
@@ -169,6 +178,11 @@ func banner(cfg *Config, fingerprint string) {
 	fmt.Printf("  Thresholds:   cpu>%.0f%%  mem>%.0f%%  steal>%.0f%%  disk>%.0f%%\n", cfg.CPUThreshold, cfg.MemThreshold, cfg.StealThreshold, cfg.DiskThreshold)
 	if len(cfg.WatchProcs) > 0 {
 		fmt.Printf("  Process watch: %s\n", strings.Join(cfg.WatchProcs, ", "))
+	}
+	if tgEnabled {
+		fmt.Printf("  Telegram:     Enabled (Chat ID: %s)\n", cfg.TelegramChatID)
+	} else {
+		fmt.Println("  Telegram:     Disabled (set DIDBAN_TG_TOKEN & DIDBAN_TG_CHAT_ID)")
 	}
 	fmt.Println("──────────────────────────────────────────────────────")
 	fmt.Printf("  Test:  curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",

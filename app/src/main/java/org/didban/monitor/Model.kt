@@ -53,6 +53,14 @@ data class ProcBrief(val name: String, val pid: Int, val cpu: Float, val memMb: 
 data class SpikeEvent(val time: Long, val type: String, val value: Float, val detail: String, val top: List<ProcBrief>)
 data class HistPoint(val t: Long, val cpu: Float, val mem: Float, val rx: Double, val tx: Double)
 
+data class ProcessKillResponse(
+    val pid: Int,
+    val name: String,
+    val signal: String,
+    val success: Boolean,
+    val message: String
+)
+
 data class Metrics(
     val hostname: String,
     val time: Long,
@@ -171,6 +179,16 @@ object JsonParse {
             ))
         }
         return out
+    }
+
+    fun killResult(o: JSONObject): ProcessKillResponse {
+        return ProcessKillResponse(
+            pid = o.optInt("pid"),
+            name = o.optString("name", "process"),
+            signal = o.optString("signal", "SIGTERM"),
+            success = o.optBoolean("success", true),
+            message = o.optString("message", "Signal sent")
+        )
     }
 }
 

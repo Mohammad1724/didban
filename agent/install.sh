@@ -19,6 +19,10 @@ CONF_DIR="/etc/didban"
 DATA_DIR="/var/lib/didban"
 UNIT_FILE="/etc/systemd/system/didban-agent.service"
 
+TG_TOKEN="${DIDBAN_TG_TOKEN:-}"
+TG_CHAT_ID="${DIDBAN_TG_CHAT_ID:-}"
+TG_PROXY="${DIDBAN_TG_PROXY:-}"
+
 # ── Preflight ────────────────────────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
   echo "Error: run as root:  sudo bash install.sh" >&2
@@ -79,6 +83,20 @@ DIDBAN_DATA=$DATA_DIR
 # Uncomment to disable TLS (NOT recommended):
 # DIDBAN_PLAIN=1
 
+# ── Spike thresholds (percent) ──────────────────────────────────
+# DIDBAN_CPU_TH=70
+# DIDBAN_MEM_TH=90
+# DIDBAN_STEAL_TH=10
+# DIDBAN_DISK_TH=90
+
+# ── Optional: Telegram alerts (instant alerts on spikes) ────────
+${TG_TOKEN:+DIDBAN_TG_TOKEN=$TG_TOKEN}
+${TG_CHAT_ID:+DIDBAN_TG_CHAT_ID=$TG_CHAT_ID}
+${TG_PROXY:+DIDBAN_TG_PROXY=$TG_PROXY}
+# DIDBAN_TG_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+# DIDBAN_TG_CHAT_ID=-100123456789
+# DIDBAN_TG_PROXY=socks5://127.0.0.1:1080
+
 # ── Optional: process watchlist (alert when a process dies) ──────
 # DIDBAN_WATCH=xray,pg-node-service
 EOF
@@ -88,6 +106,7 @@ chmod 0600 "$CONF_DIR/agent.conf"
 cat > "$UNIT_FILE" <<'EOF'
 [Unit]
 Description=Didban monitoring agent — دیدبان
+Documentation=https://github.com/Mohammad1724/didban
 After=network-online.target
 Wants=network-online.target
 
@@ -104,6 +123,7 @@ ProtectHome=true
 PrivateTmp=true
 ProtectKernelTunables=true
 ProtectControlGroups=true
+RestrictSUIDSGID=true
 
 [Install]
 WantedBy=multi-user.target

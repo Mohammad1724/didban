@@ -3,6 +3,7 @@
 package org.didban.monitor
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,27 +22,32 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,7 +62,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val api = remember { ApiClient() }
     var tab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 3 }
+    val pagerState = rememberPagerState(initialPage = 0) { 4 }
     val scope = rememberCoroutineScope()
 
     // Keep the tab chips and the pager in sync (swipe ↔ chip tap)
@@ -71,6 +77,20 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     var err by remember { mutableStateOf<String?>(null) }
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
+
+    // Kill process dialog state
+    var procToKill by remember { mutableStateOf<Pair<Int, String>?>(null) } // (pid, name)
+    var killSignal by remember { mutableStateOf("SIGTERM") }
+    var isKilling by remember { mutableStateOf(false) }
+
+    // Test Telegram state
+    var isTestingTg by remember { mutableStateOf(false) }
+
+    fun refreshProcs() {
+        scope.launch {
+            try { procs = api.processes(server) } catch (_: Exception) { }
+        }
+    }
 
     // Live refresh loop for the overview tab
     LaunchedEffect(server.id) {
@@ -87,7 +107,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             }
             try {
                 hist = api.history(server)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
             }
             delay(10_000)
         }
@@ -96,9 +116,9 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     // Fetch processes / events when their tab is opened
     LaunchedEffect(server.id, tab) {
         if (tab == 1) {
-            try { procs = api.processes(server) } catch (e: Exception) { }
+            try { procs = api.processes(server) } catch (_: Exception) { }
         } else if (tab == 2) {
-            try { events = api.events(server, 50) } catch (e: Exception) { }
+            try { events = api.events(server, 50) } catch (_: Exception) { }
         }
     }
 
@@ -106,9 +126,32 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
         // ── Header ──
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("‹", fontSize = 26.sp) }
-            Column {
+            Column(Modifier.weight(1f)) {
                 Text(server.name.ifEmpty { server.host }, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text("${server.host}:${server.port}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            }
+            // Telegram Test Button
+            TextButton(
+                onClick = {
+                    if (isTestingTg) return@TextButton
+                    isTestingTg = true
+                    scope.launch {
+                        try {
+                            api.testTelegram(server)
+                            Toast.makeText(ctx, t.telegramSent, Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(ctx, "${t.telegramFailed}: ${e.message}", Toast.LENGTH_LONG).show()
+                        } finally {
+                            isTestingTg = false
+                        }
+                    }
+                }
+            ) {
+                if (isTestingTg) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("✈️ ${t.testTelegram}", fontSize = 11.sp)
+                }
             }
         }
 
@@ -136,17 +179,21 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             }
         }
 
-        // ── Tabs ──
-        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        // ── Tabs (Horizontal Scrollable Chips) ──
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             TabChip(t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
-            Spacer(Modifier.width(8.dp))
             TabChip(t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
-            Spacer(Modifier.width(8.dp))
             TabChip(t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
+            TabChip(t.globalCheck, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
             if (tab == 2) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { shareEvents(ctx, t, server, events) }) {
-                    Text("⇪ ${t.share}", fontSize = 13.sp)
+                    Text("⇪ ${t.share}", fontSize = 12.sp)
                 }
             }
         }
@@ -155,10 +202,92 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 0 -> OverviewTab(t, metrics, hist, err, latency, latHist)
-                1 -> ProcessesTab(t, procs)
-                2 -> EventsTab(t, events)
+                1 -> ProcessesTab(
+                    t = t,
+                    procs = procs,
+                    onRefresh = { refreshProcs() },
+                    onKill = { pid, name ->
+                        procToKill = Pair(pid, name)
+                        killSignal = "SIGTERM"
+                    }
+                )
+                2 -> EventsTab(
+                    t = t,
+                    events = events,
+                    onKill = { pid, name ->
+                        procToKill = Pair(pid, name)
+                        killSignal = "SIGTERM"
+                    }
+                )
+                3 -> GlobalCheckTab(t = t, defaultHost = server.host)
             }
         }
+    }
+
+    // ── Kill Process Confirmation Dialog ──
+    procToKill?.let { (pid, name) ->
+        AlertDialog(
+            onDismissRequest = { if (!isKilling) procToKill = null },
+            title = { Text("${t.killProcessTitle}: $name (PID $pid)") },
+            text = {
+                Column {
+                    Text(t.killConfirm, fontSize = 13.sp)
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { killSignal = "SIGTERM" }
+                    ) {
+                        RadioButton(selected = killSignal == "SIGTERM", onClick = { killSignal = "SIGTERM" })
+                        Spacer(Modifier.width(8.dp))
+                        Text(t.sigtermDesc, fontSize = 12.sp)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().clickable { killSignal = "SIGKILL" }
+                    ) {
+                        RadioButton(selected = killSignal == "SIGKILL", onClick = { killSignal = "SIGKILL" })
+                        Spacer(Modifier.width(8.dp))
+                        Text(t.sigkillDesc, fontSize = 12.sp, color = Color(0xFFF87171))
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isKilling = true
+                        scope.launch {
+                            try {
+                                val res = api.killProcess(server, pid, killSignal)
+                                Toast.makeText(ctx, res.message.ifEmpty { t.killSuccess }, Toast.LENGTH_SHORT).show()
+                                procToKill = null
+                                refreshProcs()
+                            } catch (e: Exception) {
+                                Toast.makeText(ctx, "${t.killError}: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isKilling = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (killSignal == "SIGKILL") Color(0xFFDC2626) else MaterialTheme.colorScheme.primary
+                    ),
+                    enabled = !isKilling
+                ) {
+                    if (isKilling) {
+                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                    } else {
+                        Text(t.kill)
+                    }
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { procToKill = null }, enabled = !isKilling) {
+                    Text(t.cancel)
+                }
+            }
+        )
     }
 }
 
@@ -259,38 +388,107 @@ private fun OverviewTab(t: Str, m: Metrics?, hist: List<HistPoint>, err: String?
     }
 }
 
-// ── Processes ───────────────────────────────────────────────────────────────
+// ── Processes Tab (with Search, Sort, and Kill action) ────────────────────────
 
 @Composable
-private fun ProcessesTab(t: Str, procs: List<ProcInfo>) {
-    if (procs.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(t.noData) }
-        return
+private fun ProcessesTab(
+    t: Str,
+    procs: List<ProcInfo>,
+    onRefresh: () -> Unit,
+    onKill: (pid: Int, name: String) -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var sortByMem by remember { mutableStateOf(false) }
+
+    val filtered = procs.filter {
+        query.isEmpty() || it.name.contains(query, ignoreCase = true) || it.pid.toString().contains(query)
+    }.sortedByDescending {
+        if (sortByMem) it.memMb else it.cpu
     }
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        items(procs, key = { "${it.pid}-${it.name}" }) { p ->
-            Surface(shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        Text(p.name, fontWeight = FontWeight.Medium, fontSize = 13.sp)
-                        Text("${p.user}  •  ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())}",
-                            fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Text("${Fmt.pct(p.cpu)}", color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
+
+    Column(Modifier.fillMaxSize()) {
+        // Search & Filter bar
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text(t.searchProcesses, fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(
+                onClick = { sortByMem = !sortByMem },
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(if (sortByMem) t.sortByMem else t.sortByCpu, fontSize = 11.sp)
             }
         }
-        item { Spacer(Modifier.height(20.dp)) }
+
+        if (filtered.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(t.noData) }
+            return@Column
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(p.name, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                Spacer(Modifier.width(6.dp))
+                                Text("PID ${p.pid}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Text(
+                                "${p.user}  •  ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())} RAM",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                Fmt.pct(p.cpu),
+                                color = if (p.cpu > 50) Color(0xFFF87171) else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            // Kill Button
+                            Text(
+                                "🛑 ${t.kill}",
+                                fontSize = 11.sp,
+                                color = Color(0xFFF87171),
+                                modifier = Modifier
+                                    .clickable { onKill(p.pid, p.name) }
+                                    .padding(top = 2.dp)
+                            )
+                        }
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(20.dp)) }
+        }
     }
 }
 
-// ── Events ("what ate my CPU?") ─────────────────────────────────────────────
+// ── Events ("what ate my CPU?") Tab (with Quick-Kill) ────────────────────────
 
 @Composable
-private fun EventsTab(t: Str, events: List<SpikeEvent>) {
+private fun EventsTab(
+    t: Str,
+    events: List<SpikeEvent>,
+    onKill: (pid: Int, name: String) -> Unit
+) {
     if (events.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -316,17 +514,16 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
             val (emoji, label, color) = eventStyle(e.type)
-            Surface(shape = RoundedCornerShape(16.dp),
+            Surface(
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
                 Column(Modifier.fillMaxWidth().padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$emoji $label",
-                            fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                            color = color)
+                        Text("$emoji $label", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = color)
                         Spacer(Modifier.weight(1f))
-                        Text(fmt.format(Date(e.time)), fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(fmt.format(Date(e.time)), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (e.detail.isNotBlank()) {
                         Text(e.detail, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -337,10 +534,26 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
                     if (e.top.isNotEmpty()) {
                         Spacer(Modifier.height(4.dp))
                         Text(t.topProcesses, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        e.top.take(3).forEach { p ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("• ${p.name}", fontSize = 13.sp)
-                                Text("${Fmt.pct(p.cpu)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        e.top.take(4).forEach { p ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("• ${p.name}", fontSize = 13.sp)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("PID ${p.pid}", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("${Fmt.pct(p.cpu)}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "🛑",
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.clickable { onKill(p.pid, p.name) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -348,6 +561,184 @@ private fun EventsTab(t: Str, events: List<SpikeEvent>) {
             }
         }
         item { Spacer(Modifier.height(20.dp)) }
+    }
+}
+
+// ── Global Check-Host Tab (Check reachability from worldwide nodes) ──────────
+
+@Composable
+private fun GlobalCheckTab(t: Str, defaultHost: String) {
+    val scope = rememberCoroutineScope()
+    var targetHost by remember { mutableStateOf(defaultHost) }
+    var selectedType by remember { mutableStateOf("ping") } // ping, http, tcp, dns
+    var tcpPort by remember { mutableStateOf("80") }
+    var isChecking by remember { mutableStateOf(false) }
+    var statusText by remember { mutableStateOf("") }
+    var nodes by remember { mutableStateOf<List<CheckHostNode>>(emptyList()) }
+
+    val okCount = nodes.count { it.state == 1 }
+    val totalCount = nodes.size
+
+    fun startProbe() {
+        if (isChecking) return
+        val hostToTest = if (selectedType == "tcp") "$targetHost:$tcpPort" else targetHost
+        if (hostToTest.trim().isEmpty()) return
+
+        isChecking = true
+        statusText = t.probing
+        nodes = emptyList()
+
+        scope.launch {
+            try {
+                val (reqId, initialNodes) = CheckHostService.startCheck(hostToTest, selectedType, 20)
+                nodes = initialNodes
+
+                for (i in 0 until 12) {
+                    delay(1500)
+                    val done = CheckHostService.pollResults(reqId, selectedType, nodes)
+                    nodes = nodes.toList() // trigger recompose
+                    if (done) break
+                }
+                // Mark remaining pending as failed
+                nodes.forEach { if (it.state == 0) { it.state = 2; it.resultText = "timeout" } }
+                nodes = nodes.toList()
+                val currentOk = nodes.count { it.state == 1 }
+                statusText = "$currentOk/$totalCount ${t.probeSuccess}"
+            } catch (e: Exception) {
+                statusText = "${t.error}: ${e.message}"
+            } finally {
+                isChecking = false
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        // Target & Type Configuration
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+        ) {
+            Column(Modifier.padding(12.dp)) {
+                OutlinedTextField(
+                    value = targetHost,
+                    onValueChange = { targetHost = it },
+                    label = { Text(t.probeTarget, fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf("ping", "http", "tcp", "dns").forEach { type ->
+                        val selected = selectedType == type
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
+                            modifier = Modifier.clickable { selectedType = type }
+                        ) {
+                            Text(
+                                type.uppercase(Locale.US),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    if (selectedType == "tcp") {
+                        Spacer(Modifier.width(4.dp))
+                        OutlinedTextField(
+                            value = tcpPort,
+                            onValueChange = { tcpPort = it },
+                            label = { Text("Port", fontSize = 10.sp) },
+                            modifier = Modifier.width(70.dp),
+                            singleLine = true
+                        )
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    Button(
+                        onClick = { startProbe() },
+                        enabled = !isChecking && targetHost.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        if (isChecking) {
+                            CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                        } else {
+                            Text(t.runProbe, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Status summary
+        if (statusText.isNotBlank()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+                if (totalCount > 0) {
+                    Spacer(Modifier.weight(1f))
+                    Text("$okCount/$totalCount", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Nodes list
+        if (nodes.isEmpty() && !isChecking) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🌐", fontSize = 36.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(t.enterTarget, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            return@Column
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            items(nodes, key = { it.nodeKey }) { node ->
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(node.flag, fontSize = 18.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(node.location.ifEmpty { node.countryCode }, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text(node.nodeKey, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Text(
+                            node.resultText,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = when (node.state) {
+                                1 -> Color(0xFF4ADE80) // OK green
+                                2 -> Color(0xFFF87171) // Fail red
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(20.dp)) }
+        }
     }
 }
 
@@ -363,8 +754,8 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            fontSize = 13.sp,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+            fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -408,7 +799,6 @@ private fun BreakRow(label: String, value: Float) {
         Text(Fmt.pct(value), fontSize = 11.sp)
     }
 }
-
 
 // ── Share events as text ────────────────────────────────────────────────────
 

@@ -82,7 +82,31 @@ class Str(
     val every120: String,
     val every300: String,
     val cpuAlertLbl: String,
-    val memAlertLbl: String
+    val memAlertLbl: String,
+    // New features: Process Kill, Global Check-Host, Telegram Alerts
+    val kill: String,
+    val killProcessTitle: String,
+    val killConfirm: String,
+    val sigtermDesc: String,
+    val sigkillDesc: String,
+    val killSuccess: String,
+    val killError: String,
+    val searchProcesses: String,
+    val sortByCpu: String,
+    val sortByMem: String,
+    val globalCheck: String,
+    val runProbe: String,
+    val stopProbe: String,
+    val probing: String,
+    val probeTarget: String,
+    val probeType: String,
+    val probeSuccess: String,
+    val nodes: String,
+    val portNumber: String,
+    val enterTarget: String,
+    val testTelegram: String,
+    val telegramSent: String,
+    val telegramFailed: String
 )
 
 object Locales {
@@ -167,7 +191,31 @@ object Locales {
         every120 = "۲ دقیقه",
         every300 = "۵ دقیقه",
         cpuAlertLbl = "هشدار وقتی CPU بالاتر از (٪)",
-        memAlertLbl = "هشدار وقتی رم بالاتر از (٪)"
+        memAlertLbl = "هشدار وقتی رم بالاتر از (٪)",
+        // New features
+        kill = "خاتمه",
+        killProcessTitle = "خاتمه پروسه",
+        killConfirm = "آیا از متوقف کردن این پروسه اطمینان دارید؟",
+        sigtermDesc = "عادی (SIGTERM — توقف استاندارد)",
+        sigkillDesc = "اجباری (SIGKILL — بستن فوری)",
+        killSuccess = "دستور با موفقیت ارسال شد",
+        killError = "خطا در خاتمه پروسه",
+        searchProcesses = "جستجوی نام یا PID…",
+        sortByCpu = "مرتب‌سازی: پردازنده",
+        sortByMem = "مرتب‌سازی: رم",
+        globalCheck = "تست جهانی",
+        runProbe = "شروع تست",
+        stopProbe = "توقف",
+        probing = "در حال دریافت وضعیت از سرورهای جهانی…",
+        probeTarget = "آدرس مقصد",
+        probeType = "نوع تست",
+        probeSuccess = "نود در دسترس",
+        nodes = "نود",
+        portNumber = "پورت (مثلاً 22 یا 443)",
+        enterTarget = "آدرس یا IP را وارد کنید",
+        testTelegram = "تست هشدار تلگرام",
+        telegramSent = "پیام تست به تلگرام ارسال شد",
+        telegramFailed = "خطا در ارسال تست تلگرام"
     )
 
     val en = Str(
@@ -251,6 +299,30 @@ object Locales {
         every120 = "2 minutes",
         every300 = "5 minutes",
         cpuAlertLbl = "Alert when CPU above (%)",
-        memAlertLbl = "Alert when RAM above (%)"
+        memAlertLbl = "Alert when RAM above (%)",
+        // New features
+        kill = "Kill",
+        killProcessTitle = "Kill Process",
+        killConfirm = "Are you sure you want to kill this process?",
+        sigtermDesc = "Graceful (SIGTERM — clean shutdown)",
+        sigkillDesc = "Force (SIGKILL — immediate stop)",
+        killSuccess = "Kill signal sent successfully",
+        killError = "Failed to send signal to process",
+        searchProcesses = "Search by name or PID…",
+        sortByCpu = "Sort: CPU",
+        sortByMem = "Sort: RAM",
+        globalCheck = "Check-Host",
+        runProbe = "Run Check",
+        stopProbe = "Stop",
+        probing = "Collecting probe results from worldwide nodes…",
+        probeTarget = "Target Host / IP",
+        probeType = "Check Type",
+        probeSuccess = "nodes reachable",
+        nodes = "nodes",
+        portNumber = "Port (e.g. 22 or 443)",
+        enterTarget = "Enter target host or IP",
+        testTelegram = "Test Telegram Alert",
+        telegramSent = "Test alert sent to Telegram",
+        telegramFailed = "Failed to send Telegram test"
     )
 }

@@ -2,8 +2,10 @@ package org.didban.monitor
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.cert.CertificateException
@@ -68,7 +70,37 @@ class ApiClient {
         try {
             clientFor(server).newCall(request).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
-                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}")
+                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}: $body")
+                return JSONObject(body)
+            }
+        } catch (e: ApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw ApiException(e.message ?: "network error")
+        }
+    }
+
+    private fun post(server: ServerConfig, path: String, jsonBody: JSONObject): JSONObject {
+        val scheme = if (server.useTls) "https" else "http"
+        val url = "$scheme://${server.host}:${server.port}$path"
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val reqBody = jsonBody.toString().toRequestBody(mediaType)
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer ${server.token}")
+            .post(reqBody)
+            .build()
+        try {
+            clientFor(server).newCall(request).execute().use { resp ->
+                val body = resp.body?.string() ?: ""
+                if (!resp.isSuccessful) {
+                    var errMsg = "HTTP ${resp.code}"
+                    try {
+                        val j = JSONObject(body)
+                        if (j.has("error")) errMsg = j.getString("error")
+                    } catch (_: Exception) {}
+                    throw ApiException(errMsg)
+                }
                 return JSONObject(body)
             }
         } catch (e: ApiException) {
@@ -89,5 +121,19 @@ class ApiClient {
 
     suspend fun history(server: ServerConfig, hours: Int = 24): List<HistPoint> =
         withContext(Dispatchers.IO) { JsonParse.history(get(server, "/api/history?hours=$hours")) }
+
+    suspend fun killProcess(server: ServerConfig, pid: Int, signal: String = "SIGTERM"): ProcessKillResponse =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply {
+                put("pid", pid)
+                put("signal", signal)
+            }
+            JsonParse.killResult(post(server, "/api/processes/kill", body))
+        }
+
+    suspend fun testTelegram(server: ServerConfig): JSONObject =
+        withContext(Dispatchers.IO) {
+            post(server, "/api/alerts/telegram/test", JSONObject())
+        }
 
 }

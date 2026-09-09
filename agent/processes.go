@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -28,6 +29,15 @@ type EventProc struct {
 	PID   int     `json:"pid"`
 	CPU   float64 `json:"cpu"`
 	MemMB float64 `json:"mem_mb"`
+}
+
+// ProcessKillResult is returned after sending a termination signal.
+type ProcessKillResult struct {
+	PID     int    `json:"pid"`
+	Name    string `json:"name"`
+	Signal  string `json:"signal"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 // sampleProcs computes instantaneous per-process CPU usage by diffing
@@ -220,7 +230,7 @@ func (m *Monitor) detectEvents() {
 		m.mu.RLock()
 		procSum := m.procCpuSum
 		m.mu.RUnlock()
-		m.events.Add(Event{
+		m.RecordEvent(Event{
 			Time:  now,
 			Type:  "cpu",
 			Value: cpu,
@@ -231,7 +241,7 @@ func (m *Monitor) detectEvents() {
 	}
 	if mem >= m.cfg.MemThreshold && now.Sub(m.lastMemEvent) > 5*time.Minute {
 		m.lastMemEvent = now
-		m.events.Add(Event{
+		m.RecordEvent(Event{
 			Time:  now,
 			Type:  "memory",
 			Value: mem,
@@ -240,7 +250,7 @@ func (m *Monitor) detectEvents() {
 	}
 	if m.snap.CPU.Steal >= m.cfg.StealThreshold && now.Sub(m.lastStealEvent) > 10*time.Minute {
 		m.lastStealEvent = now
-		m.events.Add(Event{
+		m.RecordEvent(Event{
 			Time:   now,
 			Type:   "steal",
 			Value:  m.snap.CPU.Steal,
@@ -258,7 +268,7 @@ func (m *Monitor) checkDisks() {
 	for _, d := range disks {
 		if d.UsagePct >= m.cfg.DiskThreshold && now.Sub(m.lastDiskEvent[d.Mount]) > 30*time.Minute {
 			m.lastDiskEvent[d.Mount] = now
-			m.events.Add(Event{
+			m.RecordEvent(Event{
 				Time:   now,
 				Type:   "disk",
 				Value:  d.UsagePct,
@@ -285,7 +295,7 @@ func (m *Monitor) checkWatchedProcs() {
 			if !running {
 				typ = "process_down"
 			}
-			m.events.Add(Event{
+			m.RecordEvent(Event{
 				Time:   time.Now(),
 				Type:   typ,
 				Detail: want,
@@ -304,4 +314,53 @@ func topEventProcs(procs []ProcessInfo, n int) []EventProc {
 		out = append(out, EventProc{Name: p.Name, PID: p.PID, CPU: p.CPU, MemMB: p.MemMB})
 	}
 	return out
+}
+
+// KillProcess terminates a process with the requested signal safely.
+func KillProcess(pid int, sigStr string) (*ProcessKillResult, error) {
+	if pid <= 1 {
+		return nil, fmt.Errorf("refusing to signal PID %d (system protected)", pid)
+	}
+	if pid == os.Getpid() {
+		return nil, fmt.Errorf("refusing to signal agent self (PID %d)", pid)
+	}
+
+	procDir := fmt.Sprintf("/proc/%d", pid)
+	if _, err := os.Stat(procDir); err != nil {
+		return nil, fmt.Errorf("process with PID %d not found", pid)
+	}
+
+	procName := fmt.Sprintf("PID %d", pid)
+	if comm, err := os.ReadFile(filepath.Join(procDir, "comm")); err == nil {
+		procName = strings.TrimSpace(string(comm))
+	}
+
+	sig := syscall.SIGTERM
+	sigName := "SIGTERM"
+	switch strings.ToUpper(strings.TrimSpace(sigStr)) {
+	case "SIGKILL", "KILL", "9":
+		sig = syscall.SIGKILL
+		sigName = "SIGKILL"
+	case "SIGINT", "INT", "2":
+		sig = syscall.SIGINT
+		sigName = "SIGINT"
+	case "SIGHUP", "HUP", "1":
+		sig = syscall.SIGHUP
+		sigName = "SIGHUP"
+	case "SIGQUIT", "QUIT", "3":
+		sig = syscall.SIGQUIT
+		sigName = "SIGQUIT"
+	}
+
+	if err := syscall.Kill(pid, sig); err != nil {
+		return nil, fmt.Errorf("failed to send signal %s to PID %d: %w", sigName, pid, err)
+	}
+
+	return &ProcessKillResult{
+		PID:     pid,
+		Name:    procName,
+		Signal:  sigName,
+		Success: true,
+		Message: fmt.Sprintf("Signal %s sent to %s (PID %d)", sigName, procName, pid),
+	}, nil
 }

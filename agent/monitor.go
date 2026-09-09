@@ -84,12 +84,13 @@ type netCounters struct {
 // Monitor samples the system and keeps the latest snapshot,
 // the top processes, history and spike events.
 type Monitor struct {
-	mu     sync.RWMutex
-	cfg    *Config
-	snap   Snapshot
-	procs  []ProcessInfo
-	hist   []HistPoint
-	events *EventLog
+	mu       sync.RWMutex
+	cfg      *Config
+	snap     Snapshot
+	procs    []ProcessInfo
+	hist     []HistPoint
+	events   *EventLog
+	notifier *TelegramNotifier
 
 	// internals (only touched from the Run goroutine)
 	prevCPU         *cpuTicks
@@ -115,6 +116,7 @@ func NewMonitor(cfg *Config) *Monitor {
 	return &Monitor{
 		cfg:           cfg,
 		events:        NewEventLog(cfg.DataDir + "/events.jsonl"),
+		notifier:      NewTelegramNotifier(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy),
 		uidMap:        loadUserMap(),
 		lastDiskEvent: make(map[string]time.Time),
 		watchState:    make(map[string]bool),
@@ -126,9 +128,22 @@ func NewMonitor(cfg *Config) *Monitor {
 	}
 }
 
+// RecordEvent records an event in memory, disk, and dispatches to Telegram.
+func (m *Monitor) RecordEvent(ev Event) {
+	m.events.Add(ev)
+	if m.notifier.IsEnabled() && m.cfg.TelegramAlerts {
+		m.mu.RLock()
+		h := m.snap.Hostname
+		m.mu.RUnlock()
+		go func(e Event, host string) {
+			_ = m.notifier.SendAlert(e, host)
+		}(ev, h)
+	}
+}
+
 // Run starts all sampling loops until ctx is cancelled.
 func (m *Monitor) Run(ctx context.Context) {
-	m.events.Add(Event{Time: time.Now(), Type: "agent_restart", Detail: "agent (re)started"})
+	m.RecordEvent(Event{Time: time.Now(), Type: "agent_restart", Detail: "agent (re)started"})
 	m.sampleAll()
 
 	fast := time.NewTicker(2 * time.Second)
