@@ -10,6 +10,7 @@
 
 Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram/Discord/Webhook alerts**, provides an **embeddable public HTML status page**, monitors website **uptime with Uptime Kuma style heartbeat bars**, and packs a powerhouse **mobile DevOps toolkit** (Docker Manager, DPI Censorship Inspector, Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
 
+- 🚀 **Dual-Node Tunnel Hub (Iran Node ➔ Foreign Node)** — manage, generate, and monitor anti-censorship reverse tunnels and relays between Iran and Foreign nodes with full support for **Backhaul**, **Rathole**, **GOST**, **Chisel**, **FRP**, and **IPTables**; supports WebSocket, WSMux, gRPC, TCPMux, TCP, 1-click bash installers, systemd services, and Docker Compose configurations
 - 📊 **Live server metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
 - 🕵️ **Spike forensics** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
 - 🐳 **Docker Container Watcher & Remote Control** — monitor all Docker containers via native socket (`/var/run/docker.sock`, zero dependencies), detect crashed/unhealthy containers with instant alerts, and restart/stop containers on the go
@@ -79,6 +80,22 @@ Verify it works:
 ```bash
 curl -sk https://YOUR_SERVER_IP:8686/api/metrics -H "Authorization: Bearer YOUR_TOKEN"
 ```
+
+## Dual-Node Tunnel Hub (Iran-Foreign Relays & Reverse Tunnels)
+
+Didban allows you to easily configure, deploy, and monitor dual-node tunnels between an Iran Bridge / Relay node and a Foreign Upstream / Server node using industry-standard high-performance tunneling cores:
+
+1. **Backhaul**: High-throughput multiplexed WebSocket & TCP reverse tunneling with multi-port forwarding and automatic reconnection.
+2. **Rathole**: Ultra-lightweight Rust reverse proxy with Noise Protocol end-to-end encryption and minimal memory footprint (< 10 MB RAM).
+3. **GOST (GO Simple Tunnel)**: Versatile multi-protocol forwarding engine with support for TLS, WebSocket, gRPC, TCPMux, and UDP.
+4. **Chisel**: Fast TCP/UDP tunnel over HTTP/WebSocket secured via SSH, perfect for bypassing restrictive deep-packet inspection firewalls.
+5. **FRP (Fast Reverse Proxy)**: Battle-tested multi-channel reverse proxy for exposing internal services.
+6. **IPTables**: Direct in-kernel packet forwarding with zero user-space latency.
+
+For every configured tunnel:
+- **1-Click Installer Scripts**: Ready-to-paste one-line bash scripts for Iran and Foreign nodes.
+- **Docker Compose & Config Files**: Ready-to-use `docker-compose.yml` and `toml`/`yaml` configuration definitions.
+- **Live Latency & Health Probing**: Real-time round-trip latency (ms) and connectivity verification.
 
 ## Public Status Page
 

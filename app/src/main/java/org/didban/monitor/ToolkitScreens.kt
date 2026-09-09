@@ -53,6 +53,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Sensors
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -99,13 +100,14 @@ import java.util.Locale
 @Composable
 fun NetworkHubScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 6 }
+    val pagerState = rememberPagerState(initialPage = 0) { 7 }
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
 
     val tabs = listOf(
+        Icons.Rounded.SwapHoriz to t.tunnelsHub,
         Icons.Rounded.Public to "چک‌هاست جهانی",
         Icons.Rounded.Security to "تست فیلترینگ و DPI",
         Icons.Rounded.Search to "پورت اسکنر",
@@ -170,12 +172,13 @@ fun NetworkHubScreen(t: Str) {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> CheckHostHubTab(t)
-                1 -> CensorshipTab(t)
-                2 -> PortScannerTab(t)
-                3 -> SslInspectorTab(t)
-                4 -> IpInfoTab(t)
-                5 -> TcpPingTab(t)
+                0 -> TunnelScreen(t)
+                1 -> CheckHostHubTab(t)
+                2 -> CensorshipTab(t)
+                3 -> PortScannerTab(t)
+                4 -> SslInspectorTab(t)
+                5 -> IpInfoTab(t)
+                6 -> TcpPingTab(t)
             }
         }
     }

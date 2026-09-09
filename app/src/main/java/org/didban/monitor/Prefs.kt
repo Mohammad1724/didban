@@ -120,6 +120,8 @@ object Prefs {
             .apply()
     }
 
+    // ── Uptime Targets ──
+
     fun loadUptimeTargets(ctx: Context): List<UptimeTarget> {
         val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         val raw = sp.getString("uptime_targets", null) ?: return emptyList()
@@ -140,5 +142,29 @@ object Prefs {
         targets.forEach { arr.put(it.toJson()) }
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("uptime_targets", arr.toString()).apply()
+    }
+
+    // ── Dual-Node Tunnels ──
+
+    fun loadTunnels(ctx: Context): List<TunnelConfig> {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val raw = sp.getString("didban_tunnels", null) ?: return emptyList()
+        val list = mutableListOf<TunnelConfig>()
+        return try {
+            val arr = JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                list.add(TunnelConfig.fromJson(arr.getJSONObject(i)))
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun saveTunnels(ctx: Context, tunnels: List<TunnelConfig>) {
+        val arr = JSONArray()
+        tunnels.forEach { arr.put(it.toJson()) }
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("didban_tunnels", arr.toString()).apply()
     }
 }
