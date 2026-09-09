@@ -1493,7 +1493,7 @@ fun VaultScreen(t: Str) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. DEVELOPER LAB (STRING LAB) SCREEN
+// 4. DEVELOPER LAB (STRING LAB & UTILITIES) SCREEN
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -1505,25 +1505,26 @@ fun DevLabScreen(t: Str) {
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
 
+    val tabs = listOf(
+        "📝 فرمت JSON و Base64",
+        "🌐 ساب‌نت شبکه (CIDR)",
+        "🎫 رمزگشای توکن (JWT)",
+        "🔑 تولید پسورد و UUID"
+    )
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("🛠️ ${t.devLab}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
-
-        FeatureGuideCard(
-            title = "🛠️ راهنمای جعبه‌ابزار توسعه‌دهنده (Dev Lab)",
-            description = t.guideDevLab
-        )
-
         Spacer(Modifier.height(10.dp))
 
+        // ── Smooth Horizontally Scrollable Tab Bar (No squashing or wrapping) ──
         Row(
             Modifier
                 .fillMaxWidth()
                 .horizontalScroll(scrollState)
-                .padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("JSON & Base64", "ساب‌نت CIDR", "دیکودر JWT", "تولیدکننده پسورد").forEachIndexed { index, title ->
+            tabs.forEachIndexed { index, title ->
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -1534,9 +1535,9 @@ fun DevLabScreen(t: Str) {
                 ) {
                     Text(
                         title,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        fontSize = 11.5.sp,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        fontSize = 12.sp,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false
@@ -1556,51 +1557,111 @@ fun DevLabScreen(t: Str) {
     }
 }
 
+// ── Tab 0: JSON Formatter, Minifier & Base64 Encoder/Decoder ─────────────────
+
 @Composable
 private fun JsonBase64Tab(t: Str) {
+    val ctx = LocalContext.current
+    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+
     var input by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it },
-            label = { Text("متن ورودی / JSON / Base64", fontSize = 12.sp) },
-            modifier = Modifier.fillMaxWidth().height(120.dp)
+        FeatureGuideCard(
+            title = "📝 راهنمای فرمت JSON و کدگذاری Base64",
+            description = "این ابزار کدهای فشرده یا نامرتب JSON را خوانا می‌کند، متن‌ها و کانفیگ‌ها را با Base64 کدگذاری/رمزگشایی می‌کند، و هش امنیتی SHA-256 می‌سازد.",
+            bullets = listOf(
+                "مرتب‌سازی JSON: تبدیل ساختارهای نامرتب به JSON با فاصله‌گذاری استاندارد",
+                "کدگذاری/رمزگشایی Base64: مناسب برای کانفیگ‌های اینترنتی و خروجی وب‌سرویس‌ها",
+                "هش SHA-256: ساخت اثر انگشت یک‌طرفه و غیرقابل بازگشت از متن"
+            )
         )
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Button(onClick = { output = DevLabTools.formatJson(input) }, modifier = Modifier.weight(1f)) { Text("فرمت JSON", fontSize = 10.5.sp) }
-            Button(onClick = { output = DevLabTools.base64Encode(input) }, modifier = Modifier.weight(1f)) { Text("B64 Enc", fontSize = 10.5.sp) }
-            Button(onClick = { output = DevLabTools.base64Decode(input) }, modifier = Modifier.weight(1f)) { Text("B64 Dec", fontSize = 10.5.sp) }
-            Button(onClick = { output = DevLabTools.hash(input, "SHA-256") }, modifier = Modifier.weight(1f)) { Text("SHA-256", fontSize = 10.5.sp) }
-        }
 
         Spacer(Modifier.height(10.dp))
 
-        OutlinedTextField(
-            value = output,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("خروجی", fontSize = 12.sp) },
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
-        )
+        ModernCard(padding = 12.dp) {
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it },
+                label = { Text("متن ورودی / JSON / Base64", fontSize = 12.sp) },
+                modifier = Modifier.fillMaxWidth().height(110.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            // Action Buttons Row
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Button(
+                    onClick = { output = DevLabTools.formatJson(input) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("✨ مرتب‌سازی JSON", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1) }
+
+                Button(
+                    onClick = { output = DevLabTools.minifyJson(input) },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) { Text("📦 فشرده‌سازی", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1) }
+
+                Button(
+                    onClick = { output = DevLabTools.base64Encode(input) },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) { Text("🔒 کدگذاری Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1) }
+
+                Button(
+                    onClick = { output = DevLabTools.base64Decode(input) },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) { Text("🔓 رمزگشایی Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1) }
+
+                Button(
+                    onClick = { output = DevLabTools.hash(input, "SHA-256") },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) { Text("🔑 SHA-256", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1) }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("نتیجه خروجی:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                if (output.isNotBlank()) {
+                    TextButton(onClick = {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("output", output))
+                        Toast.makeText(ctx, "خروجی کپی شد!", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("📋 کپی نتیجه", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = output,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth().height(150.dp),
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
     }
 }
 
+// ── Tab 1: Subnet / CIDR Calculator ──────────────────────────────────────────
+
 @Composable
 private fun SubnetCalcTab(t: Str) {
-    var cidr by remember { mutableStateOf("192.168.1.50/24") }
+    var cidr by remember { mutableStateOf("192.168.1.0/24") }
     var info by remember { mutableStateOf<DevLabTools.SubnetInfo?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
 
-    fun calc() {
+    fun calc(targetCidr: String = cidr) {
         err = null
         try {
-            info = DevLabTools.calculateSubnet(cidr)
+            info = DevLabTools.calculateSubnet(targetCidr)
         } catch (e: Exception) {
             err = e.message
             info = null
@@ -1610,19 +1671,61 @@ private fun SubnetCalcTab(t: Str) {
     LaunchedEffect(Unit) { calc() }
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = cidr,
-                onValueChange = { cidr = it },
-                label = { Text("فرمت CIDR (مثلاً 10.0.0.1/24)", fontSize = 12.sp) },
-                modifier = Modifier.weight(1f),
-                singleLine = true
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = { calc() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-            ) { Text(t.calculate) }
+        FeatureGuideCard(
+            title = "🌐 راهنمای محاسبه‌گر ساب‌نت شبکه (CIDR Calculator)",
+            description = "فرمت CIDR (مثل 192.168.1.0/24 یا 10.0.0.0/16) را تحلیل کرده و محدوده آی‌پی‌های قابل استفاده، ساب‌نت ماسک، برادکست و ظرفیت هاست‌ها را برای تنظیم شبکه و فایروال محاسبه می‌کند."
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        ModernCard(padding = 12.dp) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = cidr,
+                    onValueChange = { cidr = it },
+                    label = { Text("آی‌پی و پیشوند (مثلاً 192.168.1.0/24)", fontSize = 12.sp) },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { calc() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("محاسبه", fontWeight = FontWeight.Bold) }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Quick Preset Chips for Easy Testing
+            Text("نمونه‌های متداول شبکه:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(4.dp))
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                listOf(
+                    "192.168.1.0/24" to "شبکه محلی (254 هاست)",
+                    "10.0.0.0/16" to "شبکه بزرگ (65K هاست)",
+                    "172.16.0.0/20" to "سازمانی (4K هاست)",
+                    "192.168.1.0/30" to "تونل سرور (2 هاست)"
+                ).forEach { (preset, desc) ->
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.clickable {
+                            cidr = preset
+                            calc(preset)
+                        }
+                    ) {
+                        Text(
+                            "$preset ($desc)",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            fontSize = 10.5.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(Modifier.height(10.dp))
@@ -1634,17 +1737,37 @@ private fun SubnetCalcTab(t: Str) {
         info?.let { s ->
             ModernCard(padding = 14.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("آدرس شبکه: ${s.network}", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Text("آدرس Broadcast: ${s.broadcast}", fontWeight = FontWeight.Bold)
-                    Text("بازه هاست‌های قابل استفاده: ${s.firstHost} — ${s.lastHost}")
-                    Text("تعداد هاست‌های مجاز: ${s.usableHosts} (${s.totalHosts} کل)")
-                    Text("ساب‌نت ماسک: ${s.netmask}")
-                    Text("وایلدکارت ماسک: ${s.wildcard}")
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("آدرس شبکه (Network):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(s.network, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("آدرس برادکست (Broadcast):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(s.broadcast, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("بازه هاست‌های قابل استفاده:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${s.firstHost}  ➔  ${s.lastHost}", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("تعداد هاست‌های مجاز:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${s.usableHosts} هاست (${s.totalHosts} آدرس کل)", fontWeight = FontWeight.Bold)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("ساب‌نت ماسک (Subnet Mask):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(s.netmask, fontFamily = FontFamily.Monospace)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("وایلدکارت ماسک (Wildcard):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(s.wildcard, fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
         }
     }
 }
+
+// ── Tab 2: JWT Token Decoder ────────────────────────────────────────────────
 
 @Composable
 private fun JwtDecoderTab(t: Str) {
@@ -1663,19 +1786,28 @@ private fun JwtDecoderTab(t: Str) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = token,
-            onValueChange = { token = it },
-            label = { Text("توکن JWT را اینجا جای‌گذاری کنید", fontSize = 12.sp) },
-            modifier = Modifier.fillMaxWidth().height(100.dp)
+        FeatureGuideCard(
+            title = "🎫 راهنمای رمزگشای توکن لاگین (JWT Decoder)",
+            description = "توکن‌های احراز هویت JWT را رمزگشایی کرده و مشخصات کاربر، نقش‌ها، دسترسی‌ها و تاریخ انقضا (Expiration Date) را نمایش می‌دهد."
         )
 
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { decode() },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-        ) { Text("دیکود و بررسی توکن") }
+        Spacer(Modifier.height(10.dp))
+
+        ModernCard(padding = 12.dp) {
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it },
+                label = { Text("توکن JWT را اینجا جای‌گذاری کنید (eyJhbGciOi...)", fontSize = 12.sp) },
+                modifier = Modifier.fillMaxWidth().height(90.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
+            Button(
+                onClick = { decode() },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+            ) { Text("🔍 دیکود و استخراج مشخصات توکن", fontWeight = FontWeight.Bold) }
+        }
 
         Spacer(Modifier.height(10.dp))
 
@@ -1686,65 +1818,118 @@ private fun JwtDecoderTab(t: Str) {
         jwtInfo?.let { j ->
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 item {
-                    Text(
-                        if (j.isExpired) "❌ توکن منقضی شده است (${j.expiryDate})" else "✅ توکن معتبر است (انقضا: ${j.expiryDate ?: "نامحدود"})",
-                        color = if (j.isExpired) Color(0xFFEF4444) else Color(0xFF10B981),
-                        fontWeight = FontWeight.Bold
+                    StatusPill(
+                        text = if (j.isExpired) "❌ توکن منقضی شده است (${j.expiryDate})" else "✅ توکن معتبر است (انقضا: ${j.expiryDate ?: "نامحدود"})",
+                        isOnline = !j.isExpired
                     )
                 }
                 item {
-                    Text("محتوای Payload:", fontWeight = FontWeight.Bold)
+                    Text("اطلاعات بدنه توکن (Payload Data):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     ModernCard(padding = 10.dp) {
                         Text(j.payload, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
                     }
                 }
+                item {
+                    Text("هدر توکن (Header):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    ModernCard(padding = 10.dp) {
+                        Text(j.header, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
+                    }
+                }
+                item { Spacer(Modifier.height(30.dp)) }
             }
         }
     }
 }
+
+// ── Tab 3: Password & UUID Generator ────────────────────────────────────────
 
 @Composable
 private fun GeneratorTab(t: Str) {
     val ctx = LocalContext.current
     val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
-    var generatedPass by remember { mutableStateOf(DevLabTools.generatePassword(18)) }
+    var passLength by remember { mutableStateOf(18) }
+    var generatedPass by remember { mutableStateOf(DevLabTools.generatePassword(passLength)) }
     var generatedUuid by remember { mutableStateOf(DevLabTools.generateUuid()) }
 
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        FeatureGuideCard(
+            title = "🔑 راهنمای تولیدکننده پسورد و شناسه UUID",
+            description = "تولید پسوردهای ضد هک و تصادفی برای سرورها، دیتابیس‌ها و ساخت شناسه‌های یکتای جهانی (UUID v4) برای دیتابیس و کانفیگ‌ها."
+        )
+
         ModernCard(padding = 14.dp) {
-            Text("🔑 تولیدکننده رمز عبور قوی", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("🔑 تولیدکننده رمز عبور قوی ضد هک", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(6.dp))
-            Text(generatedPass, fontSize = 16.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(
+                generatedPass,
+                fontSize = 15.sp,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+
             Spacer(Modifier.height(8.dp))
-            Row {
+
+            // Length selectors
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("طول پسورد:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                listOf(12, 16, 20, 24, 32).forEach { len ->
+                    val isSel = passLength == len
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.clickable {
+                            passLength = len
+                            generatedPass = DevLabTools.generatePassword(len)
+                        }
+                    ) {
+                        Text(
+                            "$len",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            fontSize = 10.5.sp,
+                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { generatedPass = DevLabTools.generatePassword(18) },
+                    onClick = { generatedPass = DevLabTools.generatePassword(passLength) },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("تولید جدید") }
-                Spacer(Modifier.width(8.dp))
+                ) { Text("تولید پسورد جدید", fontWeight = FontWeight.Bold) }
+
                 OutlinedButton(onClick = {
                     clipboard.setPrimaryClip(ClipData.newPlainText("password", generatedPass))
-                    Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
-                }) { Text("کپی") }
+                    Toast.makeText(ctx, "پسورد کپی شد!", Toast.LENGTH_SHORT).show()
+                }) { Text("📋 کپی") }
             }
         }
 
         ModernCard(padding = 14.dp) {
-            Text("🆔 تولیدکننده شناسه UUID v4", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("🆔 تولیدکننده شناسه یکتای جهانی (UUID v4)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(6.dp))
-            Text(generatedUuid, fontSize = 14.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Row {
+            Text(
+                generatedUuid,
+                fontSize = 13.5.sp,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = { generatedUuid = DevLabTools.generateUuid() },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("تولید UUID") }
-                Spacer(Modifier.width(8.dp))
+                ) { Text("تولید UUID جدید", fontWeight = FontWeight.Bold) }
+
                 OutlinedButton(onClick = {
                     clipboard.setPrimaryClip(ClipData.newPlainText("uuid", generatedUuid))
-                    Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
-                }) { Text("کپی") }
+                    Toast.makeText(ctx, "UUID کپی شد!", Toast.LENGTH_SHORT).show()
+                }) { Text("📋 کپی") }
             }
         }
     }
