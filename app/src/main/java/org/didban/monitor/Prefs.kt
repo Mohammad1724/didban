@@ -37,6 +37,14 @@ object Prefs {
             .edit().putString("lang", lang).apply()
     }
 
+    fun getThemeMode(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("theme_mode", "light") ?: "light"
+
+    fun setThemeMode(ctx: Context, mode: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("theme_mode", mode).apply()
+    }
+
     fun getPollIntervalMs(ctx: Context): Long {
         val sec = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString("poll_sec", "30")?.toLongOrNull() ?: 30L

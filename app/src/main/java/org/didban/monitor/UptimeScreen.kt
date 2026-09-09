@@ -40,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -84,30 +83,53 @@ fun UptimeScreen(t: Str) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         // ── Header ──
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("⏱️ ${t.uptimeMonitoring}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text("⏱️ ${t.uptimeMonitoring}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.weight(1f))
-            Button(onClick = { showAddDialog = true }) {
-                Text("+ ${t.addMonitor}")
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { showAddDialog = true }
+            ) {
+                Text(
+                    "+ ${t.addMonitor}",
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
 
         Spacer(Modifier.height(10.dp))
 
-        // ── Summary Stats ──
+        // ── Explanatory Guide Card ──
+        FeatureGuideCard(
+            title = "⏱️ راهنمای پایش پایداری و ضربان قلب (Uptime Kuma)",
+            description = t.guideUptime
+        )
+
+        Spacer(Modifier.height(10.dp))
+
+        // ── Summary Stats (2x2 / 3-Card Grid) ──
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SummaryCard("Total Monitors", totalCount.toString(), Color(0xFF4CC2FF), Modifier.weight(1f))
-            SummaryCard("Online", upCount.toString(), Color(0xFF4ADE80), Modifier.weight(1f))
-            SummaryCard("Down", downCount.toString(), if (downCount > 0) Color(0xFFF87171) else Color(0xFF94A3B8), Modifier.weight(1f))
+            ModernSummaryCard("کل مانیتورها", totalCount.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+            ModernSummaryCard("سرویس‌های آنلاین", upCount.toString(), Color(0xFF10B981), Modifier.weight(1f))
+            ModernSummaryCard("دارای قطعی", downCount.toString(), if (downCount > 0) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (targets.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("⏱️", fontSize = 36.sp)
-                    Spacer(Modifier.height(6.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Text("⏱️", fontSize = 48.sp)
+                    Spacer(Modifier.height(10.dp))
                     Text(t.noMonitorsHint, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    Spacer(Modifier.height(16.dp))
+                    PrimaryActionButton(
+                        text = "+ ${t.addMonitor}",
+                        onClick = { showAddDialog = true }
+                    )
                 }
             }
             return
@@ -118,128 +140,123 @@ fun UptimeScreen(t: Str) {
             items(targets, key = { it.id }) { item ->
                 val isExpanded = expandedTargetId == item.id
 
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        expandedTargetId = if (isExpanded) null else item.id
-                    }
+                ModernCard(
+                    padding = 14.dp,
+                    modifier = Modifier.clickable { expandedTargetId = if (isExpanded) null else item.id }
                 ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Status Dot
-                            Box(
-                                Modifier.size(12.dp).background(
-                                    when {
-                                        item.isPaused -> Color(0xFF94A3B8)
-                                        item.lastStatus == 1 -> Color(0xFF4ADE80)
-                                        item.lastStatus == 0 -> Color(0xFFF87171)
-                                        else -> Color(0xFFFBBF24)
-                                    },
-                                    CircleShape
-                                )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Status Dot
+                        Box(
+                            Modifier.size(12.dp).background(
+                                when {
+                                    item.isPaused -> Color(0xFF94A3B8)
+                                    item.lastStatus == 1 -> Color(0xFF10B981)
+                                    item.lastStatus == 0 -> Color(0xFFEF4444)
+                                    else -> Color(0xFFF59E0B)
+                                },
+                                CircleShape
                             )
-                            Spacer(Modifier.width(10.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                    Spacer(Modifier.width(8.dp))
-                                    Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                        Text(item.type, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    }
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                    Text(item.type, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                 }
-                                Text(item.target, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            Column(horizontalAlignment = Alignment.End) {
+                            Text(item.target, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                "%.1f%%".format(Locale.US, item.uptimePct),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (item.uptimePct > 98f) Color(0xFF10B981) else Color(0xFFEF4444)
+                            )
+                            Text(
+                                if (item.lastLatencyMs > 0) "${item.lastLatencyMs} ms" else "—",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // ── 30 Heartbeat Bars (Uptime Kuma Style) ──
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val emptyBars = (30 - item.heartbeats.size).coerceAtLeast(0)
+                        repeat(emptyBars) {
+                            Box(
+                                Modifier.weight(1f).height(18.dp)
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                            )
+                        }
+                        item.heartbeats.takeLast(30).forEach { hb ->
+                            Box(
+                                Modifier.weight(1f).height(18.dp)
+                                    .background(
+                                        if (hb.status == 1) Color(0xFF10B981) else Color(0xFFEF4444),
+                                        RoundedCornerShape(4.dp)
+                                    )
+                            )
+                        }
+                    }
+
+                    // ── Expanded Incidents & Actions ──
+                    if (isExpanded) {
+                        Spacer(Modifier.height(12.dp))
+                        Text("تاریخچه قطعی‌ها و حوادث:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(Modifier.height(4.dp))
+
+                        if (item.incidents.isEmpty()) {
+                            Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است 🎉", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        } else {
+                            val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
+                            item.incidents.takeLast(3).reversed().forEach { inc ->
+                                val start = fmt.format(Date(inc.startTime))
+                                val dur = inc.durationSec
                                 Text(
-                                    "%.1f%%".format(Locale.US, item.uptimePct),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (item.uptimePct > 98f) Color(0xFF4ADE80) else Color(0xFFF87171)
-                                )
-                                Text(
-                                    if (item.lastLatencyMs > 0) "${item.lastLatencyMs} ms" else "—",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.primary
+                                    "• $start — قطعی به مدت ${dur} ثانیه (${inc.error})",
+                                    fontSize = 11.5.sp,
+                                    color = Color(0xFFEF4444)
                                 )
                             }
                         }
 
                         Spacer(Modifier.height(10.dp))
-
-                        // ── 30 Heartbeat Bars (Iconic Uptime Kuma design) ──
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val emptyBars = (30 - item.heartbeats.size).coerceAtLeast(0)
-                            repeat(emptyBars) {
-                                Box(
-                                    Modifier.weight(1f).height(18.dp)
-                                        .background(Color(0xFF1E283D), RoundedCornerShape(4.dp))
-                                )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = {
+                                item.isPaused = !item.isPaused
+                                saveTargets()
+                            }) {
+                                Text(if (item.isPaused) "▶️ ادامه پایش" else "⏸️ توقف موقت", fontSize = 12.sp)
                             }
-                            item.heartbeats.takeLast(30).forEach { hb ->
-                                Box(
-                                    Modifier.weight(1f).height(18.dp)
-                                        .background(
-                                            if (hb.status == 1) Color(0xFF4ADE80) else Color(0xFFF87171),
-                                            RoundedCornerShape(4.dp)
-                                        )
-                                )
-                            }
-                        }
-
-                        // ── Expanded Incidents & Actions ──
-                        if (isExpanded) {
-                            Spacer(Modifier.height(12.dp))
-                            Text("Recent Incidents & History:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Spacer(Modifier.height(4.dp))
-
-                            if (item.incidents.isEmpty()) {
-                                Text("No downtime incidents recorded 🎉", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            } else {
-                                val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-                                item.incidents.takeLast(3).reversed().forEach { inc ->
-                                    val start = fmt.format(Date(inc.startTime))
-                                    val dur = inc.durationSec
-                                    Text(
-                                        "• $start — Down for ${dur}s (${inc.error})",
-                                        fontSize = 11.sp,
-                                        color = Color(0xFFF87171)
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                TextButton(onClick = {
-                                    item.isPaused = !item.isPaused
+                            TextButton(onClick = {
+                                scope.launch {
+                                    UptimeEngine.checkTarget(item, ctx)
                                     saveTargets()
-                                }) {
-                                    Text(if (item.isPaused) "▶️ Resume" else "⏸️ Pause", fontSize = 12.sp)
                                 }
-                                TextButton(onClick = {
-                                    scope.launch {
-                                        UptimeEngine.checkTarget(item, ctx)
-                                        saveTargets()
-                                    }
-                                }) {
-                                    Text("🔄 Check Now", fontSize = 12.sp)
-                                }
-                                TextButton(onClick = {
-                                    targets = targets.filter { it.id != item.id }
-                                    saveTargets()
-                                }) {
-                                    Text("🗑️ Delete", color = Color(0xFFF87171), fontSize = 12.sp)
-                                }
+                            }) {
+                                Text("🔄 بررسی مجدد", fontSize = 12.sp)
+                            }
+                            TextButton(onClick = {
+                                targets = targets.filter { it.id != item.id }
+                                saveTargets()
+                            }) {
+                                Text("🗑️ حذف", color = Color(0xFFEF4444), fontSize = 12.sp)
                             }
                         }
                     }
                 }
             }
+            item { Spacer(Modifier.height(40.dp)) }
         }
     }
 
@@ -253,10 +270,11 @@ fun UptimeScreen(t: Str) {
 
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text(t.addMonitor) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(t.addMonitor, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Monitor Name (e.g. My Website)") }, singleLine = true)
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("نام مانیتور (مثلاً سایت من)") }, singleLine = true)
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf("HTTP", "TCP", "PING", "KEYWORD", "SSL").forEach { tp ->
@@ -266,19 +284,19 @@ fun UptimeScreen(t: Str) {
                                 color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
                                 modifier = Modifier.clickable { type = tp }
                             ) {
-                                Text(tp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 10.sp, color = if (isSel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(tp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 10.sp, color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
 
-                    OutlinedTextField(value = targetUrl, onValueChange = { targetUrl = it }, label = { Text(if (type == "TCP" || type == "PING" || type == "SSL") "Host / IP" else "URL (https://...)") }, singleLine = true)
+                    OutlinedTextField(value = targetUrl, onValueChange = { targetUrl = it }, label = { Text(if (type == "TCP" || type == "PING" || type == "SSL") "آدرس سرور / IP" else "آدرس URL (https://...)") }, singleLine = true)
 
                     if (type == "TCP") {
-                        OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("Port (e.g. 5432, 3306, 80)") }, singleLine = true)
+                        OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("شماره پورت (مثلا 5432, 3306, 80)") }, singleLine = true)
                     }
 
                     if (type == "KEYWORD") {
-                        OutlinedTextField(value = keyword, onValueChange = { keyword = it }, label = { Text("Expected Keyword in Response") }, singleLine = true)
+                        OutlinedTextField(value = keyword, onValueChange = { keyword = it }, label = { Text("کلمه کلیدی مورد انتظار در پاسخ") }, singleLine = true)
                     }
                 }
             },
@@ -305,16 +323,10 @@ fun UptimeScreen(t: Str) {
 }
 
 @Composable
-private fun SummaryCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-    ) {
-        Column(Modifier.padding(10.dp)) {
-            Text(title, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color)
-        }
+private fun ModernSummaryCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
+    ModernCard(modifier = modifier, padding = 10.dp) {
+        Text(title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(2.dp))
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = color)
     }
 }

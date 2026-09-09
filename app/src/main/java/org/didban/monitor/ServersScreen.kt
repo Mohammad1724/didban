@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,10 +51,12 @@ import kotlinx.coroutines.launch
 @Composable
 fun ServersScreen(
     t: Str,
+    isDarkMode: Boolean,
+    onToggleTheme: () -> Unit,
     onLanguage: (String) -> Unit,
     onOpen: (ServerConfig) -> Unit
 ) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val states by Repo.states.collectAsState()
 
@@ -68,8 +71,7 @@ fun ServersScreen(
         servers = Prefs.loadServers(ctx)
     }
 
-    // Poll servers directly while this screen is visible, so cards show live
-    // data within seconds — independent of the background service cycle.
+    // Direct poll loop for active visibility
     LaunchedEffect(servers) {
         while (true) {
             for (s in servers) {
@@ -81,59 +83,82 @@ fun ServersScreen(
                     Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
                 }
             }
-            delay(15_000)
+            delay(12_000)
         }
     }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // ── Header ──
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(t.appName, fontSize = 26.sp, fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(8.dp))
-            Text("👁", fontSize = 20.sp)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { showSettings = true }) {
-                Text("⚙", fontSize = 18.sp)
-            }
-            TextButton(onClick = { onLanguage(if (t.langButton == "EN") "en" else "fa") }) {
-                Text(t.langButton)
-            }
-        }
+        // ── Modern Top Bar ──
+        ModernTopBar(
+            title = t.appName,
+            subtitle = t.appSubtitle,
+            isDarkMode = isDarkMode,
+            onToggleTheme = onToggleTheme,
+            onRefresh = { refresh() },
+            onToggleLang = { onLanguage(if (t.langButton == "EN") "en" else "fa") },
+            langLabel = t.langButton
+        )
 
-        // ── Monitoring toggle ──
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = if (monitoring) Color(0xFF0E2A1E) else Color(0xFF331717),
-            border = BorderStroke(1.dp, if (monitoring) Color(0xFF1E5C40) else Color(0xFF6B2C2C)),
-            modifier = Modifier.fillMaxWidth()
+        // ── Notice Banner (Matching Screenshot) ──
+        NoticeBanner(
+            text = "💡 با اضافه کردن سرورها، مصرف زنده پردازنده، رم، دیسک، کانتینرهای داکر و اسپایک‌ها ثبت و پایش می‌شوند.",
+            modifier = Modifier.padding(bottom = 10.dp)
+        )
+
+        // ── Monitoring Status Card ──
+        ModernCard(
+            padding = 12.dp,
+            containerColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+            borderColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Box(
                     Modifier.size(10.dp).background(
-                        if (monitoring) Color(0xFF4ADE80) else Color(0xFFF87171),
+                        if (monitoring) Color(0xFF10B981) else Color(0xFFEF4444),
                         CircleShape
                     )
                 )
                 Spacer(Modifier.width(10.dp))
-                Text(if (monitoring) t.monitoringOn else t.monitoringOff,
-                    color = if (monitoring) Color(0xFF4ADE80) else Color(0xFFF87171),
-                    fontSize = 14.sp)
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = {
-                    if (MonitorService.isRunning) {
-                        ctx.stopService(Intent(ctx, MonitorService::class.java))
-                        MonitorService.isRunning = false
-                        monitoring = false
-                    } else {
-                        ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
-                        MonitorService.isRunning = true
-                        monitoring = true
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (monitoring) t.monitoringOn else t.monitoringOff,
+                        fontWeight = FontWeight.Bold,
+                        color = if (monitoring) Color(0xFF047857) else Color(0xFFEF4444),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        if (monitoring) "هشدارها در صورت قطعی یا اسپایک ارسال می‌شوند" else "پایش پس‌زمینه متوقف است",
+                        fontSize = 10.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable {
+                        if (MonitorService.isRunning) {
+                            ctx.stopService(Intent(ctx, MonitorService::class.java))
+                            MonitorService.isRunning = false
+                            monitoring = false
+                        } else {
+                            ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
+                            MonitorService.isRunning = true
+                            monitoring = true
+                        }
                     }
-                }) { Text(if (monitoring) "■" else "▶", fontSize = 18.sp) }
+                ) {
+                    Text(
+                        if (monitoring) "توقف پایش ■" else "شروع پایش ▶",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -142,33 +167,42 @@ fun ServersScreen(
         // ── Server list ──
         if (servers.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(t.noServers, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(t.noServersHint, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                    Text("👁️", fontSize = 48.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(t.noServers, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(t.noServersHint, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.5.sp)
+                    Spacer(Modifier.height(20.dp))
+                    PrimaryActionButton(
+                        text = "＋  ${t.addServer}",
+                        onClick = { showAdd = true }
+                    )
                 }
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(servers, key = { it.id }) { s ->
                     val st = states[s.id]
-                    ServerCard(
-                        t, s, st,
+                    ModernServerCard(
+                        t = t,
+                        s = s,
+                        st = st,
                         onOpen = { onOpen(s) },
                         onEdit = { editServer = s },
                         onDelete = { deletedServer = s }
                     )
                 }
-                item { Spacer(Modifier.height(70.dp)) }
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    PrimaryActionButton(
+                        text = "＋  ${t.addServer}",
+                        onClick = { showAdd = true }
+                    )
+                    Spacer(Modifier.height(40.dp))
+                }
             }
         }
-    }
-
-    // ── Add button (floating bottom) ──
-    Box(Modifier.fillMaxSize().padding(20.dp), contentAlignment = Alignment.BottomCenter) {
-        Button(
-            onClick = { showAdd = true },
-            modifier = Modifier.fillMaxWidth().height(52.dp)
-        ) { Text("＋  ${t.addServer}", fontSize = 16.sp) }
     }
 
     if (showAdd) {
@@ -195,15 +229,15 @@ fun ServersScreen(
     deletedServer?.let { ds ->
         AlertDialog(
             onDismissRequest = { deletedServer = null },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            title = { Text(t.confirmDelete) },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(t.confirmDelete, fontWeight = FontWeight.Bold) },
             text = { Text("${ds.name} (${ds.host})") },
             confirmButton = {
                 TextButton(onClick = {
                     servers = Prefs.loadServers(ctx).filter { it.id != ds.id }
                     Prefs.saveServers(ctx, servers)
                     deletedServer = null
-                }) { Text(t.delete, color = Color(0xFFF87171)) }
+                }) { Text(t.delete, color = Color(0xFFEF4444), fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { deletedServer = null }) { Text(t.cancel) }
@@ -213,7 +247,7 @@ fun ServersScreen(
 }
 
 @Composable
-private fun ServerCard(
+private fun ModernServerCard(
     t: Str,
     s: ServerConfig,
     st: Repo.State?,
@@ -221,46 +255,86 @@ private fun ServerCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier.fillMaxWidth().clickable { onOpen() }
+    val m = st?.metrics
+    val isOnline = m != null
+    val lat = st?.latencyMs ?: 0f
+
+    ModernCard(
+        modifier = Modifier.fillMaxWidth().clickable { onOpen() },
+        padding = 14.dp
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (isOnline) Color(0xFF10B981).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.15f),
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(if (isOnline) "🟢" else "🔴", fontSize = 16.sp)
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.name.ifEmpty { s.host }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(s.name.ifEmpty { s.host }, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Spacer(Modifier.width(8.dp))
-                    Text(s.host, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                }
-                Spacer(Modifier.height(6.dp))
-                val m = st?.metrics
-                if (m != null) {
-                    val lat = st?.latencyMs ?: 0f
-                    Text(
-                        "CPU ${Fmt.pct(m.cpuUsage)}   •   RAM ${Fmt.pct(m.memPct)}" +
-                                if (lat > 0f) "   •   ${lat.toInt()} ms" else "",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary
+                    StatusPill(
+                        text = if (isOnline) "• ${t.online}" else "• ${t.offline}",
+                        isOnline = isOnline
                     )
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(s.host, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.5.sp)
+
+                Spacer(Modifier.height(6.dp))
+
+                if (m != null) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "CPU: ${Fmt.pct(m.cpuUsage)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            "RAM: ${Fmt.pct(m.memPct)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6366F1)
+                        )
+                        if (lat > 0f) {
+                            Text(
+                                "${lat.toInt()} ms",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 } else if (st?.error != null) {
-                    Text("${t.offline}: ${st.error}", fontSize = 12.sp, color = Color(0xFFF87171))
+                    Text("${t.offline}: ${st.error}", fontSize = 11.5.sp, color = Color(0xFFEF4444))
                 } else {
-                    Text(t.connecting, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(t.connecting, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            TextButton(onClick = onEdit) {
-                Text("✎", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            TextButton(onClick = onDelete) {
-                Text("×", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = onEdit) {
+                    Text("✏️", fontSize = 14.sp)
+                }
+                TextButton(onClick = onDelete) {
+                    Text("🗑️", fontSize = 14.sp)
+                }
             }
         }
     }
 }
 
-// ── Add server dialog (manual / SSH install) ────────────────────────────────
+// ── Add Server Dialog ───────────────────────────────────────────────────────
 
 @Composable
 private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) {
@@ -268,8 +342,8 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        title = { Text(t.addServer) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(t.addServer, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Row(Modifier.fillMaxWidth()) {
@@ -291,7 +365,7 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 @Composable
 private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.clickable { onClick() }
@@ -299,16 +373,16 @@ private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
         Text(
             label,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            fontSize = 13.sp,
+            fontSize = 12.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
 
 @Composable
 private fun ManualForm(t: Str, onSaved: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("8686") }
@@ -330,7 +404,8 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
             label = { Text("${t.fingerprint} (${t.fingerprintOptional})") },
             singleLine = true
         )
-        Button(
+        PrimaryActionButton(
+            text = t.save,
             onClick = {
                 if (host.isNotBlank() && token.isNotBlank()) {
                     val list = Prefs.loadServers(ctx)
@@ -347,15 +422,14 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                     onSaved()
                 }
             },
-            enabled = host.isNotBlank() && token.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(t.save) }
+            enabled = host.isNotBlank() && token.isNotBlank()
+        )
     }
 }
 
 @Composable
 private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
@@ -366,7 +440,7 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
     var result by remember { mutableStateOf<SshSetup.Result?>(null) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(t.sshInstallHint, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(t.sshInstallHint, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true)
         OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(t.host) }, singleLine = true)
         OutlinedTextField(value = sshPort, onValueChange = { sshPort = it }, label = { Text(t.port) }, singleLine = true)
@@ -382,13 +456,14 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
 
         result?.let { r ->
             if (r.success) {
-                Text("✅ ${t.installDone}", color = Color(0xFF4ADE80), fontSize = 13.sp)
+                Text("✅ ${t.installDone}", color = Color(0xFF10B981), fontSize = 13.sp)
             } else {
-                Text("❌ ${t.installFailed}: ${r.error}", color = Color(0xFFF87171), fontSize = 12.sp)
+                Text("❌ ${t.installFailed}: ${r.error}", color = Color(0xFFEF4444), fontSize = 12.sp)
             }
         }
 
-        Button(
+        PrimaryActionButton(
+            text = if (busy) t.installing else t.install,
             onClick = {
                 busy = true
                 result = null
@@ -421,18 +496,16 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
                     pass = ""
                 }
             },
-            enabled = !busy && host.isNotBlank() && pass.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
-        ) { Text(if (busy) t.installing else t.install) }
+            enabled = !busy && host.isNotBlank() && pass.isNotBlank()
+        )
     }
 }
 
-
-// ── Edit server dialog ──────────────────────────────────────────────────────
+// ── Edit Server Dialog ──────────────────────────────────────────────────────
 
 @Composable
 private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit, onSaved: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
     var name by remember { mutableStateOf(server.name) }
     var host by remember { mutableStateOf(server.host) }
     var port by remember { mutableStateOf(server.port.toString()) }
@@ -444,8 +517,8 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        title = { Text("${t.edit} — ${server.name}") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("${t.edit} — ${server.name}", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true)
@@ -459,7 +532,8 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
                 OutlinedTextField(value = fp, onValueChange = { fp = it }, label = { Text(t.fingerprint) }, singleLine = true)
                 OutlinedTextField(value = cpuAlert, onValueChange = { cpuAlert = it }, label = { Text(t.cpuAlertLbl) }, singleLine = true)
                 OutlinedTextField(value = memAlert, onValueChange = { memAlert = it }, label = { Text(t.memAlertLbl) }, singleLine = true)
-                Button(
+                PrimaryActionButton(
+                    text = t.save,
                     onClick = {
                         val list = Prefs.loadServers(ctx)
                         val idx = list.indexOfFirst { it.id == server.id }
@@ -476,9 +550,8 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
                             onSaved()
                         }
                     },
-                    enabled = host.isNotBlank() && token.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(t.save) }
+                    enabled = host.isNotBlank() && token.isNotBlank()
+                )
             }
         },
         confirmButton = {},
@@ -486,21 +559,21 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
     )
 }
 
-// ── Settings dialog (poll interval) ─────────────────────────────────────────
+// ── Settings Dialog ─────────────────────────────────────────────────────────
 
 @Composable
 private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = LocalContext.current
     val current = Prefs.getPollIntervalMs(ctx) / 1000L
     var selected by remember { mutableStateOf(current) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        title = { Text(t.settings) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(t.settings, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text(t.pollInterval, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(t.pollInterval, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     TabButton(t.every5, selected == 5L) { selected = 5L }
@@ -520,7 +593,7 @@ private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
             TextButton(onClick = {
                 Prefs.setPollIntervalSec(ctx, selected)
                 onDismiss()
-            }) { Text(t.save) }
+            }) { Text(t.save, fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(t.cancel) } }
     )
