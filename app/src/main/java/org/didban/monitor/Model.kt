@@ -69,6 +69,29 @@ data class SocketsData(
     val connections: List<SocketItem>
 )
 
+data class DockerPortItem(
+    val ip: String,
+    val privatePort: Int,
+    val publicPort: Int,
+    val type: String
+)
+
+data class DockerContainerItem(
+    val id: String,
+    val name: String,
+    val image: String,
+    val state: String,
+    val status: String,
+    val created: Long,
+    val ports: List<DockerPortItem>
+)
+
+data class DockerSummaryData(
+    val installed: Boolean,
+    val containers: List<DockerContainerItem>,
+    val error: String?
+)
+
 data class ProcessKillResponse(
     val pid: Int,
     val name: String,
@@ -242,6 +265,46 @@ object JsonParse {
         return SocketsData(listening = listeningList, connections = connList)
     }
 
+    fun docker(o: JSONObject): DockerSummaryData {
+        val installed = o.optBoolean("installed", false)
+        val error = if (o.has("error")) o.optString("error") else null
+        val containers = mutableListOf<DockerContainerItem>()
+
+        val ca = o.optJSONArray("containers")
+        if (ca != null) {
+            for (i in 0 until ca.length()) {
+                val c = ca.optJSONObject(i) ?: continue
+                val ports = mutableListOf<DockerPortItem>()
+                val pa = c.optJSONArray("ports")
+                if (pa != null) {
+                    for (j in 0 until pa.length()) {
+                        val p = pa.optJSONObject(j) ?: continue
+                        ports.add(
+                            DockerPortItem(
+                                ip = p.optString("ip"),
+                                privatePort = p.optInt("private_port"),
+                                publicPort = p.optInt("public_port"),
+                                type = p.optString("type")
+                            )
+                        )
+                    }
+                }
+                containers.add(
+                    DockerContainerItem(
+                        id = c.optString("id"),
+                        name = c.optString("name"),
+                        image = c.optString("image"),
+                        state = c.optString("state"),
+                        status = c.optString("status"),
+                        created = c.optLong("created"),
+                        ports = ports
+                    )
+                )
+            }
+        }
+        return DockerSummaryData(installed = installed, containers = containers, error = error)
+    }
+
     fun killResult(o: JSONObject): ProcessKillResponse {
         return ProcessKillResponse(
             pid = o.optInt("pid"),
@@ -302,7 +365,6 @@ object Fmt {
 }
 
 object TimeUtil {
-    /** Parses RFC3339 (e.g. 2026-09-03T18:39:12.5Z) to epoch millis; returns 0 on failure. */
     fun parseIso(s: String): Long = try {
         Instant.parse(s).toEpochMilli()
     } catch (e: Exception) {

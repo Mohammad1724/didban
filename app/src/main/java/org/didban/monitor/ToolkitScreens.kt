@@ -60,13 +60,13 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 1. NETWORK HUB SCREEN (Port Scanner · SSL · IP Info · Ping)
+// 1. NETWORK HUB SCREEN (Port Scanner · DPI Censorship · SSL · IP · Ping)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 fun NetworkHubScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 4 }
+    val pagerState = rememberPagerState(initialPage = 0) { 5 }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
@@ -77,9 +77,9 @@ fun NetworkHubScreen(t: Str) {
 
         Row(
             Modifier.fillMaxWidth().padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            listOf("Port Scanner", "SSL Inspector", "IP & GeoIP", "TCP Ping").forEachIndexed { index, title ->
+            listOf("Port Scanner", "🛡️ Censorship", "SSL", "IP Info", "Ping").forEachIndexed { index, title ->
                 val selected = subTab == index
                 Surface(
                     shape = RoundedCornerShape(14.dp),
@@ -88,7 +88,7 @@ fun NetworkHubScreen(t: Str) {
                 ) {
                     Text(
                         title,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                         fontSize = 11.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
@@ -100,9 +100,91 @@ fun NetworkHubScreen(t: Str) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 0 -> PortScannerTab(t)
-                1 -> SslInspectorTab(t)
-                2 -> IpInfoTab(t)
-                3 -> TcpPingTab(t)
+                1 -> CensorshipTab(t)
+                2 -> SslInspectorTab(t)
+                3 -> IpInfoTab(t)
+                4 -> TcpPingTab(t)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CensorshipTab(t: Str) {
+    val scope = rememberCoroutineScope()
+    var host by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("443") }
+    var isTesting by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<CensorshipDiagnosticResult?>(null) }
+
+    fun runTest() {
+        if (host.isBlank() || isTesting) return
+        isTesting = true
+        result = null
+        scope.launch {
+            try {
+                result = CensorshipTester.diagnose(host.trim(), port.toIntOrNull() ?: 443)
+            } finally {
+                isTesting = false
+            }
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Text("🛡️ DPI Censorship & TLS Handshake Inspector", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text("Tests for TCP RST packet injections, TLS handshake kills, and ISP routing drops.", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(10.dp))
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = host,
+                onValueChange = { host = it },
+                label = { Text("Server Host / IP", fontSize = 12.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true
+            )
+            Spacer(Modifier.width(6.dp))
+            OutlinedTextField(
+                value = port,
+                onValueChange = { port = it },
+                label = { Text("Port", fontSize = 10.sp) },
+                modifier = Modifier.width(65.dp),
+                singleLine = true
+            )
+            Spacer(Modifier.width(6.dp))
+            Button(onClick = { runTest() }, enabled = !isTesting && host.isNotBlank()) {
+                if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                else Text("Diagnose")
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        result?.let { r ->
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (r.isFiltered) Color(0xFF3B1515) else Color(0xFF0F2E22),
+                border = BorderStroke(1.dp, if (r.isFiltered) Color(0xFF7A2E2E) else Color(0xFF1E5C40)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(r.diagnosis, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text("Target: ${r.host}:${r.port} (${r.latencyMs} ms)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(4.dp))
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("1. TCP Layer (SYN/ACK):", fontSize = 12.sp)
+                        Text(if (r.tcpReachable) "✅ Reachable" else "❌ Failed / Filtered", fontWeight = FontWeight.Bold, color = if (r.tcpReachable) Color(0xFF4ADE80) else Color(0xFFF87171))
+                    }
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("2. TLS Handshake Layer:", fontSize = 12.sp)
+                        Text(if (r.tlsReachable) "✅ Clean Negotiation" else "❌ Intercepted / Killed", fontWeight = FontWeight.Bold, color = if (r.tlsReachable) Color(0xFF4ADE80) else Color(0xFFF87171))
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    Text("Technical Detail:\n${r.details}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
     }
@@ -511,7 +593,6 @@ fun CloudflareScreen(t: Str) {
         Text("☁️ ${t.cloudflareDns}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(8.dp))
 
-        // API Token bar
         if (!isTokenSaved) {
             OutlinedTextField(
                 value = apiToken,
@@ -1027,100 +1108,6 @@ private fun GeneratorTab(t: Str) {
                         clipboard.setPrimaryClip(ClipData.newPlainText("uuid", generatedUuid))
                         Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
                     }) { Text("Copy") }
-                }
-            }
-        }
-    }
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// 5. LOCAL FILE & WEB SERVER WITH QR CODE SCREEN
-// ═════════════════════════════════════════════════════════════════════════════
-
-@Composable
-fun LocalServerScreen(t: Str) {
-    val scope = rememberCoroutineScope()
-    var isRunning by remember { mutableStateOf(LocalHttpServer.isRunning) }
-    var shareText by remember { mutableStateOf("Hello from Didban!") }
-    var serverPort by remember { mutableStateOf("8080") }
-    var localUrl by remember { mutableStateOf("") }
-    var qrBmp by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-
-    fun toggleServer() {
-        if (isRunning) {
-            LocalHttpServer.stop()
-            isRunning = false
-            qrBmp = null
-        } else {
-            val port = serverPort.toIntOrNull() ?: 8080
-            scope.launch {
-                LocalHttpServer.start(port = port, text = shareText)
-                val ip = LocalHttpServer.getLocalIpAddress()
-                val url = "http://$ip:$port"
-                localUrl = url
-                qrBmp = QrGenerator.generateSimpleBitmap(url, 400)
-                isRunning = true
-            }
-        }
-    }
-
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("📡 ${t.localWebServer}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
-
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = shareText,
-                    onValueChange = { shareText = it },
-                    label = { Text("Shared Content / Text", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
-                )
-
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = serverPort,
-                        onValueChange = { serverPort = it },
-                        label = { Text("Port", fontSize = 10.sp) },
-                        modifier = Modifier.width(80.dp),
-                        singleLine = true
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Button(
-                        onClick = { toggleServer() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isRunning) Color(0xFFDC2626) else MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text(if (isRunning) t.stopServer else t.startServer)
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-
-        if (isRunning && qrBmp != null) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("✅ Server Live at:", fontWeight = FontWeight.Bold, color = Color(0xFF4ADE80))
-                    Text(localUrl, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(12.dp))
-                    Image(
-                        bitmap = qrBmp!!.asImageBitmap(),
-                        contentDescription = "QR Code",
-                        modifier = Modifier.size(200.dp)
-                    )
                 }
             }
         }

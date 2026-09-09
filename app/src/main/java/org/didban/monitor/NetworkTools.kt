@@ -8,8 +8,10 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
@@ -183,8 +185,91 @@ object SslInspector {
                 fingerprintSha256 = fp
             )
         } finally {
-            socket.close()
+            try { socket.close() } catch (_: Exception) {}
         }
+    }
+}
+
+// ── Censorship & DPI / Handshake Diagnostic ──────────────────────────────────
+
+data class CensorshipDiagnosticResult(
+    val host: String,
+    val port: Int,
+    val tcpReachable: Boolean,
+    val tlsReachable: Boolean,
+    val isFiltered: Boolean,
+    val diagnosis: String,
+    val latencyMs: Long,
+    val details: String
+)
+
+object CensorshipTester {
+    suspend fun diagnose(host: String, port: Int = 443, timeoutMs: Int = 4000): CensorshipDiagnosticResult = withContext(Dispatchers.IO) {
+        val t0 = System.currentTimeMillis()
+        var tcpOk = false
+        var tlsOk = false
+        var isFiltered = false
+        var diagnosis = ""
+        var detail = ""
+
+        // Step 1: Raw TCP Socket Test
+        try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress(host, port), timeoutMs)
+                tcpOk = true
+            }
+        } catch (e: SocketTimeoutException) {
+            tcpOk = false
+            isFiltered = true
+            diagnosis = "🔴 IP / Port Completely Blocked (TCP SYN Timeout)"
+            detail = "Packets are being dropped by firewall/ISP routing blackhole."
+        } catch (e: IOException) {
+            val msg = e.message ?: ""
+            if (msg.contains("reset", ignoreCase = true) || msg.contains("RST", ignoreCase = true)) {
+                tcpOk = false
+                isFiltered = true
+                diagnosis = "🔴 DPI Filtered (TCP Reset RST Injection)"
+                detail = "The ISP's Deep Packet Inspection (DPI) firewall actively injected a TCP RST packet to kill the connection."
+            } else if (msg.contains("refused", ignoreCase = true)) {
+                tcpOk = false
+                isFiltered = false
+                diagnosis = "🟡 Port Closed (Connection Refused)"
+                detail = "Server is reachable but no service is listening on port $port."
+            } else {
+                tcpOk = false
+                isFiltered = true
+                diagnosis = "🔴 TCP Connection Failed: $msg"
+                detail = msg
+            }
+        }
+
+        // Step 2: TLS Handshake Test (if TCP succeeded)
+        if (tcpOk) {
+            try {
+                val cert = SslInspector.inspect(host, port, timeoutMs)
+                tlsOk = true
+                isFiltered = false
+                diagnosis = "🟢 Clean & Reachable (No DPI Filter Detected)"
+                detail = "TCP Handshake and TLS negotiation completed smoothly with certificate '${cert.subject}'."
+            } catch (e: Exception) {
+                tlsOk = false
+                isFiltered = true
+                diagnosis = "🔴 TLS Interception / SNI Filtered"
+                detail = "TCP connected, but TLS Handshake was killed or timed out (${e.message})."
+            }
+        }
+
+        val lat = System.currentTimeMillis() - t0
+        CensorshipDiagnosticResult(
+            host = host,
+            port = port,
+            tcpReachable = tcpOk,
+            tlsReachable = tlsOk,
+            isFiltered = isFiltered,
+            diagnosis = diagnosis,
+            latencyMs = lat,
+            details = detail
+        )
     }
 }
 

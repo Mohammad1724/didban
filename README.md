@@ -8,11 +8,13 @@
 
 ## Why Didban?
 
-Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram/Discord/Webhook alerts**, provides an **embeddable public HTML status page**, monitors website **uptime with Uptime Kuma style heartbeat bars**, and packs a powerhouse **mobile DevOps toolkit** (Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
+Every server admin knows the 2 AM question: **"CPU was at 100% last night — what did it?"** Didban answers it. A tiny Go agent runs on each server, records resource spikes **with the processes that caused them**, sends instant **Telegram/Discord/Webhook alerts**, provides an **embeddable public HTML status page**, monitors website **uptime with Uptime Kuma style heartbeat bars**, and packs a powerhouse **mobile DevOps toolkit** (Docker Manager, DPI Censorship Inspector, Cloudflare DNS, SSL inspector, Port scanner, GeoIP, encrypted vault, local web server, and developer tools).
 
 - 📊 **Live server metrics** — CPU (incl. %steal!), RAM/swap, disk, network throughput, load, uptime
 - 🕵️ **Spike forensics** — every CPU/memory spike is recorded server-side with the **top culprit processes** — even while your phone is off
+- 🐳 **Docker Container Watcher & Remote Control** — monitor all Docker containers via native socket (`/var/run/docker.sock`, zero dependencies), detect crashed/unhealthy containers with instant alerts, and restart/stop containers on the go
 - ⏱️ **Uptime & Heartbeat Engine (Uptime Kuma style)** — monitor HTTP(S), TCP ports (MySQL, Redis, Postgres), Ping, Keywords, and SSL with 30-bar heartbeats and incident downtime tracking
+- 🛡️ **DPI Censorship & TLS Inspector** — diagnose TCP SYN drops, DPI TCP RST injections, and TLS Handshake SNI filtering/censorship
 - 📄 **Public HTML Status Page** — built-in responsive web status page at `/status` showing server health, uptime, disks, ports, and activity
 - ✈️ **Multi-channel instant alerts** — get rich alerts with top culprit processes sent to **Telegram**, **Discord Webhooks**, and **Generic Webhooks**
 - 👂 **Listening ports & active connections** — live inspection of server ports, sockets, connected remote IPs, matched to PIDs and process names
@@ -33,7 +35,9 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 ┌────────────────────────── Your phone ──────────────────────────┐
 │  Didban Android App (All-in-One Command Center)                │
 │  • Server Fleet Dashboard & 24h Charts                         │
+│  • Docker Container Manager (Live status, Restart, Stop)       │
 │  • Uptime Kuma Heartbeat Monitor (HTTP, TCP, Ping, SSL)        │
+│  • DPI Censorship & TLS Handshake Inspector                    │
 │  • Spike Log ("what ate the CPU?") + Process Killer            │
 │  • Listening Ports & Active Socket Connections                 │
 │  • Cloudflare DNS Manager (Zones, Records, Proxy)              │
@@ -45,10 +49,11 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 ┌───────────────────────────────▼────────────────────────────────┐
 │  didban-agent (each server)                                    │
 │  • /api/metrics  /api/processes  /api/network/sockets          │
+│  • /api/docker/containers  /api/docker/restart  /api/docker/stop│
 │  • /api/events   /api/history    /api/processes/kill           │
 │  • Public HTML Status Page (/status)                           │
 │  • Multi-Channel Alert Dispatcher (Telegram/Discord/Webhook)   │
-│  • records spikes 24/7 to disk                                 │
+│  • records spikes & container events 24/7 to disk              │
 └────────────────────────────────────────────────────────────────┘
 ```
 
@@ -114,11 +119,14 @@ All `/api/*` endpoints require `Authorization: Bearer <token>` (or `?token=`).
 | `GET` | `/health` | liveness & alert status (no auth) |
 | `GET` | `/status` | public responsive HTML status board |
 | `GET` | `/api/metrics` | CPU (usage/user/system/iowait/**steal**), memory, swap, disks, network rates, load, uptime |
+| `GET` | `/api/docker/containers` | list all Docker containers, health, state, image, and exposed ports |
+| `POST` | `/api/docker/restart` | restart a Docker container (`{"id": "container_id_or_name"}`) |
+| `POST` | `/api/docker/stop` | stop a Docker container (`{"id": "container_id_or_name"}`) |
 | `GET` | `/api/processes` | top 25 processes by CPU (instant %, memory, user, cmd) |
 | `GET` | `/api/network/sockets` | listening ports & active TCP/UDP sockets matched to PIDs and process names |
 | `POST` | `/api/processes/kill` | terminate a runaway process safely (`{"pid": 1234, "signal": "SIGTERM"}`) |
 | `POST` | `/api/alerts/test` | dispatch a test alert to Telegram, Discord, and Webhooks |
-| `GET` | `/api/events?limit=50` | spike events (newest first) with top culprit processes |
+| `GET` | `/api/events?limit=50` | spike events & container crash events (newest first) with top culprit processes |
 | `GET` | `/api/history?hours=24` | minute-resolution history for charts |
 
 ## License

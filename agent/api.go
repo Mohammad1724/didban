@@ -27,6 +27,9 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/processes/kill", a.auth(a.handleProcessKill))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
+	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
+	mux.HandleFunc("/api/docker/restart", a.auth(a.handleDockerRestart))
+	mux.HandleFunc("/api/docker/stop", a.auth(a.handleDockerStop))
 	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
@@ -90,6 +93,52 @@ func (a *API) handleNetworkSockets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, GetNetworkSockets())
+}
+
+func (a *API) handleDockerContainers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	writeJSON(w, http.StatusOK, GetDockerContainers())
+}
+
+type dockerActionReq struct {
+	ID string `json:"id"`
+}
+
+func (a *API) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req dockerActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+	if err := RestartDockerContainer(req.ID); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Container restarted"})
+}
+
+func (a *API) handleDockerStop(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	var req dockerActionReq
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+	if err := StopDockerContainer(req.ID); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Container stopped"})
 }
 
 type killRequest struct {

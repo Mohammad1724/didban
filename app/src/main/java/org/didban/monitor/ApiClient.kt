@@ -125,6 +125,21 @@ class ApiClient {
     suspend fun sockets(server: ServerConfig): SocketsData =
         withContext(Dispatchers.IO) { JsonParse.sockets(get(server, "/api/network/sockets")) }
 
+    suspend fun dockerContainers(server: ServerConfig): DockerSummaryData =
+        withContext(Dispatchers.IO) { JsonParse.docker(get(server, "/api/docker/containers")) }
+
+    suspend fun dockerRestart(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/docker/restart", body)
+        }
+
+    suspend fun dockerStop(server: ServerConfig, id: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { put("id", id) }
+            post(server, "/api/docker/stop", body)
+        }
+
     suspend fun killProcess(server: ServerConfig, pid: Int, signal: String = "SIGTERM"): ProcessKillResponse =
         withContext(Dispatchers.IO) {
             val body = JSONObject().apply {
@@ -136,7 +151,7 @@ class ApiClient {
 
     suspend fun testTelegram(server: ServerConfig): JSONObject =
         withContext(Dispatchers.IO) {
-            post(server, "/api/alerts/telegram/test", JSONObject())
+            post(server, "/api/alerts/test", JSONObject())
         }
 
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"os"
 	"runtime"
 	"strconv"
@@ -109,6 +110,7 @@ type Monitor struct {
 	watchState     map[string]bool
 	procNames      map[string]bool
 	procCpuSum     float64
+	dockerState    map[string]string
 }
 
 func NewMonitor(cfg *Config) *Monitor {
@@ -120,6 +122,7 @@ func NewMonitor(cfg *Config) *Monitor {
 		uidMap:        loadUserMap(),
 		lastDiskEvent: make(map[string]time.Time),
 		watchState:    make(map[string]bool),
+		dockerState:   make(map[string]string),
 		snap: Snapshot{
 			Hostname: host,
 			Version:  version,
@@ -168,6 +171,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			m.checkDisks()
 			m.sampleNet()
 			m.sampleMisc()
+			m.checkDockerContainers()
 		case <-minute.C:
 			m.appendHistory()
 		case <-users.C:
@@ -185,7 +189,36 @@ func (m *Monitor) sampleAll() {
 	m.sampleDisks()
 	m.sampleNet()
 	m.sampleMisc()
+	m.checkDockerContainers()
 	m.appendHistory()
+}
+
+// checkDockerContainers monitors container lifecycle and triggers alerts on crashes.
+func (m *Monitor) checkDockerContainers() {
+	summary := GetDockerContainers()
+	if !summary.Installed {
+		return
+	}
+
+	for _, c := range summary.Containers {
+		prevState, known := m.dockerState[c.Name]
+		if known && prevState != c.State {
+			if (prevState == "running") && (c.State == "exited" || c.State == "restarting" || c.State == "dead") {
+				m.RecordEvent(Event{
+					Time:   time.Now(),
+					Type:   "container_down",
+					Detail: fmt.Sprintf("Container '%s' (%s) changed to %s (%s)", c.Name, c.Image, c.State, c.Status),
+				})
+			} else if (prevState != "running") && (c.State == "running") {
+				m.RecordEvent(Event{
+					Time:   time.Now(),
+					Type:   "container_up",
+					Detail: fmt.Sprintf("Container '%s' is running", c.Name),
+				})
+			}
+		}
+		m.dockerState[c.Name] = c.State
+	}
 }
 
 // Snapshot returns a copy of the current snapshot.

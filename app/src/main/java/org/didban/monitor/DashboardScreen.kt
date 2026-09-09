@@ -62,10 +62,10 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     val ctx = LocalContext.current
     val api = remember { ApiClient() }
     var tab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 5 }
+    val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
 
-    // Keep the tab chips and the pager in sync (swipe ↔ chip tap)
+    // Keep the tab chips and the pager in sync
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { tab = it }
     }
@@ -78,9 +78,10 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
     var socketsData by remember { mutableStateOf<SocketsData?>(null) }
+    var dockerData by remember { mutableStateOf<DockerSummaryData?>(null) }
 
     // Kill process dialog state
-    var procToKill by remember { mutableStateOf<Pair<Int, String>?>(null) } // (pid, name)
+    var procToKill by remember { mutableStateOf<Pair<Int, String>?>(null) }
     var killSignal by remember { mutableStateOf("SIGTERM") }
     var isKilling by remember { mutableStateOf(false) }
 
@@ -99,7 +100,13 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
         }
     }
 
-    // Live refresh loop for the overview tab
+    fun refreshDocker() {
+        scope.launch {
+            try { dockerData = api.dockerContainers(server) } catch (_: Exception) { }
+        }
+    }
+
+    // Live refresh loop for overview
     LaunchedEffect(server.id) {
         while (true) {
             try {
@@ -126,6 +133,7 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
             1 -> refreshProcs()
             2 -> { try { events = api.events(server, 50) } catch (_: Exception) { } }
             3 -> refreshSockets()
+            4 -> refreshDocker()
         }
     }
 
@@ -137,7 +145,6 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
                 Text(server.name.ifEmpty { server.host }, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text("${server.host}:${server.port}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
-            // Telegram Test Button
             TextButton(
                 onClick = {
                     if (isTestingTg) return@TextButton
@@ -188,25 +195,18 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
 
         // ── Tabs (Horizontal Chips) ──
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             TabChip(t.overview, tab == 0) { scope.launch { pagerState.animateScrollToPage(0) } }
             TabChip(t.processes, tab == 1) { scope.launch { pagerState.animateScrollToPage(1) } }
             TabChip(t.events, tab == 2) { scope.launch { pagerState.animateScrollToPage(2) } }
             TabChip(t.portsAndSockets, tab == 3) { scope.launch { pagerState.animateScrollToPage(3) } }
-            TabChip(t.globalCheck, tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
-            if (tab == 2) {
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { shareEvents(ctx, t, server, events) }) {
-                    Text("⇪ ${t.share}", fontSize = 12.sp)
-                }
-            }
+            TabChip("🐳 Docker", tab == 4) { scope.launch { pagerState.animateScrollToPage(4) } }
+            TabChip(t.globalCheck, tab == 5) { scope.launch { pagerState.animateScrollToPage(5) } }
         }
 
-        // ── Content (swipeable pages) ──
+        // ── Content Pages ──
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 0 -> OverviewTab(t, metrics, hist, err, latency, latHist)
@@ -228,7 +228,8 @@ fun DashboardScreen(t: Str, server: ServerConfig, onBack: () -> Unit) {
                     }
                 )
                 3 -> SocketsTab(t = t, data = socketsData, onRefresh = { refreshSockets() })
-                4 -> GlobalCheckTab(t = t, defaultHost = server.host)
+                4 -> DockerTab(server = server, data = dockerData, onRefresh = { refreshDocker() })
+                5 -> GlobalCheckTab(t = t, defaultHost = server.host)
             }
         }
     }
@@ -510,6 +511,8 @@ private fun EventsTab(
     fun eventStyle(type: String): Triple<String, String, Color> = when (type) {
         "cpu" -> Triple("🔥", t.spikeCpu, Color(0xFFF87171))
         "memory" -> Triple("🧠", t.spikeMem, Color(0xFF93C5FD))
+        "container_down" -> Triple("💀", "Container Down", Color(0xFFF87171))
+        "container_up" -> Triple("✅", "Container Up", Color(0xFF4ADE80))
         "process_down" -> Triple("💀", t.eventProcessDown, Color(0xFFF87171))
         "process_up" -> Triple("✅", t.eventProcessUp, Color(0xFF4ADE80))
         "disk" -> Triple("💽", t.eventDisk, Color(0xFFFBBF24))
@@ -571,7 +574,7 @@ private fun EventsTab(
     }
 }
 
-// ── Sockets & Ports Tab (Listening Ports & Active Connections) ───────────────
+// ── Sockets & Ports Tab ──────────────────────────────────────────────────────
 
 @Composable
 private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
@@ -672,6 +675,101 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             color = if (s.state == "LISTEN" || s.state == "ESTABLISHED") Color(0xFF4ADE80) else Color(0xFF94A3B8)
                         )
+                    }
+                }
+            }
+            item { Spacer(Modifier.height(20.dp)) }
+        }
+    }
+}
+
+// ── Docker Containers Tab ───────────────────────────────────────────────────
+
+@Composable
+private fun DockerTab(server: ServerConfig, data: DockerSummaryData?, onRefresh: () -> Unit) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val api = remember { ApiClient() }
+
+    if (data == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (!data.installed) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("🐳", fontSize = 36.sp)
+                Spacer(Modifier.height(6.dp))
+                Text("Docker daemon is not running on this server", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            }
+        }
+        return
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Containers (${data.containers.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            TextButton(onClick = onRefresh) { Text("🔄", fontSize = 14.sp) }
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(data.containers, key = { it.id }) { c ->
+                val isRunning = c.state == "running"
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(10.dp).background(
+                                    if (isRunning) Color(0xFF4ADE80) else Color(0xFFF87171),
+                                    CircleShape
+                                )
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(c.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                            Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                Text(c.state.uppercase(), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        Text(c.image, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                        Text(c.status, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        Spacer(Modifier.height(8.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = {
+                                scope.launch {
+                                    try {
+                                        api.dockerRestart(server, c.id)
+                                        Toast.makeText(ctx, "Container ${c.name} restarted", Toast.LENGTH_SHORT).show()
+                                        onRefresh()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }) { Text("🔄 Restart", fontSize = 11.sp) }
+
+                            if (isRunning) {
+                                TextButton(onClick = {
+                                    scope.launch {
+                                        try {
+                                            api.dockerStop(server, c.id)
+                                            Toast.makeText(ctx, "Container ${c.name} stopped", Toast.LENGTH_SHORT).show()
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(ctx, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }) { Text("🛑 Stop", color = Color(0xFFF87171), fontSize = 11.sp) }
+                            }
+                        }
                     }
                 }
             }
@@ -866,8 +964,8 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-            fontSize = 12.sp,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            fontSize = 11.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
