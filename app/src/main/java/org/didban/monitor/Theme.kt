@@ -12,10 +12,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -152,11 +154,26 @@ val Telemetry = FontFamily(
     Font(R.font.jbmono_600, FontWeight.SemiBold)
 )
 
+val Vazirmatn = FontFamily(
+    Font(R.font.vazir_400, FontWeight.Normal),
+    Font(R.font.vazir_500, FontWeight.Medium),
+    Font(R.font.vazir_600, FontWeight.SemiBold),
+    Font(R.font.vazir_700, FontWeight.Bold)
+)
+
+/**
+ * The UI typeface picks itself: Persian (RTL) renders in Vazirmatn,
+ * Latin (LTR) in Inter — no fallback to system fonts anywhere.
+ */
+val AppFontFamily: FontFamily
+    @Composable get() = if (LocalLayoutDirection.current == LayoutDirection.Rtl) Vazirmatn else Inter
+
 /** Numbers that never jitter as values refresh. */
 val TabularNums = TextStyle(fontFeatureSettings = "tnum")
 
+@Composable
 private fun didbanTypography(): Typography {
-    val base = TextStyle(fontFamily = Inter)
+    val base = TextStyle(fontFamily = AppFontFamily)
     return Typography(
         displaySmall = base.copy(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
         headlineMedium = base.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),

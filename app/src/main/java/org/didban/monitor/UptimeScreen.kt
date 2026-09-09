@@ -100,15 +100,29 @@ fun UptimeScreen(t: Str) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // ── Summary strip ──
+            // ── Fleet uptime hero ──
             item {
-                ModernCard(padding = 14.dp) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        SummaryTile(t.monitorsTotalLbl, totalCount.toString(), Ds.accent, Modifier.weight(1f))
-                        VerticalHairline()
-                        SummaryTile(t.upLbl, upCount.toString(), Ds.ok, Modifier.weight(1f))
-                        VerticalHairline()
-                        SummaryTile(t.withDowntimeLbl, downCount.toString(), if (downCount > 0) Ds.danger else Ds.textSecondary, Modifier.weight(1f))
+                ModernCard(padding = 18.dp, cornerRadius = 22.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (targets.isEmpty()) "—" else "%.1f%%".format(Locale.US, targets.map { it.uptimePct }.average().toFloat()),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = if (downCount > 0) Ds.danger else Ds.ok
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(t.fleetUptimeAvg, fontSize = 11.sp, color = Ds.textTertiary)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(horizontalAlignment = Alignment.End) {
+                            HeroCount(t.monitorsTotalLbl, totalCount.toString(), Ds.accent)
+                            Spacer(Modifier.height(6.dp))
+                            HeroCount(t.upLbl, upCount.toString(), Ds.ok)
+                            Spacer(Modifier.height(6.dp))
+                            HeroCount(t.withDowntimeLbl, downCount.toString(), if (downCount > 0) Ds.danger else Ds.textSecondary)
+                        }
                     }
                 }
             }
@@ -138,8 +152,24 @@ fun UptimeScreen(t: Str) {
                         onClick = { expandedTargetId = if (isExpanded) null else item.id }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            PulseDot(isOnline = item.lastStatus == 1, size = 9.dp)
-                            Spacer(Modifier.width(10.dp))
+                            // uptime ring — the monitor's vital sign
+                            RingGauge(
+                                value = item.uptimePct,
+                                size = 46.dp,
+                                strokeWidth = 4.5.dp,
+                                tone = if (item.lastStatus == 1 && item.uptimePct > 98f) Ds.ok
+                                       else if (item.lastStatus == 1) Ds.warn
+                                       else Ds.danger
+                            ) {
+                                Text(
+                                    "${item.uptimePct.toInt()}",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Telemetry,
+                                    color = if (item.uptimePct > 98f) Ds.ok else if (item.lastStatus == 1) Ds.warn else Ds.danger
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
@@ -157,7 +187,7 @@ fun UptimeScreen(t: Str) {
                                 Spacer(Modifier.height(3.dp))
                                 Text(
                                     item.target,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     color = Ds.textTertiary,
                                     fontFamily = Telemetry,
                                     maxLines = 1,
@@ -167,7 +197,7 @@ fun UptimeScreen(t: Str) {
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     "%.1f%%".format(Locale.US, item.uptimePct),
-                                    fontSize = 14.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = Telemetry,
                                     color = if (item.uptimePct > 98f) Ds.ok else Ds.danger
@@ -307,28 +337,18 @@ fun UptimeScreen(t: Str) {
 }
 
 @Composable
-private fun SummaryTile(label: String, value: String, tone: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
-    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+private fun HeroCount(label: String, value: String, tone: androidx.compose.ui.graphics.Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             value,
-            fontSize = 19.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = Telemetry,
             color = tone
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.width(6.dp))
         Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
     }
-}
-
-@Composable
-private fun VerticalHairline() {
-    Box(
-        Modifier
-            .width(1.dp)
-            .height(34.dp)
-            .background(Ds.hairline)
-    )
 }
 
 // ── Add/Edit Monitor Dialog ─────────────────────────────────────────────────

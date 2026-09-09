@@ -4,12 +4,15 @@ package org.didban.monitor
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,14 +22,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.DarkMode
@@ -34,7 +37,6 @@ import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.LightMode
-import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Public
@@ -45,7 +47,6 @@ import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -371,7 +372,7 @@ fun DashboardScreen(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// OVERVIEW — hero telemetry
+// OVERVIEW — the cockpit
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -414,15 +415,24 @@ private fun OverviewTab(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize().imePadding()
     ) {
-        // ── 1. Hero card: identity + CPU gauge + quick stats ──
+        // ── 1. Cockpit: gauge cluster ──
         item {
-            ModernCard(padding = 16.dp) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+            ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularGauge(
+                        percentage = m.cpuUsage,
+                        label = "CPU",
+                        size = 112.dp,
+                        strokeWidth = 9.dp,
+                        activeColor = cpuTone(m.cpuUsage)
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // identity + alert test
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             StatusPill(if (isOnline) t.online else t.offline, isOnline = isOnline)
-                            Spacer(Modifier.width(8.dp))
                             if (latency >= 0f) {
+                                Spacer(Modifier.width(8.dp))
                                 Text(
                                     "${latency.toInt()} ms",
                                     fontSize = 11.5.sp,
@@ -431,172 +441,141 @@ private fun OverviewTab(
                                     color = if (latency > 250f) Ds.warn else Ds.textSecondary
                                 )
                             }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Row {
-                            SoftButton(
-                                text = t.testTelegram,
+                            Spacer(Modifier.weight(1f))
+                            CircleIconButton(
+                                icon = Icons.Rounded.Send,
+                                contentDescription = t.testTelegram,
                                 onClick = onTestAlert,
-                                icon = Icons.Rounded.Send
+                                tint = Ds.accent,
+                                size = 30.dp
                             )
                         }
+                        // RAM ring
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RingGauge(
+                                value = m.memPct,
+                                size = 44.dp,
+                                strokeWidth = 4.dp,
+                                tone = Ds.violet
+                            ) {
+                                Text(
+                                    "${m.memPct.toInt()}",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Telemetry,
+                                    color = Ds.violet
+                                )
+                            }
+                            Spacer(Modifier.width(11.dp))
+                            Column {
+                                Text(t.lblRamUse, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary)
+                                Text(
+                                    "${Fmt.bytes(m.memUsed)} / ${Fmt.bytes(m.memTotal)}",
+                                    fontSize = 11.sp,
+                                    fontFamily = Telemetry,
+                                    color = Ds.textSecondary
+                                )
+                            }
+                        }
+                        // Disk ring
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RingGauge(
+                                value = if (diskPrimary != null) 100f - diskPrimary.pct else 0f,
+                                size = 44.dp,
+                                strokeWidth = 4.dp,
+                                tone = Ds.accent
+                            ) {
+                                Text(
+                                    if (diskPrimary != null) "${(100f - diskPrimary.pct).toInt()}" else "—",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Telemetry,
+                                    color = Ds.accent
+                                )
+                            }
+                            Spacer(Modifier.width(11.dp))
+                            Column {
+                                Text(t.lblDiskFree, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary)
+                                Text(
+                                    if (diskPrimary != null) Fmt.bytes(diskPrimary.total - diskPrimary.used) else "—",
+                                    fontSize = 11.sp,
+                                    fontFamily = Telemetry,
+                                    color = Ds.textSecondary
+                                )
+                            }
+                        }
                     }
-                    Spacer(Modifier.width(14.dp))
-                    CircularGauge(
-                        percentage = m.cpuUsage,
-                        label = "CPU",
-                        size = 108.dp,
-                        strokeWidth = 9.dp,
-                        activeColor = cpuTone(m.cpuUsage)
-                    )
                 }
 
                 Spacer(Modifier.height(14.dp))
-                Hairline()
-                Spacer(Modifier.height(14.dp))
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    HeroStat(t.lblCpuUse, Fmt.pct(m.cpuUsage), cpuTone(m.cpuUsage))
-                    HeroStat(t.lblRamUse, Fmt.pct(m.memPct), Ds.violet)
-                    HeroStat(
-                        t.lblDiskFree,
-                        if (diskPrimary != null) Fmt.pct(100f - diskPrimary.pct) else "—",
-                        Ds.accent
+                StatBand(
+                    stats = listOf(
+                        StatItem(
+                            t.lblNetLive,
+                            m.nets.firstOrNull()?.let { "↓${Fmt.rate(it.rx)}" } ?: "—",
+                            Ds.info
+                        ),
+                        StatItem(
+                            t.lblLoad1m,
+                            "%.2f".format(Locale.US, m.load1),
+                            Ds.textPrimary
+                        ),
+                        StatItem(
+                            t.lblLatency,
+                            if (latency >= 0f) "${latency.toInt()}ms" else "—",
+                            if (latency > 250f) Ds.danger else Ds.ok
+                        ),
+                        StatItem(
+                            t.lblUptime,
+                            Fmt.uptime(m.uptime),
+                            Ds.textSecondary
+                        )
                     )
-                    HeroStat(t.lblUptime, Fmt.uptime(m.uptime), Ds.textSecondary)
-                }
-            }
-        }
-
-        // ── 2. Primary action ──
-        item {
-            PrimaryActionButton(
-                text = t.liveProcessWatch,
-                icon = Icons.Rounded.Memory,
-                onClick = { onNavigateTab(1) }
-            )
-        }
-
-        // ── 3. Quick tiles 2×2 ──
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SecondaryActionCard(
-                        title = t.dockerContainersLbl,
-                        icon = Icons.Rounded.Layers,
-                        onClick = { onNavigateTab(4) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SecondaryActionCard(
-                        title = t.spikeDetective,
-                        icon = Icons.Rounded.Timeline,
-                        onClick = { onNavigateTab(2) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SecondaryActionCard(
-                        title = t.portsAndSockets,
-                        icon = Icons.Rounded.Sensors,
-                        onClick = { onNavigateTab(3) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    SecondaryActionCard(
-                        title = t.processManager,
-                        icon = Icons.Rounded.Memory,
-                        onClick = { onNavigateTab(1) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // ── 4. Resource detail card ──
-        item {
-            ModernCard(padding = 16.dp) {
-                DataRow(t.lblRamUse, "${Fmt.bytes(m.memUsed)} / ${Fmt.bytes(m.memTotal)}", Ds.violet)
-                Hairline(Modifier.padding(vertical = 10.dp))
-                if (diskPrimary != null) {
-                    DataRow(
-                        t.lblDiskFree,
-                        "${Fmt.bytes(diskPrimary.total - diskPrimary.used)} (${Fmt.pct(100f - diskPrimary.pct)})",
-                        Ds.accent
-                    )
-                    Hairline(Modifier.padding(vertical = 10.dp))
-                }
-                DataRow(t.lblNetLive, m.nets.firstOrNull()?.let { "↓ ${Fmt.rate(it.rx)}   ↑ ${Fmt.rate(it.tx)}" } ?: "—", Ds.info)
-                Hairline(Modifier.padding(vertical = 10.dp))
-                DataRow(
-                    t.lblLoad1m,
-                    "%.2f (%d ${t.cores})".format(Locale.US, m.load1, m.cores),
-                    Ds.textPrimary
-                )
-                Spacer(Modifier.height(12.dp))
-                ProgressMetricBar(
-                    title = t.lblDiskFree,
-                    percentage = diskFreePct,
-                    progressColor = Ds.accent
                 )
             }
         }
 
-        // ── 5. 2×2 metric tiles ──
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricStatCard(
-                        icon = Icons.Rounded.SwapVert,
-                        title = t.lblNetLive,
-                        value = if (m.nets.isNotEmpty()) "↓${Fmt.rate(m.nets[0].rx)}\n↑${Fmt.rate(m.nets[0].tx)}" else "—",
-                        modifier = Modifier.weight(1f),
-                        iconTint = Ds.info,
-                        valueColor = Ds.textPrimary
-                    )
-                    MetricStatCard(
-                        icon = Icons.Rounded.Speed,
-                        title = t.lblLoad1m,
-                        value = "%.2f".format(Locale.US, m.load1),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MetricStatCard(
-                        icon = Icons.Rounded.Public,
-                        title = t.lblLatency,
-                        value = if (latency >= 0f) "${latency.toInt()} ms" else "—",
-                        modifier = Modifier.weight(1f),
-                        valueColor = if (latency > 250f) Ds.danger else Ds.ok
-                    )
-                    MetricStatCard(
-                        icon = Icons.Rounded.AccessTime,
-                        title = t.lblUptimeServer,
-                        value = Fmt.uptime(m.uptime),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // ── 6. 24h telemetry charts ──
+        // ── 2. Live telemetry chart hero ──
         item {
             ModernCard(padding = 15.dp) {
-                SectionLabel(t.lblCharts24h, icon = Icons.Rounded.Timeline)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel(t.lblCharts24h, icon = Icons.Rounded.Timeline)
+                    Spacer(Modifier.weight(1f))
+                    ChartLegendChip(t.cpu, Fmt.pct(m.cpuUsage), Ds.accent)
+                    Spacer(Modifier.width(10.dp))
+                    ChartLegendChip(t.memory, Fmt.pct(m.memPct), Ds.violet)
+                }
                 Spacer(Modifier.height(12.dp))
                 if (hist.isNotEmpty()) {
-                    Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(46.dp), color = Ds.accent)
-                    Spacer(Modifier.height(4.dp))
-                    ChartLegend(t.cpu, Ds.accent)
+                    Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(58.dp), color = Ds.accent)
                     Spacer(Modifier.height(10.dp))
-                    Sparkline(hist.map { it.mem }, Modifier.fillMaxWidth().height(46.dp), color = Ds.violet)
-                    Spacer(Modifier.height(4.dp))
-                    ChartLegend(t.memory, Ds.violet)
+                    Sparkline(hist.map { it.mem }, Modifier.fillMaxWidth().height(58.dp), color = Ds.violet)
                 } else {
                     Text(t.lblCollecting, fontSize = 11.5.sp, color = Ds.textTertiary)
                 }
             }
+        }
+
+        // ── 3. Cockpit action tiles ──
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconTile(Icons.Rounded.Layers, t.dockerContainersLbl, { onNavigateTab(4) }, Modifier.weight(1f))
+                IconTile(Icons.Rounded.LocalFireDepartment, t.spikeDetective, { onNavigateTab(2) }, Modifier.weight(1f), tone = Ds.danger)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconTile(Icons.Rounded.Sensors, t.portsAndSockets, { onNavigateTab(3) }, Modifier.weight(1f), tone = Ds.info)
+                IconTile(Icons.Rounded.Memory, t.processManager, { onNavigateTab(1) }, Modifier.weight(1f), tone = Ds.violet)
+            }
+        }
+
+        // ── 4. Live process watch ──
+        item {
+            PrimaryActionButton(
+                text = t.liveProcessWatch,
+                icon = Icons.Rounded.Bolt,
+                onClick = { onNavigateTab(1) }
+            )
         }
 
         item { Spacer(Modifier.height(26.dp)) }
@@ -604,50 +583,23 @@ private fun OverviewTab(
 }
 
 @Composable
-private fun HeroStat(label: String, value: String, tone: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun ChartLegendChip(label: String, value: String, tone: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(7.dp).background(tone, RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(5.dp))
+        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
+        Spacer(Modifier.width(4.dp))
         Text(
             value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = Telemetry,
-            color = tone,
-            maxLines = 1
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(label, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
-    }
-}
-
-@Composable
-private fun DataRow(label: String, value: String, tone: Color) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, fontSize = 12.sp, color = Ds.textSecondary)
-        Text(
-            value,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 10.5.sp,
             fontFamily = Telemetry,
             color = tone
         )
     }
 }
 
-@Composable
-private fun ChartLegend(label: String, tone: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(7.dp).background(tone, RoundedCornerShape(2.dp)))
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
-    }
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
-// PROCESSES
+// PROCESSES — meter columns
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -706,9 +658,19 @@ private fun ProcessesTab(
         } else {
             items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 11.dp, horizontal = 4.dp),
+                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // CPU meter column
+                    MeterBar(
+                        value01 = p.cpu / 100f,
+                        tone = when {
+                            p.cpu > 85f -> Ds.danger
+                            p.cpu > 50f -> Ds.warn
+                            else -> Ds.accent
+                        }
+                    )
+                    Spacer(Modifier.width(13.dp))
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -749,7 +711,7 @@ private fun ProcessesTab(
                                 .clickable { onKill(p.pid, p.name) }
                                 .padding(top = 3.dp)
                         ) {
-                            Icon(Icons.Rounded.Block, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(11.dp))
+                            Icon(Icons.Rounded.Stop, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(11.dp))
                             Text(t.kill, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Ds.danger)
                         }
                     }
@@ -762,7 +724,7 @@ private fun ProcessesTab(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// EVENTS — spike forensics
+// EVENTS — spike timeline
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -789,7 +751,7 @@ private fun EventsTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         if (events.isEmpty()) {
             item {
@@ -799,66 +761,98 @@ private fun EventsTab(
                 )
             }
         } else {
-            items(events, key = { "${it.time}-${it.value}-${it.type}" }) { e ->
+            itemsIndexed(events, key = { _, e -> "${e.time}-${e.value}-${e.type}" }) { idx, e ->
                 val (icon, label, color) = eventStyle(e.type)
-                ModernCard(padding = 14.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(icon = icon, tint = color, background = color.copy(alpha = 0.13f), size = 30.dp, iconSize = 15.dp)
-                        Spacer(Modifier.width(10.dp))
-                        Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = color, modifier = Modifier.weight(1f))
-                        Text(
-                            fmt.format(Date(e.time)),
-                            fontSize = 10.sp,
-                            color = Ds.textTertiary,
-                            fontFamily = Telemetry
-                        )
+                val isLast = idx == events.lastIndex
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(vertical = 7.dp)
+                ) {
+                    // ── timeline spine ──
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(18.dp)) {
+                        Box(
+                            Modifier
+                                .size(13.dp)
+                                .background(color.copy(alpha = 0.15f), CircleShape)
+                                .border(1.2.dp, color, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(7.dp))
+                        }
+                        if (!isLast) {
+                            Spacer(Modifier.height(4.dp))
+                            Box(
+                                Modifier
+                                    .width(1.5.dp)
+                                    .fillMaxHeight()
+                                    .background(Ds.hairline)
+                            )
+                        }
                     }
-                    if (e.detail.isNotBlank()) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(e.detail, fontSize = 11.sp, color = Ds.textSecondary)
-                    }
-                    if (e.value > 0f) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            Fmt.pct(e.value),
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = Telemetry,
-                            color = color
-                        )
-                    }
-                    if (e.top.isNotEmpty()) {
-                        Spacer(Modifier.height(10.dp))
-                        SectionLabel(t.topProcesses)
-                        Spacer(Modifier.height(6.dp))
-                        e.top.take(4).forEach { p ->
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                    Text("· ${p.name}", fontSize = 12.sp, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("PID ${p.pid}", fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry)
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        Fmt.pct(p.cpu),
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Ds.accent,
-                                        fontFamily = Telemetry
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    Icon(
-                                        Icons.Rounded.Block,
-                                        contentDescription = "Kill",
-                                        tint = Ds.danger,
-                                        modifier = Modifier
-                                            .size(15.dp)
-                                            .clickable { onKill(p.pid, p.name) }
-                                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    // ── event body ──
+                    Column(Modifier.weight(1f).padding(bottom = 8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = color, modifier = Modifier.weight(1f, fill = false))
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                fmt.format(Date(e.time)),
+                                fontSize = 10.sp,
+                                color = Ds.textTertiary,
+                                fontFamily = Telemetry
+                            )
+                        }
+                        if (e.detail.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(e.detail, fontSize = 11.sp, color = Ds.textSecondary)
+                        }
+                        if (e.value > 0f) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                Fmt.pct(e.value),
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = color
+                            )
+                        }
+                        if (e.top.isNotEmpty()) {
+                            Spacer(Modifier.height(8.dp))
+                            e.top.take(4).forEach { p ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                        Box(Modifier.size(5.dp).background(color.copy(alpha = 0.7f), CircleShape))
+                                        Spacer(Modifier.width(7.dp))
+                                        Text(p.name, fontSize = 12.sp, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("PID ${p.pid}", fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            Fmt.pct(p.cpu),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Ds.accent,
+                                            fontFamily = Telemetry
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Icon(
+                                            Icons.Rounded.Stop,
+                                            contentDescription = "Kill",
+                                            tint = Ds.danger,
+                                            modifier = Modifier
+                                                .size(15.dp)
+                                                .clickable { onKill(p.pid, p.name) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -958,7 +952,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// DOCKER
+// DOCKER — panel list
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -1001,72 +995,89 @@ private fun DockerTab(t: Str, server: ServerConfig, data: DockerSummaryData?, on
             }
         }
 
-        items(data.containers, key = { it.id }) { c ->
-            val isRunning = c.state == "running"
-            ModernCard(padding = 14.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(9.dp)
-                            .background(if (isRunning) Ds.ok else Ds.danger, CircleShape)
-                    )
-                    Spacer(Modifier.width(9.dp))
-                    Text(
-                        c.name,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.5.sp,
-                        color = Ds.textPrimary,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    ValuePill(c.state, if (isRunning) Ds.ok else Ds.danger)
-                }
-
-                Spacer(Modifier.height(7.dp))
-                Text(c.image, fontSize = 10.5.sp, color = Ds.accent, fontFamily = Telemetry, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(c.status, fontSize = 10.5.sp, color = Ds.textTertiary)
-
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SoftButton(
-                        text = t.restartLbl,
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    api.dockerRestart(server, c.id)
-                                    Toast.makeText(ctx, t.containerRestartedTpl.format(c.name), Toast.LENGTH_SHORT).show()
-                                    onRefresh()
-                                } catch (e: Exception) {
-                                    Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+        item {
+            ModernCard(padding = 0.dp) {
+                Column {
+                    data.containers.forEachIndexed { idx, c ->
+                        val isRunning = c.state == "running"
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(9.dp)
+                                    .background(if (isRunning) Ds.ok else Ds.danger, CircleShape)
+                            )
+                            Spacer(Modifier.width(11.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    c.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Ds.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    c.image,
+                                    fontSize = 10.sp,
+                                    color = Ds.accent,
+                                    fontFamily = Telemetry,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(c.status, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                CircleIconButton(
+                                    icon = Icons.Rounded.Refresh,
+                                    contentDescription = t.restartLbl,
+                                    onClick = {
+                                        scope.launch {
+                                            try {
+                                                api.dockerRestart(server, c.id)
+                                                Toast.makeText(ctx, t.containerRestartedTpl.format(c.name), Toast.LENGTH_SHORT).show()
+                                                onRefresh()
+                                            } catch (e: Exception) {
+                                                Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    tint = Ds.accent,
+                                    size = 28.dp
+                                )
+                                if (isRunning) {
+                                    CircleIconButton(
+                                        icon = Icons.Rounded.Stop,
+                                        contentDescription = t.stopShort,
+                                        onClick = {
+                                            scope.launch {
+                                                try {
+                                                    api.dockerStop(server, c.id)
+                                                    Toast.makeText(ctx, t.containerStoppedTpl.format(c.name), Toast.LENGTH_SHORT).show()
+                                                    onRefresh()
+                                                } catch (e: Exception) {
+                                                    Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        tint = Ds.danger,
+                                        size = 28.dp
+                                    )
+                                } else {
+                                    // keep rows aligned when only one action exists
+                                    Spacer(Modifier.size(28.dp))
                                 }
                             }
-                        },
-                        icon = Icons.Rounded.Refresh
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    if (isRunning) {
-                        SoftButton(
-                            text = t.stopShort,
-                            onClick = {
-                                scope.launch {
-                                    try {
-                                        api.dockerStop(server, c.id)
-                                        Toast.makeText(ctx, t.containerStoppedTpl.format(c.name), Toast.LENGTH_SHORT).show()
-                                        onRefresh()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            icon = Icons.Rounded.Stop,
-                            tone = Ds.danger,
-                            toneDim = Ds.dangerDim
-                        )
+                        }
+                        if (idx != data.containers.lastIndex) {
+                            Hairline(Modifier.padding(horizontal = 14.dp))
+                        }
                     }
                 }
             }

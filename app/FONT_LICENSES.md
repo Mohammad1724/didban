@@ -10,6 +10,13 @@ Copyright (c) 2016-now The Inter Project Authors
 Licensed under the SIL Open Font License, Version 1.1. The full license text
 is available at: https://openfontlicense.org/open-font-license-official-text/
 
+## Vazirmatn — SIL Open Font License 1.1
+Copyright (c) 2015-now The Vazirmatn Project Authors
+(https://github.com/rastikerdar/vazirmatn)
+
+Licensed under the SIL Open Font License, Version 1.1. The full license text
+is available at: https://openfontlicense.org/open-font-license-official-text/
+
 ## JetBrains Mono — SIL Open Font License 1.1
 Copyright (c) 2020 JetBrains
 (https://github.com/JetBrains/JetBrainsMono)
@@ -17,5 +24,5 @@ Copyright (c) 2020 JetBrains
 Licensed under the SIL Open Font License, Version 1.1. The full license text
 is available at: https://openfontlicense.org/open-font-license-official-text/
 
-Both licenses permit bundling, redistribution and commercial use, provided
+All three licenses permit bundling, redistribution and commercial use, provided
 the fonts are not sold by themselves and reserved names are not reused.

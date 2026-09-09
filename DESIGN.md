@@ -54,7 +54,11 @@ Semantic mapping onto Material 3 (`primary = accent`, `outline = hairlineStrong`
 
 ## 3. Typography
 
-- **Inter** (400/500/600/700) — UI text, bundled in `res/font/`.
+- **Vazirmatn** (400/500/600/700) — UI text in RTL/Persian, bundled in
+  `res/font/`. Selected automatically via `AppFontFamily` based on
+  `LocalLayoutDirection`, so Persian screens render in a real Persian
+  typeface while Latin screens stay Inter.
+- **Inter** (400/500/600/700) — UI text in LTR locales, bundled in `res/font/`.
 - **JetBrains Mono** (400/500/600, exposed as `Telemetry`) — every number,
   PID, port, endpoint, hash and command. Monospaced digits = zero jitter.
 

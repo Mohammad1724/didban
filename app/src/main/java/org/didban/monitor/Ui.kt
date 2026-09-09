@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -688,7 +689,7 @@ fun DTextField(
                 keyboardOptions = keyboardOptions,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = Ds.textPrimary,
-                    fontFamily = if (mono) Telemetry else Inter,
+                    fontFamily = if (mono) Telemetry else AppFontFamily,
                     fontFeatureSettings = "tnum"
                 ),
                 cursorBrush = SolidColor(Ds.accent),
@@ -1249,6 +1250,174 @@ fun HeartbeatBar(
                     .height(height)
                     .background(color, RoundedCornerShape(2.5.dp))
             )
+        }
+    }
+}
+
+// ── Fleet console primitives ────────────────────────────────────────────────
+
+/**
+ * A compact live ring — the fleet console's unit of measurement.
+ * Used in server rows, cockpit clusters and monitor cards.
+ */
+@Composable
+fun RingGauge(
+    value: Float,
+    modifier: Modifier = Modifier,
+    size: Dp = 46.dp,
+    strokeWidth: Dp = 4.5.dp,
+    tone: Color = Ds.accent,
+    track: Color = Ds.track,
+    content: (@Composable () -> Unit)? = null
+) {
+    val target = (value / 100f).coerceIn(0f, 1f)
+    val progress by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(800, easing = FastOutSlowInEasing),
+        label = "ring"
+    )
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(size)) {
+            val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+            drawArc(color = track, startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
+            if (progress > 0.004f) {
+                drawArc(color = tone, startAngle = -90f, sweepAngle = progress * 360f, useCenter = false, style = stroke)
+            }
+        }
+        content?.invoke()
+    }
+}
+
+/** Tiny vertical meter column (process CPU share, fleet averages…). */
+@Composable
+fun MeterBar(
+    value01: Float,
+    modifier: Modifier = Modifier,
+    width: Dp = 4.dp,
+    height: Dp = 34.dp,
+    tone: Color = Ds.accent
+) {
+    Box(
+        modifier
+            .size(width = width, height = height)
+            .clip(RoundedCornerShape(2.dp))
+            .background(Ds.track)
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(value01.coerceIn(0.02f, 1f))
+                .background(tone, RoundedCornerShape(2.dp))
+        )
+    }
+}
+
+data class StatItem(
+    val label: String,
+    val value: String,
+    val tone: Color = Color.Unspecified,
+    val bar: Float? = null   // optional 0..1 meter under the value
+)
+
+/** A dense statistics band — labels above, mono values below, hairline separated. */
+@Composable
+fun StatBand(
+    stats: List<StatItem>,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(13.dp),
+        color = Ds.surfaceLow,
+        border = BorderStroke(1.dp, Ds.hairline),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            stats.forEachIndexed { i, s ->
+                if (i > 0) {
+                    Box(
+                        Modifier
+                            .width(1.dp)
+                            .height(34.dp)
+                            .background(Ds.hairline)
+                    )
+                }
+                Column(
+                    Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        s.label,
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ds.textTertiary,
+                        maxLines = 1
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        s.value,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Telemetry,
+                        color = if (s.tone == Color.Unspecified) Ds.textPrimary else s.tone,
+                        maxLines = 1
+                    )
+                    if (s.bar != null) {
+                        Spacer(Modifier.height(5.dp))
+                        Box(
+                            Modifier
+                                .width(34.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Ds.surfaceHigh)
+                        ) {
+                            Box(
+                                Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(s.bar.coerceIn(0.02f, 1f))
+                                    .background(if (s.tone == Color.Unspecified) Ds.accent else s.tone, RoundedCornerShape(2.dp))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Square icon tile for quick navigation (cockpit action grid). */
+@Composable
+fun IconTile(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tone: Color = Ds.accent
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Ds.surface,
+        border = BorderStroke(1.dp, Ds.hairline),
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .background(tone.copy(alpha = 0.12f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = tone, modifier = Modifier.size(21.dp))
+            }
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ds.textPrimary, maxLines = 1)
         }
     }
 }

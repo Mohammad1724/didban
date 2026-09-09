@@ -235,7 +235,14 @@ class Str(
     val testBeforeSave: String,
     val probeOkTpl: String,
     val probeFail: String,
-    val editMonitorTitle: String
+    val editMonitorTitle: String,
+    // Fleet console
+    val fleetAllOk: String,
+    val fleetDownTpl: String,
+    val statAvgCpu: String,
+    val statAvgRam: String,
+    val statWorstPing: String,
+    val fleetUptimeAvg: String
 )
 
 object Locales {
@@ -470,7 +477,13 @@ object Locales {
         testBeforeSave = "تست اتصال قبل از ذخیره",
         probeOkTpl = "پاسخ دریافت شد! (زمان پاسخ: %d میلی‌ثانیه)",
         probeFail = "پاسخ دریافت نشد یا خطایی رخ داد",
-        editMonitorTitle = "ویرایش مانیتور"
+        editMonitorTitle = "ویرایش مانیتور",
+        fleetAllOk = "همه سیستم‌ها عملیاتی است",
+        fleetDownTpl = "%d از %d سرور در دسترس نیست",
+        statAvgCpu = "میانگین CPU",
+        statAvgRam = "میانگین RAM",
+        statWorstPing = "بدترین پینگ",
+        fleetUptimeAvg = "میانگین آپ‌تایم ناوگان"
     )
 
     val en = Str(
@@ -704,6 +717,12 @@ object Locales {
         testBeforeSave = "Test before saving",
         probeOkTpl = "Response received! (latency: %d ms)",
         probeFail = "No response or an error occurred",
-        editMonitorTitle = "Edit monitor"
+        editMonitorTitle = "Edit monitor",
+        fleetAllOk = "All systems operational",
+        fleetDownTpl = "%d of %d servers unreachable",
+        statAvgCpu = "Avg CPU",
+        statAvgRam = "Avg RAM",
+        statWorstPing = "Worst ping",
+        fleetUptimeAvg = "Fleet uptime average"
     )
 }

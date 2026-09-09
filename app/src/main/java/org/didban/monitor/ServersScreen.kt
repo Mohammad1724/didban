@@ -23,13 +23,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentPaste
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -56,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,6 +106,13 @@ fun ServersScreen(
         }
     }
 
+    // ── Fleet aggregates ──
+    val liveMetrics = servers.mapNotNull { states[it.id]?.metrics }
+    val downCount = servers.size - liveMetrics.size
+    val avgCpu = if (liveMetrics.isNotEmpty()) liveMetrics.map { it.cpuUsage }.average().toFloat() else -1f
+    val avgRam = if (liveMetrics.isNotEmpty()) liveMetrics.map { it.memPct }.average().toFloat() else -1f
+    val worstPing = servers.mapNotNull { s -> states[s.id]?.latencyMs?.takeIf { it > 0f } }.maxOrNull() ?: -1f
+
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         ModernTopBar(
             title = t.appName,
@@ -120,71 +128,113 @@ fun ServersScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // ── Live watch strip ──
+            // ── 1. Fleet hero ──
             item {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    PulseDot(isOnline = monitoring, size = 8.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
+                ModernCard(padding = 18.dp, cornerRadius = 22.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(11.dp).background(
+                            if (downCount == 0 && servers.isNotEmpty()) Ds.ok else if (servers.isEmpty()) Ds.accent else Ds.danger,
+                            CircleShape
+                        ))
+                        Spacer(Modifier.width(9.dp))
                         Text(
-                            if (monitoring) t.monitoringOn else t.monitoringOff,
-                            fontSize = 12.5.sp,
+                            when {
+                                servers.isEmpty() -> t.noServers
+                                downCount > 0 -> t.fleetDownTpl.format(downCount, servers.size)
+                                else -> t.fleetAllOk
+                            },
+                            fontSize = 21.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (monitoring) Ds.ok else Ds.danger
-                        )
-                        Text(
-                            if (monitoring) t.monitorHintOn else t.monitorHintOff,
-                            fontSize = 10.5.sp,
-                            color = Ds.textTertiary
+                            letterSpacing = (-0.3).sp,
+                            color = when {
+                                servers.isEmpty() -> Ds.textPrimary
+                                downCount > 0 -> Ds.danger
+                                else -> Ds.ok
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    SoftButton(
-                        text = if (monitoring) t.stopShort else t.startShort,
-                        onClick = {
-                            if (MonitorService.isRunning) {
-                                ctx.stopService(Intent(ctx, MonitorService::class.java))
-                                MonitorService.isRunning = false
-                                monitoring = false
-                            } else {
-                                ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
-                                MonitorService.isRunning = true
-                                monitoring = true
-                            }
-                        },
-                        icon = if (monitoring) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
-                        tone = if (monitoring) Ds.danger else Ds.ok,
-                        toneDim = if (monitoring) Ds.dangerDim else Ds.okDim
+
+                    Spacer(Modifier.height(14.dp))
+                    StatBand(
+                        stats = listOf(
+                            StatItem(t.servers, if (servers.isEmpty()) "0" else "${servers.size}", Ds.accent),
+                            StatItem(
+                                t.statAvgCpu,
+                                if (avgCpu >= 0) Fmt.pct(avgCpu) else "—",
+                                if (avgCpu > 85f) Ds.danger else if (avgCpu > 60f) Ds.warn else Ds.ok,
+                                if (avgCpu >= 0) avgCpu / 100f else null
+                            ),
+                            StatItem(
+                                t.statAvgRam,
+                                if (avgRam >= 0) Fmt.pct(avgRam) else "—",
+                                Ds.violet,
+                                if (avgRam >= 0) avgRam / 100f else null
+                            ),
+                            StatItem(
+                                t.statWorstPing,
+                                if (worstPing > 0) "${worstPing.toInt()} ms" else "—",
+                                if (worstPing > 250f) Ds.warn else Ds.textPrimary
+                            )
+                        )
                     )
+
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PulseDot(isOnline = monitoring, size = 7.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (monitoring) t.monitoringOn else t.monitoringOff,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (monitoring) Ds.ok else Ds.danger,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Switch(
+                            checked = monitoring,
+                            onCheckedChange = { want ->
+                                if (want) {
+                                    ContextCompat.startForegroundService(ctx, Intent(ctx, MonitorService::class.java))
+                                    MonitorService.isRunning = true
+                                } else {
+                                    ctx.stopService(Intent(ctx, MonitorService::class.java))
+                                    MonitorService.isRunning = false
+                                }
+                                monitoring = want
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedTrackColor = Ds.accent,
+                                checkedThumbColor = Ds.onAccent,
+                                uncheckedTrackColor = Ds.surfaceHigh,
+                                uncheckedBorderColor = Ds.hairlineStrong
+                            )
+                        )
+                    }
                 }
             }
 
-            // ── Server list / Onboarding ──
+            // ── 2. Server console rows / Onboarding ──
             if (servers.isEmpty()) {
                 item {
-                    ModernCard(padding = 18.dp) {
+                    ModernCard(padding = 18.dp, cornerRadius = 22.dp) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                            RadarMark(diameter = 72.dp, tint = Ds.accent.copy(alpha = 0.85f))
+                            RadarMark(diameter = 76.dp, tint = Ds.accent.copy(alpha = 0.85f))
                             Spacer(Modifier.height(16.dp))
-                            Text(t.noServers, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                            Text(t.quickConnectGuide, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
                             Spacer(Modifier.height(5.dp))
                             Text(
-                                t.noServersHint,
-                                fontSize = 12.sp,
+                                t.quickConnectBody,
+                                fontSize = 11.5.sp,
                                 color = Ds.textSecondary,
-                                lineHeight = 17.5.sp,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                lineHeight = 17.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
-                        Spacer(Modifier.height(20.dp))
-                        SectionLabel(t.quickConnectGuide)
-                        Spacer(Modifier.height(8.dp))
-                        Text(t.quickConnectBody, fontSize = 11.5.sp, color = Ds.textSecondary, lineHeight = 17.sp)
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(14.dp))
                         TerminalBox(
                             text = AGENT_INSTALL_CMD,
                             copyLabel = t.copy,
@@ -202,19 +252,9 @@ fun ServersScreen(
                     }
                 }
             } else {
-                item {
-                    Row(
-                        Modifier.fillMaxWidth().padding(top = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SectionLabel(t.servers)
-                        Spacer(Modifier.width(8.dp))
-                        ValuePill("${servers.size}", Ds.accent)
-                    }
-                }
                 items(servers, key = { it.id }) { s ->
                     val st = states[s.id]
-                    ServerCard(
+                    ServerConsoleRow(
                         t = t,
                         s = s,
                         st = st,
@@ -272,10 +312,10 @@ fun ServersScreen(
     }
 }
 
-// ── Server card ──────────────────────────────────────────────────────────────
+// ── Server console row ───────────────────────────────────────────────────────
 
 @Composable
-private fun ServerCard(
+private fun ServerConsoleRow(
     t: Str,
     s: ServerConfig,
     st: Repo.State?,
@@ -285,35 +325,39 @@ private fun ServerCard(
 ) {
     val m = st?.metrics
     val isOnline = m != null
-    val lat = st?.latencyMs ?: 0f
+    val cpu = m?.cpuUsage ?: 0f
+
+    @Composable
+    fun cpuTone(): Color = when {
+        !isOnline -> Ds.danger
+        cpu > 85f -> Ds.danger
+        cpu > 60f -> Ds.warn
+        else -> Ds.ok
+    }
 
     ModernCard(
         modifier = Modifier.fillMaxWidth(),
-        padding = 14.dp,
+        padding = 13.dp,
         onClick = onOpen
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Node glyph, tinted by health
-            Box {
-                IconBadge(
-                    icon = Icons.Rounded.Dns,
-                    tint = if (isOnline) Ds.ok else Ds.danger,
-                    background = if (isOnline) Ds.okDim else Ds.dangerDim,
-                    size = 42.dp,
-                    iconSize = 21.dp
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(9.dp)
-                        .background(
-                            if (isOnline) Ds.ok else Ds.danger,
-                            androidx.compose.foundation.shape.CircleShape
-                        )
+            // live CPU ring — the fleet console's glyph
+            RingGauge(
+                value = if (isOnline) cpu else 0f,
+                size = 48.dp,
+                strokeWidth = 4.5.dp,
+                tone = cpuTone()
+            ) {
+                Text(
+                    if (isOnline) "${cpu.toInt()}" else "!",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Telemetry,
+                    color = cpuTone()
                 )
             }
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(13.dp))
 
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -327,43 +371,50 @@ private fun ServerCard(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(Modifier.width(8.dp))
-                    StatusPill(text = if (isOnline) t.online else t.offline, isOnline = isOnline)
+                    PulseDot(isOnline = isOnline, size = 6.dp)
                 }
                 Spacer(Modifier.height(3.dp))
                 Text(
                     "${s.host}:${s.port}",
                     color = Ds.textTertiary,
-                    fontSize = 11.sp,
-                    fontFamily = Telemetry
+                    fontSize = 10.5.sp,
+                    fontFamily = Telemetry,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 if (m != null) {
-                    Spacer(Modifier.height(7.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TelemetryText(
-                            "CPU ${Fmt.pct(m.cpuUsage)}",
-                            tone = when {
-                                m.cpuUsage > 85f -> Ds.danger
-                                m.cpuUsage > 60f -> Ds.warn
-                                else -> Ds.ok
-                            }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "RAM ${Fmt.pct(m.memPct)}",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontFamily = Telemetry,
+                            color = Ds.violet
                         )
-                        TelemetryText("RAM ${Fmt.pct(m.memPct)}", tone = Ds.violet)
+                        val lat = st?.latencyMs ?: 0f
                         if (lat > 0f) {
-                            TelemetryText(
+                            Text(
                                 "${lat.toInt()} ms",
-                                tone = if (lat > 250f) Ds.warn else Ds.textSecondary
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = Telemetry,
+                                color = if (lat > 250f) Ds.warn else Ds.textSecondary
                             )
                         }
+                        Text(
+                            Fmt.uptime(m.uptime),
+                            fontSize = 10.5.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.textTertiary
+                        )
                     }
                 } else if (st?.error != null) {
                     Spacer(Modifier.height(5.dp))
                     Text(
                         "${t.errorShort}: ${st.error}",
-                        fontSize = 10.5.sp,
+                        fontSize = 10.sp,
                         color = Ds.danger,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -371,37 +422,30 @@ private fun ServerCard(
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                CircleIconButton(
-                    icon = Icons.Rounded.Edit,
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Icon(
+                    Icons.Rounded.Edit,
                     contentDescription = "Edit",
-                    onClick = onEdit,
                     tint = Ds.textTertiary,
-                    size = 30.dp
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clickable { onEdit() }
+                        .padding(1.dp)
                 )
-                CircleIconButton(
-                    icon = Icons.Rounded.DeleteOutline,
+                Icon(
+                    Icons.Rounded.DeleteOutline,
                     contentDescription = "Delete",
-                    onClick = onDelete,
-                    tint = Ds.danger,
-                    size = 30.dp
+                    tint = Ds.danger.copy(alpha = 0.75f),
+                    modifier = Modifier
+                        .size(17.dp)
+                        .clickable { onDelete() }
+                        .padding(1.dp)
                 )
             }
         }
     }
-}
-
-@Composable
-private fun TelemetryText(text: String, tone: Color) {
-    Text(
-        text,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.SemiBold,
-        fontFamily = Telemetry,
-        color = tone
-    )
 }
 
 // ── Add Server Dialog ───────────────────────────────────────────────────────
@@ -741,7 +785,6 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
         }
     }
 }
-
 
 // ── Edit Server Dialog ──────────────────────────────────────────────────────
 
