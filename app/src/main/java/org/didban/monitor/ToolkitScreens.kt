@@ -1023,26 +1023,86 @@ fun VaultScreen(t: Str) {
     val ctx = LocalContext.current
     val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
+    var isVaultInit by remember { mutableStateOf(Prefs.isVaultInitialized(ctx)) }
     var masterPass by remember { mutableStateOf("") }
+    var confirmPass by remember { mutableStateOf("") }
     var isUnlocked by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf<String?>(null) }
+    var showPasswordText by remember { mutableStateOf(false) }
+
     var notes by remember { mutableStateOf<List<VaultNote>>(emptyList()) }
     var showAddNote by remember { mutableStateOf(false) }
+    var editingNote by remember { mutableStateOf<VaultNote?>(null) }
+    var deleteNote by remember { mutableStateOf<VaultNote?>(null) }
+    var revealedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+
     var backupString by remember { mutableStateOf("") }
     var showBackupDialog by remember { mutableStateOf(false) }
+    var showRestoreDialog by remember { mutableStateOf(false) }
 
     fun unlock() {
         if (masterPass.isBlank()) return
-        try {
-            notes = Prefs.loadVaultNotes(ctx, masterPass)
-            isUnlocked = true
-        } catch (e: Exception) {
-            Toast.makeText(ctx, "رمز عبور نادرست است یا گاوصندوق مخدوش شده", Toast.LENGTH_SHORT).show()
+        authError = null
+        if (Prefs.verifyMasterPassword(ctx, masterPass)) {
+            try {
+                notes = Prefs.loadVaultNotes(ctx, masterPass)
+                isUnlocked = true
+                authError = null
+            } catch (e: Exception) {
+                authError = "خطا در رمزگشایی اطلاعات گاوصندوق"
+            }
+        } else {
+            authError = "❌ رمز عبور اصلی اشتباه است"
         }
     }
 
+    fun setupNewVault() {
+        authError = null
+        if (masterPass.length < 4) {
+            authError = "رمز عبور اصلی باید حداقل ۴ کاراکتر باشد"
+            return
+        }
+        if (masterPass != confirmPass) {
+            authError = "رمز عبور و تکرار آن یکسان نیستند"
+            return
+        }
+        Prefs.setupMasterPassword(ctx, masterPass)
+        isVaultInit = true
+        notes = emptyList()
+        isUnlocked = true
+        Toast.makeText(ctx, "گاوصندوق امن با موفقیت ایجاد شد! 🔐", Toast.LENGTH_SHORT).show()
+    }
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("🔐 ${t.encryptedVault}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(8.dp))
+        // ── Top Header ──
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("🔐 ${t.encryptedVault}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.weight(1f))
+            if (isUnlocked) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable {
+                        isUnlocked = false
+                        masterPass = ""
+                        confirmPass = ""
+                        revealedNoteIds = emptySet()
+                    }
+                ) {
+                    Text(
+                        "🔒 قفل کردن",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFEF4444)
+                    )
+                }
+            }
+        }
 
         FeatureGuideCard(
             title = "🔐 راهنمای گاوصندوق امن محرمانه",
@@ -1051,90 +1111,299 @@ fun VaultScreen(t: Str) {
 
         Spacer(Modifier.height(10.dp))
 
-        if (!isUnlocked) {
+        // ── Case 1: First-time setup (Vault Not Initialized Yet) ──
+        if (!isVaultInit) {
             ModernCard(padding = 16.dp) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(t.vaultHint, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("تعیین رمز عبور اصلی گاوصندوق", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        "برای گاوصندوق خود یک رمز عبور اصلی تعیین کنید. تمامی اطلاعات با این رمز روی حافظه گوشی شما رمزنگاری (AES-256) خواهند شد.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
+
                     OutlinedTextField(
                         value = masterPass,
-                        onValueChange = { masterPass = it },
+                        onValueChange = { masterPass = it; authError = null },
+                        label = { Text("رمز عبور اصلی جدید", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = confirmPass,
+                        onValueChange = { confirmPass = it; authError = null },
+                        label = { Text("تکرار رمز عبور اصلی", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    if (authError != null) {
+                        Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    PrimaryActionButton(
+                        text = "🔐 فعال‌سازی و گشایش گاوصندوق",
+                        onClick = { setupNewVault() }
+                    )
+                }
+            }
+        }
+        // ── Case 2: Vault is Initialized but Locked ──
+        else if (!isUnlocked) {
+            ModernCard(padding = 16.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🔒", fontSize = 20.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("گاوصندوق امن قفل است", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                    Text(
+                        "برای دسترسی به کلیدهای SSH، رمزها و یادداشت‌های محرمانه، رمز اصلی را وارد کنید.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    OutlinedTextField(
+                        value = masterPass,
+                        onValueChange = { masterPass = it; authError = null },
                         label = { Text(t.masterPassword, fontSize = 12.sp) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
+
+                    if (authError != null) {
+                        Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
                     PrimaryActionButton(
-                        text = t.unlockVault,
+                        text = "🔓 ${t.unlockVault}",
                         onClick = { unlock() }
                     )
                 }
             }
-        } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("${notes.size} ${t.notes}", fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                TextButton(onClick = {
-                    val b64 = EncryptedVault.exportBackup(Prefs.loadServers(ctx), notes, masterPass)
-                    backupString = b64
-                    showBackupDialog = true
-                }) { Text("📦 ${t.backup}", fontSize = 12.sp) }
-                Button(
-                    onClick = { showAddNote = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("+ ${t.addNote}") }
+        }
+        // ── Case 3: Vault is Unlocked (Full Access) ──
+        else {
+            // Action & Backup Bar (Clean horizontal arrangement without vertical squeezing!)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    StatusPill("• ${notes.size} یادداشت و کلید ذخیره شده", isOnline = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.clickable {
+                                val b64 = EncryptedVault.exportBackup(Prefs.loadServers(ctx), notes, masterPass)
+                                backupString = b64
+                                showBackupDialog = true
+                            }
+                        ) {
+                            Text(
+                                "📦 پشتیبان‌گیری",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                            modifier = Modifier.clickable { showRestoreDialog = true }
+                        ) {
+                            Text(
+                                "📥 بازیابی",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+                }
+
+                PrimaryActionButton(
+                    text = "＋ ${t.addNote}",
+                    onClick = { showAddNote = true }
+                )
             }
 
             Spacer(Modifier.height(10.dp))
 
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(notes, key = { it.id }) { n ->
-                    ModernCard(padding = 12.dp) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(n.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                            TextButton(onClick = {
-                                clipboard.setPrimaryClip(ClipData.newPlainText("secret", n.content))
-                                Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
-                            }) { Text("📋 ${t.copy}", fontSize = 11.sp) }
-                            TextButton(onClick = {
-                                notes = notes.filter { it.id != n.id }
-                                Prefs.saveVaultNotes(ctx, notes, masterPass)
-                            }) { Text("🗑️", fontSize = 12.sp) }
-                        }
-                        Text(n.content, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (notes.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("🔐", fontSize = 42.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text("هنوز کلید یا یادداشتی ذخیره نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                     }
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(notes, key = { it.id }) { n ->
+                        val isRevealed = revealedNoteIds.contains(n.id)
+
+                        ModernCard(padding = 12.dp) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        if (n.tags.isNotBlank()) n.tags else "🔑 محرمانه",
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(n.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+
+                                TextButton(onClick = {
+                                    revealedNoteIds = if (isRevealed) revealedNoteIds - n.id else revealedNoteIds + n.id
+                                }) {
+                                    Text(if (isRevealed) "🙈 مخفی" else "👁️ نمایش", fontSize = 11.sp)
+                                }
+
+                                TextButton(onClick = {
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("secret", n.content))
+                                    Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                                }) { Text("📋 کپی", fontSize = 11.sp) }
+
+                                TextButton(onClick = { editingNote = n }) { Text("✏️", fontSize = 13.sp) }
+                                TextButton(onClick = { deleteNote = n }) { Text("🗑️", fontSize = 13.sp) }
+                            }
+
+                            Spacer(Modifier.height(4.dp))
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    if (isRevealed) n.content else "••••••••••••••••••••••••",
+                                    modifier = Modifier.padding(8.dp),
+                                    fontSize = 11.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = if (isRevealed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
     }
 
-    if (showAddNote) {
-        var title by remember { mutableStateOf("") }
-        var content by remember { mutableStateOf("") }
+    // ── Add/Edit Note Dialog ──
+    if (showAddNote || editingNote != null) {
+        val isEdit = editingNote != null
+        var title by remember { mutableStateOf(editingNote?.title ?: "") }
+        var content by remember { mutableStateOf(editingNote?.content ?: "") }
+        var tag by remember { mutableStateOf(editingNote?.tags ?: "🔑 کلید SSH") }
 
         AlertDialog(
-            onDismissRequest = { showAddNote = false },
+            onDismissRequest = { showAddNote = false; editingNote = null },
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text(t.addNote, fontWeight = FontWeight.Bold) },
+            title = { Text(if (isEdit) "ویرایش یادداشت محرمانه" else t.addNote, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("عنوان (مثلا کلید SSH سرور آلمان)") })
-                    OutlinedTextField(value = content, onValueChange = { content = it }, label = { Text("محتوا / پسورد محرمانه") }, minLines = 3)
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("عنوان (مثلاً کلید SSH سرور آلمان)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("🔑 کلید SSH", "🔐 پسورد", "🎫 توکن API", "📝 یادداشت").forEach { tg ->
+                            val isSel = tag == tg
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                                modifier = Modifier.clickable { tag = tg }
+                            ) {
+                                Text(
+                                    tg,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                                    fontSize = 10.sp,
+                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = content,
+                        onValueChange = { content = it },
+                        label = { Text("محتوا / پسورد / کلید محرمانه") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (title.isNotBlank()) {
-                            notes = notes + VaultNote(System.currentTimeMillis(), title, content)
+                        if (title.isNotBlank() && content.isNotBlank()) {
+                            if (isEdit) {
+                                editingNote?.title = title.trim()
+                                editingNote?.content = content.trim()
+                                editingNote?.tags = tag
+                                notes = notes.toList()
+                            } else {
+                                notes = notes + VaultNote(System.currentTimeMillis(), title.trim(), content.trim(), tag)
+                            }
                             Prefs.saveVaultNotes(ctx, notes, masterPass)
                             showAddNote = false
+                            editingNote = null
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text(t.save) }
+                ) { Text(t.save, fontWeight = FontWeight.Bold) }
             },
-            dismissButton = { TextButton(onClick = { showAddNote = false }) { Text(t.cancel) } }
+            dismissButton = {
+                TextButton(onClick = { showAddNote = false; editingNote = null }) { Text(t.cancel) }
+            }
         )
     }
 
+    // ── Delete Confirmation Dialog ──
+    deleteNote?.let { dn ->
+        AlertDialog(
+            onDismissRequest = { deleteNote = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("حذف یادداشت محرمانه", fontWeight = FontWeight.Bold) },
+            text = { Text("آیا از حذف «${dn.title}» اطمینان دارید؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    notes = notes.filter { it.id != dn.id }
+                    Prefs.saveVaultNotes(ctx, notes, masterPass)
+                    deleteNote = null
+                }) {
+                    Text("حذف", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteNote = null }) { Text(t.cancel) }
+            }
+        )
+    }
+
+    // ── Backup Export Dialog ──
     if (showBackupDialog) {
         AlertDialog(
             onDismissRequest = { showBackupDialog = false },
@@ -1144,7 +1413,12 @@ fun VaultScreen(t: Str) {
                 Column {
                     Text(t.backupCopyHint, fontSize = 12.sp)
                     Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(value = backupString, onValueChange = {}, readOnly = true, modifier = Modifier.fillMaxWidth().height(140.dp))
+                    OutlinedTextField(
+                        value = backupString,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().height(140.dp)
+                    )
                 }
             },
             confirmButton = {
@@ -1155,9 +1429,65 @@ fun VaultScreen(t: Str) {
                         showBackupDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text(t.copy) }
+                ) { Text(t.copy, fontWeight = FontWeight.Bold) }
             },
             dismissButton = { TextButton(onClick = { showBackupDialog = false }) { Text(t.close) } }
+        )
+    }
+
+    // ── Backup Restore Dialog ──
+    if (showRestoreDialog) {
+        var restorePayload by remember { mutableStateOf("") }
+        var restorePass by remember { mutableStateOf(masterPass) }
+        var restoreErr by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { showRestoreDialog = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("📥 بازیابی اطلاعات از بکاپ", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("رشته پشتیبان رمزنگاری‌شده را در کادر زیر وارد کنید:", fontSize = 12.sp)
+                    OutlinedTextField(
+                        value = restorePayload,
+                        onValueChange = { restorePayload = it; restoreErr = null },
+                        label = { Text("رشته بکاپ (Base64)") },
+                        modifier = Modifier.fillMaxWidth().height(110.dp)
+                    )
+                    OutlinedTextField(
+                        value = restorePass,
+                        onValueChange = { restorePass = it; restoreErr = null },
+                        label = { Text("رمز عبور زمان ایجاد بکاپ") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (restoreErr != null) {
+                        Text(restoreErr!!, color = Color(0xFFEF4444), fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        try {
+                            val (importedServers, importedNotes) = EncryptedVault.importBackup(restorePayload.trim(), restorePass)
+                            if (importedServers.isNotEmpty()) {
+                                Prefs.saveServers(ctx, importedServers)
+                            }
+                            if (importedNotes.isNotEmpty()) {
+                                notes = importedNotes
+                                Prefs.saveVaultNotes(ctx, notes, masterPass)
+                            }
+                            Toast.makeText(ctx, "بازیابی با موفقیت انجام شد! (${importedServers.size} سرور و ${importedNotes.size} یادداشت)", Toast.LENGTH_LONG).show()
+                            showRestoreDialog = false
+                        } catch (e: Exception) {
+                            restoreErr = "❌ خطا: رمز عبور اشتباه است یا رشته بکاپ معتبر نیست"
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                ) { Text("بازیابی اطلاعات", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = { TextButton(onClick = { showRestoreDialog = false }) { Text(t.cancel) } }
         )
     }
 }

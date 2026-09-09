@@ -64,6 +64,34 @@ object Prefs {
             .edit().putString("cf_token", token.trim()).apply()
     }
 
+    // ── Vault Master Password & Data Persistence ──
+
+    fun isVaultInitialized(ctx: Context): Boolean {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        return sp.contains("vault_canary_enc") && !sp.getString("vault_canary_enc", "").isNullOrEmpty()
+    }
+
+    fun setupMasterPassword(ctx: Context, password: String) {
+        val canary = EncryptedVault.encrypt("DIDBAN_VAULT_OK", password)
+        val initialNotes = EncryptedVault.encrypt("[]", password)
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .putString("vault_canary_enc", canary)
+            .putString("vault_notes_enc", initialNotes)
+            .apply()
+    }
+
+    fun verifyMasterPassword(ctx: Context, password: String): Boolean {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val canaryEnc = sp.getString("vault_canary_enc", null) ?: return false
+        return try {
+            val decrypted = EncryptedVault.decrypt(canaryEnc, password)
+            decrypted == "DIDBAN_VAULT_OK"
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun loadVaultNotes(ctx: Context, password: String): List<VaultNote> {
         val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         val rawEncrypted = sp.getString("vault_notes_enc", null) ?: return emptyList()
@@ -82,6 +110,14 @@ object Prefs {
         val enc = EncryptedVault.encrypt(arr.toString(), password)
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("vault_notes_enc", enc).apply()
+    }
+
+    fun resetVault(ctx: Context) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit()
+            .remove("vault_canary_enc")
+            .remove("vault_notes_enc")
+            .apply()
     }
 
     fun loadUptimeTargets(ctx: Context): List<UptimeTarget> {
