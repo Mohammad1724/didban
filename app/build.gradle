@@ -17,8 +17,8 @@ android {
         applicationId "org.didban.monitor"
         minSdk 26
         targetSdk 34
-        versionCode 9
-        versionName "0.6.1"
+        versionCode 10
+        versionName "0.6.2"
     }
 
     if (hasSigning) {
@@ -44,6 +44,10 @@ android {
     }
     kotlinOptions {
         jvmTarget = '17'
+        freeCompilerArgs += [
+            "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi",
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        ]
     }
     buildFeatures {
         compose true

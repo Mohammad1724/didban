@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package org.didban.monitor
 
 import androidx.compose.animation.core.FastOutSlowInEasing
