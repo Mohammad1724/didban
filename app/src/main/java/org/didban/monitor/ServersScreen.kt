@@ -117,7 +117,7 @@ fun ServersScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(14.dp)) {
         // ── Modern Top Bar ──
         ModernTopBar(
             title = t.appName,
@@ -129,46 +129,35 @@ fun ServersScreen(
             langLabel = t.langButton
         )
 
-        // ── Notice Banner (Matching Reference UI) ──
-        NoticeBanner(
-            text = "با اتصال سرور لینوکسی، مصرف لحظه‌ای پردازنده، رم، دیسک، کانتینرهای داکر و رویدادهای سرور به‌صورت زنده و بدون وقفه ثبت می‌شوند.",
-            modifier = Modifier.padding(bottom = 10.dp)
-        )
-
         // ── Monitoring Status Card ──
         ModernCard(
-            padding = 12.dp,
-            containerColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
-            borderColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.35f) else MaterialTheme.colorScheme.outlineVariant
+            padding = 10.dp,
+            containerColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface,
+            borderColor = if (monitoring) Color(0xFF10B981).copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
-                    Modifier.size(10.dp).background(
-                        if (monitoring) Color(0xFF10B981) else Color(0xFFEF4444),
-                        CircleShape
-                    )
-                )
-                Spacer(Modifier.width(10.dp))
+                PulseDot(isOnline = monitoring, size = 9.dp)
+                Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         if (monitoring) t.monitoringOn else t.monitoringOff,
                         fontWeight = FontWeight.Bold,
                         color = if (monitoring) Color(0xFF047857) else Color(0xFFEF4444),
-                        fontSize = 13.sp
+                        fontSize = 12.sp
                     )
                     Text(
                         if (monitoring) "پایش خودکار پس‌زمینه فعال است" else "پایش پس‌زمینه متوقف است",
-                        fontSize = 10.5.sp,
+                        fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                     modifier = Modifier.clickable {
                         if (MonitorService.isRunning) {
                             ctx.stopService(Intent(ctx, MonitorService::class.java))
@@ -182,7 +171,7 @@ fun ServersScreen(
                     }
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -190,10 +179,10 @@ fun ServersScreen(
                             imageVector = if (monitoring) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(13.dp)
                         )
                         Text(
-                            if (monitoring) "توقف پایش" else "شروع پایش",
+                            if (monitoring) "توقف" else "شروع",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -203,78 +192,72 @@ fun ServersScreen(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         // ── Server list / Onboarding ──
         if (servers.isEmpty()) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
                     ModernCard(padding = 16.dp) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconBadge(
                                     icon = Icons.Rounded.RocketLaunch,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                                     size = 36.dp,
                                     iconSize = 18.dp
                                 )
-                                Spacer(Modifier.width(10.dp))
-                                Text("راهنمای سریع اتصال اولین سرور", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.primary)
+                                Spacer(Modifier.width(8.dp))
+                                Text("راهنمای سریع اتصال سرور", fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = MaterialTheme.colorScheme.primary)
                             }
 
                             Text(
-                                "برای اتصال سرور لینوکس (Ubuntu, Debian, CentOS, AlmaLinux) دستور تک‌خطی زیر را در ترمینال SSH سرور خود اجرا کنید:",
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp,
+                                "برای اتصال سرور لینوکس (Ubuntu, Debian, CentOS, AlmaLinux) دستور زیر را در ترمینال سرور اجرا کنید:",
+                                fontSize = 11.5.sp,
+                                lineHeight = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
                             // Terminal Code Box
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFF0F172A),
                                 border = BorderStroke(1.dp, Color(0xFF334155)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Column(Modifier.padding(12.dp)) {
+                                Column(Modifier.padding(10.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("root@server:~#", fontSize = 11.sp, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                        Text("root@server:~#", fontSize = 10.5.sp, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                                         Spacer(Modifier.weight(1f))
                                         Surface(
-                                            shape = RoundedCornerShape(8.dp),
+                                            shape = RoundedCornerShape(6.dp),
                                             color = Color(0xFF1E293B),
                                             modifier = Modifier.clickable {
                                                 clipboard.setPrimaryClip(ClipData.newPlainText("install_cmd", AGENT_INSTALL_CMD))
-                                                Toast.makeText(ctx, "دستور نصب در حافظه کپی شد!", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(ctx, "دستور نصب کپی شد!", Toast.LENGTH_SHORT).show()
                                             }
                                         ) {
                                             Row(
-                                                Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                                Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
                                             ) {
-                                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(13.dp))
-                                                Text("کپی دستور", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(11.dp))
+                                                Text("کپی", fontSize = 10.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
-                                    Spacer(Modifier.height(6.dp))
+                                    Spacer(Modifier.height(4.dp))
                                     Text(
                                         AGENT_INSTALL_CMD,
-                                        fontSize = 11.sp,
+                                        fontSize = 10.sp,
                                         fontFamily = FontFamily.Monospace,
                                         color = Color(0xFFF1F5F9),
-                                        lineHeight = 16.sp
+                                        lineHeight = 14.sp
                                     )
                                 }
                             }
-
-                            Text(
-                                "پس از اجرای دستور، توکن اختصاصی و آدرس سرور نمایش داده می‌شود که می‌توانید در فرم زیر وارد کنید.",
-                                fontSize = 11.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
 
                             Spacer(Modifier.height(4.dp))
 
@@ -287,7 +270,7 @@ fun ServersScreen(
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(servers, key = { it.id }) { s ->
                     val st = states[s.id]
                     ModernServerCard(
@@ -300,7 +283,7 @@ fun ServersScreen(
                     )
                 }
                 item {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     PrimaryActionButton(
                         text = "＋  ${t.addServer}",
                         onClick = { showAdd = true }
@@ -367,71 +350,69 @@ private fun ModernServerCard(
 
     ModernCard(
         modifier = Modifier.fillMaxWidth().clickable { onOpen() },
-        padding = 14.dp
+        padding = 12.dp
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconBadge(
                 icon = if (isOnline) Icons.Rounded.Dns else Icons.Rounded.ErrorOutline,
                 tint = if (isOnline) Color(0xFF10B981) else Color(0xFFEF4444),
                 background = if (isOnline) Color(0xFF10B981).copy(alpha = 0.12f) else Color(0xFFEF4444).copy(alpha = 0.12f),
-                size = 42.dp,
-                iconSize = 22.dp
+                size = 38.dp,
+                iconSize = 20.dp
             )
 
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
 
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(s.name.ifEmpty { s.host }, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Spacer(Modifier.width(8.dp))
+                    Text(s.name.ifEmpty { s.host }, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.width(6.dp))
                     StatusPill(
-                        text = if (isOnline) "• ${t.online}" else "• ${t.offline}",
+                        text = if (isOnline) t.online else t.offline,
                         isOnline = isOnline
                     )
                 }
-                Spacer(Modifier.height(3.dp))
-                Text(s.host, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.5.sp)
-
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(2.dp))
+                Text(s.host, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
 
                 if (m != null) {
+                    Spacer(Modifier.height(4.dp))
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             "CPU: ${Fmt.pct(m.cpuUsage)}",
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             "RAM: ${Fmt.pct(m.memPct)}",
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF6366F1)
                         )
                         if (lat > 0f) {
                             Text(
                                 "${lat.toInt()} ms",
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else if (st?.error != null) {
-                    Text("${t.offline}: ${st.error}", fontSize = 11.5.sp, color = Color(0xFFEF4444))
-                } else {
-                    Text(t.connecting, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(2.dp))
+                    Text("${t.offline}: ${st.error}", fontSize = 10.5.sp, color = Color(0xFFEF4444))
                 }
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                IconButton(onClick = onEdit, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
                 }
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(17.dp))
+                IconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {
+                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -442,12 +423,12 @@ private fun ModernServerCard(
 
 @Composable
 private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) {
-    var mode by remember { mutableStateOf(1) } // Default to manual with quick command
+    var mode by remember { mutableStateOf(1) } // Default to manual
 
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text(t.addServer, fontWeight = FontWeight.Bold, fontSize = 17.sp) },
+        title = { Text(t.addServer, fontWeight = FontWeight.Bold, fontSize = 16.sp) },
         text = {
             Column(modifier = Modifier.imePadding()) {
                 Row(Modifier.fillMaxWidth()) {
@@ -455,7 +436,7 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
                     Spacer(Modifier.width(8.dp))
                     TabButton(t.sshInstall, mode == 0) { mode = 0 }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 if (mode == 1) ManualForm(t, onSaved) else SshInstallForm(t, onSaved)
             }
         },
@@ -469,15 +450,15 @@ private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) 
 @Composable
 private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
-        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         modifier = Modifier.clickable { onClick() }
     ) {
         Text(
             label,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            fontSize = 12.5.sp,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            fontSize = 11.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
             color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -497,18 +478,15 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
     var tls by remember { mutableStateOf(true) }
     var fp by remember { mutableStateOf("") }
 
-    // Test connection states
     var isTesting by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testSuccess by remember { mutableStateOf(false) }
 
-    // Smart auto-parse from clipboard
     fun parseClipboard() {
         try {
             val clip = clipboard.primaryClip?.getItemAt(0)?.text?.toString() ?: return
             var found = false
 
-            // Check for URI pattern didban://host:port?token=...&fp=...
             if (clip.startsWith("didban://")) {
                 val clean = clip.removePrefix("didban://")
                 val parts = clean.split("?")
@@ -530,7 +508,6 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                 }
                 found = true
             } else {
-                // Parse standard installer text output
                 val lines = clip.lines()
                 for (line in lines) {
                     val trimmed = line.trim()
@@ -555,9 +532,9 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
             }
 
             if (found) {
-                Toast.makeText(ctx, "اطلاعات سرور از کلیپ‌بورد شناسایی و پر شد!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, "اطلاعات از کلیپ‌بورد شناسایی شد!", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(ctx, "فرمت مشخصات در کلیپ‌بورد یافت نشد", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, "مشخصات معتبری در کلیپ‌بورد یافت نشد", Toast.LENGTH_SHORT).show()
             }
         } catch (_: Exception) {}
     }
@@ -566,54 +543,12 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth().height(420.dp)
     ) {
-        // ── Installation Command Box ──
-        item {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF0F172A),
-                border = BorderStroke(1.dp, Color(0xFF334155)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(Modifier.padding(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("دستور نصب در لینوکس:", fontSize = 11.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.weight(1f))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFF1E293B),
-                            modifier = Modifier.clickable {
-                                clipboard.setPrimaryClip(ClipData.newPlainText("install_cmd", AGENT_INSTALL_CMD))
-                                Toast.makeText(ctx, "دستور در کلیپ‌بورد کپی شد!", Toast.LENGTH_SHORT).show()
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(11.dp))
-                                Text("کپی دستور", fontSize = 10.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        AGENT_INSTALL_CMD,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = Color(0xFFF1F5F9),
-                        lineHeight = 14.sp
-                    )
-                }
-            }
-        }
-
-        // ── Smart Auto-Paste Button ──
+        // Smart Paste Button
         item {
             Surface(
                 shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)),
                 modifier = Modifier.fillMaxWidth().clickable { parseClipboard() }
             ) {
                 Row(
@@ -621,9 +556,9 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Rounded.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(15.dp))
+                    Icon(Icons.Rounded.ContentPaste, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("الصاق خودکار اطلاعات از کلیپ‌بورد", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                    Text("الصاق خودکار مشخصات از کلیپ‌بورد", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 }
             }
         }
@@ -643,7 +578,7 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = tls, onCheckedChange = { tls = it })
-                Text(t.useTls, fontSize = 13.sp)
+                Text(t.useTls, fontSize = 12.5.sp)
             }
         }
         item {
@@ -655,7 +590,6 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
             )
         }
 
-        // Test Connection Feedback
         if (testResult != null) {
             item {
                 Surface(
@@ -672,7 +606,7 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                             imageVector = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                             contentDescription = null,
                             tint = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626),
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                         Text(
                             testResult!!,
@@ -685,7 +619,6 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
             }
         }
 
-        // Action Buttons: Test Connection + Save
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
@@ -708,24 +641,24 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                                 val m = ApiClient().metrics(testCfg)
                                 val elapsed = System.currentTimeMillis() - t0
                                 testSuccess = true
-                                testResult = "اتصال با موفقیت برقرار شد! (تاخیر: ${elapsed}ms - پردازنده: ${Fmt.pct(m.cpuUsage)})"
+                                testResult = "اتصال موفق! (${elapsed}ms - CPU: ${Fmt.pct(m.cpuUsage)})"
                             } catch (e: Exception) {
                                 testSuccess = false
-                                testResult = "خطا در اتصال: ${e.message}\n(مطمئن شوید پورت $port با sudo ufw allow $port باز است)"
+                                testResult = "خطا در اتصال: ${e.message}"
                             } finally {
                                 isTesting = false
                             }
                         }
                     },
                     enabled = !isTesting && host.isNotBlank() && token.isNotBlank(),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f).height(46.dp)
                 ) {
                     if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                     else {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Text("تست اتصال", fontSize = 11.5.sp)
+                            Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Text("تست اتصال", fontSize = 11.sp)
                         }
                     }
                 }
@@ -748,9 +681,9 @@ private fun ManualForm(t: Str, onSaved: () -> Unit) {
                         }
                     },
                     enabled = host.isNotBlank() && token.isNotBlank(),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
-                    modifier = Modifier.weight(1f).height(48.dp)
+                    modifier = Modifier.weight(1f).height(46.dp)
                 ) {
                     Text(t.save, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -777,7 +710,7 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
         modifier = Modifier.fillMaxWidth().height(420.dp)
     ) {
         item {
-            Text(t.sshInstallHint, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(t.sshInstallHint, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         item {
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(t.name) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -803,7 +736,7 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
                         Icon(
                             imageVector = if (showPass) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                             contentDescription = if (showPass) "Hide password" else "Show password",
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 },
@@ -813,9 +746,9 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
 
         if (busy) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                    Text(t.installing, fontSize = 13.sp)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Text(t.installing, fontSize = 12.sp)
                 }
             }
         }
@@ -827,12 +760,12 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
                         imageVector = if (r.success) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                         contentDescription = null,
                         tint = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Text(
                         if (r.success) t.installDone else "${t.installFailed}: ${r.error}",
                         color = if (r.success) Color(0xFF10B981) else Color(0xFFEF4444),
-                        fontSize = 12.sp
+                        fontSize = 11.5.sp
                     )
                 }
             }
@@ -917,7 +850,7 @@ private fun EditServerDialog(t: Str, server: ServerConfig, onDismiss: () -> Unit
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = tls, onCheckedChange = { tls = it })
-                        Text(t.useTls, fontSize = 13.sp)
+                        Text(t.useTls, fontSize = 12.5.sp)
                     }
                 }
                 item {
@@ -973,7 +906,7 @@ private fun SettingsDialog(t: Str, onDismiss: () -> Unit) {
         title = { Text(t.settings, fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text(t.pollInterval, fontSize = 12.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(t.pollInterval, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     TabButton(t.every5, selected == 5L) { selected = 5L }

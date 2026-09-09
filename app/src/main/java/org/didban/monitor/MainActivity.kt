@@ -7,8 +7,10 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,12 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Dns
-import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
@@ -191,10 +195,11 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var themeMode by remember { mutableStateOf(Prefs.getThemeMode(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
-    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Uptime, 2: Network, 3: Cloudflare, 4: Vault, 5: DevLab
+    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Tunnels, 2: Uptime, 3: Network, 4: Cloudflare, 5: Vault, 6: DevLab
 
     val t = if (lang == "fa") Locales.fa else Locales.en
     val isDarkMode = themeMode == "dark"
+    val navScrollState = rememberScrollState()
 
     // Deep-link from notifications: open the specific server
     LaunchedEffect(pendingServerId.value) {
@@ -254,35 +259,37 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                                 },
                                 onOpen = { openServer = it }
                             )
-                            1 -> UptimeScreen(t = t)
-                            2 -> NetworkHubScreen(t = t)
-                            3 -> CloudflareScreen(t = t)
-                            4 -> VaultScreen(t = t)
-                            5 -> DevLabScreen(t = t)
+                            1 -> TunnelScreen(t = t)
+                            2 -> UptimeScreen(t = t)
+                            3 -> NetworkHubScreen(t = t)
+                            4 -> CloudflareScreen(t = t)
+                            5 -> VaultScreen(t = t)
+                            6 -> DevLabScreen(t = t)
                         }
                     }
 
                     // ── Modern Bottom Navigation Bar (Vector Icons) ──
                     Surface(
                         color = MaterialTheme.colorScheme.surface,
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant
-                        ),
-                        shadowElevation = 8.dp,
-                        modifier = Modifier.fillMaxWidth().height(64.dp)
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.fillMaxWidth().height(60.dp)
                     ) {
                         Row(
-                            Modifier.fillMaxSize().padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceAround,
+                            Modifier
+                                .fillMaxSize()
+                                .horizontalScroll(navScrollState)
+                                .padding(horizontal = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             NavItem(Icons.Rounded.Dns, t.navServers, currentNav == 0) { currentNav = 0 }
-                            NavItem(Icons.Rounded.Timer, t.navUptime, currentNav == 1) { currentNav = 1 }
-                            NavItem(Icons.Rounded.Hub, t.navNetwork, currentNav == 2) { currentNav = 2 }
-                            NavItem(Icons.Rounded.Cloud, t.navCloudflare, currentNav == 3) { currentNav = 3 }
-                            NavItem(Icons.Rounded.Security, t.navVault, currentNav == 4) { currentNav = 4 }
-                            NavItem(Icons.Rounded.Terminal, t.navTools, currentNav == 5) { currentNav = 5 }
+                            NavItem(Icons.Rounded.SwapHoriz, t.navTunnels, currentNav == 1) { currentNav = 1 }
+                            NavItem(Icons.Rounded.Timer, t.navUptime, currentNav == 2) { currentNav = 2 }
+                            NavItem(Icons.Rounded.Public, t.navNetwork, currentNav == 3) { currentNav = 3 }
+                            NavItem(Icons.Rounded.Cloud, t.navCloudflare, currentNav == 4) { currentNav = 4 }
+                            NavItem(Icons.Rounded.Security, t.navVault, currentNav == 5) { currentNav = 5 }
+                            NavItem(Icons.Rounded.Terminal, t.navTools, currentNav == 6) { currentNav = 6 }
                         }
                     }
                 }
@@ -294,28 +301,29 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
 @Composable
 private fun NavItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent,
         modifier = Modifier
             .clickable { onClick() }
-            .padding(vertical = 2.dp, horizontal = 2.dp)
+            .padding(vertical = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(19.dp)
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 label,
-                fontSize = 10.5.sp,
+                fontSize = 10.sp,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
             )
         }
     }

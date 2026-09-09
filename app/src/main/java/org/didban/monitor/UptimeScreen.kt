@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 package org.didban.monitor
 
 import android.content.Context
@@ -99,59 +97,59 @@ fun UptimeScreen(t: Str) {
     val downCount = targets.count { it.lastStatus == 0 }
     val totalCount = targets.size
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(14.dp)) {
         // ── Header ──
         Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconBadge(
                     icon = Icons.Rounded.Timer,
                     tint = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
                     size = 36.dp,
-                    iconSize = 20.dp
+                    iconSize = 18.dp
                 )
-                Text(t.uptimeMonitoring, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                Text(t.uptimeMonitoring, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             Spacer(Modifier.weight(1f))
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = Color(0xFF0D9488),
                 modifier = Modifier.clickable { showAddDialog = true }
             ) {
                 Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("+ ${t.addMonitor}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("+ ${t.addMonitor}", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
         }
 
         // ── Explanatory Guide Card ──
         FeatureGuideCard(
-            title = "راهنمای پایش پایداری و ضربان قلب (Uptime Kuma)",
+            title = "پایش پایداری و سلامت سرویس‌ها",
             description = t.guideUptime
         )
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
         // ── Summary Stats ──
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ModernSummaryCard("کل مانیتورها", totalCount.toString(), MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-            ModernSummaryCard("سرویس‌های آنلاین", upCount.toString(), Color(0xFF10B981), Modifier.weight(1f))
+            ModernSummaryCard("آنلاین", upCount.toString(), Color(0xFF10B981), Modifier.weight(1f))
             ModernSummaryCard("دارای قطعی", downCount.toString(), if (downCount > 0) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
         // ── Monitors List or Empty State ──
         if (targets.isEmpty()) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item {
-                    ModernCard(padding = 20.dp) {
+                    ModernCard(padding = 18.dp) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.fillMaxWidth()
@@ -159,21 +157,21 @@ fun UptimeScreen(t: Str) {
                             IconBadge(
                                 icon = Icons.Rounded.Timer,
                                 tint = MaterialTheme.colorScheme.primary,
-                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                                size = 64.dp,
-                                iconSize = 34.dp
+                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                size = 56.dp,
+                                iconSize = 28.dp
                             )
-                            Spacer(Modifier.height(12.dp))
-                            Text("هنوز مانیتوری ثبت نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Spacer(Modifier.height(10.dp))
+                            Text("هنوز مانیتوری ثبت نشده است", fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "با افزودن اولین مانیتور، دیدبان وضعیت در دسترس بودن سایت‌ها و دیتابیس‌های شما را هر ۳۰ ثانیه چک می‌کند.",
+                                "با افزودن اولین مانیتور، وضعیت در دسترس بودن سرویس‌های شما به صورت خودکار چک می‌شود.",
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp
+                                fontSize = 11.5.sp,
+                                lineHeight = 16.sp
                             )
-                            Spacer(Modifier.height(16.dp))
+                            Spacer(Modifier.height(14.dp))
                             PrimaryActionButton(
                                 text = "＋  ${t.addMonitor}",
                                 onClick = { showAddDialog = true }
@@ -183,74 +181,67 @@ fun UptimeScreen(t: Str) {
                 }
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(targets, key = { it.id }) { item ->
                     val isExpanded = expandedTargetId == item.id
 
                     ModernCard(
-                        padding = 14.dp,
+                        padding = 12.dp,
                         modifier = Modifier.clickable { expandedTargetId = if (isExpanded) null else item.id }
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             // Status Dot
-                            Box(
-                                Modifier.size(12.dp).background(
-                                    when {
-                                        item.isPaused -> Color(0xFF94A3B8)
-                                        item.lastStatus == 1 -> Color(0xFF10B981)
-                                        item.lastStatus == 0 -> Color(0xFFEF4444)
-                                        else -> Color(0xFFF59E0B)
-                                    },
-                                    CircleShape
-                                )
+                            PulseDot(
+                                isOnline = item.lastStatus == 1,
+                                size = 10.dp
                             )
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                                    Spacer(Modifier.width(8.dp))
-                                    Surface(shape = RoundedCornerShape(6.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-                                        Text(item.type, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Spacer(Modifier.width(6.dp))
+                                    Surface(shape = RoundedCornerShape(5.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                                        Text(item.type, modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp), fontSize = 9.5.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                Text(item.target, fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(item.target, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace)
                             }
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
                                     "%.1f%%".format(Locale.US, item.uptimePct),
-                                    fontSize = 14.sp,
+                                    fontSize = 13.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (item.uptimePct > 98f) Color(0xFF10B981) else Color(0xFFEF4444)
                                 )
                                 Text(
                                     if (item.lastLatencyMs > 0) "${item.lastLatencyMs} ms" else "—",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(8.dp))
 
                         // ── 30 Heartbeat Bars (Uptime Kuma Style) ──
                         Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val emptyBars = (30 - item.heartbeats.size).coerceAtLeast(0)
                             repeat(emptyBars) {
                                 Box(
-                                    Modifier.weight(1f).height(18.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                    Modifier.weight(1f).height(14.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f), RoundedCornerShape(3.dp))
                                 )
                             }
                             item.heartbeats.takeLast(30).forEach { hb ->
                                 Box(
-                                    Modifier.weight(1f).height(18.dp)
+                                    Modifier.weight(1f).height(14.dp)
                                         .background(
                                             if (hb.status == 1) Color(0xFF10B981) else Color(0xFFEF4444),
-                                            RoundedCornerShape(4.dp)
+                                            RoundedCornerShape(3.dp)
                                         )
                                 )
                             }
@@ -258,12 +249,12 @@ fun UptimeScreen(t: Str) {
 
                         // ── Expanded Incidents & Actions ──
                         if (isExpanded) {
-                            Spacer(Modifier.height(12.dp))
-                            Text("تاریخچه قطعی‌ها و حوادث:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text("تاریخچه حوادث و قطعی‌ها:", fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                            Spacer(Modifier.height(3.dp))
 
                             if (item.incidents.isEmpty()) {
-                                Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("هیچ حادثه قطعی برای این سرویس ثبت نشده است", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
                                 item.incidents.takeLast(3).reversed().forEach { inc ->
@@ -271,21 +262,21 @@ fun UptimeScreen(t: Str) {
                                     val dur = inc.durationSec
                                     Text(
                                         "• $start — قطعی به مدت ${dur} ثانیه (${inc.error})",
-                                        fontSize = 11.5.sp,
+                                        fontSize = 10.5.sp,
                                         color = Color(0xFFEF4444)
                                     )
                                 }
                             }
 
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(8.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = {
                                     item.isPaused = !item.isPaused
                                     saveTargets()
                                 }) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Text(if (item.isPaused) "ادامه پایش" else "توقف موقت", fontSize = 11.5.sp)
+                                        Icon(if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause, contentDescription = null, modifier = Modifier.size(13.dp))
+                                        Text(if (item.isPaused) "ادامه پایش" else "توقف موقت", fontSize = 11.sp)
                                     }
                                 }
                                 TextButton(onClick = {
@@ -296,16 +287,16 @@ fun UptimeScreen(t: Str) {
                                     }
                                 }) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Text("بررسی مجدد", fontSize = 11.5.sp)
+                                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
+                                        Text("بررسی مجدد", fontSize = 11.sp)
                                     }
                                 }
                                 TextButton(onClick = {
                                     deleteTarget = item
                                 }) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(14.dp))
-                                        Text("حذف", color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                                        Icon(Icons.Rounded.DeleteOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                                        Text("حذف", color = Color(0xFFEF4444), fontSize = 11.sp)
                                     }
                                 }
                             }
@@ -313,7 +304,7 @@ fun UptimeScreen(t: Str) {
                     }
                 }
                 item {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
                     PrimaryActionButton(
                         text = "＋  ${t.addMonitor}",
                         onClick = { showAddDialog = true }
@@ -391,7 +382,7 @@ private fun AddOrEditMonitorDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
         title = {
-            Text(if (existing == null) t.addMonitor else "ویرایش مانیتور", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text(if (existing == null) t.addMonitor else "ویرایش مانیتور", fontWeight = FontWeight.Bold, fontSize = 16.sp)
         },
         text = {
             LazyColumn(
@@ -402,22 +393,22 @@ private fun AddOrEditMonitorDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("نام دلخواه مانیتور (مثلاً وبسایت اصلی)") },
+                        label = { Text("نام دلخواه مانیتور") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 item {
-                    Text("نوع پروتکل پایش:", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("نوع پروتکل:", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(4.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         listOf("HTTP", "TCP", "PING", "KEYWORD", "SSL").forEach { tp ->
                             val isSel = type == tp
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainer,
-                                border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
                                 modifier = Modifier.clickable {
                                     type = tp
                                     if (tp == "SSL" && port == "80") port = "443"
@@ -426,8 +417,8 @@ private fun AddOrEditMonitorDialog(
                             ) {
                                 Text(
                                     tp,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                    fontSize = 10.5.sp,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+                                    fontSize = 10.sp,
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -496,7 +487,7 @@ private fun AddOrEditMonitorDialog(
                                     imageVector = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                                     contentDescription = null,
                                     tint = if (testSuccess) Color(0xFF047857) else Color(0xFFDC2626),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     testResult!!,
@@ -537,14 +528,14 @@ private fun AddOrEditMonitorDialog(
                             }
                         },
                         enabled = !isTesting && targetUrl.isNotBlank(),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().height(44.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth().height(42.dp)
                     ) {
-                        if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                        if (isTesting) CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp)
                         else {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text("تست اتصال قبل از ذخیره", fontSize = 11.5.sp)
+                                Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(15.dp))
+                                Text("تست اتصال قبل از ذخیره", fontSize = 11.sp)
                             }
                         }
                     }
@@ -574,14 +565,14 @@ private fun AddOrEditMonitorDialog(
                     }
                 },
                 enabled = name.isNotBlank() && targetUrl.isNotBlank(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
             ) {
-                Text(t.save, fontWeight = FontWeight.Bold)
+                Text(t.save, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(t.cancel) }
+            TextButton(onClick = onDismiss) { Text(t.cancel, fontSize = 12.sp) }
         }
     )
 }
@@ -589,8 +580,8 @@ private fun AddOrEditMonitorDialog(
 @Composable
 private fun ModernSummaryCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
     ModernCard(modifier = modifier, padding = 10.dp) {
-        Text(title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(2.dp))
-        Text(value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = color)
+        Text(value, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = color)
     }
 }
