@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.CloudDownload
@@ -233,115 +235,113 @@ private fun CheckHostHubTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای چک‌هاست جهانی (Check-Host.net)",
-            description = "تست وضعیت اتصال، پینگ، پورت باز و سلامت سایت از ۲۰ نود در کشورهای مختلف (آلمان، آمریکا، ایران، فرانسه، انگلستان، هلند و...):",
-            bullets = listOf(
-                "PING: تست پکت‌لاس و میانگین زمان پاسخ به میلی‌ثانیه از نقاط مختلف جهان",
-                "HTTP: بررسی بالا بودن وبسایت و کد پاسخ سرور (200 OK, 403, 301)",
-                "TCP: تست باز بودن پورت‌های SSH، دیتابیس یا پنل از خارج کشور",
-                "DNS: بررسی رزولوشن و انتشار رکوردهای دامنه در سرورهای نام جهان"
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای چک‌هاست جهانی (Check-Host.net)",
+                description = "تست وضعیت اتصال، پینگ، پورت باز و سلامت سایت از ۲۰ نود در کشورهای مختلف (آلمان، آمریکا، ایران، فرانسه، انگلستان، هلند و...):",
+                bullets = listOf(
+                    "PING: تست پکت‌لاس و میانگین زمان پاسخ به میلی‌ثانیه از نقاط مختلف جهان",
+                    "HTTP: بررسی بالا بودن وبسایت و کد پاسخ سرور (200 OK, 403, 301)",
+                    "TCP: تست باز بودن پورت‌های SSH، دیتابیس یا پنل از خارج کشور",
+                    "DNS: بررسی رزولوشن و انتشار رکوردهای دامنه در سرورهای نام جهان"
+                )
             )
-        )
+        }
 
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            OutlinedTextField(
-                value = targetHost,
-                onValueChange = { targetHost = it },
-                label = { Text("دامنه یا آی‌پی (مثلاً google.com یا 1.2.3.4)", fontSize = 12.sp) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                listOf("ping", "http", "tcp", "dns").forEach { type ->
-                    val selected = selectedType == type
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
-                        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        modifier = Modifier.clickable { selectedType = type }
-                    ) {
-                        Text(
-                            type.uppercase(Locale.US),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                if (selectedType == "tcp") {
-                    Spacer(Modifier.width(4.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Full-width Domain / IP Input Field
                     OutlinedTextField(
-                        value = tcpPort,
-                        onValueChange = { tcpPort = it },
-                        label = { Text("Port", fontSize = 10.sp) },
-                        modifier = Modifier.width(70.dp),
+                        value = targetHost,
+                        onValueChange = { targetHost = it },
+                        label = { Text("دامنه یا آی‌پی مقصد (مثلاً google.com یا 1.2.3.4)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
-                }
 
-                Spacer(Modifier.weight(1f))
+                    // Protocol Selector Row + Port (if TCP)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf("ping", "http", "tcp", "dns").forEach { type ->
+                            val selected = selectedType == type
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (selected) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainer,
+                                border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.clickable { selectedType = type }
+                            ) {
+                                Text(
+                                    type.uppercase(Locale.US),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
 
-                Button(
-                    onClick = { startProbe() },
-                    enabled = !isChecking && targetHost.isNotBlank(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    if (isChecking) {
-                        CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    } else {
-                        Text(t.runProbe, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        if (selectedType == "tcp") {
+                            Spacer(Modifier.width(4.dp))
+                            OutlinedTextField(
+                                value = tcpPort,
+                                onValueChange = { tcpPort = it },
+                                label = { Text("پورت", fontSize = 10.sp) },
+                                modifier = Modifier.width(80.dp),
+                                singleLine = true
+                            )
+                        }
                     }
+
+                    // Full-width Action Button
+                    PrimaryActionButton(
+                        text = if (isChecking) "در حال استعلام از نودهای جهانی…" else "شروع تست نودهای جهانی",
+                        onClick = { startProbe() },
+                        enabled = !isChecking && targetHost.isNotBlank()
+                    )
                 }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
         if (statusText.isNotBlank()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                if (totalCount > 0) {
-                    Spacer(Modifier.weight(1f))
-                    StatusPill("$okCount / $totalCount", isOnline = okCount > 0)
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(statusText, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    if (totalCount > 0) {
+                        Spacer(Modifier.weight(1f))
+                        StatusPill("$okCount / $totalCount", isOnline = okCount > 0)
+                    }
                 }
             }
         }
 
         if (nodes.isEmpty() && !isChecking) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconBadge(
-                        icon = Icons.Rounded.Public,
-                        tint = MaterialTheme.colorScheme.primary,
-                        background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                        size = 56.dp,
-                        iconSize = 28.dp
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    Text("آدرس دامنه یا آی‌پی را وارد کرده و دکمه شروع تست را بزنید", fontSize = 12.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        IconBadge(
+                            icon = Icons.Rounded.Public,
+                            tint = MaterialTheme.colorScheme.primary,
+                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            size = 50.dp,
+                            iconSize = 24.dp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("آدرس دامنه یا آی‌پی را وارد کرده و دکمه شروع تست را بزنید", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
-            return@Column
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        } else {
             items(nodes, key = { it.nodeKey }) { node ->
                 ModernCard(padding = 10.dp) {
                     Row(
@@ -406,97 +406,118 @@ private fun CensorshipTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "تست فیلترینگ و اختلال شبکه (DPI / TLS)",
-            description = "این ابزار هوشمند نحوه مسدودسازی یا اختلال ارتباط با سرور را در ۳ مرحله بررسی می‌کند:",
-            bullets = listOf(
-                "بررسی دسترسی لایه ۳/۴ (آیا IP سرور بلک‌هول یا فیلتر شده است؟)",
-                "تست تزریق پکت‌های جعلی TCP RST توسط سامانه‌های فیلترینگ هوشمند (DPI)",
-                "تست هندشیک امن TLS/SNI و کشف دستکاری در ارتباطات رمزنگاری‌شده"
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "تست فیلترینگ و اختلال شبکه (DPI / TLS)",
+                description = "این ابزار هوشمند نحوه مسدودسازی یا اختلال ارتباط با سرور را در ۳ مرحله بررسی می‌کند:",
+                bullets = listOf(
+                    "بررسی دسترسی لایه ۳/۴ (آیا IP سرور بلک‌هول یا فیلتر شده است؟)",
+                    "تست تزریق پکت‌های جعلی TCP RST توسط سامانه‌های فیلترینگ هوشمند (DPI)",
+                    "تست هندشیک امن TLS/SNI و کشف دستکاری در ارتباطات رمزنگاری‌شده"
+                )
             )
-        )
+        }
 
-        Spacer(Modifier.height(10.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Full-width Domain / Host Input Field
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text("دامنه یا آی‌پی سرور (مثلاً google.com یا 1.2.3.4)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = { Text("دامنه یا آی‌پی سرور", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = it },
-                    label = { Text("پورت", fontSize = 10.sp) },
-                    modifier = Modifier.width(65.dp),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                Button(
-                    onClick = { runTest() },
-                    enabled = !isTesting && host.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text("عیب‌یابی", fontWeight = FontWeight.Bold)
+                    // Row: Port Input + Action Button
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it },
+                            label = { Text("پورت", fontSize = 11.sp) },
+                            modifier = Modifier.width(90.dp),
+                            singleLine = true
+                        )
+
+                        Button(
+                            onClick = { runTest() },
+                            enabled = !isTesting && host.isNotBlank(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+                            modifier = Modifier.weight(1f).height(54.dp)
+                        ) {
+                            if (isTesting) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                            else {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text("شروع عیب‌یابی و تست فیلترینگ", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        Spacer(Modifier.height(10.dp))
 
         result?.let { r ->
-            ModernCard(
-                padding = 14.dp,
-                containerColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
-                borderColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        r.diagnosis,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (r.isFiltered) Color(0xFFDC2626) else Color(0xFF047857)
-                    )
-                    Text("مقصد: ${r.host}:${r.port} (تاخیر: ${r.latencyMs} میلی‌ثانیه)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
+            item {
+                ModernCard(
+                    padding = 14.dp,
+                    containerColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
+                    borderColor = if (r.isFiltered) Color(0xFFEF4444).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            r.diagnosis,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (r.isFiltered) Color(0xFFDC2626) else Color(0xFF047857)
+                        )
+                        Text("مقصد: ${r.host}:${r.port} (تاخیر: ${r.latencyMs} میلی‌ثانیه)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("۱. لایه اتصال اولیه TCP (SYN/ACK):", fontSize = 12.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                imageVector = if (r.tcpReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
-                                contentDescription = null,
-                                tint = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(if (r.tcpReachable) "متصل شد" else "ناموفق / فیلتر", fontWeight = FontWeight.Bold, color = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 12.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("۱. لایه اتصال اولیه TCP (SYN/ACK):", fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    imageVector = if (r.tcpReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(if (r.tcpReachable) "متصل شد" else "ناموفق / فیلتر", fontWeight = FontWeight.Bold, color = if (r.tcpReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 12.sp)
+                            }
                         }
-                    }
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("۲. لایه هندشیک امن TLS / SNI:", fontSize = 12.sp)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(
-                                imageVector = if (r.tlsReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
-                                contentDescription = null,
-                                tint = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444),
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Text(if (r.tlsReachable) "هندشیک تمیز" else "قطع توسط فیلترینگ", fontWeight = FontWeight.Bold, color = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 12.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text("۲. لایه هندشیک امن TLS / SNI:", fontSize = 12.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    imageVector = if (r.tlsReachable) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(if (r.tlsReachable) "هندشیک تمیز" else "قطع توسط فیلترینگ", fontWeight = FontWeight.Bold, color = if (r.tlsReachable) Color(0xFF10B981) else Color(0xFFEF4444), fontSize = 12.sp)
+                            }
                         }
-                    }
 
-                    Spacer(Modifier.height(4.dp))
-                    Text("گزارش فنی:\n${r.details}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(4.dp))
+                        Text("گزارش فنی:\n${r.details}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -533,50 +554,44 @@ private fun PortScannerTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای پورت اسکنر",
-            description = "این ابزار پورت‌های کلیدی سرور (SSH، وب HTTP/HTTPS، دیتابیس‌ها و پنل‌ها) را تست می‌کند تا از باز بودن پورت‌ها و در دسترس بودن سرویس‌ها اطمینان حاصل کنید."
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای پورت اسکنر",
+                description = "این ابزار پورت‌های کلیدی سرور (SSH، وب HTTP/HTTPS، دیتابیس‌ها و پنل‌ها) را تست می‌کند تا از باز بودن پورت‌ها و در دسترس بودن سرویس‌ها اطمینان حاصل کنید."
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text("دامنه یا آی‌پی سرور برای اسکن پورت‌ها", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = { Text("دامنه یا آی‌پی سرور", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = { runScan() },
-                    enabled = !isScanning && host.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    if (isScanning) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.scan, fontWeight = FontWeight.Bold)
+                    PrimaryActionButton(
+                        text = if (isScanning) "در حال اسکن ($scannedCount / ${portsToScan.size})…" else "شروع اسکن پورت‌های متداول",
+                        onClick = { runScan() },
+                        enabled = !isScanning && host.isNotBlank()
+                    )
                 }
             }
         }
 
-        if (isScanning) {
-            Spacer(Modifier.height(8.dp))
-            Text("در حال اسکن $scannedCount از ${portsToScan.size} پورت…", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(Modifier.height(10.dp))
-
         if (results.isEmpty() && !isScanning) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(t.enterHostToScan, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.Center) {
+                    Text(t.enterHostToScan, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
-            return
-        }
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        } else {
             items(results, key = { it.port }) { r ->
                 ModernCard(padding = 10.dp) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -592,6 +607,7 @@ private fun PortScannerTab(t: Str) {
                     }
                 }
             }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 }
@@ -624,94 +640,111 @@ private fun SslInspectorTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای بازرس سرتیفیکیت SSL",
-            description = "بررسی روزهای باقی‌مانده تا انقضای گواهی HTTPS، نام صادرکننده (CA)، الگوریتم و اثر انگشت سرتیفیکیت جهت جلوگیری از قطعی سایت‌ها بخاطر اکسپایر شدن SSL."
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = { Text("دامنه (مثلاً google.com)", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = it },
-                    label = { Text("پورت", fontSize = 10.sp) },
-                    modifier = Modifier.width(65.dp),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                Button(
-                    onClick = { checkSsl() },
-                    enabled = !isLoading && host.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    if (isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.inspect, fontWeight = FontWeight.Bold)
-                }
-            }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای بازرس سرتیفیکیت SSL",
+                description = "بررسی روزهای باقی‌مانده تا انقضای گواهی HTTPS، نام صادرکننده (CA)، الگوریتم و اثر انگشت سرتیفیکیت جهت جلوگیری از قطعی سایت‌ها بخاطر اکسپایر شدن SSL."
+            )
         }
 
-        Spacer(Modifier.height(10.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text("دامنه وبسایت (مثلاً google.com)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-        if (err != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                Text("خطا: $err", color = Color(0xFFEF4444), fontSize = 12.sp)
-            }
-        }
-
-        certInfo?.let { c ->
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    ModernCard(
-                        padding = 14.dp,
-                        containerColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
-                        borderColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(
-                                imageVector = if (c.isExpired) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle,
-                                contentDescription = null,
-                                tint = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                if (c.isExpired) "گواهی منقضی شده است!" else "معتبر (${c.daysRemaining} روز باقی‌مانده)",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857)
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text("اعتبار از ${c.validFrom} تا ${c.validTo}", fontSize = 11.5.sp)
-                    }
-                }
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it },
+                            label = { Text("پورت", fontSize = 11.sp) },
+                            modifier = Modifier.width(90.dp),
+                            singleLine = true
+                        )
 
-                item {
-                    ModernCard(padding = 12.dp) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("دامنه (Subject): ${c.subject}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                            Text("صادرکننده (Issuer): ${c.issuer}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("الگوریتم امضا: ${c.sigAlg}", fontSize = 11.sp)
-                            Text("اثر انگشت SHA-256:\n${c.fingerprintSha256}", fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
-                            if (c.sans.isNotEmpty()) {
-                                Text("دامنه های تحت پوشش (SANs):\n${c.sans.take(6).joinToString(", ")}", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Button(
+                            onClick = { checkSsl() },
+                            enabled = !isLoading && host.isNotBlank(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+                            modifier = Modifier.weight(1f).height(54.dp)
+                        ) {
+                            if (isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
+                            else {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text("بررسی گواهی SSL", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
                             }
                         }
                     }
                 }
             }
         }
+
+        if (err != null) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                    Text("خطا: $err", color = Color(0xFFEF4444), fontSize = 12.sp)
+                }
+            }
+        }
+
+        certInfo?.let { c ->
+            item {
+                ModernCard(
+                    padding = 14.dp,
+                    containerColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.12f) else Color(0xFF10B981).copy(alpha = 0.12f),
+                    borderColor = if (c.isExpired || c.daysRemaining < 7) Color(0xFFEF4444).copy(alpha = 0.4f) else Color(0xFF10B981).copy(alpha = 0.4f)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(
+                            imageVector = if (c.isExpired) Icons.Rounded.ErrorOutline else Icons.Rounded.CheckCircle,
+                            contentDescription = null,
+                            tint = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            if (c.isExpired) "گواهی منقضی شده است!" else "معتبر (${c.daysRemaining} روز باقی‌مانده)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (c.isExpired) Color(0xFFDC2626) else Color(0xFF047857)
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text("اعتبار از ${c.validFrom} تا ${c.validTo}", fontSize = 11.5.sp)
+                }
+            }
+
+            item {
+                ModernCard(padding = 12.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("دامنه (Subject): ${c.subject}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        Text("صادرکننده (Issuer): ${c.issuer}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("الگوریتم امضا: ${c.sigAlg}", fontSize = 11.sp)
+                        Text("اثر انگشت SHA-256:\n${c.fingerprintSha256}", fontSize = 10.sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
+                        if (c.sans.isNotEmpty()) {
+                            Text("دامنه های تحت پوشش (SANs):\n${c.sans.take(6).joinToString(", ")}", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -742,62 +775,74 @@ private fun IpInfoTab(t: Str) {
 
     LaunchedEffect(Unit) { lookup() }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای استعلام اطلاعات آی‌پی و دامنه (GeoIP)",
-            description = "مشاهده کشور، شهر، شرکت ارائه‌دهنده اینترنت (ISP)، شماره ASN و مختصات جغرافیایی هر آی‌پی یا دامنه اینترنتی."
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای استعلام اطلاعات آی‌پی و دامنه (GeoIP)",
+                description = "مشاهده کشور، شهر، شرکت ارائه‌دهنده اینترنت (ISP)، شماره ASN و مختصات جغرافیایی هر آی‌پی یا دامنه اینترنتی."
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Full-width Domain / IP input field (Allows long domains without clipping!)
+                    OutlinedTextField(
+                        value = targetIp,
+                        onValueChange = { targetIp = it },
+                        label = { Text("آی‌پی یا دامنه اینترنتی (خالی = آی‌پی فعلی من)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = targetIp,
-                    onValueChange = { targetIp = it },
-                    label = { Text("آی‌پی یا دامنه (خالی = آی‌پی من)", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = { lookup() },
-                    enabled = !isLoading,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    if (isLoading) CircularProgressIndicator(Modifier.size(16.dp), color = Color.White)
-                    else Text(t.lookup, fontWeight = FontWeight.Bold)
+                    PrimaryActionButton(
+                        text = if (isLoading) "در حال استعلام اطلاعات…" else "استعلام موقعیت و مشخصات IP",
+                        onClick = { lookup() },
+                        enabled = !isLoading
+                    )
                 }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-
         if (err != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+            item {
+                ModernCard(
+                    padding = 12.dp,
+                    containerColor = Color(0xFFEF4444).copy(alpha = 0.12f),
+                    borderColor = Color(0xFFEF4444).copy(alpha = 0.4f)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                        Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
 
         geoData?.let { g ->
-            ModernCard(padding = 14.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(g.flag, fontSize = 32.sp)
-                    Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(g.ip, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Text("${g.city}, ${g.country}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            item {
+                ModernCard(padding = 14.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(g.flag, fontSize = 32.sp)
+                        Spacer(Modifier.width(10.dp))
+                        Column {
+                            Text(g.ip, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("${g.city}, ${g.country}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                }
 
-                Spacer(Modifier.height(8.dp))
-                Text("ارائه‌دهنده / سازمان: ${g.isp} (${g.org})", fontSize = 12.sp)
-                Text("شماره ASN: ${g.asn}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                Text("منطقه زمانی: ${g.timezone}", fontSize = 12.sp)
-                Text("مختصات جغرافیایی: ${g.lat}, ${g.lon}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    Text("ارائه‌دهنده / سازمان: ${g.isp} (${g.org})", fontSize = 12.sp)
+                    Text("شماره ASN: ${g.asn}", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text("منطقه زمانی: ${g.timezone}", fontSize = 12.sp)
+                    Text("مختصات جغرافیایی: ${g.lat}, ${g.lon}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -837,63 +882,73 @@ private fun TcpPingTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای پینگ مداوم TCP",
-            description = "اندازه‌گیری پایداری شبکه و زمان پاسخ (Latency) لحظه‌ای سرور در بازه‌های ۱ ثانیه‌ای برای کشف پکت‌لاس."
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای پینگ مداوم TCP",
+                description = "اندازه‌گیری پایداری شبکه و زمان پاسخ (Latency) لحظه‌ای سرور در بازه‌های ۱ ثانیه‌ای برای کشف پکت‌لاس."
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = host,
-                    onValueChange = { host = it },
-                    label = { Text("آدرس سرور / IP", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                OutlinedTextField(
-                    value = port,
-                    onValueChange = { port = it },
-                    label = { Text("پورت", fontSize = 10.sp) },
-                    modifier = Modifier.width(65.dp),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(6.dp))
-                Button(
-                    onClick = { startPing() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isPinging) Color(0xFFEF4444) else Color(0xFF0D9488)
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text("آدرس سرور یا دامنه مقصد", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
-                ) {
-                    Text(if (isPinging) t.stop else t.start, fontWeight = FontWeight.Bold)
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it },
+                            label = { Text("پورت", fontSize = 11.sp) },
+                            modifier = Modifier.width(90.dp),
+                            singleLine = true
+                        )
+
+                        Button(
+                            onClick = { startPing() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isPinging) Color(0xFFEF4444) else Color(0xFF0D9488)
+                            ),
+                            modifier = Modifier.weight(1f).height(54.dp)
+                        ) {
+                            Text(if (isPinging) "توقف پینگ مداوم" else "شروع پینگ مداوم", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(logs) { line ->
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        line,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        fontSize = 11.5.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = if (line.contains("time=")) Color(0xFF10B981) else Color(0xFFEF4444)
-                    )
-                }
+        items(logs) { line ->
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    line,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    fontSize = 11.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (line.contains("time=")) Color(0xFF10B981) else Color(0xFFEF4444)
+                )
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -955,136 +1010,147 @@ fun CloudflareScreen(t: Str) {
         if (apiToken.isNotBlank()) loadZones()
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconBadge(
-                icon = Icons.Rounded.Cloud,
-                tint = MaterialTheme.colorScheme.primary,
-                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                size = 36.dp,
-                iconSize = 20.dp
-            )
-            Text(t.cloudflareDns, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp).imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                IconBadge(
+                    icon = Icons.Rounded.Cloud,
+                    tint = MaterialTheme.colorScheme.primary,
+                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                    size = 36.dp,
+                    iconSize = 20.dp
+                )
+                Text(t.cloudflareDns, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            }
         }
-        Spacer(Modifier.height(8.dp))
 
-        FeatureGuideCard(
-            title = "راهنمای مدیریت DNS کلودفلر",
-            description = t.guideCloudflare
-        )
-
-        Spacer(Modifier.height(10.dp))
+        item {
+            FeatureGuideCard(
+                title = "راهنمای مدیریت DNS کلودفلر",
+                description = t.guideCloudflare
+            )
+        }
 
         if (!isTokenSaved) {
-            ModernCard(padding = 14.dp) {
-                OutlinedTextField(
-                    value = apiToken,
-                    onValueChange = { apiToken = it },
-                    label = { Text("Cloudflare API Token", fontSize = 12.sp) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(Modifier.height(8.dp))
-                PrimaryActionButton(
-                    text = t.saveToken,
-                    onClick = {
-                        Prefs.setCfToken(ctx, apiToken)
-                        isTokenSaved = true
-                        loadZones()
+            item {
+                ModernCard(padding = 14.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = apiToken,
+                            onValueChange = { apiToken = it },
+                            label = { Text("Cloudflare API Token", fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        PrimaryActionButton(
+                            text = t.saveToken,
+                            onClick = {
+                                Prefs.setCfToken(ctx, apiToken)
+                                isTokenSaved = true
+                                loadZones()
+                            }
+                        )
                     }
-                )
+                }
             }
         } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    selectedZone?.name ?: "دامنه‌ها (${zones.size})",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = { isTokenSaved = false }) { Text(t.changeToken, fontSize = 11.sp) }
-                IconButton(onClick = { selectedZone?.let { loadRecords(it) } }, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        selectedZone?.name ?: "دامنه‌ها (${zones.size})",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(onClick = { isTokenSaved = false }) { Text(t.changeToken, fontSize = 11.sp) }
+                    IconButton(onClick = { selectedZone?.let { loadRecords(it) } }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                    }
+                    Button(
+                        onClick = { showAddDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    ) { Text("+ ${t.addRecord}") }
                 }
-                Button(
-                    onClick = { showAddDialog = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("+ ${t.addRecord}") }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-
         if (isLoading) {
-            Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            item {
+                Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
 
         if (err != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                    Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+                }
             }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(records, key = { it.id }) { rec ->
-                ModernCard(padding = 12.dp) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+        items(records, key = { it.id }) { rec ->
+            ModernCard(padding = 12.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
-                        ) {
+                        Text(
+                            rec.type,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(rec.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(rec.content, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (rec.proxiable) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(
+                                Icons.Rounded.Cloud,
+                                contentDescription = null,
+                                tint = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8),
+                                modifier = Modifier.size(14.dp)
+                            )
                             Text(
-                                rec.type,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                                if (rec.proxied) "پروکسی روشن" else "فقط DNS",
+                                fontSize = 10.sp,
+                                color = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8)
                             )
                         }
-                        Spacer(Modifier.width(10.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(rec.name, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Text(rec.content, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (rec.proxiable) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Icon(
-                                    Icons.Rounded.Cloud,
-                                    contentDescription = null,
-                                    tint = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    if (rec.proxied) "پروکسی روشن" else "فقط DNS",
-                                    fontSize = 10.sp,
-                                    color = if (rec.proxied) Color(0xFFF59E0B) else Color(0xFF94A3B8)
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    selectedZone?.let { z ->
-                                        CloudflareService.deleteRecord(apiToken, z.id, rec.id)
-                                        loadRecords(z)
-                                    }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                selectedZone?.let { z ->
+                                    CloudflareService.deleteRecord(apiToken, z.id, rec.id)
+                                    loadRecords(z)
                                 }
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
-                        }
+                            }
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
                     }
                 }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 
     if (showAddDialog) {
@@ -1188,294 +1254,302 @@ fun VaultScreen(t: Str) {
         Toast.makeText(ctx, "گاوصندوق امن با موفقیت ایجاد شد!", Toast.LENGTH_SHORT).show()
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        // ── Top Header ──
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconBadge(
-                    icon = Icons.Rounded.Security,
-                    tint = MaterialTheme.colorScheme.primary,
-                    background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    size = 36.dp,
-                    iconSize = 20.dp
-                )
-                Text(t.encryptedVault, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-            }
-            Spacer(Modifier.weight(1f))
-            if (isUnlocked) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.clickable {
-                        isUnlocked = false
-                        masterPass = ""
-                        confirmPass = ""
-                        revealedNoteIds = emptySet()
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(16.dp).imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconBadge(
+                        icon = Icons.Rounded.Security,
+                        tint = MaterialTheme.colorScheme.primary,
+                        background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        size = 36.dp,
+                        iconSize = 20.dp
+                    )
+                    Text(t.encryptedVault, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(Modifier.weight(1f))
+                if (isUnlocked) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        modifier = Modifier.clickable {
+                            isUnlocked = false
+                            masterPass = ""
+                            confirmPass = ""
+                            revealedNoteIds = emptySet()
+                        }
                     ) {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
-                        Text(
-                            "قفل کردن",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFEF4444)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Rounded.Lock, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(13.dp))
+                            Text(
+                                "قفل کردن",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
                     }
                 }
             }
         }
 
-        FeatureGuideCard(
-            title = "راهنمای گاوصندوق امن محرمانه",
-            description = t.guideVault
-        )
-
-        Spacer(Modifier.height(10.dp))
+        item {
+            FeatureGuideCard(
+                title = "راهنمای گاوصندوق امن محرمانه",
+                description = t.guideVault
+            )
+        }
 
         // ── Case 1: First-time setup (Vault Not Initialized Yet) ──
         if (!isVaultInit) {
-            ModernCard(padding = 16.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("تعیین رمز عبور اصلی گاوصندوق", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(
-                        "برای گاوصندوق خود یک رمز عبور اصلی تعیین کنید. تمامی اطلاعات با این رمز روی حافظه گوشی شما رمزنگاری (AES-256) خواهند شد.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 17.sp
-                    )
+            item {
+                ModernCard(padding = 16.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("تعیین رمز عبور اصلی گاوصندوق", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            "برای گاوصندوق خود یک رمز عبور اصلی تعیین کنید. تمامی اطلاعات با این رمز روی حافظه گوشی شما رمزنگاری (AES-256) خواهند شد.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 17.sp
+                        )
 
-                    OutlinedTextField(
-                        value = masterPass,
-                        onValueChange = { masterPass = it; authError = null },
-                        label = { Text("رمز عبور اصلی جدید", fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
+                        OutlinedTextField(
+                            value = masterPass,
+                            onValueChange = { masterPass = it; authError = null },
+                            label = { Text("رمز عبور اصلی جدید", fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
 
-                    OutlinedTextField(
-                        value = confirmPass,
-                        onValueChange = { confirmPass = it; authError = null },
-                        label = { Text("تکرار رمز عبور اصلی", fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
+                        OutlinedTextField(
+                            value = confirmPass,
+                            onValueChange = { confirmPass = it; authError = null },
+                            label = { Text("تکرار رمز عبور اصلی", fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
 
-                    if (authError != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                            Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        if (authError != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                                Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
-                    }
 
-                    PrimaryActionButton(
-                        text = "فعال‌سازی و گشایش گاوصندوق",
-                        onClick = { setupNewVault() }
-                    )
+                        PrimaryActionButton(
+                            text = "فعال‌سازی و گشایش گاوصندوق",
+                            onClick = { setupNewVault() }
+                        )
+                    }
                 }
             }
         }
         // ── Case 2: Vault is Initialized but Locked ──
         else if (!isUnlocked) {
-            ModernCard(padding = 16.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconBadge(
-                            icon = Icons.Rounded.Lock,
-                            tint = MaterialTheme.colorScheme.primary,
-                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                            size = 32.dp,
-                            iconSize = 18.dp
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("گاوصندوق امن قفل است", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                    Text(
-                        "برای دسترسی به کلیدهای SSH، رمزها و یادداشت‌های محرمانه، رمز اصلی را وارد کنید.",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    OutlinedTextField(
-                        value = masterPass,
-                        onValueChange = { masterPass = it; authError = null },
-                        label = { Text(t.masterPassword, fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    if (authError != null) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                            Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            item {
+                ModernCard(padding = 16.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconBadge(
+                                icon = Icons.Rounded.Lock,
+                                tint = MaterialTheme.colorScheme.primary,
+                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                size = 32.dp,
+                                iconSize = 18.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("گاوصندوق امن قفل است", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
-                    }
+                        Text(
+                            "برای دسترسی به کلیدهای SSH، رمزها و یادداشت‌های محرمانه، رمز اصلی را وارد کنید.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    PrimaryActionButton(
-                        text = t.unlockVault,
-                        onClick = { unlock() }
-                    )
+                        OutlinedTextField(
+                            value = masterPass,
+                            onValueChange = { masterPass = it; authError = null },
+                            label = { Text(t.masterPassword, fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+
+                        if (authError != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                                Text(authError!!, color = Color(0xFFEF4444), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        PrimaryActionButton(
+                            text = t.unlockVault,
+                            onClick = { unlock() }
+                        )
+                    }
                 }
             }
         }
         // ── Case 3: Vault is Unlocked (Full Access) ──
         else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StatusPill("• ${notes.size} یادداشت و کلید ذخیره شده", isOnline = true)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.clickable {
-                                val b64 = EncryptedVault.exportBackup(Prefs.loadServers(ctx), notes, masterPass)
-                                backupString = b64
-                                showBackupDialog = true
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusPill("• ${notes.size} یادداشت و کلید ذخیره شده", isOnline = true)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.clickable {
+                                    val b64 = EncryptedVault.exportBackup(Prefs.loadServers(ctx), notes, masterPass)
+                                    backupString = b64
+                                    showBackupDialog = true
+                                }
                             ) {
-                                Icon(Icons.Rounded.CloudUpload, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(13.dp))
-                                Text(
-                                    "پشتیبان‌گیری",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Rounded.CloudUpload, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(13.dp))
+                                    Text(
+                                        "پشتیبان‌گیری",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
-                        }
 
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.clickable { showRestoreDialog = true }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                modifier = Modifier.clickable { showRestoreDialog = true }
                             ) {
-                                Icon(Icons.Rounded.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(13.dp))
-                                Text(
-                                    "بازیابی",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Rounded.CloudDownload, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(13.dp))
+                                    Text(
+                                        "بازیابی",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                PrimaryActionButton(
-                    text = "＋ ${t.addNote}",
-                    onClick = { showAddNote = true }
-                )
+                    PrimaryActionButton(
+                        text = "＋ ${t.addNote}",
+                        onClick = { showAddNote = true }
+                    )
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
-
             if (notes.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        IconBadge(
-                            icon = Icons.Rounded.Security,
-                            tint = MaterialTheme.colorScheme.primary,
-                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                            size = 64.dp,
-                            iconSize = 34.dp
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text("هنوز کلید یا یادداشتی ذخیره نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                item {
+                    Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconBadge(
+                                icon = Icons.Rounded.Security,
+                                tint = MaterialTheme.colorScheme.primary,
+                                background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                size = 56.dp,
+                                iconSize = 28.dp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text("هنوز کلید یا یادداشتی ذخیره نشده است", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                        }
                     }
                 }
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(notes, key = { it.id }) { n ->
-                        val isRevealed = revealedNoteIds.contains(n.id)
+                items(notes, key = { it.id }) { n ->
+                    val isRevealed = revealedNoteIds.contains(n.id)
 
-                        ModernCard(padding = 12.dp) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Text(
-                                        if (n.tags.isNotBlank()) n.tags else "محرمانه",
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text(n.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-
-                                TextButton(onClick = {
-                                    revealedNoteIds = if (isRevealed) revealedNoteIds - n.id else revealedNoteIds + n.id
-                                }) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Icon(if (isRevealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(13.dp))
-                                        Text(if (isRevealed) "مخفی" else "نمایش", fontSize = 11.sp)
-                                    }
-                                }
-
-                                TextButton(onClick = {
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("secret", n.content))
-                                    Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
-                                }) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(12.dp))
-                                        Text("کپی", fontSize = 11.sp)
-                                    }
-                                }
-
-                                IconButton(onClick = { editingNote = n }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
-                                }
-                                IconButton(onClick = { deleteNote = n }, modifier = Modifier.size(28.dp)) {
-                                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                                }
-                            }
-
-                            Spacer(Modifier.height(4.dp))
-
+                    ModernCard(padding = 12.dp) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                modifier = Modifier.fillMaxWidth()
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
                             ) {
                                 Text(
-                                    if (isRevealed) n.content else "••••••••••••••••••••••••",
-                                    modifier = Modifier.padding(8.dp),
-                                    fontSize = 11.5.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = if (isRevealed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                    if (n.tags.isNotBlank()) n.tags else "محرمانه",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
+                            Spacer(Modifier.width(8.dp))
+                            Text(n.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
+
+                            TextButton(onClick = {
+                                revealedNoteIds = if (isRevealed) revealedNoteIds - n.id else revealedNoteIds + n.id
+                            }) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Icon(if (isRevealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, contentDescription = null, modifier = Modifier.size(13.dp))
+                                    Text(if (isRevealed) "مخفی" else "نمایش", fontSize = 11.sp)
+                                }
+                            }
+
+                            TextButton(onClick = {
+                                clipboard.setPrimaryClip(ClipData.newPlainText("secret", n.content))
+                                Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                            }) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(12.dp))
+                                    Text("کپی", fontSize = 11.sp)
+                                }
+                            }
+
+                            IconButton(onClick = { editingNote = n }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                            }
+                            IconButton(onClick = { deleteNote = n }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                if (isRevealed) n.content else "••••••••••••••••••••••••",
+                                modifier = Modifier.padding(8.dp),
+                                fontSize = 11.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = if (isRevealed) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
-                    item { Spacer(Modifier.height(30.dp)) }
                 }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 
     // ── Add/Edit Note Dialog ──
@@ -1761,114 +1835,118 @@ private fun JsonBase64Tab(t: Str) {
     var input by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای فرمت JSON و کدگذاری Base64",
-            description = "این ابزار کدهای فشرده یا نامرتب JSON را خوانا می‌کند، متن‌ها و کانفیگ‌ها را با Base64 کدگذاری/رمزگشایی می‌کند، و هش امنیتی SHA-256 می‌سازد.",
-            bullets = listOf(
-                "مرتب‌سازی JSON: تبدیل ساختارهای نامرتب به JSON با فاصله‌گذاری استاندارد",
-                "کدگذاری/رمزگشایی Base64: مناسب برای کانفیگ‌های اینترنتی و خروجی وب‌سرویس‌ها",
-                "هش SHA-256: ساخت اثر انگشت یک‌طرفه و غیرقابل بازگشت از متن"
-            )
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = { input = it },
-                label = { Text("متن ورودی / JSON / Base64", fontSize = 12.sp) },
-                modifier = Modifier.fillMaxWidth().height(110.dp)
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Action Buttons Row with Vector Icons
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Button(
-                    onClick = { output = DevLabTools.formatJson(input) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(13.dp))
-                        Text("مرتب‌سازی JSON", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    }
-                }
-
-                Button(
-                    onClick = { output = DevLabTools.minifyJson(input) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.Compress, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
-                        Text("فشرده‌سازی", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-                    }
-                }
-
-                Button(
-                    onClick = { output = DevLabTools.base64Encode(input) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
-                        Text("کدگذاری Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-                    }
-                }
-
-                Button(
-                    onClick = { output = DevLabTools.base64Decode(input) },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.LockOpen, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
-                        Text("رمزگشایی Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-                    }
-                }
-
-                Button(
-                    onClick = { output = DevLabTools.hash(input, "SHA-256") },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.Key, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
-                        Text("SHA-256", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("نتیجه خروجی:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                if (output.isNotBlank()) {
-                    TextButton(onClick = {
-                        clipboard.setPrimaryClip(ClipData.newPlainText("output", output))
-                        Toast.makeText(ctx, "خروجی کپی شد!", Toast.LENGTH_SHORT).show()
-                    }) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
-                            Text("کپی نتیجه", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-
-            OutlinedTextField(
-                value = output,
-                onValueChange = {},
-                readOnly = true,
-                modifier = Modifier.fillMaxWidth().height(150.dp),
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای فرمت JSON و کدگذاری Base64",
+                description = "این ابزار کدهای فشرده یا نامرتب JSON را خوانا می‌کند، متن‌ها و کانفیگ‌ها را با Base64 کدگذاری/رمزگشایی می‌کند، و هش امنیتی SHA-256 می‌سازد.",
+                bullets = listOf(
+                    "مرتب‌سازی JSON: تبدیل ساختارهای نامرتب به JSON با فاصله‌گذاری استاندارد",
+                    "کدگذاری/رمزگشایی Base64: مناسب برای کانفیگ‌های اینترنتی و خروجی وب‌سرویس‌ها",
+                    "هش SHA-256: ساخت اثر انگشت یک‌طرفه و غیرقابل بازگشت از متن"
+                )
             )
         }
+
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = input,
+                        onValueChange = { input = it },
+                        label = { Text("متن ورودی / JSON / Base64", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth().height(110.dp)
+                    )
+
+                    // Action Buttons Row with Vector Icons
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Button(
+                            onClick = { output = DevLabTools.formatJson(input) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.AutoAwesome, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Text("مرتب‌سازی JSON", fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
+                        }
+
+                        Button(
+                            onClick = { output = DevLabTools.minifyJson(input) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.Compress, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
+                                Text("فشرده‌سازی", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            }
+                        }
+
+                        Button(
+                            onClick = { output = DevLabTools.base64Encode(input) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
+                                Text("کدگذاری Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            }
+                        }
+
+                        Button(
+                            onClick = { output = DevLabTools.base64Decode(input) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.LockOpen, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
+                                Text("رمزگشایی Base64", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            }
+                        }
+
+                        Button(
+                            onClick = { output = DevLabTools.hash(input, "SHA-256") },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Rounded.Key, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(13.dp))
+                                Text("SHA-256", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+                            }
+                        }
+                    }
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("نتیجه خروجی:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        if (output.isNotBlank()) {
+                            TextButton(onClick = {
+                                clipboard.setPrimaryClip(ClipData.newPlainText("output", output))
+                                Toast.makeText(ctx, "خروجی کپی شد!", Toast.LENGTH_SHORT).show()
+                            }) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
+                                    Text("کپی نتیجه", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = output,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().height(150.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace)
+                    )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -1892,103 +1970,108 @@ private fun SubnetCalcTab(t: Str) {
 
     LaunchedEffect(Unit) { calc() }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای محاسبه‌گر ساب‌نت شبکه (CIDR Calculator)",
-            description = "فرمت CIDR (مثل 192.168.1.0/24 یا 10.0.0.0/16) را تحلیل کرده و محدوده آی‌پی‌های قابل استفاده، ساب‌نت ماسک، برادکست و ظرفیت هاست‌ها را برای تنظیم شبکه و فایروال محاسبه می‌کند."
-        )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای محاسبه‌گر ساب‌نت شبکه (CIDR Calculator)",
+                description = "فرمت CIDR (مثل 192.168.1.0/24 یا 10.0.0.0/16) را تحلیل کرده و محدوده آی‌پی‌های قابل استفاده، ساب‌نت ماسک، برادکست و ظرفیت هاست‌ها را برای تنظیم شبکه و فایروال محاسبه می‌کند."
+            )
+        }
 
-        Spacer(Modifier.height(10.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = cidr,
+                        onValueChange = { cidr = it },
+                        label = { Text("آی‌پی و پیشوند (مثلاً 192.168.1.0/24)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
 
-        ModernCard(padding = 12.dp) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = cidr,
-                    onValueChange = { cidr = it },
-                    label = { Text("آی‌پی و پیشوند (مثلاً 192.168.1.0/24)", fontSize = 12.sp) },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = { calc() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("محاسبه", fontWeight = FontWeight.Bold) }
-            }
+                    PrimaryActionButton(
+                        text = "محاسبه مشخصات ساب‌نت",
+                        onClick = { calc() }
+                    )
 
-            Spacer(Modifier.height(8.dp))
-
-            // Quick Preset Chips for Easy Testing
-            Text("نمونه‌های متداول شبکه:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(4.dp))
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                listOf(
-                    "192.168.1.0/24" to "شبکه محلی (254 هاست)",
-                    "10.0.0.0/16" to "شبکه بزرگ (65K هاست)",
-                    "172.16.0.0/20" to "سازمانی (4K هاست)",
-                    "192.168.1.0/30" to "تونل سرور (2 هاست)"
-                ).forEach { (preset, desc) ->
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.clickable {
-                            cidr = preset
-                            calc(preset)
-                        }
+                    // Quick Preset Chips for Easy Testing
+                    Text("نمونه‌های متداول شبکه:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            "$preset ($desc)",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            fontSize = 10.5.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        listOf(
+                            "192.168.1.0/24" to "شبکه محلی (254 هاست)",
+                            "10.0.0.0/16" to "شبکه بزرگ (65K هاست)",
+                            "172.16.0.0/20" to "سازمانی (4K هاست)",
+                            "192.168.1.0/30" to "تونل سرور (2 هاست)"
+                        ).forEach { (preset, desc) ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.clickable {
+                                    cidr = preset
+                                    calc(preset)
+                                }
+                            ) {
+                                Text(
+                                    "$preset ($desc)",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 10.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-
         if (err != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                    Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+                }
             }
         }
 
         info?.let { s ->
-            ModernCard(padding = 14.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("آدرس شبکه (Network):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(s.network, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("آدرس برادکست (Broadcast):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(s.broadcast, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("بازه هاست‌های قابل استفاده:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${s.firstHost}  ➔  ${s.lastHost}", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("تعداد هاست‌های مجاز:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${s.usableHosts} هاست (${s.totalHosts} آدرس کل)", fontWeight = FontWeight.Bold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("ساب‌نت ماسک (Subnet Mask):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(s.netmask, fontFamily = FontFamily.Monospace)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("وایلدکارت ماسک (Wildcard):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(s.wildcard, fontFamily = FontFamily.Monospace)
+            item {
+                ModernCard(padding = 14.dp) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("آدرس شبکه (Network):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(s.network, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("آدرس برادکست (Broadcast):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(s.broadcast, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("بازه هاست‌های قابل استفاده:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${s.firstHost}  ➔  ${s.lastHost}", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("تعداد هاست‌های مجاز:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${s.usableHosts} هاست (${s.totalHosts} آدرس کل)", fontWeight = FontWeight.Bold)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("ساب‌نت ماسک (Subnet Mask):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(s.netmask, fontFamily = FontFamily.Monospace)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("وایلدکارت ماسک (Wildcard):", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(s.wildcard, fontFamily = FontFamily.Monospace)
+                        }
                     }
                 }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -2010,67 +2093,65 @@ private fun JwtDecoderTab(t: Str) {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        FeatureGuideCard(
-            title = "راهنمای رمزگشای توکن لاگین (JWT Decoder)",
-            description = "توکن‌های احراز هویت JWT را رمزگشایی کرده و مشخصات کاربر، نقش‌ها، دسترسی‌ها و تاریخ انقضا (Expiration Date) را نمایش می‌دهد."
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        ModernCard(padding = 12.dp) {
-            OutlinedTextField(
-                value = token,
-                onValueChange = { token = it },
-                label = { Text("توکن JWT را اینجا جای‌گذاری کنید (eyJhbGciOi...)", fontSize = 12.sp) },
-                modifier = Modifier.fillMaxWidth().height(90.dp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای رمزگشای توکن لاگین (JWT Decoder)",
+                description = "توکن‌های احراز هویت JWT را رمزگشایی کرده و مشخصات کاربر، نقش‌ها، دسترسی‌ها و تاریخ انقضا (Expiration Date) را نمایش می‌دهد."
             )
+        }
 
-            Spacer(Modifier.height(8.dp))
-            Button(
-                onClick = { decode() },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(15.dp))
-                    Text("دیکود و استخراج مشخصات توکن", fontWeight = FontWeight.Bold)
+        item {
+            ModernCard(padding = 14.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = token,
+                        onValueChange = { token = it },
+                        label = { Text("توکن JWT را اینجا جای‌گذاری کنید (eyJhbGciOi...)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth().height(90.dp)
+                    )
+
+                    PrimaryActionButton(
+                        text = "دیکود و استخراج مشخصات توکن",
+                        onClick = { decode() }
+                    )
                 }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
-
         if (err != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
-                Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(15.dp))
+                    Text(err!!, color = Color(0xFFEF4444), fontSize = 12.sp)
+                }
             }
         }
 
         jwtInfo?.let { j ->
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    StatusPill(
-                        text = if (j.isExpired) "توکن منقضی شده است (${j.expiryDate})" else "توکن معتبر است (انقضا: ${j.expiryDate ?: "نامحدود"})",
-                        isOnline = !j.isExpired
-                    )
+            item {
+                StatusPill(
+                    text = if (j.isExpired) "توکن منقضی شده است (${j.expiryDate})" else "توکن معتبر است (انقضا: ${j.expiryDate ?: "نامحدود"})",
+                    isOnline = !j.isExpired
+                )
+            }
+            item {
+                Text("اطلاعات بدنه توکن (Payload Data):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                ModernCard(padding = 10.dp) {
+                    Text(j.payload, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
                 }
-                item {
-                    Text("اطلاعات بدنه توکن (Payload Data):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    ModernCard(padding = 10.dp) {
-                        Text(j.payload, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
-                    }
+            }
+            item {
+                Text("هدر توکن (Header):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                ModernCard(padding = 10.dp) {
+                    Text(j.header, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
                 }
-                item {
-                    Text("هدر توکن (Header):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    ModernCard(padding = 10.dp) {
-                        Text(j.header, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
-                    }
-                }
-                item { Spacer(Modifier.height(30.dp)) }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }
 
@@ -2085,101 +2166,111 @@ private fun GeneratorTab(t: Str) {
     var generatedPass by remember { mutableStateOf(DevLabTools.generatePassword(passLength)) }
     var generatedUuid by remember { mutableStateOf(DevLabTools.generateUuid()) }
 
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        FeatureGuideCard(
-            title = "راهنمای تولیدکننده پسورد و شناسه UUID",
-            description = "تولید پسوردهای ضد هک و تصادفی برای سرورها، دیتابیس‌ها و ساخت شناسه‌های یکتای جهانی (UUID v4) برای دیتابیس و کانفیگ‌ها."
-        )
-
-        ModernCard(padding = 14.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Rounded.Password, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                Text("تولیدکننده رمز عبور قوی ضد هک", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                generatedPass,
-                fontSize = 15.sp,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().imePadding(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            FeatureGuideCard(
+                title = "راهنمای تولیدکننده پسورد و شناسه UUID",
+                description = "تولید پسوردهای ضد هک و تصادفی برای سرورها، دیتابیس‌ها و ساخت شناسه‌های یکتای جهانی (UUID v4) برای دیتابیس و کانفیگ‌ها."
             )
+        }
 
-            Spacer(Modifier.height(8.dp))
+        item {
+            ModernCard(padding = 14.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Rounded.Password, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text("تولیدکننده رمز عبور قوی ضد هک", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    generatedPass,
+                    fontSize = 15.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
 
-            // Length selectors
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("طول پسورد:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                listOf(12, 16, 20, 24, 32).forEach { len ->
-                    val isSel = passLength == len
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.clickable {
-                            passLength = len
-                            generatedPass = DevLabTools.generatePassword(len)
+                Spacer(Modifier.height(8.dp))
+
+                // Length selectors
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("طول پسورد:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    listOf(12, 16, 20, 24, 32).forEach { len ->
+                        val isSel = passLength == len
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSel) Color(0xFF0D9488) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.clickable {
+                                passLength = len
+                                generatedPass = DevLabTools.generatePassword(len)
+                            }
+                        ) {
+                            Text(
+                                "$len",
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                fontSize = 10.5.sp,
+                                fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
                         }
-                    ) {
-                        Text(
-                            "$len",
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            fontSize = 10.5.sp,
-                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                        )
                     }
                 }
-            }
 
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { generatedPass = DevLabTools.generatePassword(passLength) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("تولید پسورد جدید", fontWeight = FontWeight.Bold) }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { generatedPass = DevLabTools.generatePassword(passLength) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    ) { Text("تولید پسورد جدید", fontWeight = FontWeight.Bold) }
 
-                OutlinedButton(onClick = {
-                    clipboard.setPrimaryClip(ClipData.newPlainText("password", generatedPass))
-                    Toast.makeText(ctx, "پسورد کپی شد!", Toast.LENGTH_SHORT).show()
-                }) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
-                        Text("کپی")
+                    OutlinedButton(onClick = {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("password", generatedPass))
+                        Toast.makeText(ctx, "پسورد کپی شد!", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Text("کپی")
+                        }
                     }
                 }
             }
         }
 
-        ModernCard(padding = 14.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Rounded.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                Text("تولیدکننده شناسه یکتای جهانی (UUID v4)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                generatedUuid,
-                fontSize = 13.5.sp,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { generatedUuid = DevLabTools.generateUuid() },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
-                ) { Text("تولید UUID جدید", fontWeight = FontWeight.Bold) }
+        item {
+            ModernCard(padding = 14.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Rounded.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text("تولیدکننده شناسه یکتای جهانی (UUID v4)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    generatedUuid,
+                    fontSize = 13.5.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { generatedUuid = DevLabTools.generateUuid() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488))
+                    ) { Text("تولید UUID جدید", fontWeight = FontWeight.Bold) }
 
-                OutlinedButton(onClick = {
-                    clipboard.setPrimaryClip(ClipData.newPlainText("uuid", generatedUuid))
-                    Toast.makeText(ctx, "UUID کپی شد!", Toast.LENGTH_SHORT).show()
-                }) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
-                        Text("کپی")
+                    OutlinedButton(onClick = {
+                        clipboard.setPrimaryClip(ClipData.newPlainText("uuid", generatedUuid))
+                        Toast.makeText(ctx, "UUID کپی شد!", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Text("کپی")
+                        }
                     }
                 }
             }
         }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 }

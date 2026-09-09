@@ -12,7 +12,8 @@
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Didban"
         android:allowBackup="true"
-        android:supportsRtl="true">
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"

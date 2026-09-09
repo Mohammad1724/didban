@@ -9,6 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
@@ -273,7 +274,7 @@ object CensorshipTester {
     }
 }
 
-// ── Multi-Provider IP & GeoIP Info ───────────────────────────────────────────
+// ── Multi-Provider IP & GeoIP Info (HTTPS with Multi-Fallback) ──────────────
 
 data class GeoIpData(
     val ip: String,
@@ -293,40 +294,87 @@ data class GeoIpData(
 
 object IpInfoService {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
-    suspend fun lookup(targetIp: String = ""): GeoIpData = withContext(Dispatchers.IO) {
-        val clean = targetIp.trim()
-        val url = if (clean.isEmpty()) "http://ip-api.com/json" else "http://ip-api.com/json/$clean"
+    suspend fun lookup(targetInput: String = ""): GeoIpData = withContext(Dispatchers.IO) {
+        val clean = targetInput.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
 
-        val req = Request.Builder().url(url).build()
-        client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw Exception("GeoIP lookup failed: HTTP ${resp.code}")
-            val j = JSONObject(body)
-            if (j.optString("status") == "fail") {
-                throw Exception(j.optString("message", "IP lookup failed"))
+        // Step 1: If input is a domain name, resolve to IP first
+        var resolvedIp = clean
+        if (clean.isNotEmpty() && !clean.matches(Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"))) {
+            try {
+                val inet = InetAddress.getByName(clean)
+                resolvedIp = inet.hostAddress ?: clean
+            } catch (_: Exception) {
+                // If DNS fails, continue with original input
             }
-
-            val cc = j.optString("countryCode", "")
-            GeoIpData(
-                ip = j.optString("query", clean),
-                country = j.optString("country", "Unknown"),
-                countryCode = cc,
-                flag = CheckHostService.flagForCountry(cc),
-                region = j.optString("regionName", ""),
-                city = j.optString("city", ""),
-                isp = j.optString("isp", ""),
-                org = j.optString("org", ""),
-                asn = j.optString("as", ""),
-                timezone = j.optString("timezone", ""),
-                lat = j.optDouble("lat", 0.0),
-                lon = j.optDouble("lon", 0.0),
-                provider = "ip-api"
-            )
         }
+
+        // Attempt 1: HTTPS via ipwho.is (Secure, fast, rich data)
+        try {
+            val httpsUrl = if (resolvedIp.isEmpty()) "https://ipwho.is/" else "https://ipwho.is/$resolvedIp"
+            val req = Request.Builder().url(httpsUrl).header("User-Agent", "Didban/1.0").build()
+            client.newCall(req).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: ""
+                    val j = JSONObject(body)
+                    if (j.optBoolean("success", true)) {
+                        val cc = j.optString("country_code", "")
+                        val conn = j.optJSONObject("connection")
+                        val tz = j.optJSONObject("timezone")
+                        return@withContext GeoIpData(
+                            ip = j.optString("ip", resolvedIp),
+                            country = j.optString("country", "Unknown"),
+                            countryCode = cc,
+                            flag = CheckHostService.flagForCountry(cc),
+                            region = j.optString("region", ""),
+                            city = j.optString("city", ""),
+                            isp = conn?.optString("isp", "") ?: j.optString("isp", ""),
+                            org = conn?.optString("org", "") ?: j.optString("org", ""),
+                            asn = conn?.optString("asn", "")?.let { if (it.isNotBlank() && !it.startsWith("AS", ignoreCase = true)) "AS$it" else it } ?: "",
+                            timezone = tz?.optString("id", "") ?: "",
+                            lat = j.optDouble("latitude", 0.0),
+                            lon = j.optDouble("longitude", 0.0),
+                            provider = "ipwho.is (HTTPS)"
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Attempt 2: ip-api.com (Fallback with cleartext enabled)
+        try {
+            val apiUrl = if (clean.isEmpty()) "http://ip-api.com/json" else "http://ip-api.com/json/$clean"
+            val req = Request.Builder().url(apiUrl).build()
+            client.newCall(req).execute().use { resp ->
+                if (resp.isSuccessful) {
+                    val body = resp.body?.string() ?: ""
+                    val j = JSONObject(body)
+                    if (j.optString("status") != "fail") {
+                        val cc = j.optString("countryCode", "")
+                        return@withContext GeoIpData(
+                            ip = j.optString("query", resolvedIp),
+                            country = j.optString("country", "Unknown"),
+                            countryCode = cc,
+                            flag = CheckHostService.flagForCountry(cc),
+                            region = j.optString("regionName", ""),
+                            city = j.optString("city", ""),
+                            isp = j.optString("isp", ""),
+                            org = j.optString("org", ""),
+                            asn = j.optString("as", ""),
+                            timezone = j.optString("timezone", ""),
+                            lat = j.optDouble("lat", 0.0),
+                            lon = j.optDouble("lon", 0.0),
+                            provider = "ip-api"
+                        )
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
+        throw Exception("امکان دریافت موقعیت و اطلاعات برای این آدرس مقدور نبود (بررسی کنید اینترنت و نام دامنه معتبر باشد)")
     }
 }
 

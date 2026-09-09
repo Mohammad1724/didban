@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -224,7 +225,12 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                     onBack = { openServer = null }
                 )
             } else {
-                Column(Modifier.fillMaxSize().background(appBg)) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                        .background(appBg)
+                ) {
                     Box(Modifier.weight(1f)) {
                         when (currentNav) {
                             0 -> ServersScreen(
