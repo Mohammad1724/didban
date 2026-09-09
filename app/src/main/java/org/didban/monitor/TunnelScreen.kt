@@ -152,11 +152,10 @@ fun TunnelScreen(t: Str) {
                 title = "راهنمای جامع هاب تانل دو سرور (Iran Node ➔ Foreign Node)",
                 description = t.guideTunnels,
                 bullets = listOf(
-                    "BackPack 🎒: تانل نسل جدید Go با رمزنگاری Stealth Noise، دور زدن کرنل PCK و گیمینگ KCP+FEC",
-                    "Paqet: تانل سوکت خام (Raw Socket) و KCP جهت عبور از سخت‌ترین فیلترها و DPI",
-                    "Narnia: تانل پنهان درون پکت‌های ICMP Ping با رمزنگاری ChaCha20 و ایجاد شبکه مجازی",
-                    "Spoof Tunnel: جعل دوطرفه IP مبدا با لایه Reliability و تصحیح خطای Reed-Solomon FEC",
-                    "Backhaul & Rathole & GOST: تانل‌های معکوس و رله فوق سریع WebSocket/gRPC/Rust"
+                    "پشتیبانی از چندین پورت همزمان (Multi-Port Forwarding): رله همزمان چندین پورت نظیر 2096, 2097, 2098",
+                    "BackPack 🎒: تانل نسل جدید با رمزنگاری Stealth Noise، دور زدن کرنل PCK و گیمینگ KCP+FEC",
+                    "Paqet & Narnia: عبور از فیلترینگ با سوکت خام (Raw Socket) و پنهان‌سازی در پکت‌های ICMP Ping",
+                    "Spoof Tunnel & Backhaul: جعل دوطرفه IP مبدا و رله مالتی‌پورت پرسرعت"
                 )
             )
         }
@@ -201,7 +200,7 @@ fun TunnelScreen(t: Str) {
                         Text("هنوز تانلی بین دو سرور تعریف نشده است", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و دستورات نصب خودکار با هسته‌های BackPack، Paqet، Narnia، Spoof Tunnel، Backhaul یا GOST را دریافت کنید.",
+                            "با تعریف اولین تانل، مشخصات سرور ایران و خارج را وارد کرده و پورت‌های دلخواه (تکی یا چندگانه) را با هسته‌های BackPack، Paqet، Narnia، Spoof Tunnel یا Backhaul به آسانی متصل کنید.",
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp,
@@ -228,6 +227,12 @@ fun TunnelScreen(t: Str) {
                     TunnelCore.CHISEL -> Color(0xFF7C3AED)
                     TunnelCore.FRP -> Color(0xFFDC2626)
                     TunnelCore.IPTABLES -> Color(0xFF475569)
+                }
+
+                val ports = remember(tun) { TunnelEngine.parsePortMappings(tun) }
+                val portsSummary = remember(ports) {
+                    if (ports.size == 1) "${ports[0].iranPort} ➔ ${ports[0].foreignPort}"
+                    else ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
                 }
 
                 ModernCard(padding = 14.dp) {
@@ -324,26 +329,20 @@ fun TunnelScreen(t: Str) {
                     ) {
                         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("🇮🇷 ورودی ایران:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${tun.iranHost.ifBlank { "0.0.0.0" }}:${tun.iranPort}", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                Text("🇮🇷 سرور ایران:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(tun.iranHost.ifBlank { "0.0.0.0" }, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("🌍 مقصد خارج:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${tun.foreignHost.ifBlank { "127.0.0.1" }}:${tun.foreignPort}", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
+                                Text("🌍 سرور خارج:", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(tun.foreignHost.ifBlank { "127.0.0.1" }, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.primary)
                             }
-                            if (tun.core == TunnelCore.NARNIA) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text("🔌 پورت‌های فوروارد (${ports.size} پورت):", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(portsSummary, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = Color(0xFF0D9488))
+                            }
+                            if (tun.core != TunnelCore.IPTABLES && tun.core != TunnelCore.NARNIA) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text("📡 اینترفیس مجازی ICMP:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${tun.virtualIpIran} ➔ ${tun.virtualIpKharej}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF8B5CF6))
-                                }
-                            } else if (tun.core == TunnelCore.SPOOF_TUNNEL) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🎭 آی‌پی جعل‌شده (Spoofed):", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${tun.spoofSrcIp} ⇄ ${tun.spoofPeerIp}", fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFF43F5E))
-                                }
-                            } else {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🔌 پورت ارتباطی تانل:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("🔑 پورت تانل ارتباطی:", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Text("Port ${tun.corePort}", fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                                 }
                             }
@@ -502,9 +501,8 @@ private fun AddOrEditTunnelDialog(
         )
     }
     var iranHost by remember { mutableStateOf(existing?.iranHost ?: "") }
-    var iranPort by remember { mutableStateOf(existing?.iranPort?.toString() ?: "443") }
     var foreignHost by remember { mutableStateOf(existing?.foreignHost ?: "") }
-    var foreignPort by remember { mutableStateOf(existing?.foreignPort?.toString() ?: "8443") }
+    var multiPorts by remember { mutableStateOf(existing?.multiPorts ?: "2096, 2097, 2098") }
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
     var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
     var preset by remember { mutableStateOf(existing?.preset ?: "turbo") }
@@ -521,6 +519,11 @@ private fun AddOrEditTunnelDialog(
     var showIranServerDropdown by remember { mutableStateOf(false) }
     var showForeignServerDropdown by remember { mutableStateOf(false) }
 
+    val dummyConfig = remember(multiPorts) {
+        TunnelConfig(0, "", core, transport, multiPorts = multiPorts)
+    }
+    val parsedPorts = remember(multiPorts) { TunnelEngine.parsePortMappings(dummyConfig) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -530,7 +533,7 @@ private fun AddOrEditTunnelDialog(
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().height(460.dp).imePadding()
+                modifier = Modifier.fillMaxWidth().height(480.dp).imePadding()
             ) {
                 // 1. Name
                 item {
@@ -599,7 +602,58 @@ private fun AddOrEditTunnelDialog(
                     Text(core.description, fontSize = 10.5.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
 
-                // ── 3. Specific Options by Core ──
+                // ── 3. Multi-Port Configurator ──
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("پورت‌های فوروارد (تکی، چندگانه یا رنج):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        OutlinedTextField(
+                            value = multiPorts,
+                            onValueChange = { multiPorts = it },
+                            label = { Text("پورت‌ها (مثلاً: 2096, 2097, 2098 یا 443:8443)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Quick Presets
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                "2096, 2097, 2098" to "⚡ پورت‌های 2096..2098",
+                                "80, 443, 8080, 8443" to "🌐 وب و SSL",
+                                "80, 443, 2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096" to "🚀 پورت‌های کلودفلر",
+                                "443:8443" to "🔌 تک پورت (443:8443)"
+                            ).forEach { (presetPorts, label) ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.clickable { multiPorts = presetPorts }
+                                ) {
+                                    Text(label, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+
+                        // Live Parsed Ports Info
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0D9488).copy(alpha = 0.1f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                "📡 پورت‌های تشخیص‌داده‌شده (${parsedPorts.size} پورت): " + parsedPorts.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" },
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                fontSize = 10.5.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF0D9488),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // ── 4. Specific Options by Core ──
                 when (core) {
                     TunnelCore.BACKPACK -> {
                         item {
@@ -899,7 +953,7 @@ private fun AddOrEditTunnelDialog(
                     else -> {}
                 }
 
-                // 4. Iran Server & Listening Port
+                // 5. Iran Server IP
                 item {
                     Text("مشخصات سرور ایران (Bridge / Relay):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
@@ -935,18 +989,10 @@ private fun AddOrEditTunnelDialog(
                                 Icon(Icons.Rounded.Dns, contentDescription = "Select Server", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-
-                        OutlinedTextField(
-                            value = iranPort,
-                            onValueChange = { iranPort = it },
-                            label = { Text("پورت ایران") },
-                            singleLine = true,
-                            modifier = Modifier.width(85.dp)
-                        )
                     }
                 }
 
-                // 5. Foreign Server & Target Port
+                // 6. Foreign Server IP
                 item {
                     Text("مشخصات سرور خارج (Upstream / Target):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
@@ -982,19 +1028,11 @@ private fun AddOrEditTunnelDialog(
                                 Icon(Icons.Rounded.Language, contentDescription = "Select Server", tint = MaterialTheme.colorScheme.primary)
                             }
                         }
-
-                        OutlinedTextField(
-                            value = foreignPort,
-                            onValueChange = { foreignPort = it },
-                            label = { Text("پورت مقصد") },
-                            singleLine = true,
-                            modifier = Modifier.width(85.dp)
-                        )
                     }
                 }
 
-                // 6. Core Tunnel Port & Secret Token
-                if (core != TunnelCore.IPTABLES) {
+                // 7. Core Tunnel Port & Secret Token
+                if (core != TunnelCore.IPTABLES && core != TunnelCore.NARNIA) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
@@ -1026,14 +1064,15 @@ private fun AddOrEditTunnelDialog(
             Button(
                 onClick = {
                     if (name.isNotBlank()) {
+                        val firstPort = parsedPorts.firstOrNull() ?: PortMapping(443, 8443)
                         val newTun = existing?.apply {
                             this.name = name.trim()
                             this.core = core
                             this.transport = transport
                             this.iranHost = iranHost.trim()
-                            this.iranPort = iranPort.toIntOrNull() ?: 443
+                            this.iranPort = firstPort.iranPort
                             this.foreignHost = foreignHost.trim()
-                            this.foreignPort = foreignPort.toIntOrNull() ?: 8443
+                            this.foreignPort = firstPort.foreignPort
                             this.corePort = corePort.toIntOrNull() ?: 3080
                             this.token = token.trim()
                             this.preset = preset
@@ -1046,15 +1085,16 @@ private fun AddOrEditTunnelDialog(
                             this.mtu = mtu.toIntOrNull() ?: 1350
                             this.acceptUdp = acceptUdp
                             this.proxyProtocol = proxyProtocol
+                            this.multiPorts = multiPorts.trim()
                         } ?: TunnelConfig(
                             id = System.currentTimeMillis(),
                             name = name.trim(),
                             core = core,
                             transport = transport,
                             iranHost = iranHost.trim(),
-                            iranPort = iranPort.toIntOrNull() ?: 443,
+                            iranPort = firstPort.iranPort,
                             foreignHost = foreignHost.trim(),
-                            foreignPort = foreignPort.toIntOrNull() ?: 8443,
+                            foreignPort = firstPort.foreignPort,
                             corePort = corePort.toIntOrNull() ?: 3080,
                             token = token.trim(),
                             preset = preset,
@@ -1066,7 +1106,8 @@ private fun AddOrEditTunnelDialog(
                             virtualIpKharej = virtualIpKharej.trim(),
                             mtu = mtu.toIntOrNull() ?: 1350,
                             acceptUdp = acceptUdp,
-                            proxyProtocol = proxyProtocol
+                            proxyProtocol = proxyProtocol,
+                            multiPorts = multiPorts.trim()
                         )
                         onSave(newTun)
                     }

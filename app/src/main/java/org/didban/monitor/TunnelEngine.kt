@@ -6,6 +6,8 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.SecureRandom
 
+data class PortMapping(val iranPort: Int, val foreignPort: Int)
+
 object TunnelEngine {
 
     fun generateRandomToken(length: Int = 16): String {
@@ -16,6 +18,41 @@ object TunnelEngine {
             sb.append(chars[rnd.nextInt(chars.length)])
         }
         return sb.toString()
+    }
+
+    fun parsePortMappings(cfg: TunnelConfig): List<PortMapping> {
+        val raw = cfg.multiPorts.trim()
+        if (raw.isBlank()) {
+            return listOf(PortMapping(cfg.iranPort, cfg.foreignPort))
+        }
+        val result = mutableListOf<PortMapping>()
+        val tokens = raw.split(',', ';', ' ', '\n', '\t').map { it.trim() }.filter { it.isNotEmpty() }
+        for (token in tokens) {
+            if (token.contains(':') || token.contains('=')) {
+                val delim = if (token.contains(':')) ':' else '='
+                val parts = token.split(delim)
+                val ip = parts[0].trim().toIntOrNull()
+                val fp = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: ip
+                if (ip != null && fp != null) {
+                    result.add(PortMapping(ip, fp))
+                }
+            } else if (token.contains('-')) {
+                val parts = token.split('-')
+                val start = parts[0].trim().toIntOrNull()
+                val end = parts.getOrNull(1)?.trim()?.toIntOrNull()
+                if (start != null && end != null && start <= end && (end - start) <= 50) {
+                    for (p in start..end) {
+                        result.add(PortMapping(p, p))
+                    }
+                }
+            } else {
+                val p = token.toIntOrNull()
+                if (p != null) {
+                    result.add(PortMapping(p, p))
+                }
+            }
+        }
+        return if (result.isNotEmpty()) result else listOf(PortMapping(cfg.iranPort, cfg.foreignPort))
     }
 
     fun generateCode(cfg: TunnelConfig): GeneratedTunnelCode {
@@ -36,6 +73,7 @@ object TunnelEngine {
     // ── 0. BackPack Generator (AminMGMT/BackPack) ─────────────────────────────
 
     private fun generateBackpack(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val transportStr = when (cfg.transport) {
             TunnelTransport.STEALTH -> "stealth"
             TunnelTransport.PCK -> "pck"
@@ -56,13 +94,15 @@ object TunnelEngine {
         val acceptUdpStr = if (cfg.acceptUdp) "accept_udp = true\n" else ""
         val proxyProtoStr = if (cfg.proxyProtocol) "proxy_protocol = true\n" else ""
 
+        val portsJson = ports.joinToString(", ") { "\"${it.iranPort}=127.0.0.1:${it.foreignPort}\"" }
+
         // Server Config (Iran Node)
         val iranConfig = """
 [server]
 bind_addr = "0.0.0.0:${cfg.corePort}"
 transport = "$transportStr"
 token = "$token"
-ports = ["${cfg.iranPort}=127.0.0.1:${cfg.foreignPort}"]
+ports = [$portsJson]
 nodelay = true
 keepalive_period = 30
 preset = "$preset"
@@ -166,6 +206,7 @@ services:
     command: client -c /etc/backpack/client.toml
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranConfig,
             iranInstallCommand = iranInstall,
@@ -173,17 +214,24 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل قدرتمند BackPack (توسعه‌یافته توسط AminMGMT): اتصال پورت ${cfg.iranPort} ایران به ${cfg.foreignPort} خارج با رمزنگاری ${cfg.transport.displayName} و پریست ${cfg.preset}."
+            description = "تانل قدرتمند BackPack (توسعه‌یافته توسط AminMGMT): اتصال پورت‌های [$portsDesc] ایران به خارج با رمزنگاری ${cfg.transport.displayName} و پریست ${cfg.preset}."
         )
     }
 
     // ── 1. Paqet Generator (behzadea12 / hanselime) ──────────────────────────
 
     private fun generatePaqet(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val token = cfg.token.ifBlank { generateRandomToken(16) }
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val kcpMode = cfg.kcpMode.ifBlank { "fast" }
         val encryption = cfg.encryption.ifBlank { "aes-128-gcm" }
+
+        val forwardsYaml = ports.joinToString("\n") { p ->
+            """    - listen: "0.0.0.0:${p.iranPort}"
+      target: "127.0.0.1:${p.foreignPort}"
+      proto: "tcp/udp""""
+        }
 
         val foreignConfig = """
 server:
@@ -210,9 +258,7 @@ client:
   tcp_buffer: 4194304
   udp_buffer: 4194304
   forwards:
-    - listen: "0.0.0.0:${cfg.iranPort}"
-      target: "127.0.0.1:${cfg.foreignPort}"
-      proto: "tcp/udp"
+$forwardsYaml
 """.trimIndent()
 
         val foreignInstall = """
@@ -305,6 +351,7 @@ services:
     command: client -c /etc/paqet/client.yaml
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranConfig,
             iranInstallCommand = iranInstall,
@@ -312,13 +359,14 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل فوق سریع Paqet بر بستر Raw Socket و KCP: دور زدن فیلترینگ بدون ردپای سوکت معمولی با رمزنگاری $encryption و مود $kcpMode."
+            description = "تانل فوق سریع Paqet بر بستر Raw Socket و KCP: فوروارد پورت‌های [$portsDesc] با رمزنگاری $encryption و مود $kcpMode."
         )
     }
 
     // ── 2. Narnia Generator (Dnt3e/Narnia - ICMP Ping Tunnel) ─────────────────
 
     private fun generateNarnia(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val key = cfg.token.ifBlank { generateRandomToken(16) }
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val vIpKharej = cfg.virtualIpKharej.ifBlank { "10.200.200.1" }
@@ -327,6 +375,11 @@ services:
 
         val foreignCmd = "/usr/local/bin/narnia -l -k \"$key\" -o ip:30:$vIpKharej:$vIpIran:dynamic:50 -t $mtu"
         val iranCmd = "/usr/local/bin/narnia -r $foreignIp -k \"$key\" -t $mtu"
+
+        val natRules = ports.joinToString(" && \\\n") { p ->
+            "iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort} && \\\n" +
+            "iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort}"
+        }
 
         val foreignInstall = """
 # ── راه‌اندازی سرور Narnia (ICMP Ping Tunnel) روی سرور خارج ──
@@ -363,8 +416,7 @@ curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux
 curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh && \
 chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
 echo 1 > /proc/sys/net/ipv4/ip_forward && \
-iptables -t nat -A PREROUTING -p tcp --dport ${cfg.iranPort} -j DNAT --to-destination $vIpKharej:${cfg.foreignPort} && \
-iptables -t nat -A PREROUTING -p udp --dport ${cfg.iranPort} -j DNAT --to-destination $vIpKharej:${cfg.foreignPort} && \
+$natRules && \
 iptables -t nat -A POSTROUTING -j MASQUERADE && \
 cat << 'EOF' > /etc/systemd/system/narnia.service
 [Unit]
@@ -413,6 +465,7 @@ services:
     command: -r $foreignIp -k "$key" -t $mtu
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranCmd,
             iranInstallCommand = iranInstall,
@@ -420,13 +473,14 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): ارتباط امن لایه ۳ بر بستر ChaCha20 با ایجاد اینترفیس مجازی بین $vIpIran و $vIpKharej بدون نیاز به پورت باز TCP/UDP."
+            description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): روتینگ پورت‌های [$portsDesc] روی شبکه مجازی $vIpIran به $vIpKharej با رمزنگاری ChaCha20."
         )
     }
 
     // ── 3. Spoof Tunnel Generator (ParsaKSH/spoof-tunnel & forks) ────────────
 
     private fun generateSpoofTunnel(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val iranIp = cfg.iranHost.ifBlank { "IRAN_IP" }
         val spoofSrc = cfg.spoofSrcIp.ifBlank { "1.1.1.1" }
@@ -436,6 +490,8 @@ services:
 
         val serverPrivKey = generateRandomToken(32)
         val clientPrivKey = generateRandomToken(32)
+
+        val firstPort = ports.firstOrNull() ?: PortMapping(cfg.iranPort, cfg.foreignPort)
 
         val foreignConfig = """
 {
@@ -481,11 +537,11 @@ services:
   "mode": "client",
   "listen": {
     "address": "0.0.0.0",
-    "port": ${cfg.iranPort}
+    "port": ${firstPort.iranPort}
   },
   "remote": "$foreignIp",
   "remote_port": ${cfg.corePort},
-  "forward": "127.0.0.1:${cfg.foreignPort}",
+  "forward": "127.0.0.1:${firstPort.foreignPort}",
   "transport": {
     "type": "$transportType",
     "icmp_mode": "echo"
@@ -623,6 +679,7 @@ services:
     // ── 4. Backhaul Generator ────────────────────────────────────────────────
 
     private fun generateBackhaul(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val transportStr = when (cfg.transport) {
             TunnelTransport.WS -> "ws"
             TunnelTransport.WSMUX -> "wsmux"
@@ -631,6 +688,12 @@ services:
         }
         val token = cfg.token.ifBlank { "didban_backhaul_secret" }
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+
+        val foreignPortsBlock = ports.joinToString("\n\n") { p ->
+            """[[server.ports]]
+listen_port = ${p.iranPort}
+target_addr = "127.0.0.1:${p.foreignPort}""""
+        }
 
         // Server Config (Foreign Server)
         val foreignConfig = """
@@ -644,9 +707,7 @@ channel_size = 2048
 sniffer = false
 web_port = 0
 
-[[server.ports]]
-listen_port = ${cfg.iranPort}
-target_addr = "127.0.0.1:${cfg.foreignPort}"
+$foreignPortsBlock
 """.trimIndent()
 
         // Client Config (Iran Server)
@@ -742,6 +803,7 @@ services:
     command: -c /etc/backhaul/config.toml
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranConfig,
             iranInstallCommand = iranInstall,
@@ -749,24 +811,35 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل معکوس Backhaul: پورت ${cfg.iranPort} ایران را به پورت ${cfg.foreignPort} خارج با پروتکل ${cfg.transport.displayName} متصل می‌کند."
+            description = "تانل معکوس Backhaul: اتصال پورت‌های [$portsDesc] ایران به خارج با پروتکل ${cfg.transport.displayName}."
         )
     }
 
     // ── 5. Rathole Generator ─────────────────────────────────────────────────
 
     private fun generateRathole(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val token = cfg.token.ifBlank { "didban_rathole_token" }
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+
+        val serverServices = ports.joinToString("\n\n") { p ->
+            """[server.services.app_${p.iranPort}]
+token = "$token"
+bind_addr = "0.0.0.0:${p.iranPort}""""
+        }
+
+        val clientServices = ports.joinToString("\n\n") { p ->
+            """[client.services.app_${p.iranPort}]
+token = "$token"
+local_addr = "127.0.0.1:${p.foreignPort}""""
+        }
 
         val foreignConfig = """
 [server]
 bind_addr = "0.0.0.0:${cfg.corePort}"
 default_token = "$token"
 
-[server.services.app]
-token = "$token"
-bind_addr = "0.0.0.0:${cfg.iranPort}"
+$serverServices
 """.trimIndent()
 
         val iranConfig = """
@@ -774,9 +847,7 @@ bind_addr = "0.0.0.0:${cfg.iranPort}"
 remote_addr = "$foreignIp:${cfg.corePort}"
 default_token = "$token"
 
-[client.services.app]
-token = "$token"
-local_addr = "127.0.0.1:${cfg.foreignPort}"
+$clientServices
 """.trimIndent()
 
         val foreignInstall = """
@@ -863,6 +934,7 @@ services:
     command: /app/client.toml
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranConfig,
             iranInstallCommand = iranInstall,
@@ -870,13 +942,14 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل سبک و امن Rathole نوشته شده با Rust: پورت ${cfg.iranPort} ایران را با کمترین مصرف رم به پورت ${cfg.foreignPort} خارج متصل می‌کند."
+            description = "تانل سبک و امن Rathole نوشته شده با Rust: رله پورت‌های [$portsDesc] با کمترین مصرف رم."
         )
     }
 
     // ── 6. GOST Generator ────────────────────────────────────────────────────
 
     private fun generateGost(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val proto = when (cfg.transport) {
             TunnelTransport.WS -> "relay+ws"
@@ -887,15 +960,20 @@ services:
         }
 
         val foreignCmd = if (proto == "tcp" || proto == "udp") {
-            "# GOST on Kharej runs your target application on port ${cfg.foreignPort}"
+            "# GOST on Kharej runs your target services"
         } else {
             "/usr/local/bin/gost -L \"$proto://:${cfg.corePort}\""
         }
 
         val iranCmd = if (proto == "tcp") {
-            "/usr/local/bin/gost -L \"tcp://:${cfg.iranPort}/$foreignIp:${cfg.foreignPort}\" -L \"udp://:${cfg.iranPort}/$foreignIp:${cfg.foreignPort}\""
+            ports.joinToString(" ") { p ->
+                "-L \"tcp://:${p.iranPort}/$foreignIp:${p.foreignPort}\" -L \"udp://:${p.iranPort}/$foreignIp:${p.foreignPort}\""
+            }.let { "/usr/local/bin/gost $it" }
         } else {
-            "/usr/local/bin/gost -L \"tcp://:${cfg.iranPort}/127.0.0.1:${cfg.foreignPort}\" -F \"$proto://$foreignIp:${cfg.corePort}\""
+            val listeners = ports.joinToString(" ") { p ->
+                "-L \"tcp://:${p.iranPort}/127.0.0.1:${p.foreignPort}\""
+            }
+            "/usr/local/bin/gost $listeners -F \"$proto://$foreignIp:${cfg.corePort}\""
         }
 
         val foreignInstall = """
@@ -963,9 +1041,10 @@ services:
     container_name: gost_client
     restart: always
     network_mode: host
-    command: -L "tcp://:${cfg.iranPort}/127.0.0.1:${cfg.foreignPort}" -F "$proto://$foreignIp:${cfg.corePort}"
+    command: ${iranCmd.removePrefix("/usr/local/bin/gost ")}
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranCmd,
             iranInstallCommand = iranInstall,
@@ -973,18 +1052,21 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل همه‌کاره GOST: رله و فوروارد ترافیک پورت ${cfg.iranPort} ایران به ${cfg.foreignPort} خارج با بستر ${cfg.transport.displayName}."
+            description = "تانل همه‌کاره GOST: رله و فوروارد پورت‌های [$portsDesc] با پروتکل ${cfg.transport.displayName}."
         )
     }
 
     // ── 7. Chisel Generator ──────────────────────────────────────────────────
 
     private fun generateChisel(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val auth = "admin:${cfg.token.ifBlank { "didban_chisel_secret" }}"
 
+        val reverseArgs = ports.joinToString(" ") { p -> "R:${p.iranPort}:127.0.0.1:${p.foreignPort}" }
+
         val foreignCmd = "/usr/local/bin/chisel server --port ${cfg.corePort} --auth \"$auth\" --reverse"
-        val iranCmd = "/usr/local/bin/chisel client --auth \"$auth\" http://$foreignIp:${cfg.corePort} R:${cfg.iranPort}:127.0.0.1:${cfg.foreignPort}"
+        val iranCmd = "/usr/local/bin/chisel client --auth \"$auth\" http://$foreignIp:${cfg.corePort} $reverseArgs"
 
         val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
@@ -1051,9 +1133,10 @@ services:
     container_name: chisel_client
     restart: always
     network_mode: host
-    command: client --auth "$auth" http://$foreignIp:${cfg.corePort} R:${cfg.iranPort}:127.0.0.1:${cfg.foreignPort}
+    command: client --auth "$auth" http://$foreignIp:${cfg.corePort} $reverseArgs
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranCmd,
             iranInstallCommand = iranInstall,
@@ -1061,15 +1144,25 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل امن Chisel از بستر WebSocket و HTTP: عبور آسان از فیلترینگ با پوشش ترافیک معمولی وب."
+            description = "تانل امن Chisel بر بستر WebSocket و HTTP: رله پورت‌های [$portsDesc] با پوشش ترافیک عادی وب."
         )
     }
 
     // ── 8. FRP Generator ─────────────────────────────────────────────────────
 
     private fun generateFrp(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val token = cfg.token.ifBlank { "didban_frp_secret" }
+
+        val frpProxies = ports.joinToString("\n\n") { p ->
+            """[[proxies]]
+name = "tcp_${p.iranPort}"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = ${p.foreignPort}
+remotePort = ${p.iranPort}"""
+        }
 
         val foreignConfig = """
 bindPort = ${cfg.corePort}
@@ -1081,12 +1174,7 @@ serverAddr = "$foreignIp"
 serverPort = ${cfg.corePort}
 auth.token = "$token"
 
-[[proxies]]
-name = "tcp_tunnel"
-type = "tcp"
-localIP = "127.0.0.1"
-localPort = ${cfg.foreignPort}
-remotePort = ${cfg.iranPort}
+$frpProxies
 """.trimIndent()
 
         val foreignInstall = """
@@ -1119,7 +1207,7 @@ systemctl daemon-reload && systemctl enable --now frps && systemctl status frps 
 sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
-tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frps && \
+tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc && \
 cat << 'EOF' > /etc/frp/frpc.toml
 $iranConfig
 EOF
@@ -1165,6 +1253,7 @@ services:
       - ./frpc.toml:/etc/frp/frpc.toml
 """.trimIndent()
 
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
             iranConfig = iranConfig,
             iranInstallCommand = iranInstall,
@@ -1172,35 +1261,41 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل ریورس FRP: رله ترافیک با هسته باسابقه و پایدار FRP."
+            description = "تانل ریورس FRP: رله پورت‌های [$portsDesc] با هسته کلاسیک و باسابقه FRP."
         )
     }
 
     // ── 9. IPTables Port Forwarding Generator ────────────────────────────────
 
     private fun generateIptables(cfg: TunnelConfig): GeneratedTunnelCode {
+        val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+
+        val rules = ports.joinToString("\n") { p ->
+            """sudo iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}
+sudo iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}
+sudo iptables -t nat -A POSTROUTING -p tcp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -p udp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE"""
+        }
 
         val iranInstall = """
 sudo sysctl -w net.ipv4.ip_forward=1
 echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-sudo iptables -t nat -A PREROUTING -p tcp --dport ${cfg.iranPort} -j DNAT --to-destination $foreignIp:${cfg.foreignPort}
-sudo iptables -t nat -A PREROUTING -p udp --dport ${cfg.iranPort} -j DNAT --to-destination $foreignIp:${cfg.foreignPort}
-sudo iptables -t nat -A POSTROUTING -p tcp -d $foreignIp --dport ${cfg.foreignPort} -j MASQUERADE
-sudo iptables -t nat -A POSTROUTING -p udp -d $foreignIp --dport ${cfg.foreignPort} -j MASQUERADE
+$rules
 sudo apt-get install -y iptables-persistent >/dev/null 2>&1 && sudo netfilter-persistent save
 """.trimIndent()
 
-        val foreignInfo = "# سرور خارج نیازی به تنظیمات خاصی ندارد؛ فقط سرویس اصلی شما روی پورت ${cfg.foreignPort} در حال اجرا باشد."
+        val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
+        val foreignInfo = "# سرور خارج نیازی به تنظیمات خاصی ندارد؛ فقط سرویس‌های شما روی پورت‌های مقصد [$portsDesc] در حال اجرا باشند."
 
         return GeneratedTunnelCode(
-            iranConfig = "# IPTables Kernel Forwarding Rules",
+            iranConfig = "# IPTables Kernel Forwarding Rules:\n$rules",
             iranInstallCommand = iranInstall,
             foreignConfig = foreignInfo,
             foreignInstallCommand = "# No setup required on Foreign server",
             dockerComposeIran = "# IPTables runs directly in Linux kernel",
             dockerComposeForeign = "# No setup required",
-            description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: حداکثر سرعت سخت‌افزاری شبکه بدون هیچ رم یا پردازش اضافه."
+            description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: روتینگ فوق سریع پورت‌های [$portsDesc] بدون پردازش اضافه."
         )
     }
 
