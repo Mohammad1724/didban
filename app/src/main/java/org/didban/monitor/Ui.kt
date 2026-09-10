@@ -550,7 +550,7 @@ fun HeaderWithBack(
         verticalAlignment = Alignment.CenterVertically
     ) {
         CircleIconButton(
-            icon = Icons.AutoMirrored.rounded.ArrowBack,
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
             contentDescription = "Back",
             tint = Ds.textPrimary,
             onClick = onBack

@@ -249,7 +249,7 @@ fun UptimeScreen(t: Str) {
                     Spacer(Modifier.height(12.dp))
 
                     // ── 30-Pulse Heartbeat Rhythm Bar ──
-                    HeartbeatBar(statuses = item.history.map { it.status }, height = 12.dp)
+                    HeartbeatBar(statuses = item.heartbeats.map { it.status }, height = 12.dp)
 
                     // Expanded incident logs and controls
                     if (isExpanded) {
@@ -310,7 +310,7 @@ fun UptimeScreen(t: Str) {
                             val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
                             item.incidents.takeLast(3).forEach { inc ->
                                 Text(
-                                    "• ${fmt.format(Date(inc.startTime))} — ${inc.cause}",
+                                    "• ${fmt.format(Date(inc.startTime))} — ${inc.error}",
                                     fontSize = 11.sp,
                                     color = Ds.danger,
                                     fontFamily = Telemetry

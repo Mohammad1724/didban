@@ -606,8 +606,19 @@ private fun TunnelFormDialog(
                 text = t.save,
                 onClick = {
                     if (name.isNotBlank()) {
-                        val parsedPorts = TunnelEngine.parseMultiPorts(multiPorts)
-                        val firstPort = parsedPorts.firstOrNull() ?: PortMapping(443, 8443)
+                        val firstPort = run {
+                            val token = multiPorts.split(',', ';', ' ', '\n', '\t').map { it.trim() }.firstOrNull { it.isNotEmpty() }
+                            if (token != null && (token.contains(':') || token.contains('='))) {
+                                val delim = if (token.contains(':')) ':' else '='
+                                val parts = token.split(delim)
+                                val ip = parts[0].trim().toIntOrNull() ?: 443
+                                val fp = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: ip
+                                PortMapping(ip, fp)
+                            } else {
+                                val p = token?.toIntOrNull() ?: 443
+                                PortMapping(p, p)
+                            }
+                        }
                         val newTun = existing?.apply {
                             this.name = name.trim()
                             this.core = core
