@@ -420,7 +420,7 @@ fun ServersScreen(
         AlertDialog(
             onDismissRequest = { deletedServer = null },
             title = { Text(t.confirmDelete, fontWeight = FontWeight.Bold, color = Ds.danger) },
-            text = { Text(t.deleteMsg.format(server.name), color = Ds.textSecondary) },
+            text = { Text("${server.name} (${server.host})", color = Ds.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     val list = Prefs.loadServers(ctx)
@@ -604,7 +604,7 @@ private fun StepItemPod(
 ) {
     Row(
         Modifier.fillMaxWidth(),
-        crossAxisAlignment = Alignment.Top
+        verticalAlignment = Alignment.Top
     ) {
         Box(
             modifier = Modifier
@@ -727,7 +727,7 @@ private fun ServerBentoCard(
                     }
                 } else {
                     StatusPill(
-                        text = if (isOnline) t.allOk else t.offline,
+                        text = if (isOnline) t.online else t.offline,
                         level = if (isOnline) StatusLevel.Ok else StatusLevel.Danger
                     )
                 }
