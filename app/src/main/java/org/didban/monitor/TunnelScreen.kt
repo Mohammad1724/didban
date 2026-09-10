@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package org.didban.monitor
 
@@ -13,8 +13,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -38,7 +37,6 @@ import androidx.compose.material.icons.rounded.AltRoute
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
@@ -47,29 +45,15 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.HelpOutline
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.SettingsEthernet
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
-import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -87,7 +71,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -99,16 +82,16 @@ import kotlinx.coroutines.launch
 fun TunnelScreen(t: Str) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
     var tunnels by remember { mutableStateOf<List<TunnelConfig>>(Prefs.loadTunnels(ctx)) }
+    var servers by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(ctx)) }
     var showAddDialog by remember { mutableStateOf(false) }
     var editingTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     var deletingTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     var viewCodeTunnel by remember { mutableStateOf<TunnelConfig?>(null) }
     var testingTunnelId by remember { mutableStateOf<Long?>(null) }
     var operatingTunnelId by remember { mutableStateOf<Long?>(null) }
-    var showGuide by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(tunnels.isEmpty()) }
     var selectedFilterCore by remember { mutableStateOf<TunnelCore?>(null) }
 
     fun save() {
@@ -152,68 +135,115 @@ fun TunnelScreen(t: Str) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 6.dp),
+                    .padding(top = 14.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(icon = Icons.Rounded.SwapHoriz, tint = Ds.accent, background = Ds.accentDim, size = 36.dp, iconSize = 18.dp)
+                    IconBadge(
+                        icon = Icons.Rounded.SwapHoriz,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 36.dp,
+                        iconSize = 18.dp
+                    )
                     Spacer(Modifier.width(10.dp))
                     Column {
-                        Text(t.tunnelsHub, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("Dual-Node Iran ➔ Kharej", fontSize = 11.sp, color = Ds.textTertiary)
+                        Text(t.tunnelsHub, fontSize = 16.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("Dual-Node Iran ⇄ Foreign Bridge", fontSize = 11.sp, color = Ds.textTertiary)
                     }
                 }
                 PrimaryButton(
                     text = t.addTunnel,
                     icon = Icons.Rounded.Add,
                     onClick = { showAddDialog = true },
-                    modifier = Modifier.height(38.dp)
+                    modifier = Modifier.height(36.dp)
                 )
             }
         }
 
-        // ── 2. Bento Stat Summary ──
+        // ── 2. Cyber Bento Bridge Vitality Hero ──
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BentoMetricCard(
-                    title = "Total Tunnels",
-                    value = "$totalTunnels",
-                    icon = Icons.Rounded.AltRoute,
-                    tone = Ds.accent,
-                    modifier = Modifier.weight(1f)
-                )
-                BentoMetricCard(
-                    title = "Connected",
-                    value = "$activeTunnels",
-                    icon = Icons.Rounded.CheckCircle,
-                    tone = Ds.ok,
-                    modifier = Modifier.weight(1f)
-                )
-                BentoMetricCard(
-                    title = "Active Cores",
-                    value = "$uniqueCores",
-                    icon = Icons.Rounded.Security,
-                    tone = Ds.violet,
-                    modifier = Modifier.weight(1f)
-                )
+            ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PulseDot(
+                            color = if (activeTunnels > 0) Ds.ok else if (totalTunnels == 0) Ds.textTertiary else Ds.danger,
+                            size = 8.dp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            when {
+                                totalTunnels == 0 -> t.navTunnels
+                                activeTunnels == totalTunnels -> "تمام پل‌های تانل فعال هستند"
+                                else -> "$activeTunnels از $totalTunnels تانل متصل است"
+                            },
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (totalTunnels == 0) Ds.textPrimary else if (activeTunnels > 0) Ds.ok else Ds.danger
+                        )
+                    }
+
+                    PrimaryButton(
+                        text = t.addTunnel,
+                        icon = Icons.Rounded.Add,
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.height(36.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // 3-Column Micro Bento Stat Pods
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TunnelBentoTile(
+                        title = "کل تانل‌ها",
+                        value = "$totalTunnels",
+                        unit = "Bridges",
+                        color = Ds.accent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TunnelBentoTile(
+                        title = "پل‌های متصل",
+                        value = "$activeTunnels",
+                        unit = "Online",
+                        color = Ds.ok,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TunnelBentoTile(
+                        title = "پروتکل‌های فعال",
+                        value = "$uniqueCores",
+                        unit = "Cores",
+                        color = Ds.violet,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
-        // ── 3. Engine Filter Chips Bar ──
+        // ── 3. Step-by-Step Tunnel Setup Guide (Permanent Expandable Bento Card) ──
         item {
-            FilterChipRow(
-                items = listOf("All (${tunnels.size})") + listOf(
-                    TunnelCore.BACKPACK,
-                    TunnelCore.PAQET,
-                    TunnelCore.NARNIA,
-                    TunnelCore.SPOOF_TUNNEL,
-                    TunnelCore.BACKHAUL,
-                    TunnelCore.RATHOLE,
-                    TunnelCore.GOST
-                ).map { it.displayName },
-                selectedIndex = if (selectedFilterCore == null) 0 else {
-                    val idx = listOf(
+            StepByStepTunnelGuideCard(
+                t = t,
+                isExpanded = showGuide,
+                serverCount = servers.size,
+                onToggleExpand = { showGuide = !showGuide },
+                onAddTunnel = { showAddDialog = true }
+            )
+        }
+
+        // ── 4. Engine Filter Chips Bar (Shown when tunnels exist) ──
+        if (tunnels.isNotEmpty()) {
+            item {
+                FilterChipRow(
+                    items = listOf("All (${tunnels.size})") + listOf(
                         TunnelCore.BACKPACK,
                         TunnelCore.PAQET,
                         TunnelCore.NARNIA,
@@ -221,12 +251,9 @@ fun TunnelScreen(t: Str) {
                         TunnelCore.BACKHAUL,
                         TunnelCore.RATHOLE,
                         TunnelCore.GOST
-                    ).indexOf(selectedFilterCore)
-                    if (idx >= 0) idx + 1 else 0
-                },
-                onSelect = { idx ->
-                    selectedFilterCore = if (idx == 0) null else {
-                        listOf(
+                    ).map { it.displayName },
+                    selectedIndex = if (selectedFilterCore == null) 0 else {
+                        val idx = listOf(
                             TunnelCore.BACKPACK,
                             TunnelCore.PAQET,
                             TunnelCore.NARNIA,
@@ -234,28 +261,34 @@ fun TunnelScreen(t: Str) {
                             TunnelCore.BACKHAUL,
                             TunnelCore.RATHOLE,
                             TunnelCore.GOST
-                        ).getOrNull(idx - 1)
+                        ).indexOf(selectedFilterCore)
+                        if (idx >= 0) idx + 1 else 0
+                    },
+                    onSelect = { idx ->
+                        selectedFilterCore = if (idx == 0) null else {
+                            listOf(
+                                TunnelCore.BACKPACK,
+                                TunnelCore.PAQET,
+                                TunnelCore.NARNIA,
+                                TunnelCore.SPOOF_TUNNEL,
+                                TunnelCore.BACKHAUL,
+                                TunnelCore.RATHOLE,
+                                TunnelCore.GOST
+                            ).getOrNull(idx - 1)
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
-        // ── 4. Guide Banner ──
-        item {
-            BannerCard(
-                text = t.guideTunnels,
-                tone = BannerTone.Info,
-                icon = Icons.Rounded.Info
-            )
-        }
-
-        // ── 5. Empty State or Tunnel Cards ──
+        // ── 5. Empty State or Cyber Bento Tunnel Cards ──
         if (filteredTunnels.isEmpty()) {
             item {
                 EmptyState(
-                    title = "No Tunnels Configured",
-                    hint = "Create your first high-speed dual-node tunnel between Iran and foreign servers.",
-                    radar = true,
+                    title = "هنوز تانلی راه‌اندازی نشده است",
+                    hint = "با راهنمای بالا، اولین پل ارتباطی پرسرعت و ضد فیلتر خود را بین سرور ایران و خارج برقرار کنید.",
+                    icon = Icons.Rounded.SwapHoriz,
+                    radar = false,
                     actionLabel = t.addTunnel,
                     onAction = { showAddDialog = true }
                 )
@@ -266,221 +299,54 @@ fun TunnelScreen(t: Str) {
                 val isTesting = testingTunnelId == tunnel.id
                 val isOperating = operatingTunnelId == tunnel.id
 
-                ModernCard(
-                    padding = 16.dp,
-                    cornerRadius = 18.dp
-                ) {
-                    // Header: Core badge + Name + Status
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            StatusPill(
-                                text = tunnel.core.displayName,
-                                level = StatusLevel.Info,
-                                pulse = false
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                tunnel.name,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.5.sp,
-                                color = Ds.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            StatusPill(
-                                text = if (isOnline) "${tunnel.lastLatencyMs.toInt()} ms" else "Offline",
-                                level = if (isOnline) StatusLevel.Ok else StatusLevel.Danger,
-                                pulse = isOnline
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Switch(
-                                checked = tunnel.isEnabled,
-                                onCheckedChange = {
-                                    tunnel.isEnabled = it
-                                    save()
-                                },
-                                colors = SwitchDefaults.colors(
-                                    checkedTrackColor = Ds.accent,
-                                    checkedThumbColor = Ds.onAccent,
-                                    uncheckedTrackColor = Ds.surfaceHighlight
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    // ── Dual Node Visual Flow: Iran ➔ Kharej ──
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Ds.surfaceLow,
-                        border = BorderStroke(1.dp, Ds.hairline),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Iran Node
-                            Column(Modifier.weight(1f)) {
-                                Text("🇮🇷 Iran Relay", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    tunnel.iranHost.ifBlank { "0.0.0.0" } + ":${tunnel.iranPort}",
-                                    fontSize = 11.5.sp,
-                                    fontFamily = Telemetry,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ds.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                TunnelBentoCard(
+                    tunnel = tunnel,
+                    isOnline = isOnline,
+                    isTesting = isTesting,
+                    isOperating = isOperating,
+                    t = t,
+                    onToggleEnabled = {
+                        tunnel.isEnabled = it
+                        save()
+                    },
+                    onViewCode = { viewCodeTunnel = tunnel },
+                    onAutoDeploy = {
+                        operatingTunnelId = tunnel.id
+                        scope.launch {
+                            val res = TunnelEngine.autoDeployTunnel(ctx, tunnel)
+                            if (res.overallSuccess) {
+                                Toast.makeText(ctx, "Tunnel deployed to agents successfully!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(ctx, "Auto-deploy: ${res.summaryMessage}", Toast.LENGTH_SHORT).show()
                             }
-
-                            // Center bridge indicator
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(horizontal = 6.dp)
-                            ) {
-                                Text(
-                                    tunnel.transport.name,
-                                    fontSize = 9.sp,
-                                    fontFamily = Telemetry,
-                                    color = Ds.accent,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Icon(
-                                    imageVector = Icons.Rounded.ArrowForward,
-                                    contentDescription = null,
-                                    tint = Ds.accent,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-
-                            // Foreign Node
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("🌍 Foreign Upstream", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
-                                Text(
-                                    tunnel.foreignHost.ifBlank { "Remote" } + ":${tunnel.foreignPort}",
-                                    fontSize = 11.5.sp,
-                                    fontFamily = Telemetry,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ds.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                            operatingTunnelId = null
                         }
-                    }
-
-                    // Multi-port or details badge if present
-                    if (tunnel.multiPorts.isNotBlank()) {
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            "Multi-Port Forwarding: ${tunnel.multiPorts}",
-                            fontSize = 10.5.sp,
-                            fontFamily = Telemetry,
-                            color = Ds.textTertiary
-                        )
-                    }
-
-                    Spacer(Modifier.height(10.dp))
-                    Hairline()
-                    Spacer(Modifier.height(8.dp))
-
-                    // ── Actions Row ──
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            SoftButton(
-                                text = "Code & Docker",
-                                icon = Icons.Rounded.Terminal,
-                                onClick = { viewCodeTunnel = tunnel }
-                            )
-
-                            if (tunnel.autoSync) {
-                                SoftButton(
-                                    text = if (isOperating) "Syncing…" else "Auto-Deploy",
-                                    icon = Icons.Rounded.CloudSync,
-                                    tone = Ds.ok,
-                                    enabled = !isOperating,
-                                    onClick = {
-                                        operatingTunnelId = tunnel.id
-                                        scope.launch {
-                                            val res = TunnelEngine.autoDeployTunnel(ctx, tunnel)
-                                            if (res.overallSuccess) {
-                                                Toast.makeText(ctx, "Tunnel deployed to agents successfully!", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(ctx, "Auto-deploy: ${res.summaryMessage}", Toast.LENGTH_SHORT).show()
-                                            }
-                                            operatingTunnelId = null
-                                        }
-                                    }
-                                )
-                            }
+                    },
+                    onTestLatency = {
+                        testingTunnelId = tunnel.id
+                        scope.launch {
+                            val (ok, lat) = TunnelEngine.testTunnel(tunnel)
+                            tunnel.lastStatus = if (ok) 1 else 0
+                            tunnel.lastLatencyMs = lat
+                            tunnel.lastChecked = System.currentTimeMillis()
+                            save()
+                            testingTunnelId = null
                         }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            CircleIconButton(
-                                icon = Icons.Rounded.Speed,
-                                contentDescription = "Test Latency",
-                                tint = Ds.accent,
-                                size = 32.dp,
-                                onClick = {
-                                    testingTunnelId = tunnel.id
-                                    scope.launch {
-                                        val (ok, lat) = TunnelEngine.testTunnel(tunnel)
-                                        tunnel.lastStatus = if (ok) 1 else 0
-                                        tunnel.lastLatencyMs = lat
-                                        tunnel.lastChecked = System.currentTimeMillis()
-                                        save()
-                                        testingTunnelId = null
-                                    }
-                                }
-                            )
-                            CircleIconButton(
-                                icon = Icons.Rounded.Edit,
-                                contentDescription = "Edit",
-                                tint = Ds.textSecondary,
-                                size = 32.dp,
-                                onClick = { editingTunnel = tunnel }
-                            )
-                            CircleIconButton(
-                                icon = Icons.Rounded.DeleteOutline,
-                                contentDescription = "Delete",
-                                tint = Ds.danger,
-                                size = 32.dp,
-                                onClick = { deletingTunnel = tunnel }
-                            )
-                        }
-                    }
-                }
+                    },
+                    onEdit = { editingTunnel = tunnel },
+                    onDelete = { deletingTunnel = tunnel }
+                )
             }
         }
 
-        item { Spacer(Modifier.height(24.dp)) }
+        item { Spacer(Modifier.height(30.dp)) }
     }
 
-    // ── Add/Edit Tunnel Dialog ──
+    // ── Add / Edit Tunnel Dialog ──
     if (showAddDialog || editingTunnel != null) {
-        val target = editingTunnel
         TunnelFormDialog(
             t = t,
-            existing = target,
+            existing = editingTunnel,
             onDismiss = {
                 showAddDialog = false
                 editingTunnel = null
@@ -514,8 +380,8 @@ fun TunnelScreen(t: Str) {
     deletingTunnel?.let { tunnel ->
         AlertDialog(
             onDismissRequest = { deletingTunnel = null },
-            title = { Text(t.deleteTunnel, fontWeight = FontWeight.Bold) },
-            text = { Text("Delete tunnel “${tunnel.name}”?") },
+            title = { Text(t.deleteTunnel, fontWeight = FontWeight.Bold, color = Ds.danger) },
+            text = { Text("آیا از حذف تانل «${tunnel.name}» اطمینان دارید؟", color = Ds.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     tunnels = tunnels.filterNot { it.id == tunnel.id }
@@ -526,9 +392,439 @@ fun TunnelScreen(t: Str) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deletingTunnel = null }) { Text(t.cancel) }
+                TextButton(onClick = { deletingTunnel = null }) {
+                    Text(t.cancel, color = Ds.textSecondary)
+                }
             }
         )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Cyber Bento Metric Tile for Tunnels
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun TunnelBentoTile(
+    title: String,
+    value: String,
+    unit: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Ds.surfaceLow)
+            .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+    ) {
+        Column {
+            Text(title, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+            Spacer(Modifier.height(3.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    value,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Telemetry,
+                    color = color
+                )
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    unit,
+                    fontSize = 9.5.sp,
+                    color = Ds.textTertiary,
+                    modifier = Modifier.padding(bottom = 1.dp)
+                )
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Step-by-Step Tunnel Setup Bento Guide
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun StepByStepTunnelGuideCard(
+    t: Str,
+    isExpanded: Boolean,
+    serverCount: Int,
+    onToggleExpand: () -> Unit,
+    onAddTunnel: () -> Unit
+) {
+    ModernCard(
+        padding = 14.dp,
+        cornerRadius = 20.dp,
+        modifier = Modifier.border(
+            BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline))),
+            RoundedCornerShape(20.dp)
+        )
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Permanent Header Row (Never vanishes)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(
+                        icon = Icons.Rounded.HelpOutline,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 32.dp,
+                        iconSize = 17.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(t.tunnelGuideHeader, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("Dual-Node Setup (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    }
+                }
+                SoftButton(
+                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                    icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    onClick = onToggleExpand,
+                    modifier = Modifier.height(34.dp)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Hairline()
+
+                    // Step 1: Connect Iran & Foreign Servers
+                    TunnelStepPod(
+                        stepNum = "1",
+                        title = t.tunnelAddStep1Title,
+                        desc = t.tunnelAddStep1Desc
+                    ) {
+                        if (serverCount < 2) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Ds.warnDim)
+                                    .border(BorderStroke(1.dp, Ds.warn.copy(alpha = 0.35f)), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("💡", fontSize = 12.sp)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        "نکته: برای تانل حداقل ۲ سرور (ایران و خارج) نیاز دارید. هم‌اکنون $serverCount سرور ثبت شده است.",
+                                        fontSize = 11.sp,
+                                        color = Ds.warn
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Step 2: Protocol & Port Configuration
+                    TunnelStepPod(
+                        stepNum = "2",
+                        title = t.tunnelAddStep2Title,
+                        desc = t.tunnelAddStep2Desc
+                    )
+
+                    // Step 3: Zero-Touch Auto-Deploy
+                    TunnelStepPod(
+                        stepNum = "3",
+                        title = t.tunnelAddStep3Title,
+                        desc = t.tunnelAddStep3Desc
+                    ) {
+                        PrimaryButton(
+                            text = t.addTunnel,
+                            icon = Icons.Rounded.Add,
+                            onClick = onAddTunnel,
+                            modifier = Modifier.fillMaxWidth().height(38.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TunnelStepPod(
+    stepNum: String,
+    title: String,
+    desc: String,
+    content: (@Composable () -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Ds.accentDim)
+                .border(BorderStroke(1.dp, Ds.accent.copy(alpha = 0.4f)), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(stepNum, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.accent)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+            Text(desc, fontSize = 11.sp, color = Ds.textSecondary, lineHeight = 16.sp)
+            if (content != null) {
+                Spacer(Modifier.height(4.dp))
+                content()
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Cyber Bento Tunnel Card
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun TunnelBentoCard(
+    tunnel: TunnelConfig,
+    isOnline: Boolean,
+    isTesting: Boolean,
+    isOperating: Boolean,
+    t: Str,
+    onToggleEnabled: (Boolean) -> Unit,
+    onViewCode: () -> Unit,
+    onAutoDeploy: () -> Unit,
+    onTestLatency: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    ModernCard(
+        padding = 14.dp,
+        cornerRadius = 20.dp
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Header Row: Protocol Badge + Name + Latency + Switch
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Ds.surfaceElevated)
+                            .border(BorderStroke(1.dp, Ds.hairlineStrong), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            tunnel.core.displayName,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.accent
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        tunnel.name,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Ds.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isOnline) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Ds.okDim)
+                                .border(BorderStroke(1.dp, Ds.ok.copy(alpha = 0.35f)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                "⚡ ${tunnel.lastLatencyMs.toInt()} ms",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.ok
+                            )
+                        }
+                    } else {
+                        StatusPill(text = t.offline, level = StatusLevel.Danger)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                    Switch(
+                        checked = tunnel.isEnabled,
+                        onCheckedChange = onToggleEnabled,
+                        colors = SwitchDefaults.colors(
+                            checkedTrackColor = Ds.accent,
+                            checkedThumbColor = Ds.onAccent,
+                            uncheckedTrackColor = Ds.surfaceHighlight
+                        )
+                    )
+                }
+            }
+
+            // Dual Node Visual Bridge Flow
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Ds.surfaceLow)
+                    .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(14.dp))
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Iran Node
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🇮🇷", fontSize = 12.sp)
+                            Spacer(Modifier.width(4.dp))
+                            Text("Iran Relay", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${tunnel.iranHost.ifBlank { "0.0.0.0" }}:${tunnel.iranPort}",
+                            fontSize = 11.5.sp,
+                            fontFamily = Telemetry,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    // Center Animated Bridge Indicator
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    ) {
+                        Text(
+                            tunnel.transport.name,
+                            fontSize = 9.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.accent,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(4.dp).background(Ds.accent, CircleShape))
+                            Icon(
+                                imageVector = Icons.Rounded.ArrowForward,
+                                contentDescription = null,
+                                tint = Ds.accent,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Box(Modifier.size(4.dp).background(Ds.accent, CircleShape))
+                        }
+                    }
+
+                    // Foreign Node
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Foreign Node", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(4.dp))
+                            Text("🌐", fontSize = 12.sp)
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${tunnel.foreignHost.ifBlank { "Remote" }}:${tunnel.foreignPort}",
+                            fontSize = 11.5.sp,
+                            fontFamily = Telemetry,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // Multi-Port Forwarding Tag (if specified)
+            if (tunnel.multiPorts.isNotBlank()) {
+                Text(
+                    "Forwarding: ${tunnel.multiPorts}",
+                    fontSize = 10.sp,
+                    fontFamily = Telemetry,
+                    color = Ds.textTertiary
+                )
+            }
+
+            Hairline()
+
+            // Actions Row
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SoftButton(
+                        text = "Script & Docker",
+                        icon = Icons.Rounded.Terminal,
+                        onClick = onViewCode,
+                        modifier = Modifier.height(32.dp)
+                    )
+
+                    if (tunnel.autoSync) {
+                        PrimaryButton(
+                            text = if (isOperating) "Deploying…" else "Auto-Deploy",
+                            icon = Icons.Rounded.CloudSync,
+                            loading = isOperating,
+                            onClick = onAutoDeploy,
+                            modifier = Modifier.height(32.dp)
+                        )
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CircleIconButton(
+                        icon = Icons.Rounded.Speed,
+                        contentDescription = "Test Latency",
+                        tint = Ds.accent,
+                        size = 28.dp,
+                        onClick = onTestLatency
+                    )
+                    CircleIconButton(
+                        icon = Icons.Rounded.Edit,
+                        contentDescription = "Edit",
+                        tint = Ds.textSecondary,
+                        size = 28.dp,
+                        onClick = onEdit
+                    )
+                    CircleIconButton(
+                        icon = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = Ds.danger,
+                        size = 28.dp,
+                        onClick = onDelete
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -553,7 +849,7 @@ private fun TunnelFormDialog(
     var preset by remember { mutableStateOf(existing?.preset ?: "balanced") }
     var kcpMode by remember { mutableStateOf(existing?.kcpMode ?: "fast") }
     var encryption by remember { mutableStateOf(existing?.encryption ?: "chacha20-poly1305") }
-    var autoSync by remember { mutableStateOf(existing?.autoSync ?: false) }
+    var autoSync by remember { mutableStateOf(existing?.autoSync ?: true) }
 
     val servers = remember { Prefs.loadServers(ctx) }
 
