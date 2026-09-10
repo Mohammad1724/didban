@@ -39,35 +39,25 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cloud
-import androidx.compose.material.icons.rounded.CloudDownload
-import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.DataObject
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.Dns
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Key
-import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.QrCode
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -525,8 +515,8 @@ private fun SslInspectorTab(t: Str) {
                         }
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text(c.subjectCn, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                            Text("Issuer: ${c.issuerCn}", fontSize = 11.sp, color = Ds.textSecondary)
+                            Text(c.subject, fontSize = 14.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                            Text("Issuer: ${c.issuer}", fontSize = 11.sp, color = Ds.textSecondary)
                             Text("Expires: ${c.validTo}", fontSize = 10.5.sp, fontFamily = Telemetry, color = Ds.textTertiary)
                         }
                     }
@@ -554,7 +544,7 @@ private fun IpInfoTab(t: Str) {
     val scope = rememberCoroutineScope()
     var host by remember { mutableStateOf("") }
     var isLookingUp by remember { mutableStateOf(false) }
-    var geo by remember { mutableStateOf<IpGeoData?>(null) }
+    var geo by remember { mutableStateOf<GeoIpData?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
 
     LazyColumn(
@@ -576,7 +566,7 @@ private fun IpInfoTab(t: Str) {
                         err = null
                         scope.launch {
                             try {
-                                geo = GeoIpService.lookup(host.trim())
+                                geo = IpInfoService.lookup(host.trim())
                             } catch (e: Exception) {
                                 err = e.message
                             } finally {
@@ -597,7 +587,7 @@ private fun IpInfoTab(t: Str) {
             item {
                 ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(g.countryCode.ifBlank { "🌐" }, fontSize = 24.sp)
+                        Text(g.flag.ifBlank { "🌐" }, fontSize = 24.sp)
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(g.country.ifBlank { "Unknown Location" }, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
@@ -678,9 +668,12 @@ private fun TcpPingTab(t: Str) {
                             pings = emptyList()
                             scope.launch {
                                 while (isPinging) {
-                                    val (ok, lat) = TcpPinger.ping(host.trim(), port.toIntOrNull() ?: 443)
-                                    pings = (pings + if (ok) lat else 999f).takeLast(30)
-                                    lastStatus = if (ok) "Reply from $host: time=${lat.toInt()}ms" else "Request timed out"
+                                    val lat = try {
+                                        TcpPinger.ping(host.trim(), port.toIntOrNull() ?: 443)
+                                    } catch (_: Exception) { -1L }
+                                    val ok = lat >= 0L
+                                    pings = (pings + if (ok) lat.toFloat() else 999f).takeLast(30)
+                                    lastStatus = if (ok) "Reply from $host: time=${lat}ms" else "Request timed out"
                                     delay(1000)
                                 }
                             }
@@ -1050,7 +1043,7 @@ fun VaultScreen(t: Str) {
     var showAddNote by remember { mutableStateOf(false) }
     var newTitle by remember { mutableStateOf("") }
     var newContent by remember { mutableStateOf("") }
-    var newCategory by remember { mutableStateOf("SSH") }
+    var newTags by remember { mutableStateOf("SSH") }
     var revealedNoteId by remember { mutableStateOf<Long?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var showGuide by remember { mutableStateOf(!isUnlocked) }
@@ -1242,7 +1235,7 @@ fun VaultScreen(t: Str) {
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
-                                        note.category.ifBlank { "SECRET" },
+                                        note.tags.ifBlank { "SECRET" },
                                         fontSize = 10.5.sp,
                                         fontFamily = Telemetry,
                                         fontWeight = FontWeight.Bold,
@@ -1317,8 +1310,8 @@ fun VaultScreen(t: Str) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SegmentedControl(
                         items = listOf("SSH", "Password", "WireGuard", "Config"),
-                        selectedIndex = listOf("SSH", "Password", "WireGuard", "Config").indexOf(newCategory).coerceAtLeast(0),
-                        onSelect = { newCategory = listOf("SSH", "Password", "WireGuard", "Config")[it] }
+                        selectedIndex = listOf("SSH", "Password", "WireGuard", "Config").indexOf(newTags).coerceAtLeast(0),
+                        onSelect = { newTags = listOf("SSH", "Password", "WireGuard", "Config")[it] }
                     )
                     InputField(value = newTitle, onValueChange = { newTitle = it }, label = "Title", placeholder = "e.g. Frankfurt Root SSH Key")
                     InputField(value = newContent, onValueChange = { newContent = it }, label = "Confidential Content", placeholder = "Paste private key, password, or config…")
@@ -1333,7 +1326,7 @@ fun VaultScreen(t: Str) {
                             id = System.currentTimeMillis(),
                             title = newTitle.trim(),
                             content = newContent.trim(),
-                            category = newCategory
+                            tags = newTags
                         )
                         notes = notes + newNote
                         saveVault()
@@ -1508,18 +1501,28 @@ private fun JsonTab(t: Str) {
                     PrimaryButton(
                         text = "Format & Beautify",
                         onClick = {
-                            val (res, error) = DevLabTools.formatJson(input)
-                            output = res
-                            err = error
+                            val res = DevLabTools.formatJson(input)
+                            if (res.startsWith("Invalid") || res.startsWith("JSON Error")) {
+                                err = res
+                                output = ""
+                            } else {
+                                output = res
+                                err = null
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     )
                     SoftButton(
                         text = "Minify",
                         onClick = {
-                            val (res, error) = DevLabTools.minifyJson(input)
-                            output = res
-                            err = error
+                            val res = DevLabTools.minifyJson(input)
+                            if (res.startsWith("Invalid") || res.startsWith("JSON Error")) {
+                                err = res
+                                output = ""
+                            } else {
+                                output = res
+                                err = null
+                            }
                         },
                         modifier = Modifier.weight(1f)
                     )
@@ -1571,10 +1574,17 @@ private fun JsonTab(t: Str) {
 @Composable
 private fun SubnetTab(t: Str) {
     var cidr by remember { mutableStateOf("192.168.1.0/24") }
-    var result by remember { mutableStateOf<SubnetResult?>(null) }
+    var result by remember { mutableStateOf<DevLabTools.SubnetInfo?>(null) }
+    var err by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(cidr) {
-        result = DevLabTools.calculateSubnet(cidr)
+        try {
+            result = DevLabTools.calculateSubnet(cidr)
+            err = null
+        } catch (e: Exception) {
+            result = null
+            err = e.message
+        }
     }
 
     LazyColumn(
@@ -1587,6 +1597,10 @@ private fun SubnetTab(t: Str) {
             }
         }
 
+        err?.let {
+            item { BannerCard(text = it, tone = BannerTone.Danger, icon = Icons.Rounded.ErrorOutline) }
+        }
+
         result?.let { r ->
             item {
                 ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
@@ -1597,7 +1611,7 @@ private fun SubnetTab(t: Str) {
                     SubnetRow("Broadcast Address", r.broadcast)
                     SubnetRow("First Usable Host", r.firstHost)
                     SubnetRow("Last Usable Host", r.lastHost)
-                    SubnetRow("Total Usable Hosts", "${r.totalHosts}")
+                    SubnetRow("Total Usable Hosts", "${r.usableHosts}")
                 }
             }
         }
@@ -1622,21 +1636,22 @@ private fun SubnetRow(label: String, value: String) {
 @Composable
 private fun JwtTab(t: Str) {
     var token by remember { mutableStateOf("") }
-    var header by remember { mutableStateOf("") }
-    var payload by remember { mutableStateOf("") }
+    var jwtInfo by remember { mutableStateOf<DevLabTools.JwtInfo?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(token) {
         if (token.isBlank()) {
-            header = ""
-            payload = ""
+            jwtInfo = null
             err = null
             return@LaunchedEffect
         }
-        val (h, p, error) = DevLabTools.decodeJwt(token)
-        header = h
-        payload = p
-        err = error
+        try {
+            jwtInfo = DevLabTools.decodeJwt(token)
+            err = null
+        } catch (e: Exception) {
+            jwtInfo = null
+            err = e.message
+        }
     }
 
     LazyColumn(
@@ -1653,22 +1668,24 @@ private fun JwtTab(t: Str) {
             item { BannerCard(text = it, tone = BannerTone.Danger, icon = Icons.Rounded.ErrorOutline) }
         }
 
-        if (header.isNotEmpty()) {
+        jwtInfo?.let { info ->
             item {
                 ModernCard(padding = 14.dp, cornerRadius = 18.dp) {
                     Text("Header (JOSE)", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.accent)
                     Spacer(Modifier.height(6.dp))
-                    Text(header, fontSize = 11.5.sp, fontFamily = Telemetry, color = Ds.textPrimary)
+                    Text(info.header, fontSize = 11.5.sp, fontFamily = Telemetry, color = Ds.textPrimary)
                 }
             }
-        }
 
-        if (payload.isNotEmpty()) {
             item {
                 ModernCard(padding = 14.dp, cornerRadius = 18.dp) {
                     Text("Payload (Claims)", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.ok)
                     Spacer(Modifier.height(6.dp))
-                    Text(payload, fontSize = 11.5.sp, fontFamily = Telemetry, color = Ds.textPrimary)
+                    Text(info.payload, fontSize = 11.5.sp, fontFamily = Telemetry, color = Ds.textPrimary)
+                    info.expiryDate?.let { exp ->
+                        Spacer(Modifier.height(8.dp))
+                        Text("Expires: $exp", fontSize = 10.5.sp, color = if (info.isExpired) Ds.danger else Ds.textSecondary)
+                    }
                 }
             }
         }
@@ -1689,9 +1706,9 @@ private fun HashesTab(t: Str) {
 
     LaunchedEffect(input) {
         if (input.isNotEmpty()) {
-            md5 = DevLabTools.md5(input)
-            sha256 = DevLabTools.sha256(input)
-            sha512 = DevLabTools.sha512(input)
+            md5 = DevLabTools.hash(input, "MD5")
+            sha256 = DevLabTools.hash(input, "SHA-256")
+            sha512 = DevLabTools.hash(input, "SHA-512")
         } else {
             md5 = ""
             sha256 = ""
