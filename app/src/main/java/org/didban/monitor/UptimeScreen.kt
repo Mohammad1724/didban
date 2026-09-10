@@ -606,7 +606,7 @@ private fun UptimeBentoCard(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (target.isPaused) {
-                        StatusPill(text = "PAUSED", level = StatusLevel.Warning)
+                        StatusPill(text = "PAUSED", level = StatusLevel.Neutral)
                     } else if (isUp) {
                         Box(
                             modifier = Modifier
