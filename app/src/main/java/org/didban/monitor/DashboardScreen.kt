@@ -94,7 +94,6 @@ fun DashboardScreen(
     val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
 
-    // Keep segmented tabs and pager synchronized
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { tab = it }
     }
@@ -114,7 +113,7 @@ fun DashboardScreen(
     var killSignal by remember { mutableStateOf("SIGTERM") }
     var isKilling by remember { mutableStateOf(false) }
 
-    // Test Telegram state
+    // Test Alert state
     var isTestingTg by remember { mutableStateOf(false) }
 
     fun refreshProcs() {
@@ -151,7 +150,7 @@ fun DashboardScreen(
         }
     }
 
-    // Live refresh loop for overview
+    // Direct background poll loop
     LaunchedEffect(server.id) {
         while (true) {
             refreshAll()
@@ -159,7 +158,7 @@ fun DashboardScreen(
         }
     }
 
-    // Fetch tab data on switch
+    // Refresh on tab switch
     LaunchedEffect(server.id, tab) {
         when (tab) {
             1 -> refreshProcs()
@@ -169,81 +168,66 @@ fun DashboardScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        // ── Top bar ──
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CircleIconButton(
-                icon = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = t.back,
-                onClick = onBack
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    server.name.ifEmpty { server.host },
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Ds.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
+        // ── Top Navigation Bar ──
+        HeaderWithBack(
+            title = server.name.ifEmpty { server.host },
+            subtitle = "${server.host}:${server.port}",
+            onBack = onBack,
+            actions = {
+                CircleIconButton(
+                    icon = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                    contentDescription = "Theme",
+                    tint = Ds.warn,
+                    onClick = onToggleTheme
                 )
-                Text(
-                    "${server.host}:${server.port}",
-                    color = Ds.textTertiary,
-                    fontSize = 10.sp,
-                    fontFamily = Telemetry
+                Spacer(Modifier.width(6.dp))
+                CircleIconButton(
+                    icon = Icons.Rounded.Refresh,
+                    contentDescription = "Refresh",
+                    onClick = { refreshAll() }
                 )
             }
-            CircleIconButton(
-                icon = if (isDarkMode) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
-                contentDescription = "Theme",
-                tint = Ds.warn,
-                onClick = onToggleTheme
-            )
-            Spacer(Modifier.width(8.dp))
-            CircleIconButton(
-                icon = Icons.Rounded.Refresh,
-                contentDescription = "Refresh",
-                onClick = { refreshAll() }
-            )
-        }
+        )
 
-        // ── Pin certificate banner if unpinned ──
+        // ── Certificate Pinning Notice ──
         if (server.useTls && server.fingerprint.isEmpty()) {
             val fp = api.lastSeenFingerprint
-            Banner(
-                tone = BannerTone.Warn,
+            BannerCard(
                 text = t.pinCertHint,
-                actionLabel = if (fp != null) t.pinCert else null,
-                onAction = {
-                    server.fingerprint = fp!!
-                    val list = Prefs.loadServers(ctx).map { if (it.id == server.id) server else it }
-                    Prefs.saveServers(ctx, list)
+                tone = BannerTone.Warn,
+                action = {
+                    if (fp != null) {
+                        SoftButton(
+                            text = t.pinCert,
+                            onClick = {
+                                server.fingerprint = fp
+                                val list = Prefs.loadServers(ctx).map { if (it.id == server.id) server else it }
+                                Prefs.saveServers(ctx, list)
+                            }
+                        )
+                    }
                 },
                 modifier = Modifier.padding(bottom = 10.dp)
             )
         }
 
-        // ── Segmented tabs ──
-        SegmentedTabs(
-            tabs = listOf(
-                TabSpec(t.overview, Icons.Rounded.Dashboard),
-                TabSpec(t.processes, Icons.Rounded.Memory),
-                TabSpec(t.events, Icons.Rounded.Timeline),
-                TabSpec(t.listeningPorts, Icons.Rounded.Sensors),
-                TabSpec("Docker", Icons.Rounded.Layers),
-                TabSpec(t.globalCheck, Icons.Rounded.Public)
+        // ── Modern Tab Switcher ──
+        FilterChipRow(
+            items = listOf(
+                t.overview,
+                t.processes,
+                t.events,
+                t.listeningPorts,
+                "Docker",
+                t.globalCheck
             ),
-            selected = tab,
+            selectedIndex = tab,
             onSelect = { scope.launch { pagerState.animateScrollToPage(it) } },
-            scrollable = true,
-            modifier = Modifier.padding(bottom = 10.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        // ── Content pages ──
+        // ── Tab Pages ──
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 0 -> OverviewTab(
@@ -254,6 +238,7 @@ fun DashboardScreen(
                     err = err,
                     latency = latency,
                     latHist = latHist,
+                    dockerCount = dockerData?.containers?.size ?: 0,
                     onNavigateTab = { targetTab ->
                         scope.launch { pagerState.animateScrollToPage(targetTab) }
                     },
@@ -335,7 +320,10 @@ fun DashboardScreen(
                 }
             },
             confirmButton = {
-                Button(
+                PrimaryButton(
+                    text = t.kill,
+                    loading = isKilling,
+                    enabled = !isKilling,
                     onClick = {
                         isKilling = true
                         scope.launch {
@@ -350,19 +338,8 @@ fun DashboardScreen(
                                 isKilling = false
                             }
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (killSignal == "SIGKILL") Ds.danger else Ds.accent,
-                        contentColor = if (killSignal == "SIGKILL") Color.White else Ds.onAccent
-                    ),
-                    enabled = !isKilling
-                ) {
-                    if (isKilling) {
-                        CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
-                    } else {
-                        Text(t.kill, fontWeight = FontWeight.Bold)
                     }
-                }
+                )
             },
             dismissButton = {
                 TextButton(onClick = { procToKill = null }, enabled = !isKilling) { Text(t.cancel) }
@@ -372,7 +349,7 @@ fun DashboardScreen(
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// OVERVIEW — the cockpit
+// OVERVIEW TAB — The Cockpit
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -384,16 +361,13 @@ private fun OverviewTab(
     err: String?,
     latency: Float,
     latHist: List<Float>,
+    dockerCount: Int = 0,
     onNavigateTab: (Int) -> Unit,
     onTestAlert: () -> Unit
 ) {
     if (m == null) {
         if (err != null) {
-            EmptyState(
-                title = t.error,
-                hint = err,
-                icon = Icons.Rounded.ErrorOutline
-            )
+            EmptyState(title = t.error, hint = err, icon = Icons.Rounded.ErrorOutline)
         } else {
             LoadingState(t.connecting)
         }
@@ -402,107 +376,113 @@ private fun OverviewTab(
 
     val isOnline = err == null && latency >= 0f
     val diskPrimary = m.disks.firstOrNull()
-    val diskFreePct = if (diskPrimary != null) (100f - diskPrimary.pct).coerceIn(0f, 100f) else 100f
-
-    @Composable
-    fun cpuTone(v: Float): Color = when {
-        v > 85f -> Ds.danger
-        v > 60f -> Ds.warn
-        else -> Ds.ok
-    }
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize().imePadding()
     ) {
-        // ── 1. Cockpit: gauge cluster ──
+        // ── 1. Telemetry Gauges Bento ──
         item {
-            ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CircularGauge(
-                        percentage = m.cpuUsage,
-                        label = "CPU",
-                        size = 112.dp,
-                        strokeWidth = 9.dp,
-                        activeColor = cpuTone(m.cpuUsage)
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // identity + alert test
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            StatusPill(if (isOnline) t.online else t.offline, isOnline = isOnline)
-                            if (latency >= 0f) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "${latency.toInt()} ms",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontFamily = Telemetry,
-                                    color = if (latency > 250f) Ds.warn else Ds.textSecondary
-                                )
-                            }
-                            Spacer(Modifier.weight(1f))
-                            CircleIconButton(
-                                icon = Icons.Rounded.Send,
-                                contentDescription = t.testTelegram,
-                                onClick = onTestAlert,
-                                tint = Ds.accent,
-                                size = 30.dp
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    StatusPill(if (isOnline) t.online else t.offline, level = if (isOnline) StatusLevel.Ok else StatusLevel.Danger)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (latency >= 0f) {
+                            Text(
+                                "⚡ ${latency.toInt()} ms",
+                                fontSize = 11.sp,
+                                fontFamily = Telemetry,
+                                color = if (latency > 250f) Ds.warn else Ds.textSecondary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        CircleIconButton(
+                            icon = Icons.Rounded.Send,
+                            contentDescription = t.testTelegram,
+                            tint = Ds.accent,
+                            size = 30.dp,
+                            onClick = onTestAlert
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // Three Ring Gauges (CPU, RAM, Disk)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // CPU Ring
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RingGauge(
+                            value = m.cpuUsage,
+                            size = 64.dp,
+                            strokeWidth = 5.5.dp,
+                            tone = if (m.cpuUsage > 80f) Ds.danger else if (m.cpuUsage > 60f) Ds.warn else Ds.accent
+                        ) {
+                            Text(
+                                "${m.cpuUsage.toInt()}%",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary
                             )
                         }
-                        // RAM ring
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RingGauge(
-                                value = m.memPct,
-                                size = 44.dp,
-                                strokeWidth = 4.dp,
-                                tone = Ds.violet
-                            ) {
-                                Text(
-                                    "${m.memPct.toInt()}",
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Telemetry,
-                                    color = Ds.violet
-                                )
-                            }
-                            Spacer(Modifier.width(11.dp))
-                            Column {
-                                Text(t.lblRamUse, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary)
-                                Text(
-                                    "${Fmt.bytes(m.memUsed)} / ${Fmt.bytes(m.memTotal)}",
-                                    fontSize = 11.sp,
-                                    fontFamily = Telemetry,
-                                    color = Ds.textSecondary
-                                )
-                            }
+                        Spacer(Modifier.height(6.dp))
+                        Text(t.cpu, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ds.textSecondary)
+                        if (m.cpuSteal > 2f) {
+                            Text("Steal: ${Fmt.pct(m.cpuSteal)}", fontSize = 9.sp, color = Ds.danger, fontFamily = Telemetry)
                         }
-                        // Disk ring
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            RingGauge(
-                                value = if (diskPrimary != null) 100f - diskPrimary.pct else 0f,
-                                size = 44.dp,
-                                strokeWidth = 4.dp,
-                                tone = Ds.accent
-                            ) {
-                                Text(
-                                    if (diskPrimary != null) "${(100f - diskPrimary.pct).toInt()}" else "—",
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Telemetry,
-                                    color = Ds.accent
-                                )
-                            }
-                            Spacer(Modifier.width(11.dp))
-                            Column {
-                                Text(t.lblDiskFree, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary)
-                                Text(
-                                    if (diskPrimary != null) Fmt.bytes(diskPrimary.total - diskPrimary.used) else "—",
-                                    fontSize = 11.sp,
-                                    fontFamily = Telemetry,
-                                    color = Ds.textSecondary
-                                )
-                            }
+                    }
+
+                    // RAM Ring
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        RingGauge(
+                            value = m.memPct,
+                            size = 64.dp,
+                            strokeWidth = 5.5.dp,
+                            tone = Ds.violet
+                        ) {
+                            Text(
+                                "${m.memPct.toInt()}%",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(t.memory, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ds.textSecondary)
+                        Text(Fmt.bytes(m.memUsed), fontSize = 9.sp, color = Ds.textTertiary, fontFamily = Telemetry)
+                    }
+
+                    // Disk Ring
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val diskPct = diskPrimary?.pct ?: 0f
+                        RingGauge(
+                            value = diskPct,
+                            size = 64.dp,
+                            strokeWidth = 5.5.dp,
+                            tone = if (diskPct > 85f) Ds.danger else Ds.info
+                        ) {
+                            Text(
+                                "${diskPct.toInt()}%",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary
+                            )
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(t.disks, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Ds.textSecondary)
+                        if (diskPrimary != null) {
+                            Text(Fmt.bytes(diskPrimary.used), fontSize = 9.sp, color = Ds.textTertiary, fontFamily = Telemetry)
                         }
                     }
                 }
@@ -510,96 +490,104 @@ private fun OverviewTab(
                 Spacer(Modifier.height(14.dp))
                 StatBand(
                     stats = listOf(
-                        StatItem(
-                            t.lblNetLive,
-                            m.nets.firstOrNull()?.let { "↓${Fmt.rate(it.rx)}" } ?: "—",
-                            Ds.info
-                        ),
-                        StatItem(
-                            t.lblLoad1m,
-                            "%.2f".format(Locale.US, m.load1),
-                            Ds.textPrimary
-                        ),
-                        StatItem(
-                            t.lblLatency,
-                            if (latency >= 0f) "${latency.toInt()}ms" else "—",
-                            if (latency > 250f) Ds.danger else Ds.ok
-                        ),
-                        StatItem(
-                            t.lblUptime,
-                            Fmt.uptime(m.uptime),
-                            Ds.textSecondary
-                        )
+                        StatItem(t.lblNetLive, m.nets.firstOrNull()?.let { "↓${Fmt.rate(it.rx)}" } ?: "—", Ds.info),
+                        StatItem(t.lblLoad1m, "%.2f".format(Locale.US, m.load1), Ds.textPrimary),
+                        StatItem(t.cores, "${m.cores}", Ds.accent),
+                        StatItem(t.lblUptime, Fmt.uptime(m.uptime), Ds.textSecondary)
                     )
                 )
             }
         }
 
-        // ── 2. Live telemetry chart hero ──
+        // ── 2. Live Telemetry History Chart ──
         item {
-            ModernCard(padding = 15.dp) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel(t.lblCharts24h, icon = Icons.Rounded.Timeline)
-                    Spacer(Modifier.weight(1f))
-                    ChartLegendChip(t.cpu, Fmt.pct(m.cpuUsage), Ds.accent)
-                    Spacer(Modifier.width(10.dp))
-                    ChartLegendChip(t.memory, Fmt.pct(m.memPct), Ds.violet)
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    SectionHeader(
+                        title = t.lblCharts24h,
+                        icon = Icons.Rounded.Timeline
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
                 if (hist.isNotEmpty()) {
-                    Sparkline(hist.map { it.cpu }, Modifier.fillMaxWidth().height(58.dp), color = Ds.accent)
-                    Spacer(Modifier.height(10.dp))
-                    Sparkline(hist.map { it.mem }, Modifier.fillMaxWidth().height(58.dp), color = Ds.violet)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("CPU (${Fmt.pct(m.cpuUsage)})", fontSize = 10.sp, color = Ds.accent, fontFamily = Telemetry)
+                            Spacer(Modifier.height(4.dp))
+                            Sparkline(values = hist.map { it.cpu }, modifier = Modifier.fillMaxWidth().height(60.dp), color = Ds.accent)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("RAM (${Fmt.pct(m.memPct)})", fontSize = 10.sp, color = Ds.violet, fontFamily = Telemetry)
+                            Spacer(Modifier.height(4.dp))
+                            Sparkline(values = hist.map { it.mem }, modifier = Modifier.fillMaxWidth().height(60.dp), color = Ds.violet)
+                        }
+                    }
                 } else {
                     Text(t.lblCollecting, fontSize = 11.5.sp, color = Ds.textTertiary)
                 }
             }
         }
 
-        // ── 3. Cockpit action tiles ──
+        // ── 3. Quick Navigation Bento Tiles ──
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconTile(Icons.Rounded.Layers, t.dockerContainersLbl, { onNavigateTab(4) }, Modifier.weight(1f))
-                IconTile(Icons.Rounded.LocalFireDepartment, t.spikeDetective, { onNavigateTab(2) }, Modifier.weight(1f), tone = Ds.danger)
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                IconTile(Icons.Rounded.Sensors, t.portsAndSockets, { onNavigateTab(3) }, Modifier.weight(1f), tone = Ds.info)
-                IconTile(Icons.Rounded.Memory, t.processManager, { onNavigateTab(1) }, Modifier.weight(1f), tone = Ds.violet)
+                BentoMetricCard(
+                    title = "Docker",
+                    value = if (dockerCount > 0) "$dockerCount Active" else "Containers",
+                    subtitle = "Manage & Restart",
+                    icon = Icons.Rounded.Layers,
+                    tone = Ds.accent,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigateTab(4) }
+                )
+                BentoMetricCard(
+                    title = t.spikeDetective,
+                    value = "Spikes Log",
+                    subtitle = t.whatAteCpu,
+                    icon = Icons.Rounded.LocalFireDepartment,
+                    tone = Ds.danger,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigateTab(2) }
+                )
             }
         }
 
-        // ── 4. Live process watch ──
         item {
-            PrimaryActionButton(
-                text = t.liveProcessWatch,
-                icon = Icons.Rounded.Bolt,
-                onClick = { onNavigateTab(1) }
-            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BentoMetricCard(
+                    title = t.portsAndSockets,
+                    value = "Sockets & Net",
+                    subtitle = t.listeningPorts,
+                    icon = Icons.Rounded.Sensors,
+                    tone = Ds.info,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigateTab(3) }
+                )
+                BentoMetricCard(
+                    title = t.processManager,
+                    value = "Top Procs",
+                    subtitle = "Watch & Terminate",
+                    icon = Icons.Rounded.Memory,
+                    tone = Ds.violet,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onNavigateTab(1) }
+                )
+            }
         }
 
-        item { Spacer(Modifier.height(26.dp)) }
-    }
-}
-
-@Composable
-private fun ChartLegendChip(label: String, value: String, tone: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(7.dp).background(tone, RoundedCornerShape(2.dp)))
-        Spacer(Modifier.width(5.dp))
-        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
-        Spacer(Modifier.width(4.dp))
-        Text(
-            value,
-            fontSize = 10.5.sp,
-            fontFamily = Telemetry,
-            color = tone
-        )
+        item { Spacer(Modifier.height(20.dp)) }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// PROCESSES — meter columns
+// PROCESSES TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -620,7 +608,7 @@ private fun ProcessesTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Row(
@@ -628,23 +616,11 @@ private fun ProcessesTab(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                DTextField(
+                SearchField(
                     value = query,
                     onValueChange = { query = it },
                     placeholder = t.searchProcesses,
-                    modifier = Modifier.weight(1f),
-                    trailing = {
-                        if (query.isNotEmpty()) {
-                            Icon(
-                                Icons.Rounded.Clear,
-                                contentDescription = "Clear",
-                                tint = Ds.textTertiary,
-                                modifier = Modifier
-                                    .size(17.dp)
-                                    .clickable { query = "" }
-                            )
-                        }
-                    }
+                    modifier = Modifier.weight(1f)
                 )
                 SoftButton(
                     text = if (sortByMem) t.sortByMem else t.sortByCpu,
@@ -657,74 +633,71 @@ private fun ProcessesTab(
             item { EmptyState(title = t.noData, radar = true) }
         } else {
             items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // CPU meter column
-                    MeterBar(
-                        value01 = p.cpu / 100f,
-                        tone = when {
-                            p.cpu > 85f -> Ds.danger
-                            p.cpu > 50f -> Ds.warn
-                            else -> Ds.accent
-                        }
-                    )
-                    Spacer(Modifier.width(13.dp))
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                ModernCard(padding = 12.dp, cornerRadius = 14.dp) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        MeterBar(
+                            value01 = p.cpu / 100f,
+                            tone = when {
+                                p.cpu > 80f -> Ds.danger
+                                p.cpu > 50f -> Ds.warn
+                                else -> Ds.accent
+                            }
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    p.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = Ds.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    "PID ${p.pid}",
+                                    fontSize = 10.sp,
+                                    color = Ds.textTertiary,
+                                    fontFamily = Telemetry
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
                             Text(
-                                p.name,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 13.sp,
-                                color = Ds.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                "${p.user} · ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())} RAM",
+                                fontSize = 11.sp,
+                                color = Ds.textTertiary
                             )
-                            Spacer(Modifier.width(7.dp))
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                "PID ${p.pid}",
-                                fontSize = 10.sp,
-                                color = Ds.textTertiary,
+                                Fmt.pct(p.cpu),
+                                color = if (p.cpu > 50) Ds.danger else Ds.accent,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.5.sp,
                                 fontFamily = Telemetry
                             )
-                        }
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            "${p.user} · ${Fmt.bytes((p.memMb * 1024 * 1024).toLong())} RAM",
-                            fontSize = 10.5.sp,
-                            color = Ds.textTertiary
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            Fmt.pct(p.cpu),
-                            color = if (p.cpu > 50) Ds.danger else Ds.accent,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.5.sp,
-                            fontFamily = Telemetry
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            modifier = Modifier
-                                .clickable { onKill(p.pid, p.name) }
-                                .padding(top = 3.dp)
-                        ) {
-                            Icon(Icons.Rounded.Stop, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(11.dp))
-                            Text(t.kill, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Ds.danger)
+                            Spacer(Modifier.height(2.dp))
+                            DangerButton(
+                                text = t.kill,
+                                icon = Icons.Rounded.Stop,
+                                onClick = { onKill(p.pid, p.name) }
+                            )
                         }
                     }
                 }
-                Hairline()
             }
-            item { Spacer(Modifier.height(30.dp)) }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// EVENTS — spike timeline
+// EVENTS TAB (Spike Forensic Timeline)
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -751,121 +724,74 @@ private fun EventsTab(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         if (events.isEmpty()) {
-            item {
-                EmptyState(
-                    title = t.noSpikes24h,
-                    icon = Icons.Rounded.CheckCircle
-                )
-            }
+            item { EmptyState(title = t.noSpikes24h, icon = Icons.Rounded.CheckCircle) }
         } else {
             itemsIndexed(events, key = { _, e -> "${e.time}-${e.value}-${e.type}" }) { idx, e ->
                 val (icon, label, color) = eventStyle(e.type)
-                val isLast = idx == events.lastIndex
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min)
-                        .padding(vertical = 7.dp)
-                ) {
-                    // ── timeline spine ──
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(18.dp)) {
-                        Box(
-                            Modifier
-                                .size(13.dp)
-                                .background(color.copy(alpha = 0.15f), CircleShape)
-                                .border(1.2.dp, color, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(imageVector = icon, contentDescription = null, tint = color, modifier = Modifier.size(7.dp))
-                        }
-                        if (!isLast) {
-                            Spacer(Modifier.height(4.dp))
-                            Box(
-                                Modifier
-                                    .width(1.5.dp)
-                                    .fillMaxHeight()
-                                    .background(Ds.hairline)
-                            )
+                ModernCard(padding = 14.dp, cornerRadius = 16.dp) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(icon = icon, tint = color, background = color.copy(alpha = 0.12f), size = 32.dp, iconSize = 16.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = color)
+                                Spacer(Modifier.weight(1f))
+                                Text(fmt.format(Date(e.time)), fontSize = 10.sp, color = Ds.textTertiary, fontFamily = Telemetry)
+                            }
+                            if (e.detail.isNotBlank()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(e.detail, fontSize = 11.sp, color = Ds.textSecondary)
+                            }
                         }
                     }
 
-                    Spacer(Modifier.width(12.dp))
+                    if (e.value > 0f) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(Fmt.pct(e.value), fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = Telemetry, color = color)
+                    }
 
-                    // ── event body ──
-                    Column(Modifier.weight(1f).padding(bottom = 8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = color, modifier = Modifier.weight(1f, fill = false))
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                fmt.format(Date(e.time)),
-                                fontSize = 10.sp,
-                                color = Ds.textTertiary,
-                                fontFamily = Telemetry
-                            )
-                        }
-                        if (e.detail.isNotBlank()) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(e.detail, fontSize = 11.sp, color = Ds.textSecondary)
-                        }
-                        if (e.value > 0f) {
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                Fmt.pct(e.value),
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Telemetry,
-                                color = color
-                            )
-                        }
-                        if (e.top.isNotEmpty()) {
-                            Spacer(Modifier.height(8.dp))
-                            e.top.take(4).forEach { p ->
-                                Row(
-                                    Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Box(Modifier.size(5.dp).background(color.copy(alpha = 0.7f), CircleShape))
-                                        Spacer(Modifier.width(7.dp))
-                                        Text(p.name, fontSize = 12.sp, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("PID ${p.pid}", fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry)
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            Fmt.pct(p.cpu),
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Ds.accent,
-                                            fontFamily = Telemetry
-                                        )
-                                        Spacer(Modifier.width(6.dp))
-                                        Icon(
-                                            Icons.Rounded.Stop,
-                                            contentDescription = "Kill",
-                                            tint = Ds.danger,
-                                            modifier = Modifier
-                                                .size(15.dp)
-                                                .clickable { onKill(p.pid, p.name) }
-                                        )
-                                    }
+                    if (e.top.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Hairline()
+                        Spacer(Modifier.height(6.dp))
+                        e.top.take(4).forEach { p ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Box(Modifier.size(5.dp).background(color, CircleShape))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(p.name, fontSize = 12.sp, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("PID ${p.pid}", fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry)
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(Fmt.pct(p.cpu), fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.accent, fontFamily = Telemetry)
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(
+                                        Icons.Rounded.Stop,
+                                        contentDescription = "Kill",
+                                        tint = Ds.danger,
+                                        modifier = Modifier.size(15.dp).clickable { onKill(p.pid, p.name) }
+                                    )
                                 }
                             }
                         }
                     }
                 }
             }
-            item { Spacer(Modifier.height(30.dp)) }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// SOCKETS & PORTS
+// SOCKETS & PORTS TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -879,7 +805,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
             Row(
@@ -887,12 +813,9 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                SegmentedTabs(
-                    tabs = listOf(
-                        TabSpec(t.listeningPorts, badge = "${data.listening.size}"),
-                        TabSpec(t.activeConnections, badge = "${data.connections.size}")
-                    ),
-                    selected = if (showListeningOnly) 0 else 1,
+                SegmentedControl(
+                    items = listOf("${t.listeningPorts} (${data.listening.size})", "${t.activeConnections} (${data.connections.size})"),
+                    selectedIndex = if (showListeningOnly) 0 else 1,
                     onSelect = { showListeningOnly = it == 0 },
                     modifier = Modifier.weight(1f)
                 )
@@ -910,49 +833,50 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
             item { EmptyState(title = t.noData, radar = true) }
         } else {
             items(itemsToShow, key = { "${it.proto}-${it.localIp}-${it.localPort}-${it.remoteIp}-${it.remotePort}-${it.pid}" }) { s ->
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ValuePill(
-                        s.proto.uppercase(),
-                        if (s.proto.lowercase().startsWith("tcp")) Ds.accent else Ds.violet
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            if (showListeningOnly) "${s.localIp}:${s.localPort}" else "${s.localIp}:${s.localPort} → ${s.remoteIp}:${s.remotePort}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            fontFamily = Telemetry,
-                            color = Ds.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        if (s.process.isNotEmpty()) {
+                ModernCard(padding = 12.dp, cornerRadius = 14.dp) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusPill(s.proto.uppercase(), level = if (s.proto.lowercase().startsWith("tcp")) StatusLevel.Info else StatusLevel.Warn, pulse = false)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                "${s.process} · PID ${s.pid}",
-                                fontSize = 10.5.sp,
-                                color = Ds.textTertiary
+                                if (showListeningOnly) "${s.localIp}:${s.localPort}" else "${s.localIp}:${s.localPort} → ${s.remoteIp}:${s.remotePort}",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
+                            if (s.process.isNotEmpty()) {
+                                Text(
+                                    "${s.process} · PID ${s.pid}",
+                                    fontSize = 11.sp,
+                                    color = Ds.textTertiary
+                                )
+                            }
                         }
+                        Spacer(Modifier.width(8.dp))
+                        StatusPill(
+                            s.state,
+                            level = when (s.state) {
+                                "LISTEN", "ESTABLISHED" -> StatusLevel.Ok
+                                else -> StatusLevel.Neutral
+                            },
+                            pulse = s.state == "ESTABLISHED"
+                        )
                     }
-                    Spacer(Modifier.width(8.dp))
-                    val stateTone = when (s.state) {
-                        "LISTEN", "ESTABLISHED" -> Ds.ok
-                        else -> Ds.neutral
-                    }
-                    ValuePill(s.state, stateTone)
                 }
-                Hairline()
             }
-            item { Spacer(Modifier.height(30.dp)) }
+            item { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// DOCKER — panel list
+// DOCKER TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -962,15 +886,12 @@ private fun DockerTab(t: Str, server: ServerConfig, data: DockerSummaryData?, on
     val api = remember { ApiClient() }
 
     if (data == null) {
-        LoadingState("…")
+        LoadingState(t.connecting)
         return
     }
 
     if (!data.installed) {
-        EmptyState(
-            title = t.dockerNotRunning,
-            icon = Icons.Rounded.Layers
-        )
+        EmptyState(title = t.dockerNotRunning, icon = Icons.Rounded.Layers)
         return
     }
 
@@ -979,115 +900,97 @@ private fun DockerTab(t: Str, server: ServerConfig, data: DockerSummaryData?, on
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SectionLabel("Docker", icon = Icons.Rounded.Layers)
-                Spacer(Modifier.width(8.dp))
-                ValuePill("${data.containers.size}", Ds.accent)
-                Spacer(Modifier.weight(1f))
-                CircleIconButton(
-                    icon = Icons.Rounded.Refresh,
-                    contentDescription = "Refresh",
-                    onClick = onRefresh
-                )
-            }
+            SectionHeader(
+                title = "Docker Containers",
+                icon = Icons.Rounded.Layers,
+                badge = "${data.containers.size}",
+                action = {
+                    CircleIconButton(
+                        icon = Icons.Rounded.Refresh,
+                        contentDescription = "Refresh",
+                        onClick = onRefresh
+                    )
+                }
+            )
         }
 
-        item {
-            ModernCard(padding = 0.dp) {
-                Column {
-                    data.containers.forEachIndexed { idx, c ->
-                        val isRunning = c.state == "running"
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                Modifier
-                                    .size(9.dp)
-                                    .background(if (isRunning) Ds.ok else Ds.danger, CircleShape)
-                            )
-                            Spacer(Modifier.width(11.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    c.name,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp,
-                                    color = Ds.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    c.image,
-                                    fontSize = 10.sp,
-                                    color = Ds.accent,
-                                    fontFamily = Telemetry,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(c.status, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                CircleIconButton(
-                                    icon = Icons.Rounded.Refresh,
-                                    contentDescription = t.restartLbl,
-                                    onClick = {
-                                        scope.launch {
-                                            try {
-                                                api.dockerRestart(server, c.id)
-                                                Toast.makeText(ctx, t.containerRestartedTpl.format(c.name), Toast.LENGTH_SHORT).show()
-                                                onRefresh()
-                                            } catch (e: Exception) {
-                                                Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                    tint = Ds.accent,
-                                    size = 28.dp
-                                )
-                                if (isRunning) {
-                                    CircleIconButton(
-                                        icon = Icons.Rounded.Stop,
-                                        contentDescription = t.stopShort,
-                                        onClick = {
-                                            scope.launch {
-                                                try {
-                                                    api.dockerStop(server, c.id)
-                                                    Toast.makeText(ctx, t.containerStoppedTpl.format(c.name), Toast.LENGTH_SHORT).show()
-                                                    onRefresh()
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        },
-                                        tint = Ds.danger,
-                                        size = 28.dp
-                                    )
-                                } else {
-                                    // keep rows aligned when only one action exists
-                                    Spacer(Modifier.size(28.dp))
+        items(data.containers, key = { it.id }) { c ->
+            val isRunning = c.state == "running"
+            ModernCard(padding = 14.dp, cornerRadius = 16.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PulseDot(color = if (isRunning) Ds.ok else Ds.danger, size = 8.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            c.name,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            c.image,
+                            fontSize = 10.5.sp,
+                            color = Ds.accent,
+                            fontFamily = Telemetry,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(c.status, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        CircleIconButton(
+                            icon = Icons.Rounded.Refresh,
+                            contentDescription = t.restartLbl,
+                            tint = Ds.accent,
+                            size = 32.dp,
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        api.dockerRestart(server, c.id)
+                                        Toast.makeText(ctx, t.containerRestartedTpl.format(c.name), Toast.LENGTH_SHORT).show()
+                                        onRefresh()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
-                        }
-                        if (idx != data.containers.lastIndex) {
-                            Hairline(Modifier.padding(horizontal = 14.dp))
+                        )
+                        if (isRunning) {
+                            CircleIconButton(
+                                icon = Icons.Rounded.Stop,
+                                contentDescription = t.stopShort,
+                                tint = Ds.danger,
+                                size = 32.dp,
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            api.dockerStop(server, c.id)
+                                            Toast.makeText(ctx, t.containerStoppedTpl.format(c.name), Toast.LENGTH_SHORT).show()
+                                            onRefresh()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(ctx, "${t.errorShort}: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
                         }
                     }
                 }
             }
         }
-        item { Spacer(Modifier.height(30.dp)) }
+        item { Spacer(Modifier.height(24.dp)) }
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// GLOBAL CHECK (Check-Host)
+// GLOBAL CHECK (Check-Host) TAB
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -1114,7 +1017,7 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
 
         scope.launch {
             try {
-                val (reqId, initialNodes) = CheckHostService.startCheck(hostToTest, selectedType, 20)
+                val (reqId, initialNodes) = CheckHostService.startCheck(hostToTest.trim(), selectedType, 20)
                 nodes = initialNodes
 
                 for (i in 0 until 12) {
@@ -1140,93 +1043,60 @@ private fun GlobalCheckTab(t: Str, defaultHost: String) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         item {
-            ModernCard(padding = 14.dp) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    DTextField(
-                        value = targetHost,
-                        onValueChange = { targetHost = it },
-                        label = t.probeTarget,
-                        mono = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    SegmentedTabs(
-                        tabs = listOf("ping", "http", "tcp", "dns").map { TabSpec(it.uppercase()) },
-                        selected = listOf("ping", "http", "tcp", "dns").indexOf(selectedType),
-                        onSelect = { selectedType = listOf("ping", "http", "tcp", "dns")[it] }
-                    )
-                    if (selectedType == "tcp") {
-                        DTextField(
-                            value = tcpPort,
-                            onValueChange = { tcpPort = it },
-                            label = t.portNumber,
-                            mono = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    PrimaryActionButton(
-                        text = if (isChecking) t.probing else t.runProbe,
-                        onClick = { startProbe() },
-                        enabled = !isChecking && targetHost.isNotBlank(),
-                        icon = Icons.Rounded.Public
-                    )
+            ModernCard(padding = 14.dp, cornerRadius = 18.dp) {
+                InputField(value = targetHost, onValueChange = { targetHost = it }, label = t.probeTarget, placeholder = "IP or domain")
+                Spacer(Modifier.height(8.dp))
+                SegmentedControl(
+                    items = listOf("Ping", "HTTP", "TCP"),
+                    selectedIndex = when (selectedType) { "http" -> 1; "tcp" -> 2; else -> 0 },
+                    onSelect = { selectedType = when (it) { 1 -> "http"; 2 -> "tcp"; else -> "ping" } }
+                )
+                if (selectedType == "tcp") {
+                    Spacer(Modifier.height(8.dp))
+                    InputField(value = tcpPort, onValueChange = { tcpPort = it }, label = t.portNumber, placeholder = "80")
                 }
+                Spacer(Modifier.height(12.dp))
+                PrimaryButton(
+                    text = if (isChecking) t.probing else t.runProbe,
+                    icon = Icons.Rounded.Public,
+                    loading = isChecking,
+                    onClick = { startProbe() },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
-        if (statusText.isNotBlank()) {
+        if (statusText.isNotEmpty()) {
             item {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(statusText, fontSize = 12.sp, color = Ds.accent, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    if (totalCount > 0) {
-                        Text(
-                            "$okCount/$totalCount",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = Telemetry,
-                            color = Ds.textPrimary
-                        )
-                    }
-                }
+                Text(statusText, fontSize = 12.sp, color = Ds.textSecondary, fontWeight = FontWeight.SemiBold)
             }
         }
 
-        if (nodes.isEmpty() && !isChecking) {
-            item { EmptyState(title = t.enterTarget, icon = Icons.Rounded.Public, hint = t.globalCheck) }
-        } else {
-            items(nodes, key = { it.nodeKey }) { node ->
+        items(nodes) { node ->
+            val isOk = node.state == 1
+            val isFail = node.state == 2
+            ModernCard(padding = 10.dp, cornerRadius = 12.dp) {
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 9.dp, horizontal = 2.dp),
+                    Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(node.flag, fontSize = 16.sp)
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(
-                            node.location.ifEmpty { node.countryCode },
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Ds.textPrimary
-                        )
-                        Text(node.nodeKey, fontSize = 9.5.sp, color = Ds.textTertiary, fontFamily = Telemetry, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(node.location, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text(node.nodeKey, fontSize = 10.sp, fontFamily = Telemetry, color = Ds.textTertiary)
                     }
                     Text(
                         node.resultText,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 11.5.sp,
                         fontFamily = Telemetry,
-                        color = when (node.state) {
-                            1 -> Ds.ok
-                            2 -> Ds.danger
-                            else -> Ds.textTertiary
-                        }
+                        fontWeight = FontWeight.Bold,
+                        color = if (isOk) Ds.ok else if (isFail) Ds.danger else Ds.textTertiary
                     )
                 }
-                Hairline()
             }
-            item { Spacer(Modifier.height(30.dp)) }
         }
+
+        item { Spacer(Modifier.height(24.dp)) }
     }
 }

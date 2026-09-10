@@ -25,11 +25,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
@@ -53,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -74,7 +75,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleServerIntent(intent)
 
-        // Notification permission (Android 13+)
+        // Notification permission for background monitoring alerts (Android 13+)
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
@@ -98,7 +99,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// APP SHELL — Nightwatch chrome: deep canvas, radar brand, dock navigation.
+// APP SHELL — Obsidian Zenith Chrome: Deep Canvas, Floating Island Navigation
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -107,13 +108,13 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var themeMode by remember { mutableStateOf(Prefs.getThemeMode(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
-    var currentNav by remember { mutableStateOf(0) } // 0: Servers, 1: Tunnels, 2: Uptime, 3: Network, 4: Cloudflare, 5: Vault, 6: DevLab
+    var currentNav by remember { mutableStateOf(0) } // 0: Fleet, 1: Tunnels, 2: Uptime, 3: Network, 4: Cloudflare, 5: Vault, 6: DevLab
 
     val t = if (lang == "fa") Locales.fa else Locales.en
     val isDarkMode = themeMode == "dark"
     val navScrollState = rememberScrollState()
 
-    // Deep-link from notifications: open the specific server
+    // Deep-link routing from push notifications
     LaunchedEffect(pendingServerId.value) {
         val id = pendingServerId.value
         if (id != null) {
@@ -123,7 +124,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
         }
     }
 
-    // Keep system chrome in sync with the active palette
+    // System bars synchronization with active theme palette
     val view = LocalView.current
     if (!view.isInEditMode) {
         val canvasColor = Ds.canvas
@@ -194,18 +195,22 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                             }
                         }
 
-                        // ── Dock navigation ──
+                        // ── Floating Island Bottom Dock Navigation ──
                         Surface(
-                            color = Ds.canvas,
+                            color = Ds.surface,
                             border = androidx.compose.foundation.BorderStroke(1.dp, Ds.hairline),
-                            modifier = Modifier.fillMaxWidth()
+                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
                         ) {
                             Row(
                                 Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(navScrollState)
-                                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
                                 DockItem(Icons.Rounded.Dns, t.navServers, currentNav == 0) { currentNav = 0 }
                                 DockItem(Icons.Rounded.SwapHoriz, t.navTunnels, currentNav == 1) { currentNav = 1 }
@@ -225,36 +230,41 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
 
 @Composable
 private fun DockItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    val pill by animateColorAsState(
-        targetValue = if (selected) Ds.accentDim else androidx.compose.ui.graphics.Color.Transparent,
+    val pillBg by animateColorAsState(
+        targetValue = if (selected) Ds.accentDim else Color.Transparent,
         animationSpec = tween(220), label = "dockPill"
     )
+    val iconColor by animateColorAsState(
+        targetValue = if (selected) Ds.accent else Ds.textTertiary,
+        animationSpec = tween(220), label = "dockIcon"
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .padding(horizontal = 9.dp, vertical = 4.dp)
     ) {
         Box(
             Modifier
-                .size(width = 46.dp, height = 27.dp)
-                .background(pill, RoundedCornerShape(999.dp)),
+                .size(width = 46.dp, height = 28.dp)
+                .background(pillBg, RoundedCornerShape(999.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (selected) Ds.accent else Ds.textTertiary,
+                tint = iconColor,
                 modifier = Modifier.size(18.dp)
             )
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(3.dp))
         Text(
             label,
-            fontSize = 9.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (selected) Ds.accent else Ds.textTertiary,
+            fontSize = 10.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = iconColor,
             maxLines = 1
         )
     }

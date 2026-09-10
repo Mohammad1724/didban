@@ -71,6 +71,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -88,6 +89,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -142,61 +144,66 @@ fun TunnelScreen(t: Str) {
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ── 1. Page header ──
+        // ── 1. Page Header ──
         item {
-            PageHeader(
-                icon = Icons.Rounded.SwapHoriz,
-                title = t.tunnelsHub,
-                subtitle = "مدیریت و استقرار هوشمند تانل دو سرور",
-                actionLabel = t.addTunnel,
-                onAction = { showAddDialog = true }
-            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(icon = Icons.Rounded.SwapHoriz, tint = Ds.accent, background = Ds.accentDim, size = 36.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(t.tunnelsHub, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("Dual-Node Iran ➔ Kharej", fontSize = 11.sp, color = Ds.textTertiary)
+                    }
+                }
+                PrimaryButton(
+                    text = t.addTunnel,
+                    icon = Icons.Rounded.Add,
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.height(38.dp)
+                )
+            }
         }
 
         // ── 2. Bento Stat Summary ──
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ModernCard(Modifier.weight(1f), padding = 10.dp) {
-                    Text("کل تانل‌ها", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(2.dp))
-                    Text(totalTunnels.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
-                }
-                ModernCard(Modifier.weight(1f), padding = 10.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        PulseDot(isOnline = activeTunnels > 0, size = 6.dp)
-                        Text("آنلاین و متصل", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Text(activeTunnels.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Ds.ok)
-                }
-                ModernCard(Modifier.weight(1f), padding = 10.dp) {
-                    Text("هسته‌های فعال", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(2.dp))
-                    Text(uniqueCores.toString(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = Ds.violet)
-                }
+                BentoMetricCard(
+                    title = "Total Tunnels",
+                    value = "$totalTunnels",
+                    icon = Icons.Rounded.AltRoute,
+                    tone = Ds.accent,
+                    modifier = Modifier.weight(1f)
+                )
+                BentoMetricCard(
+                    title = "Connected",
+                    value = "$activeTunnels",
+                    icon = Icons.Rounded.CheckCircle,
+                    tone = Ds.ok,
+                    modifier = Modifier.weight(1f)
+                )
+                BentoMetricCard(
+                    title = "Active Cores",
+                    value = "$uniqueCores",
+                    icon = Icons.Rounded.Security,
+                    tone = Ds.violet,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
         // ── 3. Engine Filter Chips Bar ──
         item {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // "All" Chip
-                FilterPill(
-                    label = "همه (${tunnels.size})",
-                    selected = selectedFilterCore == null,
-                    onClick = { selectedFilterCore = null }
-                )
-
-                // Cores Chips
-                listOf(
+            FilterChipRow(
+                items = listOf("All (${tunnels.size})") + listOf(
                     TunnelCore.BACKPACK,
                     TunnelCore.PAQET,
                     TunnelCore.NARNIA,
@@ -204,399 +211,316 @@ fun TunnelScreen(t: Str) {
                     TunnelCore.BACKHAUL,
                     TunnelCore.RATHOLE,
                     TunnelCore.GOST
-                ).forEach { c ->
-                    val count = tunnels.count { it.core == c }
-                    if (count > 0 || tunnels.isEmpty()) {
-                        FilterPill(
-                            label = c.displayName,
-                            selected = selectedFilterCore == c,
-                            onClick = { selectedFilterCore = if (selectedFilterCore == c) null else c }
-                        )
+                ).map { it.displayName },
+                selectedIndex = if (selectedFilterCore == null) 0 else {
+                    val idx = listOf(
+                        TunnelCore.BACKPACK,
+                        TunnelCore.PAQET,
+                        TunnelCore.NARNIA,
+                        TunnelCore.SPOOF_TUNNEL,
+                        TunnelCore.BACKHAUL,
+                        TunnelCore.RATHOLE,
+                        TunnelCore.GOST
+                    ).indexOf(selectedFilterCore)
+                    if (idx >= 0) idx + 1 else 0
+                },
+                onSelect = { idx ->
+                    selectedFilterCore = if (idx == 0) null else {
+                        listOf(
+                            TunnelCore.BACKPACK,
+                            TunnelCore.PAQET,
+                            TunnelCore.NARNIA,
+                            TunnelCore.SPOOF_TUNNEL,
+                            TunnelCore.BACKHAUL,
+                            TunnelCore.RATHOLE,
+                            TunnelCore.GOST
+                        ).getOrNull(idx - 1)
                     }
                 }
-            }
+            )
         }
 
-        // ── 4. Architecture Guide (Collapsible) ──
+        // ── 4. Guide Banner ──
         item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showGuide = !showGuide }
-            ) {
-                Column(Modifier.padding(12.dp)) {
+            BannerCard(
+                text = t.guideTunnels,
+                tone = BannerTone.Info,
+                icon = Icons.Rounded.Info
+            )
+        }
+
+        // ── 5. Empty State or Tunnel Cards ──
+        if (filteredTunnels.isEmpty()) {
+            item {
+                EmptyState(
+                    title = "No Tunnels Configured",
+                    hint = "Create your first high-speed dual-node tunnel between Iran and foreign servers.",
+                    radar = true,
+                    actionLabel = t.addTunnel,
+                    onAction = { showAddDialog = true }
+                )
+            }
+        } else {
+            items(filteredTunnels, key = { it.id }) { tunnel ->
+                val isOnline = tunnel.lastStatus == 1
+                val isTesting = testingTunnelId == tunnel.id
+                val isOperating = operatingTunnelId == tunnel.id
+
+                ModernCard(
+                    padding = 16.dp,
+                    cornerRadius = 18.dp
+                ) {
+                    // Header: Core badge + Name + Status
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Rounded.HelpOutline, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                            Text("راهنمای استقرار و سازوکار هسته‌ها", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        }
-                        Icon(
-                            if (showGuide) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    AnimatedVisibility(
-                        visible = showGuide,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                "⚡ استقرار خودکار (مانند پنل Smite): هنگام ساخت یا ویرایش تانل، نیازی به کپی کردن دستی دستورات نیست! تنظیمات مستقیماً از طریق ایجنت دیدبان روی سرورها اعمال و سرویس تانل استارت می‌شود.",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 16.sp
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            StatusPill(
+                                text = tunnel.core.displayName,
+                                level = StatusLevel.Info,
+                                pulse = false
                             )
-                            Spacer(Modifier.height(2.dp))
-                            Text("🎒 BackPack: تانل نسل جدید Go با رمزنگاری Stealth Noise و دور زدن کرنل PCK", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("🌊 Paqet: ارسال ترافیک روی Raw Socket و KCP با دور زدن لایه‌های شبکه و فایروال", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("📡 Narnia: بسته‌بندی ترافیک در قالب پکت‌های استاندارد Ping ICMP با رمز ChaCha20", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("🎭 Spoof Tunnel: جعل دوطرفه هدر IP مبدا با تصحیح خطای Reed-Solomon FEC", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-        }
-
-        // ── 5. Tunnels List or Empty State ──
-        if (filteredTunnels.isEmpty()) {
-            item {
-                ModernCard(padding = 24.dp) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        IconBadge(
-                            icon = Icons.Rounded.AltRoute,
-                            tint = MaterialTheme.colorScheme.primary,
-                            background = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
-                            size = 56.dp,
-                            iconSize = 30.dp
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text("هیچ تانلی یافت نشد", fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "برای اتصال ایمن سرور ایران به خارج، اولین تانل را با چند کلیک بسازید تا خودکار روی سرورها راه‌اندازی شود.",
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 11.5.sp,
-                            lineHeight = 17.sp
-                        )
-                        Spacer(Modifier.height(14.dp))
-                        PrimaryActionButton(
-                            text = "＋  ${t.addTunnel}",
-                            onClick = { showAddDialog = true }
-                        )
-                    }
-                }
-            }
-        } else {
-            items(filteredTunnels, key = { it.id }) { tun ->
-                val coreBadgeColor = when (tun.core) {
-                    TunnelCore.BACKPACK -> Ds.warn
-                    TunnelCore.PAQET -> Ds.info
-                    TunnelCore.NARNIA -> Ds.violet
-                    TunnelCore.SPOOF_TUNNEL -> Ds.danger
-                    TunnelCore.BACKHAUL -> Ds.accent
-                    TunnelCore.RATHOLE -> Ds.warn
-                    TunnelCore.GOST -> Ds.info
-                    TunnelCore.CHISEL -> Ds.violet
-                    TunnelCore.FRP -> Ds.danger
-                    TunnelCore.IPTABLES -> Ds.textSecondary
-                }
-
-                val ports = remember(tun) { TunnelEngine.parsePortMappings(tun) }
-                val portsSummary = remember(ports) {
-                    if (ports.size == 1) "${ports[0].iranPort} ➔ ${ports[0].foreignPort}"
-                    else ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
-                }
-
-                ModernCard(padding = 14.dp) {
-                    // Header Row: Core Badge + Transport + Auto-Sync + Latency Pill
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(shape = RoundedCornerShape(7.dp), color = coreBadgeColor.copy(alpha = 0.14f)) {
+                            Spacer(Modifier.width(8.dp))
                             Text(
-                                tun.core.displayName,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                fontSize = 11.sp,
+                                tunnel.name,
                                 fontWeight = FontWeight.Bold,
-                                color = coreBadgeColor
+                                fontSize = 14.5.sp,
+                                color = Ds.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Spacer(Modifier.width(6.dp))
-                        if (tun.autoSync) {
-                            Surface(shape = RoundedCornerShape(7.dp), color = Ds.ok.copy(alpha = 0.12f)) {
-                                Row(
-                                    Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Icon(Icons.Rounded.CloudDone, contentDescription = null, tint = Ds.ok, modifier = Modifier.size(11.dp))
-                                    Text("سینک خودکار", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Ds.ok)
-                                }
-                            }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            StatusPill(
+                                text = if (isOnline) "${tunnel.lastLatencyMs.toInt()} ms" else "Offline",
+                                level = if (isOnline) StatusLevel.Ok else StatusLevel.Danger,
+                                pulse = isOnline
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Switch(
+                                checked = tunnel.isEnabled,
+                                onCheckedChange = {
+                                    tunnel.isEnabled = it
+                                    save()
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedTrackColor = Ds.accent,
+                                    checkedThumbColor = Ds.onAccent,
+                                    uncheckedTrackColor = Ds.surfaceHighlight
+                                )
+                            )
                         }
-
-                        Spacer(Modifier.weight(1f))
-
-                        // Live Status / Latency Pill
-                        StatusPill(
-                            text = when (tun.lastStatus) {
-                                1 -> if (tun.lastLatencyMs >= 0) "${tun.lastLatencyMs} ms" else "آنلاین"
-                                0 -> "قطع"
-                                else -> "تست نشده"
-                            },
-                            isOnline = tun.lastStatus == 1
-                        )
                     }
 
-                    Spacer(Modifier.height(8.dp))
-                    Text(tun.name, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+                    Spacer(Modifier.height(12.dp))
 
-                    Spacer(Modifier.height(8.dp))
-
-                    // ── Visual Route Map ──
+                    // ── Dual Node Visual Flow: Iran ➔ Kharej ──
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        color = Ds.surfaceLow,
+                        border = BorderStroke(1.dp, Ds.hairline),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            // Node 1 (Iran) -> Node 2 (Foreign)
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("🇮🇷 ایران (ورودی)", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(
-                                        tun.iranHost.ifBlank { "0.0.0.0" },
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = Telemetry
-                                    )
-                                }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                    modifier = Modifier.padding(horizontal = 6.dp)
-                                ) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
-                                    ) {
-                                        Text(
-                                            "${ports.size} پورت",
-                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Icon(Icons.Rounded.ArrowForward, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(13.dp))
-                                }
-
-                                Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                                    Text("🌍 خارج (مقصد)", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(
-                                        tun.foreignHost.ifBlank { "127.0.0.1" },
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = Telemetry,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-
-                            // Ports Summary line
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text("پورت‌های فوروارد:", fontSize = 10.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Iran Node
+                            Column(Modifier.weight(1f)) {
+                                Text("🇮🇷 Iran Relay", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    portsSummary,
-                                    fontSize = 11.sp,
+                                    tunnel.iranHost.ifBlank { "0.0.0.0" } + ":${tunnel.iranPort}",
+                                    fontSize = 11.5.sp,
                                     fontFamily = Telemetry,
                                     fontWeight = FontWeight.Bold,
-                                    color = Ds.accent
+                                    color = Ds.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // Center bridge indicator
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(horizontal = 6.dp)
+                            ) {
+                                Text(
+                                    tunnel.transport.name,
+                                    fontSize = 9.sp,
+                                    fontFamily = Telemetry,
+                                    color = Ds.accent,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowForward,
+                                    contentDescription = null,
+                                    tint = Ds.accent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+
+                            // Foreign Node
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("🌍 Foreign Upstream", fontSize = 10.sp, color = Ds.textTertiary, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    tunnel.foreignHost.ifBlank { "Remote" } + ":${tunnel.foreignPort}",
+                                    fontSize = 11.5.sp,
+                                    fontFamily = Telemetry,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ds.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
 
+                    // Multi-port or details badge if present
+                    if (tunnel.multiPorts.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Multi-Port Forwarding: ${tunnel.multiPorts}",
+                            fontSize = 10.5.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.textTertiary
+                        )
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Hairline()
                     Spacer(Modifier.height(8.dp))
 
-                    // ── Action Buttons Row ──
+                    // ── Actions Row ──
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // 1. Remote Restart (Smite Style)
-                        TextButton(
-                            onClick = {
-                                if (operatingTunnelId == null) {
-                                    operatingTunnelId = tun.id
-                                    scope.launch {
-                                        val ok = TunnelEngine.controlRemoteTunnel(ctx, tun, "restart")
-                                        operatingTunnelId = null
-                                        Toast.makeText(ctx, if (ok) "سرویس تانل روی سرورها ری‌استارت شد 🔄" else "دستور ری‌استارت ارسال شد", Toast.LENGTH_SHORT).show()
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SoftButton(
+                                text = "Code & Docker",
+                                icon = Icons.Rounded.Terminal,
+                                onClick = { viewCodeTunnel = tunnel }
+                            )
+
+                            if (tunnel.autoSync) {
+                                SoftButton(
+                                    text = if (isOperating) "Syncing…" else "Auto-Deploy",
+                                    icon = Icons.Rounded.CloudSync,
+                                    tone = Ds.ok,
+                                    enabled = !isOperating,
+                                    onClick = {
+                                        operatingTunnelId = tunnel.id
+                                        scope.launch {
+                                            val ok = TunnelEngine.applyTunnelToAgents(ctx, tunnel)
+                                            if (ok) {
+                                                Toast.makeText(ctx, "Tunnel deployed to agents successfully!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(ctx, "Auto-deploy failed. Check agent connection.", Toast.LENGTH_SHORT).show()
+                                            }
+                                            operatingTunnelId = null
+                                        }
                                     }
-                                }
-                            }
-                        ) {
-                            if (operatingTunnelId == tun.id) {
-                                CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
-                                    Text("ری‌استارت", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                                }
+                                )
                             }
                         }
 
-                        // 2. View Configs / Commands
-                        TextButton(onClick = { viewCodeTunnel = tun }) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Icon(Icons.Rounded.Terminal, contentDescription = null, modifier = Modifier.size(13.dp))
-                                Text("دستورات", fontSize = 11.sp)
-                            }
-                        }
-
-                        // 3. Test Latency
-                        TextButton(
-                            onClick = {
-                                if (testingTunnelId == null) {
-                                    testingTunnelId = tun.id
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            CircleIconButton(
+                                icon = Icons.Rounded.Speed,
+                                contentDescription = "Test Latency",
+                                tint = Ds.accent,
+                                size = 32.dp,
+                                onClick = {
+                                    testingTunnelId = tunnel.id
                                     scope.launch {
-                                        val (ok, lat) = TunnelEngine.testTunnel(tun)
-                                        tun.lastStatus = if (ok) 1 else 0
-                                        tun.lastLatencyMs = lat
-                                        tun.lastChecked = System.currentTimeMillis()
+                                        val (ok, lat) = TunnelEngine.testTunnel(tunnel)
+                                        tunnel.lastStatus = if (ok) 1 else 0
+                                        tunnel.lastLatencyMs = lat
+                                        tunnel.lastChecked = System.currentTimeMillis()
                                         save()
                                         testingTunnelId = null
-                                        Toast.makeText(ctx, if (ok) "تانل پاسخ داد (${lat}ms)" else "پاسخی از پورت تانل دریافت نشد", Toast.LENGTH_SHORT).show()
                                     }
                                 }
-                            }
-                        ) {
-                            if (testingTunnelId == tun.id) {
-                                CircularProgressIndicator(Modifier.size(13.dp), strokeWidth = 2.dp)
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
-                                    Text("تست", fontSize = 11.sp)
-                                }
-                            }
-                        }
-
-                        // 4. Edit
-                        IconButton(onClick = { editingTunnel = tun }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.Edit, contentDescription = "Edit", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(15.dp))
-                        }
-
-                        // 5. Delete
-                        IconButton(
-                            onClick = { deletingTunnel = tun },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Rounded.DeleteOutline, contentDescription = "Delete", tint = Ds.danger, modifier = Modifier.size(16.dp))
+                            )
+                            CircleIconButton(
+                                icon = Icons.Rounded.Edit,
+                                contentDescription = "Edit",
+                                tint = Ds.textSecondary,
+                                size = 32.dp,
+                                onClick = { editingTunnel = tunnel }
+                            )
+                            CircleIconButton(
+                                icon = Icons.Rounded.DeleteOutline,
+                                contentDescription = "Delete",
+                                tint = Ds.danger,
+                                size = 32.dp,
+                                onClick = { deletingTunnel = tunnel }
+                            )
                         }
                     }
                 }
             }
-
-            item {
-                Spacer(Modifier.height(4.dp))
-                PrimaryActionButton(
-                    text = "＋  ${t.addTunnel}",
-                    onClick = { showAddDialog = true }
-                )
-                Spacer(Modifier.height(28.dp))
-            }
         }
+
+        item { Spacer(Modifier.height(24.dp)) }
     }
 
     // ── Add/Edit Tunnel Dialog ──
     if (showAddDialog || editingTunnel != null) {
-        val isEdit = editingTunnel != null
-        AddOrEditTunnelDialog(
+        val target = editingTunnel
+        TunnelFormDialog(
             t = t,
-            existing = editingTunnel,
+            existing = target,
             onDismiss = {
                 showAddDialog = false
                 editingTunnel = null
             },
-            onSave = { savedTun ->
-                scope.launch {
-                    if (savedTun.autoSync) {
-                        Toast.makeText(ctx, "در حال استقرار خودکار تانل روی سرورها...", Toast.LENGTH_SHORT).show()
-                        val res = TunnelEngine.autoDeployTunnel(ctx, savedTun)
-                        Toast.makeText(ctx, res.summaryMessage, Toast.LENGTH_LONG).show()
-                    }
-
-                    if (isEdit) {
-                        val idx = tunnels.indexOfFirst { it.id == savedTun.id }
-                        if (idx >= 0) {
-                            tunnels = tunnels.toMutableList().also { it[idx] = savedTun }
-                        }
-                    } else {
-                        tunnels = tunnels + savedTun
-                    }
-                    save()
-                    showAddDialog = false
-                    editingTunnel = null
-
-                    if (!savedTun.autoSync) {
-                        viewCodeTunnel = savedTun
-                    }
+            onSave = { updated ->
+                val list = tunnels.toMutableList()
+                val idx = list.indexOfFirst { it.id == updated.id }
+                if (idx >= 0) {
+                    list[idx] = updated
+                } else {
+                    list.add(updated)
                 }
+                tunnels = list
+                save()
+                showAddDialog = false
+                editingTunnel = null
             }
         )
     }
 
-    // ── View Codes & Commands Dialog ──
-    viewCodeTunnel?.let { tun ->
+    // ── View Codes & Docker Dialog ──
+    viewCodeTunnel?.let { tunnel ->
         ViewTunnelCodeDialog(
             t = t,
-            tunnel = tun,
+            tunnel = tunnel,
             onDismiss = { viewCodeTunnel = null }
         )
     }
 
     // ── Delete Confirmation Dialog ──
-    deletingTunnel?.let { dt ->
+    deletingTunnel?.let { tunnel ->
         AlertDialog(
             onDismissRequest = { deletingTunnel = null },
-            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(t.deleteTunnel, fontWeight = FontWeight.Bold) },
-            text = { Text("آیا از حذف تانل «${dt.name}» اطمینان دارید؟ در صورت فعال بودن سینک خودکار، سرویس آن از سرورها نیز پاک خواهد شد.") },
+            text = { Text("Delete tunnel “${tunnel.name}”?") },
             confirmButton = {
                 TextButton(onClick = {
-                    scope.launch {
-                        if (dt.autoSync) {
-                            TunnelEngine.controlRemoteTunnel(ctx, dt, "delete")
-                        }
-                        tunnels = tunnels.filter { it.id != dt.id }
-                        save()
-                        deletingTunnel = null
-                        Toast.makeText(ctx, "تانل حذف و سرویس مربوطه خاموش شد", Toast.LENGTH_SHORT).show()
-                    }
+                    tunnels = tunnels.filterNot { it.id == tunnel.id }
+                    save()
+                    deletingTunnel = null
                 }) {
                     Text(t.delete, color = Ds.danger, fontWeight = FontWeight.Bold)
                 }
@@ -608,514 +532,81 @@ fun TunnelScreen(t: Str) {
     }
 }
 
-@Composable
-private fun FilterPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    TagChip(label = label, selected = selected, onClick = onClick)
-}
-
-// ── Add / Edit Tunnel Dialog ────────────────────────────────────────────────
+// ── Tunnel Form Dialog ──────────────────────────────────────────────────────
 
 @Composable
-private fun AddOrEditTunnelDialog(
+private fun TunnelFormDialog(
     t: Str,
     existing: TunnelConfig?,
     onDismiss: () -> Unit,
     onSave: (TunnelConfig) -> Unit
 ) {
     val ctx = LocalContext.current
-    val servers = remember { Prefs.loadServers(ctx) }
-
-    var name by remember { mutableStateOf(existing?.name ?: "تونل جدید") }
+    var name by remember { mutableStateOf(existing?.name ?: "") }
     var core by remember { mutableStateOf(existing?.core ?: TunnelCore.BACKPACK) }
-    var transport by remember {
-        mutableStateOf(
-            existing?.transport ?: when (core) {
-                TunnelCore.BACKPACK -> TunnelTransport.STEALTH
-                TunnelCore.PAQET -> TunnelTransport.RAW_KCP
-                TunnelCore.NARNIA -> TunnelTransport.ICMP_CHACHA
-                TunnelCore.SPOOF_TUNNEL -> TunnelTransport.IP_SPOOF_UDP
-                else -> TunnelTransport.TCP
-            }
-        )
-    }
+    var transport by remember { mutableStateOf(existing?.transport ?: TunnelTransport.TCP) }
     var iranHost by remember { mutableStateOf(existing?.iranHost ?: "") }
     var foreignHost by remember { mutableStateOf(existing?.foreignHost ?: "") }
-    var iranServerId by remember { mutableStateOf(existing?.iranServerId) }
-    var foreignServerId by remember { mutableStateOf(existing?.foreignServerId) }
-    var multiPorts by remember { mutableStateOf(existing?.multiPorts ?: "2096, 2097, 2098") }
+    var multiPorts by remember { mutableStateOf(existing?.multiPorts ?: "443:8443, 2096:2096") }
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
     var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
-    var preset by remember { mutableStateOf(existing?.preset ?: "turbo") }
+    var preset by remember { mutableStateOf(existing?.preset ?: "balanced") }
     var kcpMode by remember { mutableStateOf(existing?.kcpMode ?: "fast") }
-    var encryption by remember { mutableStateOf(existing?.encryption ?: "aes-128-gcm") }
-    var spoofSrcIp by remember { mutableStateOf(existing?.spoofSrcIp ?: "1.1.1.1") }
-    var spoofPeerIp by remember { mutableStateOf(existing?.spoofPeerIp ?: "8.8.8.8") }
-    var virtualIpIran by remember { mutableStateOf(existing?.virtualIpIran ?: "10.200.200.2") }
-    var virtualIpKharej by remember { mutableStateOf(existing?.virtualIpKharej ?: "10.200.200.1") }
-    var mtu by remember { mutableStateOf(existing?.mtu?.toString() ?: "1350") }
-    var acceptUdp by remember { mutableStateOf(existing?.acceptUdp ?: true) }
-    var proxyProtocol by remember { mutableStateOf(existing?.proxyProtocol ?: false) }
-    var autoSync by remember { mutableStateOf(existing?.autoSync ?: true) }
+    var encryption by remember { mutableStateOf(existing?.encryption ?: "chacha20-poly1305") }
+    var autoSync by remember { mutableStateOf(existing?.autoSync ?: false) }
 
-    var showIranServerDropdown by remember { mutableStateOf(false) }
-    var showForeignServerDropdown by remember { mutableStateOf(false) }
-
-    val dummyConfig = remember(multiPorts) {
-        TunnelConfig(0, "", core, transport, multiPorts = multiPorts)
-    }
-    val parsedPorts = remember(multiPorts) { TunnelEngine.parsePortMappings(dummyConfig) }
+    val servers = remember { Prefs.loadServers(ctx) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        title = {
-            Text(if (existing == null) t.addTunnel else t.editTunnel, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)
-        },
+        title = { Text(if (existing == null) t.addTunnel else t.editTunnel, fontWeight = FontWeight.Bold) },
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(480.dp)
-                    .imePadding()
+                modifier = Modifier.fillMaxWidth().height(420.dp).imePadding()
             ) {
-                // 1. Auto-Sync Toggle Notice Card (Smite style)
                 item {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Ds.accent.copy(alpha = 0.12f),
-                        border = BorderStroke(1.dp, Ds.accent.copy(alpha = 0.25f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Rounded.CloudSync, contentDescription = null, tint = Ds.accent, modifier = Modifier.size(16.dp))
-                                    Text("همگام‌سازی و اعمال خودکار (Smite)", fontWeight = FontWeight.Bold, fontSize = 11.5.sp, color = Ds.accent)
-                                }
-                                Text("نصب و روشن شدن خودکار تانل روی هر دو سرور بدون نیاز به اجرای دستور در SSH.", fontSize = 9.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(checked = autoSync, onCheckedChange = { autoSync = it })
-                        }
-                    }
-                }
-
-                // 2. Name
-                item {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = { Text("نام دلخواه تانل (مثلاً تانل شاتل به هتزنر)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                    Text("Tunnel Core Engine", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    FilterChipRow(
+                        items = TunnelCore.values().map { it.displayName },
+                        selectedIndex = TunnelCore.values().indexOf(core),
+                        onSelect = { core = TunnelCore.values()[it] }
                     )
                 }
 
-                // 3. Core Selector
+                item { InputField(value = name, onValueChange = { name = it }, label = "Tunnel Name", placeholder = "e.g. Tehran-Frankfurt BackPack") }
+                item { InputField(value = iranHost, onValueChange = { iranHost = it }, label = "Iran Node Host / IP", placeholder = "Iran Server IP or Domain") }
+                item { InputField(value = foreignHost, onValueChange = { foreignHost = it }, label = "Foreign Node Host / IP", placeholder = "Foreign Server IP or Domain") }
+                item { InputField(value = multiPorts, onValueChange = { multiPorts = it }, label = "Port Forwarding Map", placeholder = "e.g. 443:8443, 2096:2096") }
+                item { InputField(value = corePort, onValueChange = { corePort = it }, label = "Core Tunnel Port", placeholder = "3080") }
+                item { InputField(value = token, onValueChange = { token = it }, label = "Security Token / PSK", placeholder = "Encryption Key") }
+
                 item {
-                    Text("انتخاب هسته تانلینگ:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(4.dp))
                     Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        TunnelCore.values().forEach { c ->
-                            val isSel = core == c
-                            val badgeColor = when (c) {
-                                TunnelCore.BACKPACK -> Ds.warn
-                                TunnelCore.PAQET -> Ds.info
-                                TunnelCore.NARNIA -> Ds.violet
-                                TunnelCore.SPOOF_TUNNEL -> Ds.danger
-                                TunnelCore.BACKHAUL -> Ds.accent
-                                TunnelCore.RATHOLE -> Ds.warn
-                                TunnelCore.GOST -> Ds.info
-                                TunnelCore.CHISEL -> Ds.violet
-                                TunnelCore.FRP -> Ds.danger
-                                TunnelCore.IPTABLES -> Ds.textSecondary
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSel) badgeColor else MaterialTheme.colorScheme.surfaceContainer,
-                                border = if (isSel) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier.clickable {
-                                    core = c
-                                    when (c) {
-                                        TunnelCore.BACKPACK -> transport = TunnelTransport.STEALTH
-                                        TunnelCore.PAQET -> transport = TunnelTransport.RAW_KCP
-                                        TunnelCore.NARNIA -> transport = TunnelTransport.ICMP_CHACHA
-                                        TunnelCore.SPOOF_TUNNEL -> transport = TunnelTransport.IP_SPOOF_UDP
-                                        TunnelCore.IPTABLES -> transport = TunnelTransport.TCP
-                                        else -> {}
-                                    }
-                                }
-                            ) {
-                                Text(
-                                    c.displayName,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                        Column(Modifier.weight(1f)) {
+                            Text("Agent Zero-Touch Auto-Deploy", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                            Text("Automatically installs and runs the tunnel on Didban agents", fontSize = 10.5.sp, color = Ds.textTertiary)
                         }
-                    }
-                    Text(core.description, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 3.dp))
-                }
-
-                // ── 4. Multi-Port Configurator ──
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("پورت‌های فوروارد (تکی، چندگانه یا رنج):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        OutlinedTextField(
-                            value = multiPorts,
-                            onValueChange = { multiPorts = it },
-                            label = { Text("پورت‌ها (مثلاً: 2096, 2097, 2098 یا 443:8443)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
+                        Switch(
+                            checked = autoSync,
+                            onCheckedChange = { autoSync = it },
+                            colors = SwitchDefaults.colors(checkedTrackColor = Ds.accent, checkedThumbColor = Ds.onAccent)
                         )
-
-                        // Quick Presets
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            listOf(
-                                "2096, 2097, 2098" to "⚡ پورت‌های 2096..2098",
-                                "80, 443, 8080, 8443" to "🌐 وب و SSL",
-                                "80, 443, 2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096" to "🚀 پورت‌های کلودفلر",
-                                "443:8443" to "🔌 تک پورت (443:8443)"
-                            ).forEach { (presetPorts, label) ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.clickable { multiPorts = presetPorts }
-                                ) {
-                                    Text(label, modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-                        }
-
-                        // Live Parsed Ports Info
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Ds.accent.copy(alpha = 0.1f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                "📡 پورت‌های تشخیص‌داده‌شده (${parsedPorts.size} پورت): " + parsedPorts.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" },
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                fontSize = 10.sp,
-                                fontFamily = Telemetry,
-                                color = Ds.accent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // ── 5. Specific Options by Core ──
-                when (core) {
-                    TunnelCore.BACKPACK -> {
-                        item {
-                            Text("پروتکل انتقال BackPack (ضد فیلترینگ):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf(
-                                    TunnelTransport.STEALTH,
-                                    TunnelTransport.PCK,
-                                    TunnelTransport.KCP_FEC,
-                                    TunnelTransport.WSSMUX,
-                                    TunnelTransport.WSMUX,
-                                    TunnelTransport.QUIC,
-                                    TunnelTransport.TCPMUX,
-                                    TunnelTransport.TCP,
-                                    TunnelTransport.XDI,
-                                    TunnelTransport.SPOOF
-                                ).forEach { tp ->
-                                    val isSel = transport == tp
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Ds.warn else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.clickable { transport = tp }
-                                    ) {
-                                        Text(
-                                            tp.displayName,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item {
-                            Text("پریست عملکرد و بهینه‌سازی:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf(
-                                    "turbo" to "⚡ توربو (Turbo)",
-                                    "balance" to "⚖️ متعادل (Balance)",
-                                    "aggressive" to "🔥 تهاجمی (Aggressive)",
-                                    "gaming" to "🎮 گیمینگ کم‌تاخیر (Gaming)"
-                                ).forEach { (pKey, pLabel) ->
-                                    val isSel = preset == pKey
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Ds.accent else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.clickable { preset = pKey }
-                                    ) {
-                                        Text(
-                                            pLabel,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        item {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Text("انتقال ترافیک UDP (V2Ray / Gaming)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                        Switch(checked = acceptUdp, onCheckedChange = { acceptUdp = it })
-                                    }
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                        Text("پروتکل PROXY v2 (IP واقعی کاربر)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                        Switch(checked = proxyProtocol, onCheckedChange = { proxyProtocol = it })
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    TunnelCore.PAQET -> {
-                        item {
-                            Text("مود عملکرد KCP:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(Modifier.height(4.dp))
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                listOf(
-                                    "fast" to "⚡ سریع (Fast)",
-                                    "fast2" to "🚀 توربو (Fast2)",
-                                    "fast3" to "🔥 توان حداکثر (Fast3)",
-                                    "normal" to "⚖️ عادی (Normal)"
-                                ).forEach { (mKey, mLabel) ->
-                                    val isSel = kcpMode == mKey
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (isSel) Ds.info else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        modifier = Modifier.clickable { kcpMode = mKey }
-                                    ) {
-                                        Text(
-                                            mLabel,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                            fontSize = 10.5.sp,
-                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) Ds.onAccent else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    TunnelCore.NARNIA -> {
-                        item {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedTextField(
-                                    value = virtualIpIran,
-                                    onValueChange = { virtualIpIran = it },
-                                    label = { Text("IP مجازی ایران") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = virtualIpKharej,
-                                    onValueChange = { virtualIpKharej = it },
-                                    label = { Text("IP مجازی خارج") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    TunnelCore.SPOOF_TUNNEL -> {
-                        item {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                OutlinedTextField(
-                                    value = spoofSrcIp,
-                                    onValueChange = { spoofSrcIp = it },
-                                    label = { Text("IP جعلی ایران") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = spoofPeerIp,
-                                    onValueChange = { spoofPeerIp = it },
-                                    label = { Text("IP جعلی خارج") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
-
-                    else -> {}
-                }
-
-                // 6. Iran Server Selection & Host
-                item {
-                    Text("سرور ایران (Bridge / Relay):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) {
-                            OutlinedTextField(
-                                value = iranHost,
-                                onValueChange = {
-                                    iranHost = it
-                                    iranServerId = null
-                                },
-                                label = { Text("آی‌پی یا انتخاب سرور ایران") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            if (servers.isNotEmpty()) {
-                                DropdownMenu(
-                                    expanded = showIranServerDropdown,
-                                    onDismissRequest = { showIranServerDropdown = false }
-                                ) {
-                                    servers.forEach { s ->
-                                        DropdownMenuItem(
-                                            text = { Text("${s.name} (${s.host})") },
-                                            onClick = {
-                                                iranHost = s.host
-                                                iranServerId = s.id
-                                                showIranServerDropdown = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        if (servers.isNotEmpty()) {
-                            IconButton(onClick = { showIranServerDropdown = true }) {
-                                Icon(Icons.Rounded.Dns, contentDescription = "Select Server", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                }
-
-                // 7. Foreign Server Selection & Host
-                item {
-                    Text("سرور خارج (Upstream / Target):", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f)) {
-                            OutlinedTextField(
-                                value = foreignHost,
-                                onValueChange = {
-                                    foreignHost = it
-                                    foreignServerId = null
-                                },
-                                label = { Text("آی‌پی یا انتخاب سرور خارج") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            if (servers.isNotEmpty()) {
-                                DropdownMenu(
-                                    expanded = showForeignServerDropdown,
-                                    onDismissRequest = { showForeignServerDropdown = false }
-                                ) {
-                                    servers.forEach { s ->
-                                        DropdownMenuItem(
-                                            text = { Text("${s.name} (${s.host})") },
-                                            onClick = {
-                                                foreignHost = s.host
-                                                foreignServerId = s.id
-                                                showForeignServerDropdown = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        if (servers.isNotEmpty()) {
-                            IconButton(onClick = { showForeignServerDropdown = true }) {
-                                Icon(Icons.Rounded.Language, contentDescription = "Select Server", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                }
-
-                // 8. Core Tunnel Port & Secret Token
-                if (core != TunnelCore.IPTABLES && core != TunnelCore.NARNIA) {
-                    item {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            OutlinedTextField(
-                                value = corePort,
-                                onValueChange = { corePort = it },
-                                label = { Text("پورت تانل") },
-                                singleLine = true,
-                                modifier = Modifier.width(100.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = token,
-                                onValueChange = { token = it },
-                                label = { Text("توکن امنیتی") },
-                                singleLine = true,
-                                trailingIcon = {
-                                    IconButton(onClick = { token = TunnelEngine.generateRandomToken(24) }) {
-                                        Icon(Icons.Rounded.AutoAwesome, contentDescription = "Gen Token", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
                     }
                 }
             }
         },
         confirmButton = {
-            Button(
+            PrimaryButton(
+                text = t.save,
                 onClick = {
                     if (name.isNotBlank()) {
+                        val parsedPorts = TunnelEngine.parseMultiPorts(multiPorts)
                         val firstPort = parsedPorts.firstOrNull() ?: PortMapping(443, 8443)
                         val newTun = existing?.apply {
                             this.name = name.trim()
@@ -1130,17 +621,8 @@ private fun AddOrEditTunnelDialog(
                             this.preset = preset
                             this.kcpMode = kcpMode
                             this.encryption = encryption
-                            this.spoofSrcIp = spoofSrcIp.trim()
-                            this.spoofPeerIp = spoofPeerIp.trim()
-                            this.virtualIpIran = virtualIpIran.trim()
-                            this.virtualIpKharej = virtualIpKharej.trim()
-                            this.mtu = mtu.toIntOrNull() ?: 1350
-                            this.acceptUdp = acceptUdp
-                            this.proxyProtocol = proxyProtocol
                             this.multiPorts = multiPorts.trim()
                             this.autoSync = autoSync
-                            this.iranServerId = iranServerId
-                            this.foreignServerId = foreignServerId
                         } ?: TunnelConfig(
                             id = System.currentTimeMillis(),
                             name = name.trim(),
@@ -1155,26 +637,13 @@ private fun AddOrEditTunnelDialog(
                             preset = preset,
                             kcpMode = kcpMode,
                             encryption = encryption,
-                            spoofSrcIp = spoofSrcIp.trim(),
-                            spoofPeerIp = spoofPeerIp.trim(),
-                            virtualIpIran = virtualIpIran.trim(),
-                            virtualIpKharej = virtualIpKharej.trim(),
-                            mtu = mtu.toIntOrNull() ?: 1350,
-                            acceptUdp = acceptUdp,
-                            proxyProtocol = proxyProtocol,
                             multiPorts = multiPorts.trim(),
-                            autoSync = autoSync,
-                            iranServerId = iranServerId,
-                            foreignServerId = foreignServerId
+                            autoSync = autoSync
                         )
                         onSave(newTun)
                     }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Ds.accent)
-            ) {
-                Text(t.save, fontWeight = FontWeight.Bold)
-            }
+                }
+            )
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(t.cancel) }
@@ -1182,7 +651,7 @@ private fun AddOrEditTunnelDialog(
     )
 }
 
-// ── View Tunnel Codes & Docker Dialog ────────────────────────────────────────
+// ── View Codes & Docker Dialog ──────────────────────────────────────────────
 
 @Composable
 private fun ViewTunnelCodeDialog(
@@ -1190,44 +659,23 @@ private fun ViewTunnelCodeDialog(
     tunnel: TunnelConfig,
     onDismiss: () -> Unit
 ) {
-    val ctx = LocalContext.current
-    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     val code = remember(tunnel) { TunnelEngine.generateCode(tunnel) }
     var selectedTab by remember { mutableStateOf(0) } // 0: Iran, 1: Foreign, 2: Docker
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Icon(Icons.Rounded.Terminal, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                Text("دستورات استقرار دستی ${tunnel.core.displayName}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            }
-        },
+        title = { Text("${tunnel.core.displayName} Commands & Docker", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier
+                Modifier
                     .fillMaxWidth()
-                    .height(420.dp),
+                    .height(400.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    TabButton("🇮🇷 سرور ایران", selectedTab == 0) { selectedTab = 0 }
-                    TabButton("🌍 سرور خارج", selectedTab == 1) { selectedTab = 1 }
-                    TabButton("🐳 داکر (Docker)", selectedTab == 2) { selectedTab = 2 }
-                }
-
-                Text(
-                    when (selectedTab) {
-                        0 -> "دستور زیر را در ترمینال سرور ایران اجرا کنید:"
-                        1 -> "دستور زیر را در ترمینال سرور خارج اجرا کنید:"
-                        else -> "فایل‌های Docker-Compose برای استقرار با کانتینر داکر:"
-                    },
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                SegmentedControl(
+                    items = listOf("🇮🇷 Iran", "🌍 Foreign", "🐳 Docker"),
+                    selectedIndex = selectedTab,
+                    onSelect = { selectedTab = it }
                 )
 
                 val contentToShow = when (selectedTab) {
@@ -1236,34 +684,9 @@ private fun ViewTunnelCodeDialog(
                     else -> "=== docker-compose-iran.yml ===\n${code.dockerComposeIran}\n\n=== docker-compose-foreign.yml ===\n${code.dockerComposeForeign}"
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Ds.surfaceLow,
-                    border = BorderStroke(1.dp, Ds.hairlineStrong),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                ) {
-                    LazyColumn(Modifier.padding(10.dp)) {
-                        item {
-                            Text(
-                                contentToShow,
-                                fontSize = 10.sp,
-                                fontFamily = Telemetry,
-                                color = Ds.textPrimary,
-                                lineHeight = 14.sp
-                            )
-                        }
-                    }
-                }
-
-                PrimaryActionButton(
-                    text = "کپی در کلیپ‌بورد",
-                    icon = Icons.Rounded.ContentCopy,
-                    onClick = {
-                        clipboard.setPrimaryClip(ClipData.newPlainText("tunnel_cmd", contentToShow))
-                        Toast.makeText(ctx, "دستورات در کلیپ‌بورد کپی شدند!", Toast.LENGTH_SHORT).show()
-                    }
+                TerminalBox(
+                    command = contentToShow,
+                    title = when (selectedTab) { 0 -> "Iran Command"; 1 -> "Foreign Command"; else -> "Docker Compose" }
                 )
             }
         },
@@ -1272,9 +695,4 @@ private fun ViewTunnelCodeDialog(
             TextButton(onClick = onDismiss) { Text(t.close) }
         }
     )
-}
-
-@Composable
-private fun TabButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    TagChip(label = label, selected = selected, onClick = onClick)
 }

@@ -19,11 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -66,10 +70,10 @@ fun UptimeScreen(t: Str) {
 
     fun saveTargets() {
         Prefs.saveUptimeTargets(ctx, targets)
-        targets = targets.toList() // trigger recomposition
+        targets = targets.toList()
     }
 
-    // Background polling loop
+    // Auto health check loop
     LaunchedEffect(Unit) {
         while (true) {
             for (target in targets) {
@@ -88,203 +92,237 @@ fun UptimeScreen(t: Str) {
     val downCount = targets.count { it.lastStatus == 0 }
     val totalCount = targets.size
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        PageHeader(
-            icon = Icons.Rounded.Timer,
-            title = t.uptimeMonitoring,
-            actionLabel = t.addMonitor,
-            onAction = { showAddDialog = true }
-        )
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(horizontal = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // ── 1. Page Header ──
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(icon = Icons.Rounded.Timer, tint = Ds.accent, background = Ds.accentDim, size = 36.dp, iconSize = 18.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(t.uptimeMonitoring, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("24/7 Heartbeat & SLA Watch", fontSize = 11.sp, color = Ds.textTertiary)
+                    }
+                }
+                PrimaryButton(
+                    text = t.addMonitor,
+                    icon = Icons.Rounded.Add,
+                    onClick = { showAddDialog = true },
+                    modifier = Modifier.height(38.dp)
+                )
+            }
+        }
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // ── Fleet uptime hero ──
-            item {
-                ModernCard(padding = 18.dp, cornerRadius = 22.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                if (targets.isEmpty()) "—" else "%.1f%%".format(Locale.US, targets.map { it.uptimePct }.average().toFloat()),
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Telemetry,
-                                color = if (downCount > 0) Ds.danger else Ds.ok
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(t.fleetUptimeAvg, fontSize = 11.sp, color = Ds.textTertiary)
+        // ── 2. Fleet Uptime Hero Bento ──
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (targets.isEmpty()) "—" else "%.1f%%".format(Locale.US, targets.map { it.uptimePct }.average().toFloat()),
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Telemetry,
+                            color = if (downCount > 0) Ds.danger else Ds.ok
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(t.fleetUptimeAvg, fontSize = 11.sp, color = Ds.textTertiary)
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$totalCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Telemetry, color = Ds.accent)
+                            Text(t.monitorsTotalLbl, fontSize = 10.sp, color = Ds.textTertiary)
                         }
-                        Spacer(Modifier.width(14.dp))
-                        Column(horizontalAlignment = Alignment.End) {
-                            HeroCount(t.monitorsTotalLbl, totalCount.toString(), Ds.accent)
-                            Spacer(Modifier.height(6.dp))
-                            HeroCount(t.upLbl, upCount.toString(), Ds.ok)
-                            Spacer(Modifier.height(6.dp))
-                            HeroCount(t.withDowntimeLbl, downCount.toString(), if (downCount > 0) Ds.danger else Ds.textSecondary)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$upCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Telemetry, color = Ds.ok)
+                            Text(t.upLbl, fontSize = 10.sp, color = Ds.textTertiary)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$downCount", fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = Telemetry, color = if (downCount > 0) Ds.danger else Ds.textSecondary)
+                            Text(t.withDowntimeLbl, fontSize = 10.sp, color = Ds.textTertiary)
                         }
                     }
                 }
             }
+        }
 
-            // ── Monitors list or empty state ──
-            if (targets.isEmpty()) {
-                item {
-                    ModernCard(padding = 18.dp) {
-                        EmptyState(
-                            title = t.noMonitorsTitle,
-                            hint = t.noMonitorsBody,
-                            radar = true
-                        )
-                        PrimaryActionButton(
-                            text = t.addMonitor,
-                            icon = Icons.Rounded.Add,
-                            onClick = { showAddDialog = true }
-                        )
-                    }
-                }
-            } else {
-                items(targets, key = { it.id }) { item ->
-                    val isExpanded = expandedTargetId == item.id
+        // ── 3. Monitors List or Empty State ──
+        if (targets.isEmpty()) {
+            item {
+                EmptyState(
+                    title = t.noMonitorsTitle,
+                    hint = t.noMonitorsBody,
+                    radar = true,
+                    actionLabel = t.addMonitor,
+                    onAction = { showAddDialog = true }
+                )
+            }
+        } else {
+            items(targets, key = { it.id }) { item ->
+                val isExpanded = expandedTargetId == item.id
+                val isUp = item.lastStatus == 1
 
-                    ModernCard(
-                        padding = 14.dp,
-                        onClick = { expandedTargetId = if (isExpanded) null else item.id }
+                ModernCard(
+                    padding = 14.dp,
+                    cornerRadius = 18.dp,
+                    onClick = { expandedTargetId = if (isExpanded) null else item.id }
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // uptime ring — the monitor's vital sign
-                            RingGauge(
-                                value = item.uptimePct,
-                                size = 46.dp,
-                                strokeWidth = 4.5.dp,
-                                tone = if (item.lastStatus == 1 && item.uptimePct > 98f) Ds.ok
-                                       else if (item.lastStatus == 1) Ds.warn
-                                       else Ds.danger
-                            ) {
+                        RingGauge(
+                            value = item.uptimePct,
+                            size = 46.dp,
+                            strokeWidth = 4.dp,
+                            tone = if (isUp && item.uptimePct > 98f) Ds.ok else if (isUp) Ds.warn else Ds.danger
+                        ) {
+                            Text(
+                                "${item.uptimePct.toInt()}%",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textPrimary
+                            )
+                        }
+
+                        Spacer(Modifier.width(12.dp))
+
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "${item.uptimePct.toInt()}",
-                                    fontSize = 11.sp,
+                                    item.name,
                                     fontWeight = FontWeight.Bold,
-                                    fontFamily = Telemetry,
-                                    color = if (item.uptimePct > 98f) Ds.ok else if (item.lastStatus == 1) Ds.warn else Ds.danger
-                                )
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        item.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Ds.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.weight(1f, fill = false)
-                                    )
-                                    Spacer(Modifier.width(7.dp))
-                                    ValuePill(item.type, Ds.accent)
-                                }
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    item.target,
-                                    fontSize = 10.5.sp,
-                                    color = Ds.textTertiary,
-                                    fontFamily = Telemetry,
+                                    fontSize = 14.sp,
+                                    color = Ds.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                Spacer(Modifier.width(6.dp))
+                                StatusPill(item.type, level = StatusLevel.Info, pulse = false)
                             }
-                            Column(horizontalAlignment = Alignment.End) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                item.target,
+                                fontSize = 11.sp,
+                                color = Ds.textTertiary,
+                                fontFamily = Telemetry,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.End) {
+                            StatusPill(
+                                text = if (item.isPaused) "Paused" else if (isUp) "UP" else "DOWN",
+                                level = if (item.isPaused) StatusLevel.Neutral else if (isUp) StatusLevel.Ok else StatusLevel.Danger,
+                                pulse = isUp && !item.isPaused
+                            )
+                            if (item.lastLatencyMs > 0) {
+                                Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "%.1f%%".format(Locale.US, item.uptimePct),
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Telemetry,
-                                    color = if (item.uptimePct > 98f) Ds.ok else Ds.danger
-                                )
-                                Text(
-                                    if (item.lastLatencyMs > 0) "${item.lastLatencyMs} ms" else "—",
+                                    "${item.lastLatencyMs} ms",
                                     fontSize = 10.5.sp,
-                                    color = Ds.accent,
-                                    fontFamily = Telemetry
+                                    fontFamily = Telemetry,
+                                    color = Ds.accent
                                 )
                             }
                         }
+                    }
 
+                    Spacer(Modifier.height(12.dp))
+
+                    // ── 30-Pulse Heartbeat Rhythm Bar ──
+                    HeartbeatBar(statuses = item.history.map { it.status }, height = 12.dp)
+
+                    // Expanded incident logs and controls
+                    if (isExpanded) {
                         Spacer(Modifier.height(12.dp))
+                        Hairline()
+                        Spacer(Modifier.height(8.dp))
 
-                        // ── 30 Heartbeat bars (Uptime Kuma style) ──
-                        HeartbeatBar(statuses = item.heartbeats.map { it.status })
-
-                        // ── Expanded: incidents & actions ──
-                        if (isExpanded) {
-                            Spacer(Modifier.height(14.dp))
-                            SectionLabel(t.incidentHistory)
-                            Spacer(Modifier.height(6.dp))
-
-                            if (item.incidents.isEmpty()) {
-                                Text(t.noIncidents, fontSize = 10.5.sp, color = Ds.textTertiary)
-                            } else {
-                                val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
-                                item.incidents.takeLast(3).reversed().forEach { inc ->
-                                    Text(
-                                        t.incidentTpl.format(fmt.format(Date(inc.startTime)), inc.durationSec, inc.error),
-                                        fontSize = 10.5.sp,
-                                        color = Ds.danger,
-                                        lineHeight = 15.5.sp
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 SoftButton(
                                     text = if (item.isPaused) t.resumeWatch else t.pauseWatch,
+                                    icon = if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
                                     onClick = {
                                         item.isPaused = !item.isPaused
                                         saveTargets()
-                                    },
-                                    icon = if (item.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause
+                                    }
                                 )
-                                Spacer(Modifier.width(8.dp))
                                 SoftButton(
                                     text = t.recheckNow,
+                                    icon = Icons.Rounded.Refresh,
                                     onClick = {
                                         scope.launch {
                                             UptimeEngine.checkTarget(item, ctx)
                                             saveTargets()
                                             Toast.makeText(ctx, t.statusUpdated, Toast.LENGTH_SHORT).show()
                                         }
-                                    },
-                                    icon = Icons.Rounded.Refresh
+                                    }
                                 )
-                                Spacer(Modifier.width(8.dp))
-                                SoftButton(
-                                    text = t.delete,
-                                    onClick = { deleteTarget = item },
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                CircleIconButton(
+                                    icon = Icons.Rounded.Edit,
+                                    contentDescription = "Edit",
+                                    tint = Ds.textSecondary,
+                                    size = 32.dp,
+                                    onClick = { editTarget = item }
+                                )
+                                CircleIconButton(
                                     icon = Icons.Rounded.DeleteOutline,
-                                    tone = Ds.danger,
-                                    toneDim = Ds.dangerDim
+                                    contentDescription = "Delete",
+                                    tint = Ds.danger,
+                                    size = 32.dp,
+                                    onClick = { deleteTarget = item }
+                                )
+                            }
+                        }
+
+                        // Recent Incidents
+                        if (item.incidents.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(t.incidentHistory, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                            Spacer(Modifier.height(4.dp))
+                            val fmt = SimpleDateFormat("MMM d, HH:mm", Locale.getDefault())
+                            item.incidents.takeLast(3).forEach { inc ->
+                                Text(
+                                    "• ${fmt.format(Date(inc.startTime))} — ${inc.cause}",
+                                    fontSize = 11.sp,
+                                    color = Ds.danger,
+                                    fontFamily = Telemetry
                                 )
                             }
                         }
                     }
                 }
-                item {
-                    Spacer(Modifier.height(4.dp))
-                    SecondaryActionCard(
-                        title = t.addMonitor,
-                        icon = Icons.Rounded.Add,
-                        onClick = { showAddDialog = true }
-                    )
-                    Spacer(Modifier.height(40.dp))
-                }
             }
         }
+
+        item { Spacer(Modifier.height(24.dp)) }
     }
 
     // ── Add Monitor Dialog ──
@@ -305,12 +343,16 @@ fun UptimeScreen(t: Str) {
         )
     }
 
+    // ── Edit Monitor Dialog ──
     editTarget?.let { et ->
         AddOrEditMonitorDialog(
             t = t,
             existing = et,
             onDismiss = { editTarget = null },
-            onSave = { editTarget = null; saveTargets() }
+            onSave = {
+                editTarget = null
+                saveTargets()
+            }
         )
     }
 
@@ -333,21 +375,6 @@ fun UptimeScreen(t: Str) {
                 TextButton(onClick = { deleteTarget = null }) { Text(t.cancel) }
             }
         )
-    }
-}
-
-@Composable
-private fun HeroCount(label: String, value: String, tone: androidx.compose.ui.graphics.Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            value,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            fontFamily = Telemetry,
-            color = tone
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontSize = 10.5.sp, color = Ds.textTertiary)
     }
 }
 
@@ -378,100 +405,72 @@ private fun AddOrEditMonitorDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(if (existing == null) t.addMonitor else t.editMonitorTitle, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(if (existing == null) t.addMonitor else t.editMonitorTitle, fontWeight = FontWeight.Bold)
         },
         text = {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().height(400.dp).imePadding()
+                modifier = Modifier.fillMaxWidth().height(380.dp).imePadding()
             ) {
                 item {
-                    DTextField(
-                        value = name,
-                        onValueChange = { name = it },
-                        label = t.monitorNameLbl,
-                        modifier = Modifier.fillMaxWidth()
+                    Text(t.protocolTypeLbl, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                    Spacer(Modifier.height(4.dp))
+                    SegmentedControl(
+                        items = types,
+                        selectedIndex = types.indexOf(type).coerceAtLeast(0),
+                        onSelect = {
+                            type = types[it]
+                            if (type == "SSL" && port == "80") port = "443"
+                            if (type == "TCP" && port == "80") port = "5432"
+                        }
                     )
                 }
 
-                item {
-                    Column {
-                        Text(
-                            t.protocolTypeLbl,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Ds.textTertiary,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-                        )
-                        SegmentedTabs(
-                            tabs = types.map { TabSpec(it) },
-                            selected = types.indexOf(type),
-                            onSelect = {
-                                type = types[it]
-                                if (type == "SSL" && port == "80") port = "443"
-                                if (type == "TCP" && port == "80") port = "5432"
-                            },
-                            scrollable = true
-                        )
-                    }
-                }
+                item { InputField(value = name, onValueChange = { name = it }, label = t.monitorNameLbl, placeholder = "e.g. Production API") }
 
                 item {
-                    DTextField(
+                    InputField(
                         value = targetUrl,
                         onValueChange = { targetUrl = it },
                         label = when (type) {
-                            "TCP" -> "IP / host (e.g. 1.2.3.4)"
-                            "PING" -> "IP / domain (e.g. 8.8.8.8)"
-                            "SSL" -> "domain (e.g. google.com)"
-                            else -> "https://example.com"
+                            "TCP" -> "IP / Host"
+                            "PING" -> "IP / Domain"
+                            "SSL" -> "Domain"
+                            else -> "URL"
                         },
-                        mono = true,
-                        modifier = Modifier.fillMaxWidth()
+                        placeholder = when (type) {
+                            "TCP" -> "1.2.3.4"
+                            "PING" -> "8.8.8.8"
+                            "SSL" -> "example.com"
+                            else -> "https://example.com"
+                        }
                     )
                 }
 
                 if (type == "TCP" || type == "SSL") {
-                    item {
-                        DTextField(
-                            value = port,
-                            onValueChange = { port = it },
-                            label = t.monitorPortLbl,
-                            mono = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    item { InputField(value = port, onValueChange = { port = it }, label = t.monitorPortLbl, placeholder = "443") }
                 }
 
                 if (type == "KEYWORD") {
-                    item {
-                        DTextField(
-                            value = keyword,
-                            onValueChange = { keyword = it },
-                            label = t.monitorKeywordLbl,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                    item { InputField(value = keyword, onValueChange = { keyword = it }, label = t.monitorKeywordLbl, placeholder = "e.g. status: ok") }
                 }
 
-                // Live test feedback
-                if (testResult != null) {
+                testResult?.let { msg ->
                     item {
-                        Banner(
+                        BannerCard(
+                            text = msg,
                             tone = if (testSuccess) BannerTone.Ok else BannerTone.Danger,
-                            text = testResult!!,
                             icon = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline
                         )
                     }
                 }
 
-                // Quick test button
                 item {
-                    SecondaryActionCard(
-                        title = t.testBeforeSave,
+                    SoftButton(
+                        text = if (isTesting) "Testing…" else t.testBeforeSave,
                         icon = Icons.Rounded.Bolt,
+                        enabled = !isTesting && targetUrl.isNotBlank(),
                         onClick = {
-                            if (targetUrl.isBlank()) return@SecondaryActionCard
                             isTesting = true
                             testResult = null
                             scope.launch {
@@ -493,49 +492,38 @@ private fun AddOrEditMonitorDialog(
                                     testResult = t.probeFail
                                 }
                             }
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         },
         confirmButton = {
-            androidx.compose.material3.Button(
-                onClick = {
-                    if (name.isNotBlank() && targetUrl.isNotBlank()) {
-                        val newTarget = existing ?: UptimeTarget(
-                            id = System.currentTimeMillis(),
-                            name = name.trim(),
-                            type = type,
-                            target = targetUrl.trim(),
-                            port = port.toIntOrNull() ?: 80,
-                            keyword = keyword.trim()
-                        )
-                        if (existing != null) {
-                            existing.name = name.trim()
-                            existing.type = type
-                            existing.target = targetUrl.trim()
-                            existing.port = port.toIntOrNull() ?: 80
-                            existing.keyword = keyword.trim()
-                        }
-                        onSave(newTarget)
-                    }
-                },
+            PrimaryButton(
+                text = t.save,
                 enabled = name.isNotBlank() && targetUrl.isNotBlank(),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = Ds.accent,
-                    contentColor = Ds.onAccent
-                )
-            ) {
-                if (isTesting) {
-                    CircularProgressIndicator(Modifier.size(15.dp), strokeWidth = 2.dp, color = Ds.onAccent)
-                } else {
-                    Text(t.save, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                onClick = {
+                    val newTarget = existing ?: UptimeTarget(
+                        id = System.currentTimeMillis(),
+                        name = name.trim(),
+                        type = type,
+                        target = targetUrl.trim(),
+                        port = port.toIntOrNull() ?: 80,
+                        keyword = keyword.trim()
+                    )
+                    if (existing != null) {
+                        existing.name = name.trim()
+                        existing.type = type
+                        existing.target = targetUrl.trim()
+                        existing.port = port.toIntOrNull() ?: 80
+                        existing.keyword = keyword.trim()
+                    }
+                    onSave(newTarget)
                 }
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(t.cancel, fontSize = 12.sp) }
+            TextButton(onClick = onDismiss) { Text(t.cancel) }
         }
     )
 }
