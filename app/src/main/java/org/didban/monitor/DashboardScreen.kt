@@ -630,7 +630,7 @@ private fun ProcessesTab(
         }
 
         if (filtered.isEmpty()) {
-            item { EmptyState(title = t.noData, radar = true) }
+            item { EmptyState(title = t.noData, radar = false) }
         } else {
             items(filtered, key = { "${it.pid}-${it.name}" }) { p ->
                 ModernCard(padding = 12.dp, cornerRadius = 14.dp) {
@@ -830,7 +830,7 @@ private fun SocketsTab(t: Str, data: SocketsData?, onRefresh: () -> Unit) {
         val itemsToShow = if (showListeningOnly) data.listening else data.connections
 
         if (itemsToShow.isEmpty()) {
-            item { EmptyState(title = t.noData, radar = true) }
+            item { EmptyState(title = t.noData, radar = false) }
         } else {
             items(itemsToShow, key = { "${it.proto}-${it.localIp}-${it.localPort}-${it.remoteIp}-${it.remotePort}-${it.pid}" }) { s ->
                 ModernCard(padding = 12.dp, cornerRadius = 14.dp) {
