@@ -64,7 +64,7 @@ All tokens live in `Theme.kt` (`DidbanPalette`) and are read in Compose via the 
 | **Heartbeat Rhythm** | `HeartbeatBar` | 30-pulse SLA status strip for uptime monitors |
 | **Terminal Box** | `TerminalBox` | Traffic light terminal container with 1-click copy feedback |
 | **Segmented Control** | `SegmentedControl` | Sunken well pill switcher with animated selection pill |
-| **Floating Cyber Dock** | `CyberDockItem` | Floating capsule navigation dock with spring physics & expanding active labels |
+| **Liquid Spotlight Dock** | `LiquidSpotlightDock` | VisionOS-inspired floating dock with sliding liquid spotlight capsule & glyph bounce |
 
 ---
 
