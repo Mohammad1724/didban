@@ -58,7 +58,9 @@ All tokens live in `Theme.kt` (`DidbanPalette`) and are read in Compose via the 
 |---|---|---|
 | **Sentinel Radar** | `RadarMark` | Multi-ring rotating radar sweep with beacon echoes |
 | **Status Pulse** | `PulseDot` | Breathing halo indicator for live nodes & services |
-| **Bento Metric** | `BentoMetricCard` | Telemetry tile with icon badge, mono value, and progress |
+| **Bento Metric** | `BentoMetricTile` | 3-column micro telemetry pod displaying real-time fleet aggregates |
+| **Bento Guide Card** | `StepByStepGuideCard` | 3-step interactive onboarding card with 1-click terminal installer |
+| **Server Bento Card** | `ServerBentoCard` | Hyper-detailed server card with live CPU sparklines, country flags, and latency pills |
 | **Ring Gauge** | `RingGauge` | Circular telemetry gauge with animated sweep |
 | **Sparkline** | `Sparkline` | Smooth cubic spline with vertical gradient drop fill |
 | **Heartbeat Rhythm** | `HeartbeatBar` | 30-pulse SLA status strip for uptime monitors |
