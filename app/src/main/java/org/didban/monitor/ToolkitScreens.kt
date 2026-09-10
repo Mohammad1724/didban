@@ -661,7 +661,6 @@ private fun TcpPingTab(t: Str) {
                 PrimaryButton(
                     text = if (isPinging) "Stop Continuous Ping" else "Start Continuous Ping",
                     icon = if (isPinging) Icons.Rounded.Bolt else Icons.Rounded.Speed,
-                    containerColor = if (isPinging) Ds.danger else Ds.accent,
                     onClick = {
                         isPinging = !isPinging
                         if (isPinging) {
