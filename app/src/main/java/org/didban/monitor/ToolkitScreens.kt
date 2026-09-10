@@ -353,7 +353,7 @@ private fun CensorshipTab(t: Str) {
                     Hairline()
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Stage: ${r.stage} (${r.latencyMs}ms)\n${r.details}",
+                        "Details (${r.latencyMs}ms):\n${r.details}",
                         fontSize = 11.sp,
                         fontFamily = Telemetry,
                         color = Ds.textSecondary,
@@ -604,7 +604,7 @@ private fun IpInfoTab(t: Str) {
                         Text("City / Region: ${g.city}, ${g.region}", fontSize = 12.5.sp, color = Ds.textPrimary)
                         Text("ISP / Organization: ${g.isp}", fontSize = 12.5.sp, color = Ds.textPrimary)
                         Text("ASN: ${g.asn}", fontSize = 12.sp, fontFamily = Telemetry, color = Ds.textSecondary)
-                        Text("Coordinates: ${g.latitude}, ${g.longitude}", fontSize = 11.sp, fontFamily = Telemetry, color = Ds.textTertiary)
+                        Text("Coordinates: ${g.lat}, ${g.lon}", fontSize = 11.sp, fontFamily = Telemetry, color = Ds.textTertiary)
                     }
                 }
             }
@@ -835,7 +835,16 @@ fun CloudflareScreen(t: Str) {
                                 modifier = Modifier.clickable {
                                     scope.launch {
                                         try {
-                                            CloudflareService.toggleProxy(token, rec.zoneId, rec.id, !rec.proxied)
+                                            CloudflareService.saveRecord(
+                                                apiToken = token,
+                                                zoneId = rec.zoneId,
+                                                recordId = rec.id,
+                                                type = rec.type,
+                                                name = rec.name,
+                                                content = rec.content,
+                                                proxied = !rec.proxied,
+                                                ttl = rec.ttl
+                                            )
                                             selectedZone?.let { loadRecords(it) }
                                         } catch (_: Exception) {}
                                     }
@@ -870,27 +879,24 @@ fun VaultScreen(t: Str) {
 
     fun unlock() {
         if (password.isBlank()) return
-        val raw = Prefs.getVaultData(ctx)
-        if (raw.isBlank()) {
+        if (!Prefs.isVaultInitialized(ctx)) {
+            Prefs.setupMasterPassword(ctx, password)
             notes = emptyList()
             isUnlocked = true
             err = null
             return
         }
-        try {
-            val decrypted = EncryptedVault.decrypt(raw, password)
-            notes = EncryptedVault.parseNotes(decrypted)
+        if (Prefs.verifyMasterPassword(ctx, password)) {
+            notes = Prefs.loadVaultNotes(ctx, password)
             isUnlocked = true
             err = null
-        } catch (e: Exception) {
-            err = "Incorrect master password or corrupted vault"
+        } else {
+            err = "Incorrect master password"
         }
     }
 
     fun saveVault() {
-        val serialized = EncryptedVault.serializeNotes(notes)
-        val encrypted = EncryptedVault.encrypt(serialized, password)
-        Prefs.setVaultData(ctx, encrypted)
+        Prefs.saveVaultNotes(ctx, notes, password)
     }
 
     LazyColumn(
