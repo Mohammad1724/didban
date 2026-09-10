@@ -7,7 +7,14 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -35,6 +43,13 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.Memory
+import androidx.compose.material.icons.rounded.QrCode
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
@@ -55,6 +70,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -70,6 +87,24 @@ import kotlinx.coroutines.launch
 private const val AGENT_INSTALL_CMD =
     "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh"
 
+private fun detectFlag(server: ServerConfig): String {
+    val name = server.name.lowercase()
+    val host = server.host.lowercase()
+    return when {
+        "ir" in name || "iran" in name || "teh" in name || "mci" in name || "mtn" in name -> "🇮🇷"
+        "de" in name || "germany" in name || "fra" in name || "hetzner" in name -> "🇩🇪"
+        "fi" in name || "finland" in name || "hel" in name -> "🇫🇮"
+        "nl" in name || "netherland" in name || "ams" in name -> "🇳🇱"
+        "us" in name || "usa" in name || "america" in name -> "🇺🇸"
+        "uk" in name || "london" in name || "gb" in name -> "🇬🇧"
+        "fr" in name || "france" in name || "paris" in name -> "🇫🇷"
+        "tr" in name || "turkey" in name || "istanbul" in name -> "🇹🇷"
+        "sg" in name || "singapore" in name -> "🇸🇬"
+        "ae" in name || "dubai" in name -> "🇦🇪"
+        else -> "🖥️"
+    }
+}
+
 @Composable
 fun ServersScreen(
     t: Str,
@@ -84,9 +119,15 @@ fun ServersScreen(
 
     var servers by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(ctx)) }
     var showAdd by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(servers.isEmpty()) }
     var monitoring by remember { mutableStateOf(MonitorService.isRunning) }
     var deletedServer by remember { mutableStateOf<ServerConfig?>(null) }
     var editServer by remember { mutableStateOf<ServerConfig?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var filterTab by remember { mutableStateOf(0) } // 0: All, 1: Online, 2: Offline
+
+    // Rolling telemetry history for sparklines
+    var cpuHistory by remember { mutableStateOf<Map<Long, List<Float>>>(emptyMap()) }
 
     fun refresh() {
         servers = Prefs.loadServers(ctx)
@@ -99,12 +140,18 @@ fun ServersScreen(
                 try {
                     val t0 = System.currentTimeMillis()
                     val m = ApiClient().metrics(s)
-                    Repo.set(s.id, metrics = m, latencyMs = (System.currentTimeMillis() - t0).toFloat())
+                    val latency = (System.currentTimeMillis() - t0).toFloat()
+                    Repo.set(s.id, metrics = m, latencyMs = latency)
+
+                    // Record sparkline history
+                    val existing = cpuHistory[s.id] ?: listOf(m.cpuUsage * 0.85f, m.cpuUsage * 1.1f)
+                    val updated = (existing + m.cpuUsage).takeLast(12)
+                    cpuHistory = cpuHistory + (s.id to updated)
                 } catch (e: Exception) {
                     Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
                 }
             }
-            delay(12_000)
+            delay(10_000)
         }
     }
 
@@ -114,6 +161,20 @@ fun ServersScreen(
     val avgCpu = if (liveMetrics.isNotEmpty()) liveMetrics.map { it.cpuUsage }.average().toFloat() else -1f
     val avgRam = if (liveMetrics.isNotEmpty()) liveMetrics.map { it.memPct }.average().toFloat() else -1f
     val worstPing = servers.mapNotNull { s -> states[s.id]?.latencyMs?.takeIf { it > 0f } }.maxOrNull() ?: -1f
+
+    // Filtering logic
+    val filteredServers = servers.filter { server ->
+        val matchesSearch = searchQuery.isBlank() ||
+                server.name.contains(searchQuery, ignoreCase = true) ||
+                server.host.contains(searchQuery, ignoreCase = true)
+        val isOnline = states[server.id]?.metrics != null
+        val matchesFilter = when (filterTab) {
+            1 -> isOnline
+            2 -> !isOnline
+            else -> true
+        }
+        matchesSearch && matchesFilter
+    }
 
     Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
         ModernTopBar(
@@ -130,9 +191,9 @@ fun ServersScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // ── 1. Fleet Overview Hero Bento ──
+            // ── 1. Cyber Bento Fleet Vitality Hero ──
             item {
-                ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -141,7 +202,7 @@ fun ServersScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             PulseDot(
                                 color = if (downCount == 0 && servers.isNotEmpty()) Ds.ok else if (servers.isEmpty()) Ds.accent else Ds.danger,
-                                size = 8.dp
+                                size = 9.dp
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
@@ -150,7 +211,7 @@ fun ServersScreen(
                                     downCount > 0 -> t.fleetDownTpl.format(downCount, servers.size)
                                     else -> t.fleetAllOk
                                 },
-                                fontSize = 17.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when {
                                     servers.isEmpty() -> Ds.textPrimary
@@ -160,41 +221,67 @@ fun ServersScreen(
                             )
                         }
 
-                        PrimaryButton(
-                            text = t.addServer,
-                            icon = Icons.Rounded.Add,
-                            onClick = { showAdd = true },
-                            modifier = Modifier.height(38.dp)
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            SoftButton(
+                                text = if (showGuide) t.hideGuide else t.showGuide,
+                                icon = if (showGuide) Icons.Rounded.ExpandLess else Icons.Rounded.HelpOutline,
+                                onClick = { showGuide = !showGuide },
+                                modifier = Modifier.height(36.dp)
+                            )
+                            PrimaryButton(
+                                text = t.addServer,
+                                icon = Icons.Rounded.Add,
+                                onClick = { showAdd = true },
+                                modifier = Modifier.height(36.dp)
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(14.dp))
-                    StatBand(
-                        stats = listOf(
-                            StatItem(t.servers, if (servers.isEmpty()) "0" else "${servers.size}", Ds.accent),
-                            StatItem(
-                                t.statAvgCpu,
-                                if (avgCpu >= 0) Fmt.pct(avgCpu) else "—",
-                                if (avgCpu > 85f) Ds.danger else if (avgCpu > 60f) Ds.warn else Ds.ok,
-                                if (avgCpu >= 0) avgCpu / 100f else null
-                            ),
-                            StatItem(
-                                t.statAvgRam,
-                                if (avgRam >= 0) Fmt.pct(avgRam) else "—",
-                                Ds.violet,
-                                if (avgRam >= 0) avgRam / 100f else null
-                            ),
-                            StatItem(
-                                t.statWorstPing,
-                                if (worstPing > 0) "${worstPing.toInt()} ms" else "—",
-                                if (worstPing > 250f) Ds.warn else Ds.textPrimary
-                            )
-                        )
-                    )
 
-                    Spacer(Modifier.height(12.dp))
+                    // 3-Column Micro Bento Stat Pods
                     Row(
                         Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Pod 1: Server Count
+                        BentoMetricTile(
+                            title = t.servers,
+                            value = if (servers.isEmpty()) "0" else "${servers.size}",
+                            unit = "Nodes",
+                            color = Ds.accent,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Pod 2: Avg CPU
+                        BentoMetricTile(
+                            title = t.statAvgCpu,
+                            value = if (avgCpu >= 0) Fmt.pct(avgCpu) else "—",
+                            unit = "Avg Load",
+                            color = if (avgCpu > 80f) Ds.danger else if (avgCpu > 60f) Ds.warn else Ds.ok,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        // Pod 3: Best/Worst Ping
+                        BentoMetricTile(
+                            title = t.statWorstPing,
+                            value = if (worstPing > 0) "${worstPing.toInt()}" else "—",
+                            unit = "ms Ping",
+                            color = if (worstPing > 250f) Ds.warn else Ds.textPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Monitoring Switch Bar
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Ds.surfaceLow)
+                            .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 12.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         PulseDot(color = if (monitoring) Ds.ok else Ds.danger, size = 6.dp)
@@ -229,7 +316,46 @@ fun ServersScreen(
                 }
             }
 
-            // ── 2. Empty State or Server Cards ──
+            // ── 2. Interactive Step-by-Step Setup Guide ──
+            item {
+                AnimatedVisibility(
+                    visible = showGuide,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    StepByStepGuideCard(
+                        t = t,
+                        onAddServer = { showAdd = true },
+                        onDismiss = { showGuide = false }
+                    )
+                }
+            }
+
+            // ── 3. Search & Filter Bar (Shown when multiple servers exist) ──
+            if (servers.size > 2) {
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SearchField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = "Search servers by name or IP...",
+                            modifier = Modifier.weight(1f)
+                        )
+                        SegmentedControl(
+                            items = listOf("All (${servers.size})", "Online (${liveMetrics.size})", "Down ($downCount)"),
+                            selectedIndex = filterTab,
+                            onSelect = { filterTab = it },
+                            modifier = Modifier.width(180.dp)
+                        )
+                    }
+                }
+            }
+
+            // ── 4. Empty State or Cyber Bento Server Deck ──
             if (servers.isEmpty()) {
                 item {
                     EmptyState(
@@ -240,305 +366,589 @@ fun ServersScreen(
                         onAction = { showAdd = true }
                     )
                 }
-                item {
-                    TerminalBox(
-                        command = AGENT_INSTALL_CMD,
-                        title = "One-Line Agent Installer"
-                    )
-                }
             } else {
-                items(servers, key = { it.id }) { server ->
+                items(filteredServers, key = { it.id }) { server ->
                     val state = states[server.id]
                     val metrics = state?.metrics
                     val isOnline = metrics != null
                     val ping = state?.latencyMs ?: -1f
+                    val history = cpuHistory[server.id] ?: if (metrics != null) listOf(metrics.cpuUsage * 0.9f, metrics.cpuUsage * 1.05f, metrics.cpuUsage) else emptyList()
 
-                    ModernCard(
-                        padding = 14.dp,
-                        cornerRadius = 18.dp,
-                        onClick = { onOpen(server) }
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconBadge(
-                                icon = Icons.Rounded.Dns,
-                                tint = if (isOnline) Ds.accent else Ds.danger,
-                                background = if (isOnline) Ds.accentDim else Ds.dangerDim,
-                                size = 42.dp,
-                                iconSize = 20.dp
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        server.name,
-                                        fontSize = 14.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Ds.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    PulseDot(
-                                        color = if (isOnline) Ds.ok else Ds.danger,
-                                        size = 6.dp,
-                                        pulsing = isOnline
-                                    )
-                                }
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "${server.host}:${server.port}",
-                                    fontSize = 11.sp,
-                                    fontFamily = Telemetry,
-                                    color = Ds.textTertiary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-
-                            // Telemetry ring gauges
-                            if (metrics != null) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        RingGauge(
-                                            value = metrics.cpuUsage,
-                                            size = 38.dp,
-                                            strokeWidth = 3.5.dp,
-                                            tone = if (metrics.cpuUsage > 80f) Ds.danger else if (metrics.cpuUsage > 60f) Ds.warn else Ds.accent
-                                        ) {
-                                            Text(
-                                                "${metrics.cpuUsage.toInt()}%",
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = Telemetry,
-                                                color = Ds.textPrimary
-                                            )
-                                        }
-                                        Text(t.cpu, fontSize = 9.sp, color = Ds.textTertiary)
-                                    }
-
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        RingGauge(
-                                            value = metrics.memPct,
-                                            size = 38.dp,
-                                            strokeWidth = 3.5.dp,
-                                            tone = Ds.violet
-                                        ) {
-                                            Text(
-                                                "${metrics.memPct.toInt()}%",
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = Telemetry,
-                                                color = Ds.textPrimary
-                                            )
-                                        }
-                                        Text(t.memory, fontSize = 9.sp, color = Ds.textTertiary)
-                                    }
-                                }
-                            } else {
-                                StatusPill(
-                                    text = if (state?.error != null) t.offline else t.connecting,
-                                    level = if (state?.error != null) StatusLevel.Danger else StatusLevel.Warn
-                                )
-                            }
-                        }
-
-                        // Bottom row: Latency + Actions
-                        Spacer(Modifier.height(10.dp))
-                        Hairline()
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (ping > 0) {
-                                    Text(
-                                        "⚡ ${ping.toInt()} ms",
-                                        fontSize = 11.sp,
-                                        fontFamily = Telemetry,
-                                        color = if (ping > 250f) Ds.warn else Ds.textSecondary
-                                    )
-                                    Spacer(Modifier.width(10.dp))
-                                }
-                                if (metrics != null) {
-                                    Text(
-                                        "⏱ ${Fmt.uptime(metrics.uptime)}",
-                                        fontSize = 11.sp,
-                                        fontFamily = Telemetry,
-                                        color = Ds.textTertiary
-                                    )
-                                }
-                            }
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                CircleIconButton(
-                                    icon = Icons.Rounded.Edit,
-                                    contentDescription = "Edit",
-                                    size = 30.dp,
-                                    tint = Ds.textSecondary,
-                                    onClick = { editServer = server }
-                                )
-                                CircleIconButton(
-                                    icon = Icons.Rounded.DeleteOutline,
-                                    contentDescription = "Delete",
-                                    size = 30.dp,
-                                    tint = Ds.danger,
-                                    onClick = { deletedServer = server }
-                                )
-                            }
-                        }
-                    }
+                    ServerBentoCard(
+                        server = server,
+                        metrics = metrics,
+                        isOnline = isOnline,
+                        ping = ping,
+                        cpuHistory = history,
+                        t = t,
+                        onClick = { onOpen(server) },
+                        onEdit = { editServer = server },
+                        onDelete = { deletedServer = server }
+                    )
                 }
             }
 
-            item { Spacer(Modifier.height(16.dp)) }
+            item { Spacer(Modifier.height(30.dp)) }
         }
     }
 
-    // ── Add Server Modal ──
+    // Modals
     if (showAdd) {
         AddServerDialog(
             t = t,
             onDismiss = { showAdd = false },
             onSaved = {
-                showAdd = false
                 refresh()
+                showAdd = false
             }
         )
     }
 
-    // ── Edit Server Modal ──
-    editServer?.let { s ->
+    editServer?.let { server ->
         EditServerDialog(
             t = t,
-            server = s,
+            server = server,
             onDismiss = { editServer = null },
             onSaved = {
-                editServer = null
                 refresh()
+                editServer = null
             }
         )
     }
 
-    // ── Delete Confirmation ──
-    deletedServer?.let { s ->
+    deletedServer?.let { server ->
         AlertDialog(
             onDismissRequest = { deletedServer = null },
-            title = { Text(t.confirmDelete, fontWeight = FontWeight.Bold) },
-            text = { Text("${t.delete} ${s.name} (${s.host})?") },
+            title = { Text(t.confirmDelete, fontWeight = FontWeight.Bold, color = Ds.danger) },
+            text = { Text(t.deleteMsg.format(server.name), color = Ds.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
-                    val list = Prefs.loadServers(ctx).filterNot { it.id == s.id }
+                    val list = Prefs.loadServers(ctx)
+                    list.removeAll { it.id == server.id }
                     Prefs.saveServers(ctx, list)
-                    deletedServer = null
                     refresh()
+                    deletedServer = null
                 }) {
                     Text(t.delete, color = Ds.danger, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { deletedServer = null }) { Text(t.cancel) }
+                TextButton(onClick = { deletedServer = null }) {
+                    Text(t.cancel, color = Ds.textSecondary)
+                }
             }
         )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Cyber Bento Metric Tile
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun BentoMetricTile(
+    title: String,
+    value: String,
+    unit: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Ds.surfaceLow)
+            .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp)
+    ) {
+        Column {
+            Text(title, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+            Spacer(Modifier.height(3.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    value,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Telemetry,
+                    color = color
+                )
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    unit,
+                    fontSize = 9.5.sp,
+                    color = Ds.textTertiary,
+                    modifier = Modifier.padding(bottom = 1.dp)
+                )
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Step-by-Step Server Onboarding Bento Guide
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun StepByStepGuideCard(
+    t: Str,
+    onAddServer: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val ctx = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+
+    ModernCard(
+        padding = 16.dp,
+        cornerRadius = 22.dp,
+        modifier = Modifier.border(
+            BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.4f), Ds.hairline))),
+            RoundedCornerShape(22.dp)
+        )
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Header
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(
+                        icon = Icons.Rounded.HelpOutline,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 32.dp,
+                        iconSize = 17.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(t.showGuide, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("Linux Server Agent Setup (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    }
+                }
+                CircleIconButton(
+                    icon = Icons.Rounded.ExpandLess,
+                    contentDescription = "Close Guide",
+                    size = 28.dp,
+                    tint = Ds.textTertiary,
+                    onClick = onDismiss
+                )
+            }
+
+            Hairline()
+
+            // Step 1: Run Installer Script
+            StepItemPod(
+                stepNum = "1",
+                title = t.serverAddStep1Title,
+                desc = t.serverAddStep1Desc
+            ) {
+                TerminalBox(
+                    command = AGENT_INSTALL_CMD,
+                    title = "Linux 1-Line Installer"
+                )
+            }
+
+            // Step 2: Copy Connection Link
+            StepItemPod(
+                stepNum = "2",
+                title = t.serverAddStep2Title,
+                desc = t.serverAddStep2Desc
+            )
+
+            // Step 3: Connect & Encrypt
+            StepItemPod(
+                stepNum = "3",
+                title = t.serverAddStep3Title,
+                desc = t.serverAddStep3Desc
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PrimaryButton(
+                        text = t.addServer,
+                        icon = Icons.Rounded.Add,
+                        onClick = onAddServer,
+                        modifier = Modifier.weight(1f).height(38.dp)
+                    )
+                    SoftButton(
+                        text = t.smartPaste,
+                        icon = Icons.Rounded.ContentPaste,
+                        onClick = {
+                            val clipText = clipboard.getText()?.text ?: ""
+                            val parsed = parseDeepLinkOrLogs(clipText)
+                            if (parsed != null) {
+                                val list = Prefs.loadServers(ctx)
+                                list.add(parsed)
+                                Prefs.saveServers(ctx, list)
+                                Toast.makeText(ctx, t.clipboardParsed, Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(ctx, t.clipboardNotFound, Toast.LENGTH_SHORT).show()
+                                onAddServer()
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(38.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepItemPod(
+    stepNum: String,
+    title: String,
+    desc: String,
+    content: (@Composable () -> Unit)? = null
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        crossAxisAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Ds.accentDim)
+                .border(BorderStroke(1.dp, Ds.accent.copy(alpha = 0.4f)), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(stepNum, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.accent)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+            Text(desc, fontSize = 11.sp, color = Ds.textSecondary, lineHeight = 16.sp)
+            if (content != null) {
+                Spacer(Modifier.height(4.dp))
+                content()
+            }
+        }
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// COMPONENT: Cyber Bento Server Card (Live Sparkline & Telemetry Deck)
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun ServerBentoCard(
+    server: ServerConfig,
+    metrics: Metrics?,
+    isOnline: Boolean,
+    ping: Float,
+    cpuHistory: List<Float>,
+    t: Str,
+    onClick: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val flag = detectFlag(server)
+
+    ModernCard(
+        padding = 14.dp,
+        cornerRadius = 20.dp,
+        onClick = onClick
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Header Row: Flag + Name + Ping + Status
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(Ds.surfaceElevated)
+                            .border(BorderStroke(1.dp, Ds.hairlineStrong), RoundedCornerShape(11.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(flag, fontSize = 17.sp)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                server.name,
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Ds.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            PulseDot(
+                                color = if (isOnline) Ds.ok else Ds.danger,
+                                size = 6.dp,
+                                pulsing = isOnline
+                            )
+                        }
+                        Spacer(Modifier.height(1.dp))
+                        Text(
+                            "${server.host}:${server.port}",
+                            fontSize = 11.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                // Latency Badge Pill
+                if (ping > 0) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (ping > 200f) Ds.dangerDim else if (ping > 90f) Ds.warnDim else Ds.accentDim)
+                            .border(
+                                BorderStroke(
+                                    1.dp,
+                                    if (ping > 200f) Ds.danger.copy(alpha = 0.35f) else if (ping > 90f) Ds.warn.copy(alpha = 0.35f) else Ds.accent.copy(alpha = 0.35f)
+                                ),
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            "⚡ ${ping.toInt()} ms",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Telemetry,
+                            color = if (ping > 200f) Ds.danger else if (ping > 90f) Ds.warn else Ds.accent
+                        )
+                    }
+                } else {
+                    StatusPill(
+                        text = if (isOnline) t.allOk else t.offline,
+                        level = if (isOnline) StatusLevel.Ok else StatusLevel.Danger
+                    )
+                }
+            }
+
+            // Live Telemetry Sparkline Box
+            if (metrics != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Ds.surfaceLow)
+                        .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 12.dp, vertical = 9.dp)
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(t.lblCpuUse, fontSize = 10.sp, color = Ds.textTertiary)
+                            Spacer(Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    Fmt.pct(metrics.cpuUsage),
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Telemetry,
+                                    color = if (metrics.cpuUsage > 80f) Ds.danger else if (metrics.cpuUsage > 60f) Ds.warn else Ds.accent
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text(
+                                    "${metrics.cores} Cores",
+                                    fontSize = 10.sp,
+                                    color = Ds.textSecondary,
+                                    modifier = Modifier.padding(bottom = 1.dp)
+                                )
+                            }
+                        }
+
+                        // SVG Sparkline Wave
+                        Sparkline(
+                            values = if (cpuHistory.size >= 2) cpuHistory else listOf(metrics.cpuUsage * 0.85f, metrics.cpuUsage * 1.1f, metrics.cpuUsage),
+                            color = if (metrics.cpuUsage > 80f) Ds.danger else if (metrics.cpuUsage > 60f) Ds.warn else Ds.accent,
+                            modifier = Modifier
+                                .size(width = 110.dp, height = 28.dp)
+                        )
+                    }
+                }
+
+                // Sub-Metrics Bento Strip: RAM & Uptime
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // RAM Mini Pod
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Ds.surfaceLow)
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Column {
+                            Text(t.lblRamUse, fontSize = 9.5.sp, color = Ds.textTertiary)
+                            Text(
+                                "${Fmt.pct(metrics.memPct)} (${Fmt.bytes(metrics.memUsed)})",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.violet
+                            )
+                        }
+                    }
+
+                    // Uptime Mini Pod
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Ds.surfaceLow)
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Column {
+                            Text(t.lblUptime, fontSize = 9.5.sp, color = Ds.textTertiary)
+                            Text(
+                                "⏱ ${Fmt.uptime(metrics.uptime)}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Telemetry,
+                                color = Ds.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
+
+            Hairline()
+
+            // Card Footer: Actions
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onClick() }
+                ) {
+                    Text(
+                        "Open Telemetry Dashboard",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ds.accent
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.ArrowForward,
+                        contentDescription = "Open",
+                        tint = Ds.accent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CircleIconButton(
+                        icon = Icons.Rounded.Edit,
+                        contentDescription = "Edit",
+                        size = 28.dp,
+                        tint = Ds.textSecondary,
+                        onClick = onEdit
+                    )
+                    CircleIconButton(
+                        icon = Icons.Rounded.DeleteOutline,
+                        contentDescription = "Delete",
+                        size = 28.dp,
+                        tint = Ds.danger,
+                        onClick = onDelete
+                    )
+                }
+            }
+        }
     }
 }
 
 // ── Add Server Dialog ───────────────────────────────────────────────────────
 
 @Composable
-private fun AddServerDialog(
-    t: Str,
-    onDismiss: () -> Unit,
-    onSaved: () -> Unit
-) {
-    val ctx = LocalContext.current
-    var tab by remember { mutableStateOf(0) } // 0: Direct/Manual, 1: SSH 1-Click, 2: Script
+private fun AddServerDialog(t: Str, onDismiss: () -> Unit, onSaved: () -> Unit) {
+    var tab by remember { mutableStateOf(0) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(t.addServer, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .imePadding()
-            ) {
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(t.addServer, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
                 SegmentedControl(
-                    items = listOf(t.manual, t.sshInstall, "Script"),
+                    items = listOf(t.sshInstall, t.manual, "1-Line Script"),
                     selectedIndex = tab,
                     onSelect = { tab = it }
                 )
-                Spacer(Modifier.height(14.dp))
-
-                when (tab) {
-                    0 -> ManualAddForm(t = t, onSaved = onSaved)
-                    1 -> SshInstallForm(t = t, onSaved = onSaved)
-                    2 -> ScriptInstallGuide(t = t)
-                }
+            }
+        },
+        text = {
+            when (tab) {
+                0 -> SshInstallTab(t = t, onSaved = onSaved)
+                1 -> ManualAddTab(t = t, onSaved = onSaved)
+                2 -> ScriptInstallGuide(t = t)
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(t.cancel) }
+            TextButton(onClick = onDismiss) {
+                Text(t.cancel, color = Ds.textSecondary)
+            }
         }
     )
 }
 
 @Composable
-private fun ManualAddForm(t: Str, onSaved: () -> Unit) {
+private fun ManualAddTab(t: Str, onSaved: () -> Unit) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
-
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("8686") }
     var token by remember { mutableStateOf("") }
-    var tls by remember { mutableStateOf(true) }
-    var fp by remember { mutableStateOf("") }
-
-    var isTesting by remember { mutableStateOf(false) }
-    var testResult by remember { mutableStateOf<String?>(null) }
-    var testSuccess by remember { mutableStateOf(false) }
+    var useTls by remember { mutableStateOf(false) }
+    var fingerprint by remember { mutableStateOf("") }
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth().height(380.dp)
+        modifier = Modifier.fillMaxWidth().height(380.dp).imePadding()
     ) {
         item {
             SoftButton(
                 text = t.smartPaste,
                 icon = Icons.Rounded.ContentPaste,
-                modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    val clip = clipboard.getText()?.text ?: ""
-                    val parsed = parseDeepLinkOrLogs(clip)
+                    val text = clipboard.getText()?.text ?: ""
+                    val parsed = parseDeepLinkOrLogs(text)
                     if (parsed != null) {
+                        name = parsed.name
                         host = parsed.host
                         port = parsed.port.toString()
                         token = parsed.token
-                        tls = parsed.useTls
-                        fp = parsed.fingerprint
-                        if (name.isBlank()) name = parsed.name
+                        useTls = parsed.useTls
+                        fingerprint = parsed.fingerprint
                         Toast.makeText(ctx, t.clipboardParsed, Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(ctx, t.clipboardNotFound, Toast.LENGTH_SHORT).show()
                     }
-                }
+                },
+                modifier = Modifier.fillMaxWidth()
             )
         }
-
-        item { InputField(value = name, onValueChange = { name = it }, label = t.name, placeholder = "e.g. Frankfurt Main Node") }
-        item { InputField(value = host, onValueChange = { host = it }, label = t.host, placeholder = "IP or domain") }
+        item { InputField(value = name, onValueChange = { name = it }, label = t.name, placeholder = "e.g. Frankfurt Primary") }
+        item { InputField(value = host, onValueChange = { host = it }, label = t.host, placeholder = "192.168.1.1 or vps.example.com") }
         item { InputField(value = port, onValueChange = { port = it }, label = t.port, placeholder = "8686") }
-        item { InputField(value = token, onValueChange = { token = it }, label = t.token, isPassword = true, placeholder = "Agent token") }
+        item { InputField(value = token, onValueChange = { token = it }, label = t.token, placeholder = "Agent secret token", isPassword = true) }
         item {
             Row(
                 Modifier.fillMaxWidth(),
@@ -547,86 +957,50 @@ private fun ManualAddForm(t: Str, onSaved: () -> Unit) {
             ) {
                 Text(t.useTls, fontSize = 12.sp, color = Ds.textPrimary)
                 Switch(
-                    checked = tls,
-                    onCheckedChange = { tls = it },
+                    checked = useTls,
+                    onCheckedChange = { useTls = it },
                     colors = SwitchDefaults.colors(checkedTrackColor = Ds.accent, checkedThumbColor = Ds.onAccent)
                 )
             }
         }
-        item { MonoTextField(value = fp, onValueChange = { fp = it }, label = t.fingerprint, placeholder = "SHA256 Fingerprint (optional)") }
-
-        testResult?.let { msg ->
+        if (useTls) {
             item {
-                BannerCard(
-                    text = msg,
-                    tone = if (testSuccess) BannerTone.Ok else BannerTone.Danger,
-                    icon = if (testSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline
+                MonoTextField(
+                    value = fingerprint,
+                    onValueChange = { fingerprint = it },
+                    label = t.fingerprint,
+                    placeholder = "SHA-256 fingerprint"
                 )
             }
         }
-
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SoftButton(
-                    text = if (isTesting) t.connecting else t.testConnection,
-                    icon = Icons.Rounded.Bolt,
-                    enabled = !isTesting && host.isNotBlank() && token.isNotBlank(),
-                    onClick = {
-                        isTesting = true
-                        testResult = null
-                        scope.launch {
-                            val testCfg = ServerConfig(
-                                id = 0,
-                                name = name.ifBlank { host },
-                                host = host.trim(),
-                                port = port.toIntOrNull() ?: 8686,
-                                token = token.trim(),
-                                useTls = tls,
-                                fingerprint = fp.trim()
-                            )
-                            try {
-                                val t0 = System.currentTimeMillis()
-                                val m = ApiClient().metrics(testCfg)
-                                val elapsed = System.currentTimeMillis() - t0
-                                testSuccess = true
-                                testResult = "${t.testOk} (${elapsed}ms — CPU: ${Fmt.pct(m.cpuUsage)})"
-                            } catch (e: Exception) {
-                                testSuccess = false
-                                testResult = "${t.testFail}: ${e.message}"
-                            } finally {
-                                isTesting = false
-                            }
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-
-                PrimaryButton(
-                    text = t.save,
-                    enabled = host.isNotBlank() && token.isNotBlank(),
-                    onClick = {
-                        val list = Prefs.loadServers(ctx)
-                        list.add(ServerConfig(
+            PrimaryButton(
+                text = t.save,
+                onClick = {
+                    val list = Prefs.loadServers(ctx)
+                    list.add(
+                        ServerConfig(
                             id = System.currentTimeMillis(),
                             name = name.ifBlank { host },
                             host = host.trim(),
                             port = port.toIntOrNull() ?: 8686,
                             token = token.trim(),
-                            useTls = tls,
-                            fingerprint = fp.trim()
-                        ))
-                        Prefs.saveServers(ctx, list)
-                        onSaved()
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+                            useTls = useTls,
+                            fingerprint = fingerprint.trim()
+                        )
+                    )
+                    Prefs.saveServers(ctx, list)
+                    onSaved()
+                },
+                enabled = host.isNotBlank() && token.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
 @Composable
-private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
+private fun SshInstallTab(t: Str, onSaved: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var name by remember { mutableStateOf("") }
@@ -688,15 +1062,17 @@ private fun SshInstallForm(t: Str, onSaved: () -> Unit) {
                         )
                         if (r.success && r.token != null) {
                             val list = Prefs.loadServers(ctx)
-                            list.add(ServerConfig(
-                                id = System.currentTimeMillis(),
-                                name = name.ifBlank { host },
-                                host = host.trim(),
-                                port = r.port ?: 8686,
-                                token = r.token ?: "",
-                                useTls = r.fingerprint != null,
-                                fingerprint = r.fingerprint ?: ""
-                            ))
+                            list.add(
+                                ServerConfig(
+                                    id = System.currentTimeMillis(),
+                                    name = name.ifBlank { host },
+                                    host = host.trim(),
+                                    port = r.port ?: 8686,
+                                    token = r.token ?: "",
+                                    useTls = r.fingerprint != null,
+                                    fingerprint = r.fingerprint ?: ""
+                                )
+                            )
                             Prefs.saveServers(ctx, list)
                             busy = false
                             result = r
