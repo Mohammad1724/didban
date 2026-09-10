@@ -12,29 +12,33 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -111,7 +115,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// APP SHELL — Obsidian Zenith Chrome: Deep Canvas, Floating Cyber Capsule Dock
+// APP SHELL — Obsidian Zenith Chrome: VisionOS Liquid Spotlight Navigation
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -204,69 +208,18 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                             }
                         }
 
-                        // ── Floating Cyber-Glass Capsule Dock Navigation ──
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 2.dp)
-                                .navigationBarsPadding(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Surface(
-                                color = Ds.surfaceElevated.copy(alpha = 0.94f),
-                                border = BorderStroke(
-                                    1.dp,
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Ds.hairline,
-                                            Ds.accent.copy(alpha = 0.35f),
-                                            Ds.hairline
-                                        )
-                                    )
-                                ),
-                                shape = RoundedCornerShape(32.dp),
-                                shadowElevation = 16.dp,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 6.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    CyberDockItem(
-                                        icon = Icons.Rounded.Dns,
-                                        label = t.navServers,
-                                        selected = currentNav == 0
-                                    ) { currentNav = 0 }
-
-                                    CyberDockItem(
-                                        icon = Icons.Rounded.SwapHoriz,
-                                        label = t.navTunnels,
-                                        selected = currentNav == 1
-                                    ) { currentNav = 1 }
-
-                                    CyberDockItem(
-                                        icon = Icons.Rounded.Timer,
-                                        label = t.navUptime,
-                                        selected = currentNav == 2
-                                    ) { currentNav = 2 }
-
-                                    CyberDockItem(
-                                        icon = Icons.Rounded.Public,
-                                        label = t.navNetwork,
-                                        selected = currentNav == 3
-                                    ) { currentNav = 3 }
-
-                                    CyberDockItem(
-                                        icon = Icons.Rounded.Security,
-                                        label = t.navVault,
-                                        selected = currentNav == 4
-                                    ) { currentNav = 4 }
-                                }
-                            }
-                        }
+                        // ── VisionOS Liquid Morphing Spotlight Navigation Dock ──
+                        LiquidSpotlightDock(
+                            currentNav = currentNav,
+                            onNavSelect = { currentNav = it },
+                            items = listOf(
+                                DockItemSpec(Icons.Rounded.Dns, t.navServers),
+                                DockItemSpec(Icons.Rounded.SwapHoriz, t.navTunnels),
+                                DockItemSpec(Icons.Rounded.Timer, t.navUptime),
+                                DockItemSpec(Icons.Rounded.Public, t.navNetwork),
+                                DockItemSpec(Icons.Rounded.Security, t.navVault)
+                            )
+                        )
                     }
                 }
             }
@@ -274,88 +227,183 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     }
 }
 
+data class DockItemSpec(
+    val icon: ImageVector,
+    val label: String
+)
+
 @Composable
-private fun CyberDockItem(
-    icon: ImageVector,
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
+fun LiquidSpotlightDock(
+    currentNav: Int,
+    onNavSelect: (Int) -> Unit,
+    items: List<DockItemSpec>,
+    modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.04f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "dockScale"
-    )
-    val pillBg by animateColorAsState(
-        targetValue = if (selected) Ds.accent.copy(alpha = 0.16f) else Color.Transparent,
-        animationSpec = tween(220),
-        label = "pillBg"
-    )
-    val borderCol by animateColorAsState(
-        targetValue = if (selected) Ds.accent.copy(alpha = 0.35f) else Color.Transparent,
-        animationSpec = tween(220),
-        label = "borderCol"
-    )
-    val iconColor by animateColorAsState(
-        targetValue = if (selected) Ds.accent else Ds.textTertiary,
-        animationSpec = tween(220),
-        label = "iconColor"
-    )
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     Box(
-        modifier = Modifier
-            .scale(scale)
-            .clip(RoundedCornerShape(22.dp))
-            .background(pillBg)
-            .border(BorderStroke(1.dp, borderCol), RoundedCornerShape(22.dp))
-            .clickable {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick()
-            }
-            .padding(horizontal = if (selected) 12.dp else 10.dp, vertical = 8.dp)
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 18.dp, end = 18.dp, bottom = 12.dp, top = 2.dp)
+            .navigationBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Surface(
+            color = Ds.surfaceElevated.copy(alpha = 0.90f),
+            border = BorderStroke(
+                1.dp,
+                Brush.horizontalGradient(
+                    listOf(
+                        Ds.hairline,
+                        Ds.accent.copy(alpha = 0.35f),
+                        Ds.hairline
+                    )
+                )
+            ),
+            shape = RoundedCornerShape(32.dp),
+            shadowElevation = 18.dp,
+            modifier = Modifier.fillMaxWidth().height(62.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = iconColor,
-                modifier = Modifier.size(19.dp)
-            )
-
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(tween(180)) + expandHorizontally(spring(stiffness = Spring.StiffnessMediumLow)),
-                exit = fadeOut(tween(140)) + shrinkHorizontally(spring(stiffness = Spring.StiffnessMediumLow))
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 5.dp, vertical = 5.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = label,
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Ds.accent,
-                        maxLines = 1
-                    )
-                    Spacer(Modifier.width(5.dp))
+                val totalWidth = maxWidth
+                val totalItems = items.size.coerceAtLeast(1)
+                val itemWidth = totalWidth / totalItems
+
+                // Sliding Liquid Spotlight Pill Indicator
+                val targetIndicatorX = if (isRtl) {
+                    itemWidth * (totalItems - 1 - currentNav)
+                } else {
+                    itemWidth * currentNav
+                }
+
+                val indicatorOffset by animateDpAsState(
+                    targetValue = targetIndicatorX,
+                    animationSpec = spring(
+                        dampingRatio = 0.72f,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "liquidSpotlightOffset"
+                )
+
+                // The glowing fluid spotlight background
+                Box(
+                    modifier = Modifier
+                        .offset(x = indicatorOffset)
+                        .width(itemWidth)
+                        .fillMaxHeight()
+                        .padding(horizontal = 3.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Ds.accent.copy(alpha = 0.22f),
+                                    Ds.accent.copy(alpha = 0.08f)
+                                )
+                            )
+                        )
+                        .border(
+                            BorderStroke(1.dp, Ds.accent.copy(alpha = 0.40f)),
+                            RoundedCornerShape(24.dp)
+                        )
+                ) {
+                    // Top micro-neon laser line
                     Box(
-                        Modifier
-                            .size(4.dp)
-                            .background(Ds.accent, CircleShape)
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 2.dp)
+                            .size(width = 16.dp, height = 2.dp)
+                            .clip(CircleShape)
+                            .background(Ds.accent)
                     )
+                }
+
+                // Interactive Navigation Item Glyphs
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    items.forEachIndexed { index, spec ->
+                        val isSelected = index == currentNav
+
+                        val liftOffset by animateDpAsState(
+                            targetValue = if (isSelected) (-2).dp else 0.dp,
+                            animationSpec = spring(
+                                dampingRatio = 0.58f,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "glyphLift"
+                        )
+
+                        val glyphScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.12f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = 0.6f,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "glyphScale"
+                        )
+
+                        val glyphColor by animateColorAsState(
+                            targetValue = if (isSelected) Ds.accent else Ds.textTertiary,
+                            animationSpec = tween(200),
+                            label = "glyphColor"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(24.dp))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onNavSelect(index)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .offset(y = liftOffset),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = spec.icon,
+                                    contentDescription = spec.label,
+                                    tint = glyphColor,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .scale(glyphScale)
+                                )
+
+                                AnimatedVisibility(
+                                    visible = isSelected,
+                                    enter = fadeIn(tween(160)) + expandVertically(spring(stiffness = Spring.StiffnessMedium)),
+                                    exit = fadeOut(tween(120)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium))
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = spec.label,
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Ds.accent,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
