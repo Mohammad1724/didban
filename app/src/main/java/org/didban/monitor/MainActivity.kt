@@ -275,11 +275,7 @@ fun LiquidSpotlightDock(
                 val itemWidth = totalWidth / totalItems
 
                 // Sliding Liquid Spotlight Pill Indicator
-                val targetIndicatorX = if (isRtl) {
-                    itemWidth * (totalItems - 1 - currentNav)
-                } else {
-                    itemWidth * currentNav
-                }
+                val targetIndicatorX = itemWidth * currentNav
 
                 val indicatorOffset by animateDpAsState(
                     targetValue = targetIndicatorX,
@@ -293,6 +289,7 @@ fun LiquidSpotlightDock(
                 // The glowing fluid spotlight background
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterStart)
                         .offset(x = indicatorOffset)
                         .width(itemWidth)
                         .fillMaxHeight()

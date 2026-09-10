@@ -201,40 +201,24 @@ fun ServersScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             PulseDot(
-                                color = if (downCount == 0 && servers.isNotEmpty()) Ds.ok else if (servers.isEmpty()) Ds.accent else Ds.danger,
-                                size = 9.dp
+                                color = if (downCount == 0 && servers.isNotEmpty()) Ds.ok else if (servers.isEmpty()) Ds.textTertiary else Ds.danger,
+                                size = 8.dp
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                when {
-                                    servers.isEmpty() -> t.noServers
-                                    downCount > 0 -> t.fleetDownTpl.format(downCount, servers.size)
-                                    else -> t.fleetAllOk
-                                },
+                                if (servers.isEmpty()) t.servers else if (downCount > 0) t.fleetDownTpl.format(downCount, servers.size) else t.fleetAllOk,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = when {
-                                    servers.isEmpty() -> Ds.textPrimary
-                                    downCount > 0 -> Ds.danger
-                                    else -> Ds.ok
-                                }
+                                color = if (servers.isEmpty()) Ds.textPrimary else if (downCount > 0) Ds.danger else Ds.ok
                             )
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            SoftButton(
-                                text = if (showGuide) t.hideGuide else t.showGuide,
-                                icon = if (showGuide) Icons.Rounded.ExpandLess else Icons.Rounded.HelpOutline,
-                                onClick = { showGuide = !showGuide },
-                                modifier = Modifier.height(36.dp)
-                            )
-                            PrimaryButton(
-                                text = t.addServer,
-                                icon = Icons.Rounded.Add,
-                                onClick = { showAdd = true },
-                                modifier = Modifier.height(36.dp)
-                            )
-                        }
+                        PrimaryButton(
+                            text = t.addServer,
+                            icon = Icons.Rounded.Add,
+                            onClick = { showAdd = true },
+                            modifier = Modifier.height(36.dp)
+                        )
                     }
 
                     Spacer(Modifier.height(14.dp))
@@ -316,19 +300,14 @@ fun ServersScreen(
                 }
             }
 
-            // ── 2. Interactive Step-by-Step Setup Guide ──
+            // ── 2. Interactive Step-by-Step Setup Guide (Permanent Expandable Card) ──
             item {
-                AnimatedVisibility(
-                    visible = showGuide,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    StepByStepGuideCard(
-                        t = t,
-                        onAddServer = { showAdd = true },
-                        onDismiss = { showGuide = false }
-                    )
-                }
+                StepByStepGuideCard(
+                    t = t,
+                    isExpanded = showGuide,
+                    onToggleExpand = { showGuide = !showGuide },
+                    onAddServer = { showAdd = true }
+                )
             }
 
             // ── 3. Search & Filter Bar (Shown when multiple servers exist) ──
@@ -361,7 +340,8 @@ fun ServersScreen(
                     EmptyState(
                         title = t.noServers,
                         hint = t.noServersHint,
-                        radar = true,
+                        icon = Icons.Rounded.Dns,
+                        radar = false,
                         actionLabel = t.addServer,
                         onAction = { showAdd = true }
                     )
@@ -490,24 +470,27 @@ private fun BentoMetricTile(
 @Composable
 private fun StepByStepGuideCard(
     t: Str,
-    onAddServer: () -> Unit,
-    onDismiss: () -> Unit
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit,
+    onAddServer: () -> Unit
 ) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
     ModernCard(
-        padding = 16.dp,
-        cornerRadius = 22.dp,
+        padding = 14.dp,
+        cornerRadius = 20.dp,
         modifier = Modifier.border(
-            BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.4f), Ds.hairline))),
-            RoundedCornerShape(22.dp)
+            BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline))),
+            RoundedCornerShape(20.dp)
         )
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Header
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Permanent Header Row (Never vanishes)
             Row(
-                Modifier.fillMaxWidth(),
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -521,74 +504,84 @@ private fun StepByStepGuideCard(
                     )
                     Spacer(Modifier.width(8.dp))
                     Column {
-                        Text(t.showGuide, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("Linux Server Agent Setup (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                        Text(t.showGuide, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                        Text("Linux Server Agent Setup (3 Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
                     }
                 }
-                CircleIconButton(
-                    icon = Icons.Rounded.ExpandLess,
-                    contentDescription = "Close Guide",
-                    size = 28.dp,
-                    tint = Ds.textTertiary,
-                    onClick = onDismiss
+                SoftButton(
+                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                    icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    onClick = onToggleExpand,
+                    modifier = Modifier.height(34.dp)
                 )
             }
 
-            Hairline()
-
-            // Step 1: Run Installer Script
-            StepItemPod(
-                stepNum = "1",
-                title = t.serverAddStep1Title,
-                desc = t.serverAddStep1Desc
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                TerminalBox(
-                    command = AGENT_INSTALL_CMD,
-                    title = "Linux 1-Line Installer"
-                )
-            }
-
-            // Step 2: Copy Connection Link
-            StepItemPod(
-                stepNum = "2",
-                title = t.serverAddStep2Title,
-                desc = t.serverAddStep2Desc
-            )
-
-            // Step 3: Connect & Encrypt
-            StepItemPod(
-                stepNum = "3",
-                title = t.serverAddStep3Title,
-                desc = t.serverAddStep3Desc
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    PrimaryButton(
-                        text = t.addServer,
-                        icon = Icons.Rounded.Add,
-                        onClick = onAddServer,
-                        modifier = Modifier.weight(1f).height(38.dp)
+                    Hairline()
+
+                    // Step 1: Run Installer Script
+                    StepItemPod(
+                        stepNum = "1",
+                        title = t.serverAddStep1Title,
+                        desc = t.serverAddStep1Desc
+                    ) {
+                        TerminalBox(
+                            command = AGENT_INSTALL_CMD,
+                            title = "Linux 1-Line Installer"
+                        )
+                    }
+
+                    // Step 2: Copy Connection Link
+                    StepItemPod(
+                        stepNum = "2",
+                        title = t.serverAddStep2Title,
+                        desc = t.serverAddStep2Desc
                     )
-                    SoftButton(
-                        text = t.smartPaste,
-                        icon = Icons.Rounded.ContentPaste,
-                        onClick = {
-                            val clipText = clipboard.getText()?.text ?: ""
-                            val parsed = parseDeepLinkOrLogs(clipText)
-                            if (parsed != null) {
-                                val list = Prefs.loadServers(ctx)
-                                list.add(parsed)
-                                Prefs.saveServers(ctx, list)
-                                Toast.makeText(ctx, t.clipboardParsed, Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(ctx, t.clipboardNotFound, Toast.LENGTH_SHORT).show()
-                                onAddServer()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(38.dp)
-                    )
+
+                    // Step 3: Connect & Encrypt
+                    StepItemPod(
+                        stepNum = "3",
+                        title = t.serverAddStep3Title,
+                        desc = t.serverAddStep3Desc
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            PrimaryButton(
+                                text = t.addServer,
+                                icon = Icons.Rounded.Add,
+                                onClick = onAddServer,
+                                modifier = Modifier.weight(1f).height(38.dp)
+                            )
+                            SoftButton(
+                                text = t.smartPaste,
+                                icon = Icons.Rounded.ContentPaste,
+                                onClick = {
+                                    val clipText = clipboard.getText()?.text ?: ""
+                                    val parsed = parseDeepLinkOrLogs(clipText)
+                                    if (parsed != null) {
+                                        val list = Prefs.loadServers(ctx)
+                                        list.add(parsed)
+                                        Prefs.saveServers(ctx, list)
+                                        Toast.makeText(ctx, t.clipboardParsed, Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(ctx, t.clipboardNotFound, Toast.LENGTH_SHORT).show()
+                                        onAddServer()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(38.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
