@@ -10,12 +10,21 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,15 +38,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -53,10 +60,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
@@ -99,7 +111,7 @@ class MainActivity : ComponentActivity() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// APP SHELL — Obsidian Zenith Chrome: Deep Canvas, Floating Island Navigation
+// APP SHELL — Obsidian Zenith Chrome: Deep Canvas, Floating Cyber Capsule Dock
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
@@ -108,11 +120,10 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
     var themeMode by remember { mutableStateOf(Prefs.getThemeMode(ctx)) }
     var openServer by remember { mutableStateOf<ServerConfig?>(null) }
-    var currentNav by remember { mutableStateOf(0) } // 0: Fleet, 1: Tunnels, 2: Uptime, 3: Network, 4: Cloudflare, 5: Vault, 6: DevLab
+    var currentNav by remember { mutableStateOf(0) } // 0: Fleet, 1: Tunnels, 2: Uptime, 3: Network & Cloud, 4: Vault & Tools
 
     val t = if (lang == "fa") Locales.fa else Locales.en
     val isDarkMode = themeMode == "dark"
-    val navScrollState = rememberScrollState()
 
     // Deep-link routing from push notifications
     LaunchedEffect(pendingServerId.value) {
@@ -188,37 +199,72 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                                 )
                                 1 -> TunnelScreen(t = t)
                                 2 -> UptimeScreen(t = t)
-                                3 -> NetworkHubScreen(t = t)
-                                4 -> CloudflareScreen(t = t)
-                                5 -> VaultScreen(t = t)
-                                6 -> DevLabScreen(t = t)
+                                3 -> NetworkCloudScreen(t = t)
+                                4 -> VaultToolsScreen(t = t)
                             }
                         }
 
-                        // ── Floating Island Bottom Dock Navigation ──
-                        Surface(
-                            color = Ds.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Ds.hairline),
-                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        // ── Floating Cyber-Glass Capsule Dock Navigation ──
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .navigationBarsPadding()
+                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp, top = 2.dp)
+                                .navigationBarsPadding(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(navScrollState)
-                                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                            Surface(
+                                color = Ds.surfaceElevated.copy(alpha = 0.94f),
+                                border = BorderStroke(
+                                    1.dp,
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Ds.hairline,
+                                            Ds.accent.copy(alpha = 0.35f),
+                                            Ds.hairline
+                                        )
+                                    )
+                                ),
+                                shape = RoundedCornerShape(32.dp),
+                                shadowElevation = 16.dp,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                DockItem(Icons.Rounded.Dns, t.navServers, currentNav == 0) { currentNav = 0 }
-                                DockItem(Icons.Rounded.SwapHoriz, t.navTunnels, currentNav == 1) { currentNav = 1 }
-                                DockItem(Icons.Rounded.Timer, t.navUptime, currentNav == 2) { currentNav = 2 }
-                                DockItem(Icons.Rounded.Public, t.navNetwork, currentNav == 3) { currentNav = 3 }
-                                DockItem(Icons.Rounded.Cloud, t.navCloudflare, currentNav == 4) { currentNav = 4 }
-                                DockItem(Icons.Rounded.Security, t.navVault, currentNav == 5) { currentNav = 5 }
-                                DockItem(Icons.Rounded.Terminal, t.navTools, currentNav == 6) { currentNav = 6 }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    CyberDockItem(
+                                        icon = Icons.Rounded.Dns,
+                                        label = t.navServers,
+                                        selected = currentNav == 0
+                                    ) { currentNav = 0 }
+
+                                    CyberDockItem(
+                                        icon = Icons.Rounded.SwapHoriz,
+                                        label = t.navTunnels,
+                                        selected = currentNav == 1
+                                    ) { currentNav = 1 }
+
+                                    CyberDockItem(
+                                        icon = Icons.Rounded.Timer,
+                                        label = t.navUptime,
+                                        selected = currentNav == 2
+                                    ) { currentNav = 2 }
+
+                                    CyberDockItem(
+                                        icon = Icons.Rounded.Public,
+                                        label = t.navNetwork,
+                                        selected = currentNav == 3
+                                    ) { currentNav = 3 }
+
+                                    CyberDockItem(
+                                        icon = Icons.Rounded.Security,
+                                        label = t.navVault,
+                                        selected = currentNav == 4
+                                    ) { currentNav = 4 }
+                                }
                             }
                         }
                     }
@@ -229,43 +275,89 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
 }
 
 @Composable
-private fun DockItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+private fun CyberDockItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.04f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "dockScale"
+    )
     val pillBg by animateColorAsState(
-        targetValue = if (selected) Ds.accentDim else Color.Transparent,
-        animationSpec = tween(220), label = "dockPill"
+        targetValue = if (selected) Ds.accent.copy(alpha = 0.16f) else Color.Transparent,
+        animationSpec = tween(220),
+        label = "pillBg"
+    )
+    val borderCol by animateColorAsState(
+        targetValue = if (selected) Ds.accent.copy(alpha = 0.35f) else Color.Transparent,
+        animationSpec = tween(220),
+        label = "borderCol"
     )
     val iconColor by animateColorAsState(
         targetValue = if (selected) Ds.accent else Ds.textTertiary,
-        animationSpec = tween(220), label = "dockIcon"
+        animationSpec = tween(220),
+        label = "iconColor"
     )
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 9.dp, vertical = 4.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(22.dp))
+            .background(pillBg)
+            .border(BorderStroke(1.dp, borderCol), RoundedCornerShape(22.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            }
+            .padding(horizontal = if (selected) 12.dp else 10.dp, vertical = 8.dp)
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            Modifier
-                .size(width = 46.dp, height = 28.dp)
-                .background(pillBg, RoundedCornerShape(999.dp)),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
                 tint = iconColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(19.dp)
             )
+
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(tween(180)) + expandHorizontally(spring(stiffness = Spring.StiffnessMediumLow)),
+                exit = fadeOut(tween(140)) + shrinkHorizontally(spring(stiffness = Spring.StiffnessMediumLow))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = label,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Ds.accent,
+                        maxLines = 1
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Box(
+                        Modifier
+                            .size(4.dp)
+                            .background(Ds.accent, CircleShape)
+                    )
+                }
+            }
         }
-        Spacer(Modifier.height(3.dp))
-        Text(
-            label,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = iconColor,
-            maxLines = 1
-        )
     }
 }

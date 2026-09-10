@@ -1340,3 +1340,58 @@ private fun HashesTab(t: Str) {
         }
     }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// UNIFIED SCREEN HUBS
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun NetworkCloudScreen(t: Str) {
+    var subTab by remember { mutableStateOf(0) }
+    Column(Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            SegmentedControl(
+                items = listOf(t.navNetwork, t.navCloudflare),
+                selectedIndex = subTab,
+                onSelect = { subTab = it }
+            )
+        }
+        Box(Modifier.weight(1f)) {
+            if (subTab == 0) {
+                NetworkHubScreen(t = t)
+            } else {
+                CloudflareScreen(t = t)
+            }
+        }
+    }
+}
+
+@Composable
+fun VaultToolsScreen(t: Str) {
+    var subTab by remember { mutableStateOf(0) }
+    Column(Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            SegmentedControl(
+                items = listOf(t.navVault, t.navTools),
+                selectedIndex = subTab,
+                onSelect = { subTab = it }
+            )
+        }
+        Box(Modifier.weight(1f)) {
+            if (subTab == 0) {
+                VaultScreen(t = t)
+            } else {
+                DevLabScreen(t = t)
+            }
+        }
+    }
+}
+
