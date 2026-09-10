@@ -421,11 +421,11 @@ fun TunnelScreen(t: Str) {
                                     onClick = {
                                         operatingTunnelId = tunnel.id
                                         scope.launch {
-                                            val ok = TunnelEngine.autoDeployTunnel(ctx, tunnel)
-                                            if (ok) {
+                                            val res = TunnelEngine.autoDeployTunnel(ctx, tunnel)
+                                            if (res.overallSuccess) {
                                                 Toast.makeText(ctx, "Tunnel deployed to agents successfully!", Toast.LENGTH_SHORT).show()
                                             } else {
-                                                Toast.makeText(ctx, "Auto-deploy failed. Check agent connection.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(ctx, "Auto-deploy: ${res.summaryMessage}", Toast.LENGTH_SHORT).show()
                                             }
                                             operatingTunnelId = null
                                         }
