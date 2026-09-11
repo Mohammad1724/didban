@@ -134,6 +134,11 @@ interface Str {
     val copyForeignCommand: String
     val testTunnel: String
     val viewConfigs: String
+    val autoDiscoverTunnels: String
+    val discoveringTunnels: String
+    val discoverResultTitle: String
+    val noTunnelsFound: String
+    val tunnelsDiscoveredTpl: String
     val networkHub: String
     val portsAndSockets: String
     val listeningPorts: String
@@ -408,6 +413,11 @@ object FaStr : Str {
     override val copyForeignCommand: String = "کپی دستور سرور خارج"
     override val testTunnel: String = "تست پایداری و پینگ"
     override val viewConfigs: String = "کانفیگ‌ها و داکر"
+    override val autoDiscoverTunnels: String = "کشف خودکار تانل‌های سرور"
+    override val discoveringTunnels: String = "در حال اسکن پردازه‌ها و کشف تانل‌ها…"
+    override val discoverResultTitle: String = "نتیجه اسکن و کشف خودکار تانل‌ها"
+    override val noTunnelsFound: String = "هیچ تانل فعالی روی پردازه‌ها یا داکر سرورهای ثبت‌شده یافت نشد."
+    override val tunnelsDiscoveredTpl: String = "تعداد %d تانل فعال روی سرورها با موفقیت شناسایی و به سامانه اضافه شد!"
     // Echoes Tools Suite
     override val networkHub: String = "ابزارهای شبکه و عیب‌یابی"
     override val portsAndSockets: String = "پورت‌ها و سوکت‌ها"
@@ -684,6 +694,11 @@ object EnStr : Str {
     override val copyForeignCommand: String = "Copy Foreign Command"
     override val testTunnel: String = "Test Tunnel Latency"
     override val viewConfigs: String = "Configs & Docker"
+    override val autoDiscoverTunnels: String = "Auto-Discover Tunnels"
+    override val discoveringTunnels: String = "Scanning servers for active tunnels…"
+    override val discoverResultTitle: String = "Tunnel Discovery Results"
+    override val noTunnelsFound: String = "No active tunnel processes or Docker containers found on your connected servers."
+    override val tunnelsDiscoveredTpl: String = "Successfully discovered and added %d active tunnel(s) from your servers!"
     // Echoes Tools Suite
     override val networkHub: String = "Network & Diagnostic Hub"
     override val portsAndSockets: String = "Ports & Sockets"

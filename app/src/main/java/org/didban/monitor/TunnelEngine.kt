@@ -1446,4 +1446,193 @@ $rules
             Pair(false, -1L)
         }
     }
+
+    // ── Intelligent Tunnel Auto-Discovery (Server Process & Docker Scanner) ──
+
+    data class DiscoveredTunnelItem(
+        val serverName: String,
+        val core: TunnelCore,
+        val transport: TunnelTransport,
+        val port: Int,
+        val rawDetail: String
+    )
+
+    data class DiscoveryResult(
+        val newCount: Int,
+        val discoveredItems: List<DiscoveredTunnelItem>,
+        val summary: String,
+        val success: Boolean
+    )
+
+    suspend fun discoverTunnels(
+        ctx: Context,
+        apiClient: ApiClient = ApiClient()
+    ): DiscoveryResult = withContext(Dispatchers.IO) {
+        val servers = Prefs.loadServers(ctx)
+        if (servers.isEmpty()) {
+            return@withContext DiscoveryResult(
+                newCount = 0,
+                discoveredItems = emptyList(),
+                summary = "هیچ سروری در دیدبان ثبت نشده است. ابتدا سرورهای خود را در تب «سرورها» اضافه کنید.",
+                success = false
+            )
+        }
+
+        val existingTunnels = Prefs.loadTunnels(ctx).toMutableList()
+        val discoveredList = mutableListOf<DiscoveredTunnelItem>()
+        var newTunnelsAdded = 0
+
+        for (server in servers) {
+            try {
+                val procs = try { apiClient.processes(server) } catch (_: Exception) { emptyList() }
+                val docker = try { apiClient.dockerContainers(server) } catch (_: Exception) { null }
+
+                // 1. Scan Processes
+                for (proc in procs) {
+                    val pName = proc.name.lowercase()
+                    val pCmd = proc.cmd.lowercase()
+
+                    val detectedCore = when {
+                        "gost" in pName || "gost" in pCmd -> TunnelCore.GOST
+                        "backhaul" in pName || "backhaul" in pCmd -> TunnelCore.BACKHAUL
+                        "rathole" in pName || "rathole" in pCmd -> TunnelCore.RATHOLE
+                        "chisel" in pName || "chisel" in pCmd -> TunnelCore.CHISEL
+                        "frpc" in pName || "frps" in pName || "frpc" in pCmd || "frps" in pCmd -> TunnelCore.FRP
+                        "paqet" in pName || "paqet" in pCmd -> TunnelCore.PAQET
+                        "narnia" in pName || "narnia" in pCmd -> TunnelCore.NARNIA
+                        "backpack" in pName || "backpack" in pCmd -> TunnelCore.BACKPACK
+                        else -> null
+                    }
+
+                    if (detectedCore != null) {
+                        val detectedPort = run {
+                            val portRegex = Regex("""(?::|-p\s+|-L\s+\w+://:?)(\d{2,5})""")
+                            val match = portRegex.find(pCmd)
+                            match?.groupValues?.get(1)?.toIntOrNull() ?: 443
+                        }
+                        val detectedTransport = when {
+                            "grpc" in pCmd -> TunnelTransport.GRPC
+                            "mwss" in pCmd || "wsmux" in pCmd -> TunnelTransport.WSMUX
+                            "ws" in pCmd || "wss" in pCmd -> TunnelTransport.WS
+                            "kcp" in pCmd -> TunnelTransport.KCP_FEC
+                            else -> TunnelTransport.TCP
+                        }
+
+                        val alreadyExists = existingTunnels.any {
+                            it.core == detectedCore && (it.iranHost == server.host || it.foreignHost == server.host || it.corePort == detectedPort || it.iranPort == detectedPort)
+                        }
+
+                        val isIran = server.name.lowercase().let { "ir" in it || "iran" in it || "teh" in it || "mci" in it || "mtn" in it }
+
+                        if (!alreadyExists) {
+                            val newTun = TunnelConfig(
+                                id = System.currentTimeMillis() + existingTunnels.size + 1,
+                                name = "${server.name} — ${detectedCore.displayName}",
+                                core = detectedCore,
+                                transport = detectedTransport,
+                                iranHost = if (isIran) server.host else "",
+                                foreignHost = if (!isIran) server.host else "",
+                                iranPort = detectedPort,
+                                foreignPort = detectedPort,
+                                corePort = if (detectedPort != 443) detectedPort else 3080,
+                                token = "auto-detected",
+                                autoSync = false,
+                                isEnabled = true,
+                                lastStatus = 1,
+                                lastChecked = System.currentTimeMillis(),
+                                iranServerId = if (isIran) server.id else null,
+                                foreignServerId = if (!isIran) server.id else null
+                            )
+                            existingTunnels.add(0, newTun)
+                            newTunnelsAdded++
+                        }
+
+                        discoveredList.add(
+                            DiscoveredTunnelItem(
+                                serverName = server.name,
+                                core = detectedCore,
+                                transport = detectedTransport,
+                                port = detectedPort,
+                                rawDetail = "پردازه: ${proc.name} (PID: ${proc.pid})"
+                            )
+                        )
+                    }
+                }
+
+                // 2. Scan Docker Containers
+                docker?.containers?.forEach { container ->
+                    val cImage = container.image.lowercase()
+                    val cName = container.name.lowercase()
+
+                    val detectedCore = when {
+                        "gost" in cImage || "gost" in cName -> TunnelCore.GOST
+                        "backhaul" in cImage || "backhaul" in cName -> TunnelCore.BACKHAUL
+                        "rathole" in cImage || "rathole" in cName -> TunnelCore.RATHOLE
+                        "chisel" in cImage || "chisel" in cName -> TunnelCore.CHISEL
+                        "frp" in cImage || "frp" in cName -> TunnelCore.FRP
+                        "paqet" in cImage || "paqet" in cName -> TunnelCore.PAQET
+                        else -> null
+                    }
+
+                    if (detectedCore != null) {
+                        val alreadyExists = existingTunnels.any {
+                            it.core == detectedCore && (it.iranHost == server.host || it.foreignHost == server.host)
+                        }
+                        val isIran = server.name.lowercase().let { "ir" in it || "iran" in it || "teh" in it }
+                        val port = container.ports.firstOrNull()?.publicPort ?: 443
+
+                        if (!alreadyExists) {
+                            val newTun = TunnelConfig(
+                                id = System.currentTimeMillis() + existingTunnels.size + 1,
+                                name = "${server.name} — ${detectedCore.displayName} (Docker)",
+                                core = detectedCore,
+                                transport = TunnelTransport.TCP,
+                                iranHost = if (isIran) server.host else "",
+                                foreignHost = if (!isIran) server.host else "",
+                                iranPort = port,
+                                foreignPort = port,
+                                corePort = port,
+                                token = "auto-detected",
+                                autoSync = false,
+                                isEnabled = true,
+                                lastStatus = 1,
+                                lastChecked = System.currentTimeMillis(),
+                                iranServerId = if (isIran) server.id else null,
+                                foreignServerId = if (!isIran) server.id else null
+                            )
+                            existingTunnels.add(0, newTun)
+                            newTunnelsAdded++
+                        }
+
+                        discoveredList.add(
+                            DiscoveredTunnelItem(
+                                serverName = server.name,
+                                core = detectedCore,
+                                transport = TunnelTransport.TCP,
+                                port = port,
+                                rawDetail = "داکر: ${container.name} (${container.status})"
+                            )
+                        )
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        if (newTunnelsAdded > 0) {
+            Prefs.saveTunnels(ctx, existingTunnels)
+        }
+
+        val summaryMsg = when {
+            newTunnelsAdded > 0 -> "تعداد $newTunnelsAdded تانل فعال جدید روی سرورهای شما کشف و به لیست تانل‌ها اضافه شد!"
+            discoveredList.isNotEmpty() -> "تعداد ${discoveredList.size} تانل فعال روی سرورها در حال اجراست و قبلاً در لیست ثبت شده‌اند."
+            else -> "هیچ تانل فعالی روی سرورهای متصل کشف نشد."
+        }
+
+        DiscoveryResult(
+            newCount = newTunnelsAdded,
+            discoveredItems = discoveredList,
+            summary = summaryMsg,
+            success = discoveredList.isNotEmpty()
+        )
+    }
 }

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoFixHigh
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudQueue
@@ -108,7 +109,9 @@ fun TunnelScreen(
     // Async operation states
     var isDeployingMap by remember { mutableStateOf<Map<Long, Boolean>>(emptyMap()) }
     var isTestingMap by remember { mutableStateOf<Map<Long, Boolean>>(emptyMap()) }
+    var isDiscovering by remember { mutableStateOf(false) }
     var deployResultDialog by remember { mutableStateOf<AutoDeployResult?>(null) }
+    var discoveryResultDialog by remember { mutableStateOf<TunnelEngine.DiscoveryResult?>(null) }
 
     fun refreshTunnels() {
         tunnels = Prefs.loadTunnels(ctx)
@@ -197,14 +200,30 @@ fun TunnelScreen(
 
             Spacer(Modifier.width(8.dp))
 
-            PrimaryButton(
-                text = t.addTunnel,
-                icon = Icons.Rounded.Add,
-                onClick = {
-                    editingTunnel = null
-                    showForm = true
-                }
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                SoftButton(
+                    text = if (isDiscovering) t.discoveringTunnels else t.autoDiscoverTunnels,
+                    icon = Icons.Rounded.AutoAwesome,
+                    enabled = !isDiscovering,
+                    onClick = {
+                        isDiscovering = true
+                        scope.launch {
+                            val res = TunnelEngine.discoverTunnels(ctx)
+                            isDiscovering = false
+                            discoveryResultDialog = res
+                            refreshTunnels()
+                        }
+                    }
+                )
+                PrimaryButton(
+                    text = t.addTunnel,
+                    icon = Icons.Rounded.Add,
+                    onClick = {
+                        editingTunnel = null
+                        showForm = true
+                    }
+                )
+            }
         }
 
         LazyColumn(
@@ -351,17 +370,52 @@ fun TunnelScreen(
             // ── 5. Empty State or Bento Tunnel Deck ──
             if (tunnels.isEmpty()) {
                 item {
-                    EmptyState(
-                        title = "هنوز تانلی تعریف نشده است",
-                        hint = "با تعریف تانل جدید، بسترهای امن BackPack، Paqet، Narnia، Backhaul، Rathole و غیره را به صورت یک‌کلیکه بین دو سرور برقرار کنید.",
-                        icon = Icons.Rounded.SwapHoriz,
-                        radar = false,
-                        actionLabel = t.addTunnel,
-                        onAction = {
-                            editingTunnel = null
-                            showForm = true
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 36.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        IconBadge(icon = Icons.Rounded.SwapHoriz, tint = Ds.accent, background = Ds.accentDim, size = 56.dp, iconSize = 26.dp)
+                        Spacer(Modifier.height(18.dp))
+                        Text("هنوز تانلی تعریف نشده است", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "با تعریف تانل جدید، بسترهای امن BackPack، Paqet، Narnia، Backhaul، Rathole و غیره را برقرار کنید؛ یا با کشف خودکار تانل‌های فعال روی سرورها را وارد نمایید.",
+                            fontSize = 12.5.sp,
+                            color = Ds.textSecondary,
+                            lineHeight = 18.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (servers.isNotEmpty()) {
+                                SoftButton(
+                                    text = if (isDiscovering) t.discoveringTunnels else t.autoDiscoverTunnels,
+                                    icon = Icons.Rounded.AutoAwesome,
+                                    enabled = !isDiscovering,
+                                    onClick = {
+                                        isDiscovering = true
+                                        scope.launch {
+                                            val res = TunnelEngine.discoverTunnels(ctx)
+                                            isDiscovering = false
+                                            discoveryResultDialog = res
+                                            refreshTunnels()
+                                        }
+                                    }
+                                )
+                            }
+                            PrimaryButton(
+                                text = t.addTunnel,
+                                icon = Icons.Rounded.Add,
+                                onClick = {
+                                    editingTunnel = null
+                                    showForm = true
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             } else {
                 items(filteredTunnels, key = { it.id }) { tunnel ->
@@ -532,6 +586,74 @@ fun TunnelScreen(
             },
             confirmButton = {
                 PrimaryButton(text = t.close, onClick = { deployResultDialog = null })
+            }
+        )
+    }
+
+    if (discoveryResultDialog != null) {
+        val d = discoveryResultDialog!!
+        AlertDialog(
+            onDismissRequest = { discoveryResultDialog = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(
+                        imageVector = if (d.success) Icons.Rounded.CheckCircle else Icons.Rounded.AutoAwesome,
+                        contentDescription = null,
+                        tint = if (d.success) Ds.ok else Ds.accent
+                    )
+                    Text(t.discoverResultTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BannerCard(
+                        text = d.summary,
+                        tone = if (d.success) BannerTone.Ok else BannerTone.Info
+                    )
+
+                    if (d.discoveredItems.isNotEmpty()) {
+                        Text("تانل‌های فعال کشف‌شده روی سرورها:", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().height((d.discoveredItems.size * 56).coerceIn(60, 220).dp)
+                        ) {
+                            items(d.discoveredItems) { item ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Ds.surfaceLow,
+                                    border = BorderStroke(1.dp, Ds.hairline),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Ds.accentDim)
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(item.core.displayName, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = Ds.accent)
+                                                }
+                                                Text(item.serverName, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                                            }
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(item.rawDetail, fontSize = 10.sp, color = Ds.textTertiary)
+                                        }
+                                        Text(":${item.port}", fontSize = 12.sp, fontFamily = Telemetry, fontWeight = FontWeight.Bold, color = Ds.ok)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                PrimaryButton(text = t.close, onClick = { discoveryResultDialog = null })
             }
         )
     }
