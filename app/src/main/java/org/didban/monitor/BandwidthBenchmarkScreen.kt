@@ -262,7 +262,7 @@ fun BandwidthBenchmarkScreen(t: Str) {
                         Text("Real-Time Throughput Stream", fontSize = 11.sp, color = Ds.textSecondary)
 
                         LinearProgressIndicator(
-                            progress = { testProgress },
+                            progress = testProgress,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(6.dp)

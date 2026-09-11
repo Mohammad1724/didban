@@ -1788,7 +1788,7 @@ private fun HashesTab(t: Str) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
-private fun BentoMicroPod(
+fun BentoMicroPod(
     title: String,
     value: String,
     unit: String,
