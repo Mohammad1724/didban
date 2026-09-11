@@ -1349,17 +1349,19 @@ fun VaultScreen(t: Str) {
 @Composable
 fun DevLabScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 5 }
+    val pagerState = rememberPagerState(initialPage = 0) { 7 }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
 
     val tabTitles = listOf(
-        "Base64 / URL",
-        "JSON Lab",
-        "CIDR Subnet",
-        "JWT Decoder",
-        "Hashes & UUID"
+        "SSH Terminal",
+        "Fleet Batch",
+        "Bandwidth",
+        "Systemd",
+        "Security",
+        "JSON / B64",
+        "CIDR / Hash"
     )
 
     Column(
@@ -1377,7 +1379,7 @@ fun DevLabScreen(t: Str) {
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(t.devLab, fontSize = 16.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                Text("String & DevOps Utilities", fontSize = 11.sp, color = Ds.textTertiary)
+                Text("DevOps & Server Suite", fontSize = 11.sp, color = Ds.textTertiary)
             }
         }
 
@@ -1390,11 +1392,13 @@ fun DevLabScreen(t: Str) {
 
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
-                0 -> Base64Tab(t)
-                1 -> JsonTab(t)
-                2 -> SubnetTab(t)
-                3 -> JwtTab(t)
-                4 -> HashesTab(t)
+                0 -> SshTerminalScreen(t)
+                1 -> BatchExecScreen(t)
+                2 -> BandwidthBenchmarkScreen(t)
+                3 -> SystemdScreen(t)
+                4 -> SecurityScreen(t)
+                5 -> JsonTab(t)
+                6 -> SubnetTab(t)
             }
         }
     }

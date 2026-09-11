@@ -81,7 +81,7 @@ class MonitorService : Service() {
                 val servers = Prefs.loadServers(applicationContext)
                 for (s in servers) {
                     val t0 = System.currentTimeMillis()
-                    val prevState = Repo.get(s.id).value
+                    val prevState = Repo.states.value[s.id]
                     try {
                         val m = ApiClient().metrics(s)
                         val ms = (System.currentTimeMillis() - t0).toFloat()
