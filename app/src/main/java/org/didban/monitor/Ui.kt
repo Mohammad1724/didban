@@ -246,6 +246,7 @@ fun ModernCard(
     cornerRadius: Dp = 18.dp,
     containerColor: Color = Ds.surface,
     borderColor: Color = Ds.hairline,
+    border: BorderStroke? = BorderStroke(1.dp, borderColor),
     padding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -253,7 +254,7 @@ fun ModernCard(
     Surface(
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
+        border = border,
         modifier = modifier
     ) {
         if (onClick != null) {

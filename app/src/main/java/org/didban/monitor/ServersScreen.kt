@@ -480,10 +480,7 @@ private fun StepByStepGuideCard(
     ModernCard(
         padding = 14.dp,
         cornerRadius = 20.dp,
-        modifier = Modifier.border(
-            BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline))),
-            RoundedCornerShape(20.dp)
-        )
+        border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline)))
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // Permanent Header Row (Never vanishes)
