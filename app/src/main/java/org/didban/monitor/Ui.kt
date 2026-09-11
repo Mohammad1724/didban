@@ -72,7 +72,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -115,16 +114,18 @@ fun DidbanBackground(modifier: Modifier = Modifier, content: @Composable () -> U
             .fillMaxSize()
             .drawBehind {
                 drawRect(canvasColor)
-                // Ambient top glow
-                drawOval(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(glow.copy(alpha = 0.05f), Color.Transparent),
-                        startY = 0f,
-                        endY = size.height * 0.45f
-                    ),
-                    topLeft = Offset(-size.width * 0.2f, -size.height * 0.12f),
-                    size = Size(size.width * 1.4f, size.height * 0.6f)
-                )
+                if (size.width > 20f && size.height > 20f) {
+                    val endY = (size.height * 0.45f).coerceAtLeast(10f)
+                    drawOval(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(glow.copy(alpha = 0.05f), Color.Transparent),
+                            startY = 0f,
+                            endY = endY
+                        ),
+                        topLeft = Offset(-size.width * 0.2f, -size.height * 0.12f),
+                        size = Size(size.width * 1.4f, size.height * 0.6f)
+                    )
+                }
             }
     ) { content() }
 }
@@ -151,13 +152,14 @@ fun RadarMark(
     )
 
     Canvas(modifier.size(diameter)) {
+        if (size.width <= 0f || size.height <= 0f) return@Canvas
         val c = center
-        val r = min(size.width, size.height) / 2f - 2.dp.toPx()
+        val r = (min(size.width, size.height) / 2f - 2.dp.toPx()).coerceAtLeast(1f)
 
         // Concentric telemetry rings
         drawCircle(color = tint.copy(alpha = 0.38f), radius = r, center = c, style = Stroke(1.1.dp.toPx()))
-        drawCircle(color = tint.copy(alpha = 0.18f), radius = r * 0.66f, center = c, style = Stroke(1.dp.toPx()))
-        drawCircle(color = tint.copy(alpha = 0.10f), radius = r * 0.33f, center = c, style = Stroke(1.dp.toPx()))
+        drawCircle(color = tint.copy(alpha = 0.18f), radius = (r * 0.66f).coerceAtLeast(0.5f), center = c, style = Stroke(1.dp.toPx()))
+        drawCircle(color = tint.copy(alpha = 0.10f), radius = (r * 0.33f).coerceAtLeast(0.5f), center = c, style = Stroke(1.dp.toPx()))
 
         // Compass crosshairs
         val tick = 3.dp.toPx()
@@ -182,7 +184,8 @@ fun RadarMark(
                         0f to Color.Transparent,
                         0.70f to Color.Transparent,
                         0.92f to tint.copy(alpha = 0.22f),
-                        1f to Color.Transparent
+                        1f to Color.Transparent,
+                        center = c
                     ),
                     radius = r, center = c
                 )
@@ -190,10 +193,10 @@ fun RadarMark(
         }
 
         // Core beacon + echoes
-        drawCircle(color = tint.copy(alpha = 0.20f), radius = 5.dp.toPx(), center = c)
-        drawCircle(color = tint, radius = 2.2.dp.toPx(), center = c)
-        drawCircle(color = tint.copy(alpha = blip * 0.9f), radius = 1.8.dp.toPx(), center = Offset(c.x + r * 0.52f, c.y - r * 0.28f))
-        drawCircle(color = tint.copy(alpha = blip * 0.6f), radius = 1.4.dp.toPx(), center = Offset(c.x - r * 0.38f, c.y + r * 0.42f))
+        drawCircle(color = tint.copy(alpha = 0.20f), radius = 5.dp.toPx().coerceAtMost(r), center = c)
+        drawCircle(color = tint, radius = 2.2.dp.toPx().coerceAtMost(r), center = c)
+        drawCircle(color = tint.copy(alpha = blip * 0.9f), radius = 1.8.dp.toPx().coerceAtMost(r), center = Offset(c.x + r * 0.52f, c.y - r * 0.28f))
+        drawCircle(color = tint.copy(alpha = blip * 0.6f), radius = 1.4.dp.toPx().coerceAtMost(r), center = Offset(c.x - r * 0.38f, c.y + r * 0.42f))
     }
 }
 
@@ -224,7 +227,7 @@ fun PulseDot(
     Box(modifier.size(size * 1.9f), contentAlignment = Alignment.Center) {
         Box(
             Modifier
-                .size(size * scale)
+                .size((size.value * scale).dp)
                 .background(color.copy(alpha = alpha * 0.4f), CircleShape)
         )
         Box(
@@ -1102,6 +1105,7 @@ fun RingGauge(
     )
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size)) {
+            if (size.width <= 0f || size.height <= 0f) return@Canvas
             val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
             drawArc(color = track, startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
             if (progress > 0.003f) {

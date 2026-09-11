@@ -26,6 +26,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,14 +42,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,10 +74,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -96,7 +103,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleServerIntent(intent)
+        try {
+            handleServerIntent(intent)
+        } catch (_: Throwable) {}
 
         // Notification permission for background monitoring alerts (Android 13+)
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -104,22 +113,149 @@ class MainActivity : ComponentActivity() {
         ) {
             try {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {}
         }
 
         setContent {
-            DidbanApp(pendingServerId)
+            var crashTrace by remember {
+                mutableStateOf(
+                    getSharedPreferences("didban", Context.MODE_PRIVATE).getString("last_crash_trace", null)
+                )
+            }
+
+            if (crashTrace != null) {
+                CrashRecoveryScreen(
+                    trace = crashTrace!!,
+                    onReset = {
+                        try {
+                            getSharedPreferences("didban", Context.MODE_PRIVATE)
+                                .edit()
+                                .remove("last_crash_trace")
+                                .remove("last_crash_msg")
+                                .apply()
+                        } catch (_: Throwable) {}
+                        crashTrace = null
+                    }
+                )
+            } else {
+                DidbanApp(pendingServerId)
+            }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        handleServerIntent(intent)
+        try {
+            handleServerIntent(intent)
+        } catch (_: Throwable) {}
     }
 
     private fun handleServerIntent(intent: Intent?) {
         val id = intent?.getLongExtra("server_id", -1L) ?: -1L
         pendingServerId.value = if (id > 0) id else null
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CRASH RECOVERY SCREEN (Zero-Panic Failure Guard)
+// ═════════════════════════════════════════════════════════════════════════════
+
+@Composable
+fun CrashRecoveryScreen(
+    trace: String,
+    onReset: () -> Unit
+) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    DidbanTheme(dark = true) {
+        DidbanBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                IconBadge(
+                    icon = Icons.Rounded.WarningAmber,
+                    tint = Ds.warn,
+                    background = Ds.warnDim,
+                    size = 64.dp,
+                    iconSize = 32.dp
+                )
+
+                Spacer(Modifier.height(18.dp))
+
+                Text(
+                    "Didban Crash Diagnostic",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Ds.textPrimary
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    "The previous session encountered an unhandled exception. Details are captured below:",
+                    fontSize = 12.sp,
+                    color = Ds.textSecondary,
+                    lineHeight = 17.sp
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Ds.surfaceLow,
+                    border = BorderStroke(1.dp, Ds.hairline),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            trace,
+                            fontSize = 10.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.textTertiary,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .horizontalScroll(rememberScrollState())
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    SoftButton(
+                        text = if (copied) "Copied!" else "Copy Log",
+                        icon = Icons.Rounded.ContentCopy,
+                        onClick = {
+                            clipboard.setText(AnnotatedString(trace))
+                            copied = true
+                        },
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    )
+
+                    PrimaryButton(
+                        text = "Reset & Launch",
+                        icon = Icons.Rounded.Refresh,
+                        onClick = onReset,
+                        modifier = Modifier.weight(1.3f).height(44.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -167,7 +303,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                             controller.isAppearanceLightStatusBars = lightBars
                             controller.isAppearanceLightNavigationBars = lightBars
                         }
-                    } catch (_: Exception) {}
+                    } catch (_: Throwable) {}
                 }
             }
 
@@ -332,7 +468,7 @@ fun LiquidSpotlightDock(
                             ) {
                                 try {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                } catch (_: Exception) {}
+                                } catch (_: Throwable) {}
                                 onNavSelect(index)
                             },
                         contentAlignment = Alignment.Center

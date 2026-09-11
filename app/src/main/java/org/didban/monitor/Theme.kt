@@ -14,7 +14,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -198,40 +197,13 @@ object Ds {
 }
 
 // ── Typography Definition ───────────────────────────────────────────────────
+// Guaranteed crash-safe font families using platform typefaces
 
-val Inter: FontFamily = try {
-    FontFamily(
-        Font(R.font.inter_400, FontWeight.Normal),
-        Font(R.font.inter_500, FontWeight.Medium),
-        Font(R.font.inter_600, FontWeight.SemiBold),
-        Font(R.font.inter_700, FontWeight.Bold)
-    )
-} catch (_: Throwable) {
-    FontFamily.SansSerif
-}
+val Inter: FontFamily = FontFamily.SansSerif
+val Telemetry: FontFamily = FontFamily.Monospace
+val Vazirmatn: FontFamily = FontFamily.Default
 
-val Telemetry: FontFamily = try {
-    FontFamily(
-        Font(R.font.jbmono_400, FontWeight.Normal),
-        Font(R.font.jbmono_500, FontWeight.Medium),
-        Font(R.font.jbmono_600, FontWeight.SemiBold)
-    )
-} catch (_: Throwable) {
-    FontFamily.Monospace
-}
-
-val Vazirmatn: FontFamily = try {
-    FontFamily(
-        Font(R.font.vazir_400, FontWeight.Normal),
-        Font(R.font.vazir_500, FontWeight.Medium),
-        Font(R.font.vazir_600, FontWeight.SemiBold),
-        Font(R.font.vazir_700, FontWeight.Bold)
-    )
-} catch (_: Throwable) {
-    FontFamily.Default
-}
-
-/** Automatic typeface selection based on layout direction (Persian = Vazirmatn, English = Inter). */
+/** Automatic typeface selection based on layout direction (Persian = Default/Vazir, English = SansSerif/Inter). */
 val AppFontFamily: FontFamily
     @Composable get() = if (LocalLayoutDirection.current == LayoutDirection.Rtl) Vazirmatn else Inter
 
