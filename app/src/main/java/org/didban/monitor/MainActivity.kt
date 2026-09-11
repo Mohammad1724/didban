@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
                                 .edit()
                                 .remove("last_crash_trace")
                                 .remove("last_crash_msg")
-                                .apply()
+                                .commit()
                         } catch (_: Throwable) {}
                         crashTrace = null
                     }
