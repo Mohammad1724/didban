@@ -652,17 +652,32 @@ fun PrimaryButton(
             disabledContainerColor = Ds.surfaceHighlight,
             disabledContentColor = Ds.textTertiary
         ),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-        modifier = modifier.height(46.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+        modifier = modifier.defaultMinSize(minHeight = 42.dp)
     ) {
-        if (loading) {
-            CircularProgressIndicator(color = Ds.onAccent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-        } else {
-            if (icon != null) {
-                Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(17.dp))
-                Spacer(Modifier.width(7.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(vertical = 4.dp)
+        ) {
+            if (loading) {
+                CircularProgressIndicator(color = Ds.onAccent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            } else {
+                if (icon != null) {
+                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 20.sp,
+                    style = TextStyle(
+                        platformStyle = AppPlatformTextStyle,
+                        lineHeightStyle = AppLineHeightStyle
+                    )
+                )
             }
-            Text(text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -681,11 +696,12 @@ fun SoftButton(
         color = tone.copy(alpha = 0.12f),
         border = BorderStroke(1.dp, tone.copy(alpha = 0.24f)),
         modifier = modifier
+            .defaultMinSize(minHeight = 38.dp)
             .clip(RoundedCornerShape(13.dp))
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -693,7 +709,17 @@ fun SoftButton(
                 Icon(imageVector = icon, contentDescription = null, tint = tone, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
             }
-            Text(text, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = tone)
+            Text(
+                text = text,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = tone,
+                lineHeight = 18.sp,
+                style = TextStyle(
+                    platformStyle = AppPlatformTextStyle,
+                    lineHeightStyle = AppLineHeightStyle
+                )
+            )
         }
     }
 }
@@ -778,6 +804,11 @@ fun SegmentedControl(
                         fontSize = 11.5.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         color = txtColor,
+                        lineHeight = 16.sp,
+                        style = TextStyle(
+                            platformStyle = AppPlatformTextStyle,
+                            lineHeightStyle = AppLineHeightStyle
+                        ),
                         maxLines = 1
                     )
                 }
@@ -814,6 +845,11 @@ fun FilterChipRow(
                     fontSize = 11.5.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     color = if (selected) Ds.accent else Ds.textSecondary,
+                    lineHeight = 16.sp,
+                    style = TextStyle(
+                        platformStyle = AppPlatformTextStyle,
+                        lineHeightStyle = AppLineHeightStyle
+                    ),
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                 )
             }
@@ -943,6 +979,11 @@ fun InputField(
                             placeholder,
                             fontSize = 13.sp,
                             color = Ds.textTertiary,
+                            lineHeight = 18.sp,
+                            style = TextStyle(
+                                platformStyle = AppPlatformTextStyle,
+                                lineHeightStyle = AppLineHeightStyle
+                            ),
                             textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
                         )
                     }
@@ -956,6 +997,8 @@ fun InputField(
                             fontSize = 13.5.sp,
                             fontFamily = AppFontFamily,
                             color = Ds.textPrimary,
+                            platformStyle = AppPlatformTextStyle,
+                            lineHeightStyle = AppLineHeightStyle,
                             textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
                         ),
                         cursorBrush = SolidColor(Ds.accent),
@@ -1010,14 +1053,29 @@ fun MonoTextField(
                     .padding(horizontal = 14.dp, vertical = 11.dp)
             ) {
                 if (value.isEmpty() && placeholder.isNotEmpty()) {
-                    Text(placeholder, fontSize = 12.5.sp, fontFamily = Telemetry, color = Ds.textTertiary)
+                    Text(
+                        placeholder,
+                        fontSize = 12.5.sp,
+                        fontFamily = Telemetry,
+                        color = Ds.textTertiary,
+                        style = TextStyle(
+                            platformStyle = AppPlatformTextStyle,
+                            lineHeightStyle = AppLineHeightStyle
+                        )
+                    )
                 }
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
                         singleLine = true,
-                        textStyle = TextStyle(fontSize = 13.sp, fontFamily = Telemetry, color = Ds.textPrimary),
+                        textStyle = TextStyle(
+                            fontSize = 13.sp,
+                            fontFamily = Telemetry,
+                            color = Ds.textPrimary,
+                            platformStyle = AppPlatformTextStyle,
+                            lineHeightStyle = AppLineHeightStyle
+                        ),
                         cursorBrush = SolidColor(Ds.accent),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1055,6 +1113,10 @@ fun SearchField(
                         placeholder,
                         fontSize = 12.5.sp,
                         color = Ds.textTertiary,
+                        style = TextStyle(
+                            platformStyle = AppPlatformTextStyle,
+                            lineHeightStyle = AppLineHeightStyle
+                        ),
                         textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
                     )
                 }
@@ -1066,12 +1128,17 @@ fun SearchField(
                         fontSize = 13.sp,
                         fontFamily = AppFontFamily,
                         color = Ds.textPrimary,
+                        platformStyle = AppPlatformTextStyle,
+                        lineHeightStyle = AppLineHeightStyle,
                         textAlign = if (isRtl) TextAlign.Right else TextAlign.Left
                     ),
                     cursorBrush = SolidColor(Ds.accent),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    }
+}
             if (value.isNotEmpty()) {
                 Icon(
                     imageVector = Icons.Rounded.Clear,
@@ -1273,7 +1340,7 @@ fun EmptyState(
         }
         if (actionLabel != null && onAction != null) {
             Spacer(Modifier.height(18.dp))
-            SoftButton(text = actionLabel, onClick = onAction)
+            PrimaryButton(text = actionLabel, icon = Icons.Rounded.Add, onClick = onAction)
         }
     }
 }

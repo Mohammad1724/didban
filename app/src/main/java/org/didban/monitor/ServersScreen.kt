@@ -557,7 +557,7 @@ private fun StepByStepGuideCard(
                                 text = t.addServer,
                                 icon = Icons.Rounded.Add,
                                 onClick = onAddServer,
-                                modifier = Modifier.weight(1f).height(38.dp)
+                                modifier = Modifier.weight(1f)
                             )
                             SoftButton(
                                 text = t.smartPaste,

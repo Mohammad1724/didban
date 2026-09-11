@@ -13,9 +13,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -203,32 +205,49 @@ val Inter: FontFamily = FontFamily.SansSerif
 val Telemetry: FontFamily = FontFamily.Monospace
 val Vazirmatn: FontFamily = FontFamily.Default
 
+val AppPlatformTextStyle = PlatformTextStyle(
+    includeFontPadding = false
+)
+
+val AppLineHeightStyle = LineHeightStyle(
+    alignment = LineHeightStyle.Alignment.Center,
+    trim = LineHeightStyle.Trim.None
+)
+
 /** Automatic typeface selection based on layout direction (Persian = Default/Vazir, English = SansSerif/Inter). */
 val AppFontFamily: FontFamily
     @Composable get() = if (LocalLayoutDirection.current == LayoutDirection.Rtl) Vazirmatn else Inter
 
 /** Tabular numeric setting for zero-jitter realtime gauges and charts. */
-val TabularNums = TextStyle(fontFeatureSettings = "tnum")
+val TabularNums = TextStyle(
+    fontFeatureSettings = "tnum",
+    platformStyle = AppPlatformTextStyle,
+    lineHeightStyle = AppLineHeightStyle
+)
 
 @Composable
 private fun didbanTypography(): Typography {
-    val base = TextStyle(fontFamily = AppFontFamily)
+    val base = TextStyle(
+        fontFamily = AppFontFamily,
+        platformStyle = AppPlatformTextStyle,
+        lineHeightStyle = AppLineHeightStyle
+    )
     return Typography(
-        displayLarge = base.copy(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
-        displayMedium = base.copy(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
-        displaySmall = base.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
-        headlineLarge = base.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
-        headlineMedium = base.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
-        headlineSmall = base.copy(fontSize = 15.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold),
-        titleLarge = base.copy(fontSize = 14.5.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
-        titleMedium = base.copy(fontSize = 13.5.sp, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold),
-        titleSmall = base.copy(fontSize = 12.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold),
-        bodyLarge = base.copy(fontSize = 14.sp, lineHeight = 21.sp, fontWeight = FontWeight.Normal),
-        bodyMedium = base.copy(fontSize = 13.sp, lineHeight = 19.sp, fontWeight = FontWeight.Normal),
-        bodySmall = base.copy(fontSize = 11.5.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.Normal),
-        labelLarge = base.copy(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp),
-        labelMedium = base.copy(fontSize = 11.5.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium),
-        labelSmall = base.copy(fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
+        displayLarge = base.copy(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp),
+        displayMedium = base.copy(fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp),
+        displaySmall = base.copy(fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+        headlineLarge = base.copy(fontSize = 18.sp, lineHeight = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
+        headlineMedium = base.copy(fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
+        headlineSmall = base.copy(fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+        titleLarge = base.copy(fontSize = 14.5.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+        titleMedium = base.copy(fontSize = 13.5.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+        titleSmall = base.copy(fontSize = 12.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold),
+        bodyLarge = base.copy(fontSize = 14.sp, lineHeight = 22.sp, fontWeight = FontWeight.Normal),
+        bodyMedium = base.copy(fontSize = 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.Normal),
+        bodySmall = base.copy(fontSize = 11.5.sp, lineHeight = 17.sp, fontWeight = FontWeight.Normal),
+        labelLarge = base.copy(fontSize = 13.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.1.sp),
+        labelMedium = base.copy(fontSize = 11.5.sp, lineHeight = 17.sp, fontWeight = FontWeight.Medium),
+        labelSmall = base.copy(fontSize = 10.sp, lineHeight = 15.sp, fontWeight = FontWeight.Medium, letterSpacing = 0.3.sp)
     )
 }
 

@@ -477,7 +477,7 @@ private fun StepByStepUptimeGuideCard(
                             text = t.addMonitor,
                             icon = Icons.Rounded.Add,
                             onClick = onAddMonitor,
-                            modifier = Modifier.fillMaxWidth().height(38.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -694,16 +694,14 @@ private fun UptimeBentoCard(
                         text = if (isTesting) "Probing…" else "Test Now",
                         icon = Icons.Rounded.Bolt,
                         loading = isTesting,
-                        onClick = onTestNow,
-                        modifier = Modifier.height(32.dp)
+                        onClick = onTestNow
                     )
 
                     if (target.incidents.isNotEmpty()) {
                         SoftButton(
                             text = "Incidents (${target.incidents.size})",
                             icon = if (isIncidentsExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.History,
-                            onClick = onToggleIncidents,
-                            modifier = Modifier.height(32.dp)
+                            onClick = onToggleIncidents
                         )
                     }
                 }

@@ -655,7 +655,7 @@ private fun StepByStepTunnelGuideCard(
                             text = t.addTunnel,
                             icon = Icons.Rounded.Add,
                             onClick = onAddTunnel,
-                            modifier = Modifier.fillMaxWidth().height(38.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -891,8 +891,7 @@ private fun TunnelBentoCard(
                     SoftButton(
                         text = "Script & Docker",
                         icon = Icons.Rounded.Terminal,
-                        onClick = onViewCode,
-                        modifier = Modifier.height(32.dp)
+                        onClick = onViewCode
                     )
 
                     if (tunnel.autoSync) {
@@ -900,8 +899,7 @@ private fun TunnelBentoCard(
                             text = if (isOperating) "Deploying…" else "Auto-Deploy",
                             icon = Icons.Rounded.CloudSync,
                             loading = isOperating,
-                            onClick = onAutoDeploy,
-                            modifier = Modifier.height(32.dp)
+                            onClick = onAutoDeploy
                         )
                     }
                 }
