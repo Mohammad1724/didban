@@ -161,10 +161,12 @@ fun TunnelScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 14.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
                 IconBadge(
                     icon = Icons.Rounded.SwapHoriz,
                     tint = Ds.accent,
@@ -173,21 +175,27 @@ fun TunnelScreen(
                     iconSize = 20.dp
                 )
                 Spacer(Modifier.width(10.dp))
-                Column {
+                Column(Modifier.weight(1f, fill = false)) {
                     Text(
                         t.tunnelsHub,
-                        fontSize = 17.sp,
+                        fontSize = 16.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Ds.textPrimary
+                        color = Ds.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         "Dual-Node Auto-Deploy & Reverse Bridge",
                         fontSize = 11.sp,
                         fontFamily = Telemetry,
-                        color = Ds.textTertiary
+                        color = Ds.textTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+
+            Spacer(Modifier.width(8.dp))
 
             PrimaryButton(
                 text = t.addTunnel,
@@ -195,8 +203,7 @@ fun TunnelScreen(
                 onClick = {
                     editingTunnel = null
                     showForm = true
-                },
-                modifier = Modifier.height(36.dp)
+                }
             )
         }
 
@@ -598,7 +605,10 @@ private fun StepByStepTunnelGuideCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.HelpOutline,
                         tint = Ds.accent,
@@ -607,16 +617,31 @@ private fun StepByStepTunnelGuideCard(
                         iconSize = 17.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(t.tunnelGuideHeader, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("Smite-Style 1-Click Dual-Node Deployment", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.tunnelGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "Smite-Style 1-Click Dual-Node Deployment",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                SoftButton(
-                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
                     icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    onClick = onToggleExpand,
-                    modifier = Modifier.height(34.dp)
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
                 )
             }
 

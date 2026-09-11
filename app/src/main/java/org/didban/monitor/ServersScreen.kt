@@ -199,7 +199,10 @@ fun ServersScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             PulseDot(
                                 color = if (downCount == 0 && servers.isNotEmpty()) Ds.ok else if (servers.isEmpty()) Ds.textTertiary else Ds.danger,
                                 size = 8.dp
@@ -209,15 +212,18 @@ fun ServersScreen(
                                 if (servers.isEmpty()) t.servers else if (downCount > 0) t.fleetDownTpl.format(downCount, servers.size) else t.fleetAllOk,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (servers.isEmpty()) Ds.textPrimary else if (downCount > 0) Ds.danger else Ds.ok
+                                color = if (servers.isEmpty()) Ds.textPrimary else if (downCount > 0) Ds.danger else Ds.ok,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+
+                        Spacer(Modifier.width(8.dp))
 
                         PrimaryButton(
                             text = t.addServer,
                             icon = Icons.Rounded.Add,
-                            onClick = { showAdd = true },
-                            modifier = Modifier.height(36.dp)
+                            onClick = { showAdd = true }
                         )
                     }
 
@@ -491,7 +497,10 @@ private fun StepByStepGuideCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.HelpOutline,
                         tint = Ds.accent,
@@ -500,16 +509,31 @@ private fun StepByStepGuideCard(
                         iconSize = 17.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(t.showGuide, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("Linux Server Agent Setup (3 Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.showGuide,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "Linux Server Agent Setup (3 Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                SoftButton(
-                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
                     icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    onClick = onToggleExpand,
-                    modifier = Modifier.height(34.dp)
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
                 )
             }
 

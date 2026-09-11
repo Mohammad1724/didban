@@ -1148,8 +1148,8 @@ fun VaultScreen(t: Str) {
                 ) {
                     BentoMicroPod(
                         title = "Encryption",
-                        value = "AES-GCM",
-                        unit = "256-Bit",
+                        value = "AES-256",
+                        unit = "GCM",
                         color = Ds.accent,
                         modifier = Modifier.weight(1f)
                     )
@@ -1796,26 +1796,36 @@ private fun BentoMicroPod(
             .clip(RoundedCornerShape(14.dp))
             .background(Ds.surfaceLow)
             .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(14.dp))
-            .padding(horizontal = 10.dp, vertical = 9.dp)
+            .padding(horizontal = 8.dp, vertical = 9.dp)
     ) {
         Column {
-            Text(title, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1)
+            Text(title, fontSize = 10.sp, color = Ds.textTertiary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(3.dp))
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
                     value,
-                    fontSize = 15.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Telemetry,
-                    color = color
+                    color = color,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.width(3.dp))
-                Text(
-                    unit,
-                    fontSize = 9.5.sp,
-                    color = Ds.textTertiary,
-                    modifier = Modifier.padding(bottom = 1.dp)
-                )
+                if (unit.isNotBlank()) {
+                    Text(
+                        unit,
+                        fontSize = 9.5.sp,
+                        color = Ds.textTertiary,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 1.dp)
+                    )
+                }
             }
         }
     }
@@ -1840,7 +1850,10 @@ private fun StepByStepCloudflareGuideCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.HelpOutline,
                         tint = Ds.accent,
@@ -1849,16 +1862,31 @@ private fun StepByStepCloudflareGuideCard(
                         iconSize = 17.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(t.cfGuideHeader, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("DNS & Proxy Control (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.cfGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "DNS & Proxy Control (3 Easy Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                SoftButton(
-                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
                     icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    onClick = onToggleExpand,
-                    modifier = Modifier.height(34.dp)
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
                 )
             }
 
@@ -1900,7 +1928,10 @@ private fun StepByStepVaultGuideCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.HelpOutline,
                         tint = Ds.accent,
@@ -1909,16 +1940,31 @@ private fun StepByStepVaultGuideCard(
                         iconSize = 17.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(t.vaultGuideHeader, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("Zero-Knowledge Security (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.vaultGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "Zero-Knowledge Security (3 Easy Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                SoftButton(
-                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
                     icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    onClick = onToggleExpand,
-                    modifier = Modifier.height(34.dp)
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
                 )
             }
 

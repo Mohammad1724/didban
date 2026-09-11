@@ -131,10 +131,12 @@ fun UptimeScreen(t: Str) {
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 14.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.Timer,
                         tint = Ds.accent,
@@ -143,16 +145,29 @@ fun UptimeScreen(t: Str) {
                         iconSize = 18.dp
                     )
                     Spacer(Modifier.width(10.dp))
-                    Column {
-                        Text(t.uptimeMonitoring, fontSize = 16.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("24/7 Heartbeat & SLA Watch", fontSize = 11.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.uptimeMonitoring,
+                            fontSize = 16.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "24/7 Heartbeat & SLA Watch",
+                            fontSize = 11.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
+                Spacer(Modifier.width(8.dp))
                 PrimaryButton(
                     text = t.addMonitor,
                     icon = Icons.Rounded.Add,
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.height(36.dp)
+                    onClick = { showAddDialog = true }
                 )
             }
         }
@@ -165,7 +180,10 @@ fun UptimeScreen(t: Str) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         PulseDot(
                             color = if (downCount > 0) Ds.danger else if (totalCount == 0) Ds.textTertiary else Ds.ok,
                             size = 8.dp
@@ -177,17 +195,19 @@ fun UptimeScreen(t: Str) {
                                 downCount > 0 -> "$downCount مانیتور با قطعی مواجه شده است"
                                 else -> "تمام $totalCount سرویس فعال و دردسترس هستند"
                             },
-                            fontSize = 15.5.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (downCount > 0) Ds.danger else if (totalCount == 0) Ds.textPrimary else Ds.ok
+                            color = if (downCount > 0) Ds.danger else if (totalCount == 0) Ds.textPrimary else Ds.ok,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    PrimaryButton(
-                        text = t.addMonitor,
-                        icon = Icons.Rounded.Add,
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.height(36.dp)
+                    Spacer(Modifier.width(8.dp))
+
+                    StatusPill(
+                        text = if (totalCount > 0) "$upCount آنلاین" else "پایش زنده",
+                        level = if (downCount > 0) StatusLevel.Danger else if (totalCount > 0) StatusLevel.Ok else StatusLevel.Neutral
                     )
                 }
 
@@ -420,7 +440,10 @@ private fun StepByStepUptimeGuideCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     IconBadge(
                         icon = Icons.Rounded.HelpOutline,
                         tint = Ds.accent,
@@ -429,16 +452,31 @@ private fun StepByStepUptimeGuideCard(
                         iconSize = 17.dp
                     )
                     Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text(t.uptimeGuideHeader, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                        Text("24/7 SLA Watch (3 Easy Steps)", fontSize = 10.5.sp, color = Ds.textTertiary)
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.uptimeGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "24/7 SLA Watch (3 Easy Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
-                SoftButton(
-                    text = if (isExpanded) t.hideGuide else t.showGuide,
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
                     icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
-                    onClick = onToggleExpand,
-                    modifier = Modifier.height(34.dp)
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
                 )
             }
 
