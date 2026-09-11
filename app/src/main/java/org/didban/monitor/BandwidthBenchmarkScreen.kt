@@ -249,7 +249,7 @@ fun BandwidthBenchmarkScreen(t: Str) {
                 ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterVertically,
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
