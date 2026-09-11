@@ -2015,6 +2015,445 @@ private fun ToolkitStepPod(
     }
 }
 
+@Composable
+private fun StepByStepBackupGuideCard(
+    t: Str,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit
+) {
+    ModernCard(
+        padding = 14.dp,
+        cornerRadius = 20.dp,
+        border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline)))
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    IconBadge(
+                        icon = Icons.Rounded.HelpOutline,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 32.dp,
+                        iconSize = 17.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.backupGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "Cross-Device AES-256 Migration (3 Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
+                    icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Hairline()
+                    ToolkitStepPod(stepNum = "1", title = t.backupStep1Title, desc = t.backupStep1Desc)
+                    ToolkitStepPod(stepNum = "2", title = t.backupStep2Title, desc = t.backupStep2Desc)
+                    ToolkitStepPod(stepNum = "3", title = t.backupStep3Title, desc = t.backupStep3Desc)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BackupRestoreScreen(t: Str) {
+    val ctx = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+
+    var backupPassword by remember { mutableStateOf("") }
+    var generatedBackup by remember { mutableStateOf("") }
+    var restoreInput by remember { mutableStateOf("") }
+    var restorePassword by remember { mutableStateOf("") }
+    var preview by remember { mutableStateOf<BackupPreview?>(null) }
+    var restoreMode by remember { mutableStateOf(RestoreMode.Merge) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    var isSuccess by remember { mutableStateOf(false) }
+    var isGuideExpanded by remember { mutableStateOf(false) }
+
+    // Counts
+    val serversCount = remember { Prefs.loadServers(ctx).size }
+    val tunnelsCount = remember { Prefs.loadTunnels(ctx).size }
+    val uptimeCount = remember { Prefs.loadUptimeTargets(ctx).size }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { Spacer(Modifier.height(4.dp)) }
+
+        // Hero Bento Stats Pod
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(
+                        icon = Icons.Rounded.Security,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 40.dp,
+                        iconSize = 22.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            t.navBackup,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "پشتیبان‌گیری رمزنگاری‌شده AES-256 و انتقال امن بین دستگاه‌ها",
+                            fontSize = 11.sp,
+                            color = Ds.textSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BentoMicroPod(
+                        title = "سرورهای فعال",
+                        value = serversCount.toString(),
+                        unit = "Node",
+                        color = Ds.accent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BentoMicroPod(
+                        title = "تانل‌های شبکه",
+                        value = tunnelsCount.toString(),
+                        unit = "Tunnel",
+                        color = Ds.violet,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BentoMicroPod(
+                        title = "مانیتور آپ‌تایم",
+                        value = uptimeCount.toString(),
+                        unit = "Target",
+                        color = Ds.ok,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        // 3-Step Bento Guide
+        item {
+            StepByStepBackupGuideCard(
+                t = t,
+                isExpanded = isGuideExpanded,
+                onToggleExpand = { isGuideExpanded = !isGuideExpanded }
+            )
+        }
+
+        // Section 1: Create Backup
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(
+                        icon = Icons.Rounded.Lock,
+                        tint = Ds.ok,
+                        background = Ds.okDim,
+                        size = 32.dp,
+                        iconSize = 17.dp
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        t.createBackup,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Ds.textPrimary
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                InputField(
+                    value = backupPassword,
+                    onValueChange = { backupPassword = it },
+                    label = t.backupPasswordHint,
+                    placeholder = "مثلاً MasterSecretKey#2026 (اختیاری)",
+                    isPassword = true
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                PrimaryButton(
+                    text = "🔒 تولید نسخه پشتیبان کامل",
+                    onClick = {
+                        val backupStr = BackupEngine.createBackup(ctx, backupPassword.ifBlank { null })
+                        generatedBackup = backupStr
+                        statusMessage = t.backupCreatedSuccess
+                        isSuccess = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (generatedBackup.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Hairline()
+                    Spacer(Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "رشته پشتیبان (${generatedBackup.length} کاراکتر):",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textSecondary
+                        )
+
+                        SoftButton(
+                            text = t.copy,
+                            onClick = {
+                                clipboard.setText(AnnotatedString(generatedBackup))
+                                Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Ds.surfaceLow)
+                            .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = if (generatedBackup.length > 220) generatedBackup.take(220) + "..." else generatedBackup,
+                            fontFamily = Telemetry,
+                            fontSize = 11.sp,
+                            color = Ds.textPrimary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 2: Restore Backup
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(
+                            icon = Icons.Rounded.Refresh,
+                            tint = Ds.warn,
+                            background = Ds.warnDim,
+                            size = 32.dp,
+                            iconSize = 17.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            t.restoreBackup,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+                    }
+
+                    SoftButton(
+                        text = "جای‌گذاری از حافظه",
+                        onClick = {
+                            val clipText = clipboard.getText()?.text ?: ""
+                            if (clipText.isNotBlank()) {
+                                restoreInput = clipText
+                                preview = BackupEngine.inspectBackup(clipText, restorePassword.ifBlank { null })
+                            }
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                InputField(
+                    value = restoreInput,
+                    onValueChange = {
+                        restoreInput = it
+                        if (it.isNotBlank()) {
+                            preview = BackupEngine.inspectBackup(it, restorePassword.ifBlank { null })
+                        } else {
+                            preview = null
+                        }
+                    },
+                    label = "رشته بکاپ (متن یا رشته رمزنگاری‌شده):",
+                    placeholder = "DIDBAN_BACKUP_V2:... یا JSON"
+                )
+
+                if (restoreInput.trim().startsWith("DIDBAN_BACKUP_V2:")) {
+                    Spacer(Modifier.height(10.dp))
+                    InputField(
+                        value = restorePassword,
+                        onValueChange = {
+                            restorePassword = it
+                            preview = BackupEngine.inspectBackup(restoreInput, it.ifBlank { null })
+                        },
+                        label = "رمز عبور برای رمزگشایی بکاپ:",
+                        placeholder = "رمز عبوری که هنگام تولید بکاپ وارد کردید",
+                        isPassword = true
+                    )
+                }
+
+                // Live Preview Inspection Box
+                preview?.let { prev ->
+                    Spacer(Modifier.height(12.dp))
+                    val isOk = prev.isValid && prev.errorMessage == null
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isOk) Ds.okDim else Ds.dangerDim)
+                            .border(
+                                BorderStroke(1.dp, if (isOk) Ds.ok.copy(alpha = 0.35f) else Ds.danger.copy(alpha = 0.35f)),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (prev.errorMessage != null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.ErrorOutline, contentDescription = null, tint = Ds.danger, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(prev.errorMessage, fontSize = 11.5.sp, color = Ds.danger, fontWeight = FontWeight.Medium)
+                                }
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Ds.ok, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("پیش‌نمایش محتوای بکاپ معتبر:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ds.ok)
+                                }
+                                Text("• سرورها: ${prev.serversCount} سرور", fontSize = 11.5.sp, color = Ds.textPrimary)
+                                Text("• تانل‌ها: ${prev.tunnelsCount} تانل فعال", fontSize = 11.5.sp, color = Ds.textPrimary)
+                                Text("• مانیتورهای آپ‌تایم: ${prev.uptimeCount} هدف", fontSize = 11.5.sp, color = Ds.textPrimary)
+                                if (prev.hasVault) {
+                                    Text("• شامل داده‌های گاوصندوق امن", fontSize = 11.5.sp, color = Ds.accent)
+                                }
+                                if (prev.hasCfToken) {
+                                    Text("• شامل تنظیمات و توکن کلودفلر", fontSize = 11.5.sp, color = Ds.textSecondary)
+                                }
+                                Text("• تاریخ بکاپ: ${BackupEngine.formatTimestamp(prev.timestamp)}", fontSize = 10.5.sp, color = Ds.textTertiary)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                // Mode Selector
+                SegmentedControl(
+                    items = listOf("ادغام هوشمند (Merge)", "جایگزینی کامل (Overwrite)"),
+                    selectedIndex = if (restoreMode == RestoreMode.Merge) 0 else 1,
+                    onSelect = { restoreMode = if (it == 0) RestoreMode.Merge else RestoreMode.Overwrite }
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                PrimaryButton(
+                    text = "⚡ " + t.restoreNowBtn,
+                    onClick = {
+                        val res = BackupEngine.restoreBackup(ctx, restoreInput, restorePassword.ifBlank { null }, restoreMode)
+                        statusMessage = res.message
+                        isSuccess = res.success
+                        if (res.success) {
+                            Toast.makeText(ctx, "✅ بازیابی با موفقیت انجام شد!", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = restoreInput.isNotBlank() && (preview?.isValid == true && preview?.errorMessage == null)
+                )
+            }
+        }
+
+        // Status Feedback Banner
+        statusMessage?.let { msg ->
+            item {
+                ModernCard(
+                    padding = 14.dp,
+                    cornerRadius = 16.dp,
+                    border = BorderStroke(1.dp, if (isSuccess) Ds.ok.copy(alpha = 0.4f) else Ds.danger.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = if (isSuccess) Ds.ok else Ds.danger,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = msg,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSuccess) Ds.ok else Ds.danger,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(90.dp)) }
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // UNIFIED SCREEN HUBS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2054,17 +2493,18 @@ fun VaultToolsScreen(t: Str) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             SegmentedControl(
-                items = listOf(t.navVault, t.navTools),
+                items = listOf(t.navVault, t.navTools, t.navBackup),
                 selectedIndex = subTab,
                 onSelect = { subTab = it }
             )
         }
         Box(Modifier.weight(1f)) {
-            if (subTab == 0) {
-                VaultScreen(t = t)
-            } else {
-                DevLabScreen(t = t)
+            when (subTab) {
+                0 -> VaultScreen(t = t)
+                1 -> DevLabScreen(t = t)
+                else -> BackupRestoreScreen(t = t)
             }
         }
     }
 }
+

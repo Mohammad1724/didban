@@ -185,6 +185,22 @@ interface Str {
     val navCloudflare: String
     val navVault: String
     val navTools: String
+    val navBackup: String
+    val createBackup: String
+    val restoreBackup: String
+    val backupPasswordHint: String
+    val restoreModeMerge: String
+    val restoreModeOverwrite: String
+    val backupCreatedSuccess: String
+    val inspectBackupBtn: String
+    val restoreNowBtn: String
+    val backupGuideHeader: String
+    val backupStep1Title: String
+    val backupStep1Desc: String
+    val backupStep2Title: String
+    val backupStep2Desc: String
+    val backupStep3Title: String
+    val backupStep3Desc: String
     val tipHeader: String
     val guideCensorship: String
     val guideVault: String
@@ -465,6 +481,22 @@ object FaStr : Str {
     override val navCloudflare: String = "کلودفلر"
     override val navVault: String = "گاوصندوق"
     override val navTools: String = "ابزارها"
+    override val navBackup: String = "بکاپ و بازیابی"
+    override val createBackup: String = "تهیه نسخه پشتیبان"
+    override val restoreBackup: String = "بازیابی اطلاعات (Restore)"
+    override val backupPasswordHint: String = "رمز عبور دلخواه برای رمزنگاری بکاپ (اختیاری):"
+    override val restoreModeMerge: String = "ادغام با داده‌های فعلی (بدون حذف)"
+    override val restoreModeOverwrite: String = "جایگزینی کامل داده‌ها (Overwrite)"
+    override val backupCreatedSuccess: String = "نسخه پشتیبان آماده شد. آن را کپی کرده و در جایی امن نگه دارید."
+    override val inspectBackupBtn: String = "بررسی و پیش‌نمایش محتوا"
+    override val restoreNowBtn: String = "تایید و شروع بازیابی"
+    override val backupGuideHeader: String = "راهنمای پشتیبان‌گیری و بازیابی داده‌ها"
+    override val backupStep1Title: String = "۱. رمزنگاری سرتاسری AES-256"
+    override val backupStep1Desc: String = "تمامی مشخصات سرورها، تانل‌ها، مانیتورهای آپ‌تایم و کلیدها در یک رشته فشرده و ایمن ذخیره می‌شوند."
+    override val backupStep2Title: String = "۲. انتقال بین گوشی‌ها و دستگاه‌ها"
+    override val backupStep2Desc: String = "رشته بکاپ را به راحتی در تلگرام، نوت یا پیام ذخیره کنید و در دستگاه دیگر وارد نمایید."
+    override val backupStep3Title: String = "۳. بازیابی هوشمند با ۱ تپ"
+    override val backupStep3Desc: String = "می‌توانید اطلاعات را با داده‌های موجود ادغام کنید تا هیچ سرور یا تانلی از دست نرود."
     override val tipHeader: String = "💡 نکته: اطلاعات پردازنده، رم و دیسک هر چند ثانیه به‌صورت زنده دریافت می‌شوند."
     override val guideCensorship: String = "این ابزار هوشمند، اختلالات اینترنت و فیلترینگ را تفکیک می‌کند: آیا سرور فیلتر شده، پکت‌های TCP RST توسط فیلترینگ تزریق می‌شوند، یا پروتکل TLS/SNI قطع شده است."
     override val guideVault: String = "گاوصندوق امن محلی برای ذخیره کلیدهای SSH، رمزها، توکن‌ها و کانفیگ‌ها با رمزنگاری نظامی AES-256 (داده‌ها فقط روی گوشی شما ذخیره می‌شوند و به هیچ سروری ارسال نمی‌گردند)."
@@ -746,6 +778,22 @@ object EnStr : Str {
     override val navCloudflare: String = "Cloudflare"
     override val navVault: String = "Vault"
     override val navTools: String = "Tools"
+    override val navBackup: String = "Backup"
+    override val createBackup: String = "Create Backup"
+    override val restoreBackup: String = "Restore Backup"
+    override val backupPasswordHint: String = "Optional password for AES-256 backup encryption:"
+    override val restoreModeMerge: String = "Merge with existing data (safe)"
+    override val restoreModeOverwrite: String = "Overwrite all existing data"
+    override val backupCreatedSuccess: String = "Backup generated! Copy and store it in a secure location."
+    override val inspectBackupBtn: String = "Inspect & Preview Content"
+    override val restoreNowBtn: String = "Confirm & Restore"
+    override val backupGuideHeader: String = "3-Step Backup & Restore Guide"
+    override val backupStep1Title: String = "1. Full AES-256 Encryption"
+    override val backupStep1Desc: String = "All your servers, tunnels, uptime monitors, and vault keys are packed into a secure compressed string."
+    override val backupStep2Title: String = "2. Easy Cross-Device Migration"
+    override val backupStep2Desc: String = "Export backup string to notes, messenger, or file and import on your other phone or tablet."
+    override val backupStep3Title: String = "3. Smart Merging"
+    override val backupStep3Desc: String = "Restore with smart merge to combine data without losing any newly added servers."
     override val tipHeader: String = "💡 Tip: CPU, RAM, and Disk metrics are refreshed in real-time from the Go agent."
     override val guideCensorship: String = "Diagnoses network interference: distinguishes between routing blackholes, DPI TCP RST packet injections, and TLS/SNI handshake filtering."
     override val guideVault: String = "A zero-knowledge AES-256 encrypted local vault to keep your SSH private keys, API credentials, and secrets safe right on your phone."
