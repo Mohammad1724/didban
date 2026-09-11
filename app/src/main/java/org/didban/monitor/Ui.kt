@@ -1105,7 +1105,7 @@ fun RingGauge(
     )
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(size)) {
-            if (size.width <= 0f || size.height <= 0f) return@Canvas
+            if (this.size.width <= 0f || this.size.height <= 0f) return@Canvas
             val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
             drawArc(color = track, startAngle = -90f, sweepAngle = 360f, useCenter = false, style = stroke)
             if (progress > 0.003f) {
