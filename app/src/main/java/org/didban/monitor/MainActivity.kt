@@ -4,6 +4,8 @@ package org.didban.monitor
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -65,7 +67,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -83,6 +84,15 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 
+fun Context.findActivity(): Activity? {
+    var ctx: Context? = this
+    while (ctx is ContextWrapper) {
+        if (ctx is Activity) return ctx
+        ctx = ctx.baseContext
+    }
+    return null
+}
+
 class MainActivity : ComponentActivity() {
 
     private val pendingServerId = androidx.compose.runtime.mutableStateOf<Long?>(null)
@@ -95,7 +105,9 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            try {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            } catch (_: Exception) {}
         }
 
         setContent {
@@ -139,25 +151,29 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
         }
     }
 
-    // System bars synchronization with active theme palette
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        val canvasColor = Ds.canvas
-        val lightBars = !isDarkMode
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = canvasColor.toArgb()
-            window.navigationBarColor = canvasColor.toArgb()
-            val controller = WindowCompat.getInsetsController(window, view)
-            controller.isAppearanceLightStatusBars = lightBars
-            controller.isAppearanceLightNavigationBars = lightBars
-        }
-    }
-
     CompositionLocalProvider(
         LocalLayoutDirection provides if (lang == "fa") LayoutDirection.Rtl else LayoutDirection.Ltr
     ) {
         DidbanTheme(dark = isDarkMode) {
+            // System bars synchronization with active theme palette (100% safe against ClassCastException)
+            val view = LocalView.current
+            val canvasColor = Ds.canvas
+            val lightBars = !isDarkMode
+            if (!view.isInEditMode) {
+                SideEffect {
+                    try {
+                        val activity = view.context.findActivity() ?: ctx.findActivity()
+                        activity?.window?.let { window ->
+                            window.statusBarColor = canvasColor.toArgb()
+                            window.navigationBarColor = canvasColor.toArgb()
+                            val controller = WindowCompat.getInsetsController(window, view)
+                            controller.isAppearanceLightStatusBars = lightBars
+                            controller.isAppearanceLightNavigationBars = lightBars
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
             DidbanBackground {
                 if (openServer != null) {
                     Column(
@@ -240,7 +256,6 @@ fun LiquidSpotlightDock(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     Box(
         modifier = modifier
@@ -361,7 +376,9 @@ fun LiquidSpotlightDock(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    try {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    } catch (_: Exception) {}
                                     onNavSelect(index)
                                 },
                             contentAlignment = Alignment.Center

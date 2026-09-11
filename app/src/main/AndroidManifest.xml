@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".DidbanApplication"
         android:label="Didban"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Didban"
