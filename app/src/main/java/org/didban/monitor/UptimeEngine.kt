@@ -223,6 +223,13 @@ object UptimeEngine {
             target.incidents.add(UptimeIncident(startTime = System.currentTimeMillis(), error = errMsg))
             if (ctx != null) {
                 notifyUser(ctx, "🔴 Service Down: ${target.name}", "Error: $errMsg", target.id.toInt())
+                AlertEngine.dispatchAlert(
+                    ctx,
+                    AlertType.UPTIME_FAIL,
+                    target.name,
+                    "پایش سلامت ناموفق بود: $errMsg",
+                    AlertLevel.CRITICAL
+                )
             }
         } else if (previousStatus == 0 && statusInt == 1) {
             // Transition DOWN -> UP (Recovery)
@@ -231,6 +238,13 @@ object UptimeEngine {
             if (ctx != null) {
                 val dur = ongoing?.durationSec ?: 0
                 notifyUser(ctx, "🟢 Service Recovered: ${target.name}", "Service is back online (was down for ${dur}s)", target.id.toInt())
+                AlertEngine.dispatchAlert(
+                    ctx,
+                    AlertType.UPTIME_RECOVERED,
+                    target.name,
+                    "سرویس با موفقیت به مدار بازگشت (مدت زمان قطعی: ${dur} ثانیه)",
+                    AlertLevel.RESOLVED
+                )
             }
         }
 

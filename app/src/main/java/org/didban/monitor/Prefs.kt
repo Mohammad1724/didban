@@ -167,4 +167,70 @@ object Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit().putString("didban_tunnels", arr.toString()).apply()
     }
+
+    // ── Telegram & Discord Alert Settings ──
+
+    fun getTelegramBotToken(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tg_bot_token", "") ?: ""
+
+    fun setTelegramBotToken(ctx: Context, token: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("tg_bot_token", token.trim()).apply()
+    }
+
+    fun getTelegramChatId(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tg_chat_id", "") ?: ""
+
+    fun setTelegramChatId(ctx: Context, chatId: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("tg_chat_id", chatId.trim()).apply()
+    }
+
+    fun isTelegramAlertsEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("tg_alerts_enabled", false)
+
+    fun setTelegramAlertsEnabled(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("tg_alerts_enabled", enabled).apply()
+    }
+
+    fun getDiscordWebhookUrl(ctx: Context): String =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("discord_webhook", "") ?: ""
+
+    fun setDiscordWebhookUrl(ctx: Context, url: String) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("discord_webhook", url.trim()).apply()
+    }
+
+    fun isDiscordAlertsEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("discord_alerts_enabled", false)
+
+    fun setDiscordAlertsEnabled(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("discord_alerts_enabled", enabled).apply()
+    }
+
+    fun isAlertTriggerDown(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("alert_trig_down", true)
+
+    fun setAlertTriggerDown(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("alert_trig_down", enabled).apply()
+    }
+
+    fun isAlertTriggerSpike(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("alert_trig_spike", true)
+
+    fun setAlertTriggerSpike(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("alert_trig_spike", enabled).apply()
+    }
+
+    fun isAlertTriggerTunnel(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("alert_trig_tunnel", true)
+
+    fun setAlertTriggerTunnel(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("alert_trig_tunnel", enabled).apply()
+    }
 }

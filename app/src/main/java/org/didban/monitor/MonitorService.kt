@@ -81,14 +81,34 @@ class MonitorService : Service() {
                 val servers = Prefs.loadServers(applicationContext)
                 for (s in servers) {
                     val t0 = System.currentTimeMillis()
+                    val prevState = Repo.get(s.id).value
                     try {
                         val m = ApiClient().metrics(s)
                         val ms = (System.currentTimeMillis() - t0).toFloat()
                         Repo.set(s.id, metrics = m, latencyMs = ms)
+                        if (prevState?.error != null) {
+                            // Recovered
+                            AlertEngine.dispatchAlert(
+                                applicationContext,
+                                AlertType.SERVER_RECOVERED,
+                                s.name,
+                                "سرور مجدداً آنلاین شد و معیارهای سلامت نرمال هستند.",
+                                AlertLevel.RESOLVED
+                            )
+                        }
                         checkThresholds(s, m)
                     } catch (e: Exception) {
                         Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
                         alert(s, "${s.name}: ${e.message}")
+                        if (Prefs.isAlertTriggerDown(applicationContext)) {
+                            AlertEngine.dispatchAlert(
+                                applicationContext,
+                                AlertType.SERVER_DOWN,
+                                s.name,
+                                "سرور در دسترس نیست یا اتصال قطع شد: ${e.message}",
+                                AlertLevel.CRITICAL
+                            )
+                        }
                     }
                 }
                 delay(pollMs)
@@ -99,9 +119,31 @@ class MonitorService : Service() {
     private fun checkThresholds(s: ServerConfig, m: Metrics) {
         if (m.cpuUsage >= s.cpuAlert) {
             alert(s, "${s.name}: CPU ${m.cpuUsage.toInt()}%")
+            if (Prefs.isAlertTriggerSpike(applicationContext)) {
+                scope.launch {
+                    AlertEngine.dispatchAlert(
+                        applicationContext,
+                        AlertType.CPU_SPIKE,
+                        s.name,
+                        "مصرف پردازنده به ${m.cpuUsage.toInt()}% افزایش یافت (آستانه: ${s.cpuAlert.toInt()}%)",
+                        AlertLevel.WARNING
+                    )
+                }
+            }
         }
         if (m.memPct >= s.memAlert) {
             alert(s, "${s.name}: RAM ${m.memPct.toInt()}%")
+            if (Prefs.isAlertTriggerSpike(applicationContext)) {
+                scope.launch {
+                    AlertEngine.dispatchAlert(
+                        applicationContext,
+                        AlertType.RAM_SPIKE,
+                        s.name,
+                        "مصرف حافظه رم به ${m.memPct.toInt()}% افزایش یافت (آستانه: ${s.memAlert.toInt()}%)",
+                        AlertLevel.WARNING
+                    )
+                }
+            }
         }
     }
 

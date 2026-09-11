@@ -183,6 +183,25 @@ interface Str {
     val navUptime: String
     val navNetwork: String
     val navCloudflare: String
+    val navAlerts: String
+    val tgBotTokenLabel: String
+    val tgChatIdLabel: String
+    val discordWebhookLabel: String
+    val testTelegramBtn: String
+    val testDiscordBtn: String
+    val enableTgAlerts: String
+    val enableDiscordAlerts: String
+    val alertTriggersHeader: String
+    val trigServerDown: String
+    val trigSpikes: String
+    val trigTunnel: String
+    val alertsGuideHeader: String
+    val alertsStep1Title: String
+    val alertsStep1Desc: String
+    val alertsStep2Title: String
+    val alertsStep2Desc: String
+    val alertsStep3Title: String
+    val alertsStep3Desc: String
     val navVault: String
     val navTools: String
     val navBackup: String
@@ -479,6 +498,25 @@ object FaStr : Str {
     override val navUptime: String = "آپ‌تایم"
     override val navNetwork: String = "شبکه"
     override val navCloudflare: String = "کلودفلر"
+    override val navAlerts: String = "ربات‌ها و هشدارها"
+    override val tgBotTokenLabel: String = "توکن ربات تلگرام (Bot Token):"
+    override val tgChatIdLabel: String = "شناسه چت یا کانال تلگرام (Chat ID):"
+    override val discordWebhookLabel: String = "آدرس وبهوک دیسکورد (Discord Webhook URL):"
+    override val testTelegramBtn: String = "ارسال پیام تست به تلگرام"
+    override val testDiscordBtn: String = "ارسال پیام تست به دیسکورد"
+    override val enableTgAlerts: String = "فعال‌سازی هشدارهای هوشمند تلگرام"
+    override val enableDiscordAlerts: String = "فعال‌سازی هشدارهای هوشمند دیسکورد"
+    override val alertTriggersHeader: String = "رویدادهای نیازمند هشدار فوری:"
+    override val trigServerDown: String = "قطع شدن ارتباط یا خاموش شدن سرور"
+    override val trigSpikes: String = "افزایش ناگهانی مصرف رم و پردازنده (Spikes)"
+    override val trigTunnel: String = "قطع شدن یا افت شدید کیفیت تانل ایران-خارج"
+    override val alertsGuideHeader: String = "راهنمای اتصال به ربات تلگرام و دیسکورد"
+    override val alertsStep1Title: String = "۱. ساخت ربات در BotFather@"
+    override val alertsStep1Desc: String = "در تلگرام به BotFather@ پیام دهید و با دستور newbot/ یک ربات بسازید و توکن آن را کپی کنید."
+    override val alertsStep2Title: String = "۲. دریافت Chat ID شخصی یا گروه"
+    override val alertsStep2Desc: String = "ربات را استارت کنید و با کمک userinfobot@ شناسه عددی چت یا گروه خود را به دست آورید."
+    override val alertsStep3Title: String = "۳. دریافت آنی هشدارهای قطعی ۲۴/۷"
+    override val alertsStep3Desc: String = "دیدبان در صورت قطعی سرور یا تانل، سریعاً پیام هشدار با جزییات کامل ارسال می‌کند."
     override val navVault: String = "گاوصندوق"
     override val navTools: String = "ابزارها"
     override val navBackup: String = "بکاپ و بازیابی"
@@ -776,6 +814,25 @@ object EnStr : Str {
     override val navUptime: String = "Uptime"
     override val navNetwork: String = "Network"
     override val navCloudflare: String = "Cloudflare"
+    override val navAlerts: String = "Alerts & Bots"
+    override val tgBotTokenLabel: String = "Telegram Bot Token:"
+    override val tgChatIdLabel: String = "Telegram Chat ID / Group ID:"
+    override val discordWebhookLabel: String = "Discord Webhook URL:"
+    override val testTelegramBtn: String = "Send Test Alert to Telegram"
+    override val testDiscordBtn: String = "Send Test Alert to Discord"
+    override val enableTgAlerts: String = "Enable Telegram Smart Alerts"
+    override val enableDiscordAlerts: String = "Enable Discord Webhook Alerts"
+    override val alertTriggersHeader: String = "Active Alert Triggers:"
+    override val trigServerDown: String = "Server Unreachable / Down"
+    override val trigSpikes: String = "High CPU & RAM Usage Spikes (>90%)"
+    override val trigTunnel: String = "Dual-Node Tunnel Interruption"
+    override val alertsGuideHeader: String = "3-Step Telegram & Discord Setup Guide"
+    override val alertsStep1Title: String = "1. Create Bot via @BotFather"
+    override val alertsStep1Desc: String = "Message @BotFather on Telegram, use /newbot to create an alert bot and copy the API token."
+    override val alertsStep2Title: String = "2. Get Your Personal/Group Chat ID"
+    override val alertsStep2Desc: String = "Start your bot, then use @userinfobot to get your numeric Chat ID and paste it here."
+    override val alertsStep3Title: String = "3. 24/7 Real-Time Incident Dispatch"
+    override val alertsStep3Desc: String = "Didban will automatically dispatch instant alert payloads on server failures and spikes."
     override val navVault: String = "Vault"
     override val navTools: String = "Tools"
     override val navBackup: String = "Backup"

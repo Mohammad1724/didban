@@ -2454,6 +2454,472 @@ fun BackupRestoreScreen(t: Str) {
     }
 }
 
+@Composable
+private fun StepByStepAlertsGuideCard(
+    t: Str,
+    isExpanded: Boolean,
+    onToggleExpand: () -> Unit
+) {
+    ModernCard(
+        padding = 14.dp,
+        cornerRadius = 20.dp,
+        border = BorderStroke(1.dp, Brush.horizontalGradient(listOf(Ds.hairline, Ds.accent.copy(alpha = 0.35f), Ds.hairline)))
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleExpand() },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    IconBadge(
+                        icon = Icons.Rounded.HelpOutline,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 32.dp,
+                        iconSize = 17.dp
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            t.alertsGuideHeader,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "Telegram & Discord Dispatcher (3 Easy Steps)",
+                            fontSize = 10.5.sp,
+                            color = Ds.textTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                CircleIconButton(
+                    icon = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                    contentDescription = if (isExpanded) t.hideGuide else t.showGuide,
+                    tint = Ds.accent,
+                    size = 32.dp,
+                    onClick = onToggleExpand
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Hairline()
+                    ToolkitStepPod(stepNum = "1", title = t.alertsStep1Title, desc = t.alertsStep1Desc)
+                    ToolkitStepPod(stepNum = "2", title = t.alertsStep2Title, desc = t.alertsStep2Desc)
+                    ToolkitStepPod(stepNum = "3", title = t.alertsStep3Title, desc = t.alertsStep3Desc)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlertsHubScreen(t: Str) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var tgToken by remember { mutableStateOf(Prefs.getTelegramBotToken(ctx)) }
+    var tgChatId by remember { mutableStateOf(Prefs.getTelegramChatId(ctx)) }
+    var isTgEnabled by remember { mutableStateOf(Prefs.isTelegramAlertsEnabled(ctx)) }
+
+    var discordWebhook by remember { mutableStateOf(Prefs.getDiscordWebhookUrl(ctx)) }
+    var isDiscordEnabled by remember { mutableStateOf(Prefs.isDiscordAlertsEnabled(ctx)) }
+
+    var trigDown by remember { mutableStateOf(Prefs.isAlertTriggerDown(ctx)) }
+    var trigSpike by remember { mutableStateOf(Prefs.isAlertTriggerSpike(ctx)) }
+    var trigTunnel by remember { mutableStateOf(Prefs.isAlertTriggerTunnel(ctx)) }
+
+    var isGuideExpanded by remember { mutableStateOf(false) }
+    var isTestingTg by remember { mutableStateOf(false) }
+    var isTestingDiscord by remember { mutableStateOf(false) }
+    var testResultMsg by remember { mutableStateOf<String?>(null) }
+    var isTestSuccess by remember { mutableStateOf(true) }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item { Spacer(Modifier.height(4.dp)) }
+
+        // Hero Bento
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconBadge(
+                        icon = Icons.Rounded.Bolt,
+                        tint = Ds.accent,
+                        background = Ds.accentDim,
+                        size = 40.dp,
+                        iconSize = 22.dp
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            t.navAlerts,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "سیستم هشدارهای بلادرنگ تلگرام و دیسکورد با فیلتر هوشمند آنتی‌اسپم",
+                            fontSize = 11.sp,
+                            color = Ds.textSecondary,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BentoMicroPod(
+                        title = "ربات تلگرام",
+                        value = if (isTgEnabled) "Active" else "Off",
+                        unit = if (isTgEnabled) "🟢" else "⚪",
+                        color = if (isTgEnabled) Ds.ok else Ds.textTertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BentoMicroPod(
+                        title = "دیسکورد",
+                        value = if (isDiscordEnabled) "Active" else "Off",
+                        unit = if (isDiscordEnabled) "🟢" else "⚪",
+                        color = if (isDiscordEnabled) Ds.violet else Ds.textTertiary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    BentoMicroPod(
+                        title = "کول‌داون ضد اسپم",
+                        value = "5",
+                        unit = "Min",
+                        color = Ds.warn,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+
+        // 3-Step Bento Guide
+        item {
+            StepByStepAlertsGuideCard(
+                t = t,
+                isExpanded = isGuideExpanded,
+                onToggleExpand = { isGuideExpanded = !isGuideExpanded }
+            )
+        }
+
+        // Section 1: Telegram Bot Settings
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(
+                            icon = Icons.Rounded.Public,
+                            tint = Ds.accent,
+                            background = Ds.accentDim,
+                            size = 32.dp,
+                            iconSize = 17.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "ربات تلگرام (Telegram Bot)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+                    }
+
+                    Switch(
+                        checked = isTgEnabled,
+                        onCheckedChange = {
+                            isTgEnabled = it
+                            Prefs.setTelegramAlertsEnabled(ctx, it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Ds.accent,
+                            checkedTrackColor = Ds.accentDim
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                InputField(
+                    value = tgToken,
+                    onValueChange = {
+                        tgToken = it
+                        Prefs.setTelegramBotToken(ctx, it)
+                    },
+                    label = t.tgBotTokenLabel,
+                    placeholder = "123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ",
+                    isPassword = true
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                InputField(
+                    value = tgChatId,
+                    onValueChange = {
+                        tgChatId = it
+                        Prefs.setTelegramChatId(ctx, it)
+                    },
+                    label = t.tgChatIdLabel,
+                    placeholder = "مثلاً 987654321 یا 100123456789-"
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    SoftButton(
+                        text = if (isTestingTg) "در حال ارسال..." else t.testTelegramBtn,
+                        onClick = {
+                            if (!isTestingTg) {
+                                isTestingTg = true
+                                scope.launch {
+                                    val (ok, msg) = AlertEngine.testTelegram(tgToken, tgChatId)
+                                    testResultMsg = msg
+                                    isTestSuccess = ok
+                                    isTestingTg = false
+                                }
+                            }
+                        },
+                        enabled = tgToken.isNotBlank() && tgChatId.isNotBlank() && !isTestingTg
+                    )
+                }
+            }
+        }
+
+        // Section 2: Discord Webhook Settings
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconBadge(
+                            icon = Icons.Rounded.Speed,
+                            tint = Ds.violet,
+                            background = Ds.violetDim,
+                            size = 32.dp,
+                            iconSize = 17.dp
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "وبهوک دیسکورد (Discord Webhook)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+                    }
+
+                    Switch(
+                        checked = isDiscordEnabled,
+                        onCheckedChange = {
+                            isDiscordEnabled = it
+                            Prefs.setDiscordAlertsEnabled(ctx, it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Ds.violet,
+                            checkedTrackColor = Ds.violetDim
+                        )
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                InputField(
+                    value = discordWebhook,
+                    onValueChange = {
+                        discordWebhook = it
+                        Prefs.setDiscordWebhookUrl(ctx, it)
+                    },
+                    label = t.discordWebhookLabel,
+                    placeholder = "https://discord.com/api/webhooks/..."
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    SoftButton(
+                        text = if (isTestingDiscord) "در حال ارسال..." else t.testDiscordBtn,
+                        onClick = {
+                            if (!isTestingDiscord) {
+                                isTestingDiscord = true
+                                scope.launch {
+                                    val (ok, msg) = AlertEngine.testDiscord(discordWebhook)
+                                    testResultMsg = msg
+                                    isTestSuccess = ok
+                                    isTestingDiscord = false
+                                }
+                            }
+                        },
+                        enabled = discordWebhook.isNotBlank() && !isTestingDiscord
+                    )
+                }
+            }
+        }
+
+        // Section 3: Alert Triggers Selection
+        item {
+            ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                Text(
+                    t.alertTriggersHeader,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Ds.textPrimary
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                // Trigger 1: Server Down
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val newVal = !trigDown
+                            trigDown = newVal
+                            Prefs.setAlertTriggerDown(ctx, newVal)
+                        }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(t.trigServerDown, fontSize = 12.sp, color = Ds.textPrimary)
+                    Switch(
+                        checked = trigDown,
+                        onCheckedChange = {
+                            trigDown = it
+                            Prefs.setAlertTriggerDown(ctx, it)
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Ds.danger, checkedTrackColor = Ds.dangerDim)
+                    )
+                }
+
+                Hairline()
+
+                // Trigger 2: Spikes
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val newVal = !trigSpike
+                            trigSpike = newVal
+                            Prefs.setAlertTriggerSpike(ctx, newVal)
+                        }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(t.trigSpikes, fontSize = 12.sp, color = Ds.textPrimary)
+                    Switch(
+                        checked = trigSpike,
+                        onCheckedChange = {
+                            trigSpike = it
+                            Prefs.setAlertTriggerSpike(ctx, it)
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Ds.warn, checkedTrackColor = Ds.warnDim)
+                    )
+                }
+
+                Hairline()
+
+                // Trigger 3: Tunnel Drop
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            val newVal = !trigTunnel
+                            trigTunnel = newVal
+                            Prefs.setAlertTriggerTunnel(ctx, newVal)
+                        }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(t.trigTunnel, fontSize = 12.sp, color = Ds.textPrimary)
+                    Switch(
+                        checked = trigTunnel,
+                        onCheckedChange = {
+                            trigTunnel = it
+                            Prefs.setAlertTriggerTunnel(ctx, it)
+                        },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Ds.accent, checkedTrackColor = Ds.accentDim)
+                    )
+                }
+            }
+        }
+
+        // Test Result Feedback
+        testResultMsg?.let { msg ->
+            item {
+                ModernCard(
+                    padding = 14.dp,
+                    cornerRadius = 16.dp,
+                    border = BorderStroke(1.dp, if (isTestSuccess) Ds.ok.copy(alpha = 0.4f) else Ds.danger.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (isTestSuccess) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = if (isTestSuccess) Ds.ok else Ds.danger,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = msg,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isTestSuccess) Ds.ok else Ds.danger,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        item { Spacer(Modifier.height(90.dp)) }
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // UNIFIED SCREEN HUBS
 // ═════════════════════════════════════════════════════════════════════════════
@@ -2468,16 +2934,16 @@ fun NetworkCloudScreen(t: Str) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             SegmentedControl(
-                items = listOf(t.navNetwork, t.navCloudflare),
+                items = listOf(t.navNetwork, t.navCloudflare, t.navAlerts),
                 selectedIndex = subTab,
                 onSelect = { subTab = it }
             )
         }
         Box(Modifier.weight(1f)) {
-            if (subTab == 0) {
-                NetworkHubScreen(t = t)
-            } else {
-                CloudflareScreen(t = t)
+            when (subTab) {
+                0 -> NetworkHubScreen(t = t)
+                1 -> CloudflareScreen(t = t)
+                else -> AlertsHubScreen(t = t)
             }
         }
     }
