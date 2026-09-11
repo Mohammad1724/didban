@@ -15,7 +15,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -30,7 +29,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,7 +38,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -265,7 +262,7 @@ fun LiquidSpotlightDock(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            color = Ds.surfaceElevated.copy(alpha = 0.90f),
+            color = Ds.surfaceElevated.copy(alpha = 0.92f),
             border = BorderStroke(
                 1.dp,
                 Brush.horizontalGradient(
@@ -277,143 +274,107 @@ fun LiquidSpotlightDock(
                 )
             ),
             shape = RoundedCornerShape(32.dp),
-            shadowElevation = 18.dp,
+            shadowElevation = 16.dp,
             modifier = Modifier.fillMaxWidth().height(62.dp)
         ) {
-            BoxWithConstraints(
+            Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 5.dp, vertical = 5.dp)
+                    .padding(horizontal = 6.dp, vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                val totalWidth = maxWidth
-                val totalItems = items.size.coerceAtLeast(1)
-                val itemWidth = totalWidth / totalItems
+                items.forEachIndexed { index, spec ->
+                    val isSelected = index == currentNav
 
-                // Sliding Liquid Spotlight Pill Indicator
-                val targetIndicatorX = itemWidth * currentNav
+                    val glyphScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.10f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = 0.65f,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "glyphScale"
+                    )
 
-                val indicatorOffset by animateDpAsState(
-                    targetValue = targetIndicatorX,
-                    animationSpec = spring(
-                        dampingRatio = 0.72f,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    label = "liquidSpotlightOffset"
-                )
+                    val glyphColor by animateColorAsState(
+                        targetValue = if (isSelected) Ds.accent else Ds.textTertiary,
+                        animationSpec = tween(200),
+                        label = "glyphColor"
+                    )
 
-                // The glowing fluid spotlight background
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .offset(x = indicatorOffset)
-                        .width(itemWidth)
-                        .fillMaxHeight()
-                        .padding(horizontal = 3.dp, vertical = 2.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Ds.accent.copy(alpha = 0.22f),
-                                    Ds.accent.copy(alpha = 0.08f)
-                                )
-                            )
-                        )
-                        .border(
-                            BorderStroke(1.dp, Ds.accent.copy(alpha = 0.40f)),
-                            RoundedCornerShape(24.dp)
-                        )
-                ) {
-                    // Top micro-neon laser line
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 2.dp)
-                            .size(width = 16.dp, height = 2.dp)
-                            .clip(CircleShape)
-                            .background(Ds.accent)
-                    )
-                }
-
-                // Interactive Navigation Item Glyphs
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    items.forEachIndexed { index, spec ->
-                        val isSelected = index == currentNav
-
-                        val liftOffset by animateDpAsState(
-                            targetValue = if (isSelected) (-2).dp else 0.dp,
-                            animationSpec = spring(
-                                dampingRatio = 0.58f,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            label = "glyphLift"
-                        )
-
-                        val glyphScale by animateFloatAsState(
-                            targetValue = if (isSelected) 1.12f else 1.0f,
-                            animationSpec = spring(
-                                dampingRatio = 0.6f,
-                                stiffness = Spring.StiffnessMedium
-                            ),
-                            label = "glyphScale"
-                        )
-
-                        val glyphColor by animateColorAsState(
-                            targetValue = if (isSelected) Ds.accent else Ds.textTertiary,
-                            animationSpec = tween(200),
-                            label = "glyphColor"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(24.dp))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    try {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    } catch (_: Exception) {}
-                                    onNavSelect(index)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .offset(y = liftOffset),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = spec.icon,
-                                    contentDescription = spec.label,
-                                    tint = glyphColor,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .scale(glyphScale)
-                                )
-
-                                AnimatedVisibility(
-                                    visible = isSelected,
-                                    enter = fadeIn(tween(160)) + expandVertically(spring(stiffness = Spring.StiffnessMedium)),
-                                    exit = fadeOut(tween(120)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium))
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            text = spec.label,
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Ds.accent,
-                                            maxLines = 1
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(22.dp))
+                            .then(
+                                if (isSelected) {
+                                    Modifier
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Ds.accent.copy(alpha = 0.20f),
+                                                    Ds.accent.copy(alpha = 0.06f)
+                                                )
+                                            )
                                         )
-                                    }
+                                        .border(
+                                            BorderStroke(1.dp, Ds.accent.copy(alpha = 0.38f)),
+                                            RoundedCornerShape(22.dp)
+                                        )
+                                } else {
+                                    Modifier
+                                }
+                            )
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                try {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                } catch (_: Exception) {}
+                                onNavSelect(index)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            if (isSelected) {
+                                // Top micro laser dot
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 14.dp, height = 2.dp)
+                                        .clip(CircleShape)
+                                        .background(Ds.accent)
+                                )
+                                Spacer(Modifier.height(2.dp))
+                            }
+
+                            Icon(
+                                imageVector = spec.icon,
+                                contentDescription = spec.label,
+                                tint = glyphColor,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .scale(glyphScale)
+                            )
+
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(tween(140)) + expandVertically(spring(stiffness = Spring.StiffnessMedium)),
+                                exit = fadeOut(tween(100)) + shrinkVertically(spring(stiffness = Spring.StiffnessMedium))
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = spec.label,
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Ds.accent,
+                                        maxLines = 1
+                                    )
                                 }
                             }
                         }

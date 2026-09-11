@@ -23,9 +23,6 @@ import androidx.compose.ui.unit.sp
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  DIDBAN · OBSIDIAN ZENITH DESIGN SYSTEM
-//  A hyper-refined, minimalist, telemetry-grade visual language for server
-//  observability and DevOps command centers.
-//  Ultra-clean surfaces, micro-hairlines, luminous accents, and precision type.
 // ═════════════════════════════════════════════════════════════════════════════
 
 data class DidbanPalette(
@@ -202,25 +199,37 @@ object Ds {
 
 // ── Typography Definition ───────────────────────────────────────────────────
 
-val Inter = FontFamily(
-    Font(R.font.inter_400, FontWeight.Normal),
-    Font(R.font.inter_500, FontWeight.Medium),
-    Font(R.font.inter_600, FontWeight.SemiBold),
-    Font(R.font.inter_700, FontWeight.Bold)
-)
+val Inter: FontFamily = try {
+    FontFamily(
+        Font(R.font.inter_400, FontWeight.Normal),
+        Font(R.font.inter_500, FontWeight.Medium),
+        Font(R.font.inter_600, FontWeight.SemiBold),
+        Font(R.font.inter_700, FontWeight.Bold)
+    )
+} catch (_: Throwable) {
+    FontFamily.SansSerif
+}
 
-val Telemetry = FontFamily(
-    Font(R.font.jbmono_400, FontWeight.Normal),
-    Font(R.font.jbmono_500, FontWeight.Medium),
-    Font(R.font.jbmono_600, FontWeight.SemiBold)
-)
+val Telemetry: FontFamily = try {
+    FontFamily(
+        Font(R.font.jbmono_400, FontWeight.Normal),
+        Font(R.font.jbmono_500, FontWeight.Medium),
+        Font(R.font.jbmono_600, FontWeight.SemiBold)
+    )
+} catch (_: Throwable) {
+    FontFamily.Monospace
+}
 
-val Vazirmatn = FontFamily(
-    Font(R.font.vazir_400, FontWeight.Normal),
-    Font(R.font.vazir_500, FontWeight.Medium),
-    Font(R.font.vazir_600, FontWeight.SemiBold),
-    Font(R.font.vazir_700, FontWeight.Bold)
-)
+val Vazirmatn: FontFamily = try {
+    FontFamily(
+        Font(R.font.vazir_400, FontWeight.Normal),
+        Font(R.font.vazir_500, FontWeight.Medium),
+        Font(R.font.vazir_600, FontWeight.SemiBold),
+        Font(R.font.vazir_700, FontWeight.Bold)
+    )
+} catch (_: Throwable) {
+    FontFamily.Default
+}
 
 /** Automatic typeface selection based on layout direction (Persian = Vazirmatn, English = Inter). */
 val AppFontFamily: FontFamily

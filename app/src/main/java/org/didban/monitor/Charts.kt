@@ -27,13 +27,14 @@ fun Sparkline(
     color: Color = Ds.accent,
     fillAlpha: Float = 0.16f
 ) {
+    val cleanValues = values.filter { !it.isNaN() && !it.isInfinite() }
     val reveal by animateFloatAsState(
-        targetValue = if (values.size >= 2) 1f else 0f,
+        targetValue = if (cleanValues.size >= 2) 1f else 0f,
         animationSpec = tween(900, easing = FastOutSlowInEasing),
         label = "sparkReveal"
     )
     Canvas(modifier = modifier) {
-        if (values.size < 2) {
+        if (cleanValues.size < 2 || size.width <= 0f || size.height <= 0f) {
             // No telemetry yet — a quiet dashed baseline
             drawLine(
                 color = color.copy(alpha = 0.25f),
@@ -44,17 +45,17 @@ fun Sparkline(
             )
             return@Canvas
         }
-        val maxV = (values.maxOrNull() ?: 1f).coerceAtLeast(0.001f)
+        val maxV = (cleanValues.maxOrNull() ?: 1f).coerceAtLeast(0.001f)
         val w = size.width
         val h = size.height
         val pad = h * 0.10f
-        val step = w / (values.size - 1)
+        val step = w / (cleanValues.size - 1).coerceAtLeast(1)
 
-        fun yFor(v: Float): Float = h - pad - (v / maxV) * (h - pad * 2f)
+        fun yFor(v: Float): Float = (h - pad - (v / maxV) * (h - pad * 2f)).coerceIn(0f, h)
 
         // Smooth path via monotone-ish cubic segments
         val line = Path()
-        val points = values.mapIndexed { i, v -> Offset(i * step, yFor(v)) }
+        val points = cleanValues.mapIndexed { i, v -> Offset(i * step, yFor(v)) }
         line.moveTo(points[0].x, points[0].y)
         for (i in 1 until points.size) {
             val prev = points[i - 1]
