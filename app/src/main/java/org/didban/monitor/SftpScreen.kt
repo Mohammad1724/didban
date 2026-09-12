@@ -178,7 +178,7 @@ fun SftpScreen(t: Str) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CircleIconButton(
-                        icon = Icons.AutoMirrored.rounded.ArrowBack,
+                        icon = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "بازگشت",
                         onClick = { editingFile = null }
                     )
