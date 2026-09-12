@@ -305,48 +305,127 @@ object CensorshipTester {
     }
 }
 
-// ── Multi-Provider IP & GeoIP Info (HTTPS with Multi-Fallback) ──────────────
+// ── Multi-Provider IP & GeoIP Info & DNS Records ───────────────────────────
+
+data class DnsRecordItem(
+    val type: String,
+    val name: String,
+    val data: String,
+    val ttl: Int
+)
 
 data class GeoIpData(
     val ip: String,
-    val country: String,
-    val countryCode: String,
-    val flag: String,
-    val region: String,
-    val city: String,
-    val isp: String,
-    val org: String,
-    val asn: String,
-    val timezone: String,
-    val lat: Double,
-    val lon: Double,
-    val provider: String
+    val isDomain: Boolean = false,
+    val domainName: String = "",
+    val reverseDns: String = "",
+    val ipVersion: String = "IPv4",
+    val continent: String = "",
+    val country: String = "Unknown",
+    val countryCode: String = "",
+    val flag: String = "🌐",
+    val region: String = "",
+    val city: String = "",
+    val postalCode: String = "",
+    val isp: String = "",
+    val org: String = "",
+    val asn: String = "",
+    val asOrg: String = "",
+    val routePrefix: String = "",
+    val rir: String = "",
+    val timezone: String = "",
+    val utcOffset: String = "",
+    val currentTime: String = "",
+    val currency: String = "",
+    val callingCode: String = "",
+    val lat: Double = 0.0,
+    val lon: Double = 0.0,
+    val isHosting: Boolean = false,
+    val isVpnProxy: Boolean = false,
+    val dnsRecords: List<DnsRecordItem> = emptyList(),
+    val provider: String = "Didban Geo & DNS Sentinel"
 )
 
 object IpInfoService {
     private val client = OkHttpClient.Builder()
-        .connectTimeout(6, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(8, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
     suspend fun lookup(targetInput: String = ""): GeoIpData = withContext(Dispatchers.IO) {
-        val clean = targetInput.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
+        val clean = targetInput.trim().removePrefix("https://").removePrefix("http://").substringBefore("/").substringBefore(":")
+        val isDomain = clean.isNotEmpty() && !clean.matches(Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) && !clean.contains(":")
 
-        // Step 1: If input is a domain name, resolve to IP first
+        // Step 1: If input is a domain name, resolve to IP
         var resolvedIp = clean
-        if (clean.isNotEmpty() && !clean.matches(Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$"))) {
+        if (isDomain) {
             try {
                 val inet = InetAddress.getByName(clean)
                 resolvedIp = inet.hostAddress ?: clean
-            } catch (_: Exception) {
-                // If DNS fails, continue with original input
+            } catch (_: Exception) {}
+        }
+
+        // Step 2: Reverse DNS / PTR
+        var ptr = ""
+        try {
+            if (resolvedIp.isNotEmpty()) {
+                val inet = InetAddress.getByName(resolvedIp)
+                val canonical = inet.canonicalHostName
+                if (canonical != resolvedIp) {
+                    ptr = canonical
+                }
+            }
+        } catch (_: Exception) {}
+
+        // Step 3: Fetch DNS Records if domain
+        val fetchedDnsRecords = mutableListOf<DnsRecordItem>()
+        if (isDomain) {
+            val recordTypes = listOf("A", "AAAA", "CNAME", "MX", "NS", "TXT", "SOA", "CAA")
+            val recordTypeMap = mapOf(1 to "A", 28 to "AAAA", 5 to "CNAME", 15 to "MX", 2 to "NS", 16 to "TXT", 6 to "SOA", 257 to "CAA")
+
+            coroutineScope {
+                val tasks = recordTypes.map { rType ->
+                    async {
+                        try {
+                            val dohUrl = "https://cloudflare-dns.com/dns-query?name=$clean&type=$rType"
+                            val req = Request.Builder()
+                                .url(dohUrl)
+                                .header("Accept", "application/dns-json")
+                                .build()
+                            client.newCall(req).execute().use { resp ->
+                                if (resp.isSuccessful) {
+                                    val body = resp.body?.string() ?: ""
+                                    val j = JSONObject(body)
+                                    val ansArr = j.optJSONArray("Answer")
+                                    if (ansArr != null) {
+                                        val list = mutableListOf<DnsRecordItem>()
+                                        for (i in 0 until ansArr.length()) {
+                                            val obj = ansArr.getJSONObject(i)
+                                            val tNum = obj.optInt("type", 1)
+                                            val typeStr = recordTypeMap[tNum] ?: rType
+                                            val name = obj.optString("name", clean).trimEnd('.')
+                                            val data = obj.optString("data", "").trim('"')
+                                            val ttl = obj.optInt("TTL", 300)
+                                            list.add(DnsRecordItem(type = typeStr, name = name, data = data, ttl = ttl))
+                                        }
+                                        return@async list
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {}
+                        emptyList<DnsRecordItem>()
+                    }
+                }
+                tasks.awaitAll().forEach { fetchedDnsRecords.addAll(it) }
             }
         }
 
-        // Attempt 1: HTTPS via ipwho.is (Secure, fast, rich data)
+        val ipVer = if (resolvedIp.contains(":")) "IPv6" else "IPv4"
+
+        // Attempt 1: HTTPS via ipwho.is (Ultra rich dataset)
         try {
             val httpsUrl = if (resolvedIp.isEmpty()) "https://ipwho.is/" else "https://ipwho.is/$resolvedIp"
-            val req = Request.Builder().url(httpsUrl).header("User-Agent", "Didban/1.0").build()
+            val req = Request.Builder().url(httpsUrl).header("User-Agent", "Didban/2.0").build()
             client.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) {
                     val body = resp.body?.string() ?: ""
@@ -355,29 +434,56 @@ object IpInfoService {
                         val cc = j.optString("country_code", "")
                         val conn = j.optJSONObject("connection")
                         val tz = j.optJSONObject("timezone")
+                        val sec = j.optJSONObject("security")
+                        val curr = j.optJSONObject("currency")
+
+                        val asnNum = conn?.optString("asn", "")?.let {
+                            if (it.isNotBlank() && !it.startsWith("AS", ignoreCase = true)) "AS$it" else it
+                        } ?: ""
+
                         return@withContext GeoIpData(
                             ip = j.optString("ip", resolvedIp),
+                            isDomain = isDomain,
+                            domainName = clean,
+                            reverseDns = ptr.ifBlank { conn?.optString("domain", "") ?: "" },
+                            ipVersion = ipVer,
+                            continent = j.optString("continent", ""),
                             country = j.optString("country", "Unknown"),
                             countryCode = cc,
                             flag = CheckHostService.flagForCountry(cc),
                             region = j.optString("region", ""),
                             city = j.optString("city", ""),
+                            postalCode = j.optString("postal", ""),
                             isp = conn?.optString("isp", "") ?: j.optString("isp", ""),
                             org = conn?.optString("org", "") ?: j.optString("org", ""),
-                            asn = conn?.optString("asn", "")?.let { if (it.isNotBlank() && !it.startsWith("AS", ignoreCase = true)) "AS$it" else it } ?: "",
+                            asn = asnNum,
+                            asOrg = conn?.optString("org", "") ?: "",
+                            routePrefix = conn?.optString("route", "") ?: "",
+                            rir = conn?.optString("rir", "") ?: "",
                             timezone = tz?.optString("id", "") ?: "",
+                            utcOffset = tz?.optString("utc", "") ?: "",
+                            currentTime = tz?.optString("current_time", "") ?: "",
+                            currency = curr?.let { "${it.optString("name", "")} (${it.optString("code", "")} ${it.optString("symbol", "")})" } ?: "",
+                            callingCode = j.optString("calling_code", ""),
                             lat = j.optDouble("latitude", 0.0),
                             lon = j.optDouble("longitude", 0.0),
-                            provider = "ipwho.is (HTTPS)"
+                            isHosting = sec?.optBoolean("hosting", false) ?: (conn?.optString("isp", "")?.contains("Cloudflare|DigitalOcean|Hetzner|Amazon|Google|OVH|Microsoft".toRegex(RegexOption.IGNORE_CASE)) == true),
+                            isVpnProxy = sec?.optBoolean("proxy", false) ?: sec?.optBoolean("vpn", false) ?: sec?.optBoolean("tor", false) ?: false,
+                            dnsRecords = fetchedDnsRecords,
+                            provider = "ipwho.is (Cloudflare DoH)"
                         )
                     }
                 }
             }
         } catch (_: Exception) {}
 
-        // Attempt 2: ip-api.com (Fallback with cleartext enabled)
+        // Attempt 2: Fallback to ip-api.com
         try {
-            val apiUrl = if (clean.isEmpty()) "http://ip-api.com/json" else "http://ip-api.com/json/$clean"
+            val apiUrl = if (resolvedIp.isEmpty()) {
+                "http://ip-api.com/json/?fields=66846719"
+            } else {
+                "http://ip-api.com/json/$resolvedIp?fields=66846719"
+            }
             val req = Request.Builder().url(apiUrl).build()
             client.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) {
@@ -385,27 +491,42 @@ object IpInfoService {
                     val j = JSONObject(body)
                     if (j.optString("status") != "fail") {
                         val cc = j.optString("countryCode", "")
+                        val asStr = j.optString("as", "")
+                        val asnPart = asStr.substringBefore(" ")
+
                         return@withContext GeoIpData(
                             ip = j.optString("query", resolvedIp),
+                            isDomain = isDomain,
+                            domainName = clean,
+                            reverseDns = ptr.ifBlank { j.optString("reverse", "") },
+                            ipVersion = ipVer,
+                            continent = j.optString("continent", ""),
                             country = j.optString("country", "Unknown"),
                             countryCode = cc,
                             flag = CheckHostService.flagForCountry(cc),
                             region = j.optString("regionName", ""),
                             city = j.optString("city", ""),
+                            postalCode = j.optString("zip", ""),
                             isp = j.optString("isp", ""),
                             org = j.optString("org", ""),
-                            asn = j.optString("as", ""),
+                            asn = asnPart,
+                            asOrg = asStr.removePrefix(asnPart).trim(),
                             timezone = j.optString("timezone", ""),
+                            utcOffset = "UTC " + (j.optInt("offset", 0) / 3600),
+                            currency = j.optString("currency", ""),
                             lat = j.optDouble("lat", 0.0),
                             lon = j.optDouble("lon", 0.0),
-                            provider = "ip-api"
+                            isHosting = j.optBoolean("hosting", false),
+                            isVpnProxy = j.optBoolean("proxy", false),
+                            dnsRecords = fetchedDnsRecords,
+                            provider = "ip-api (Pro)"
                         )
                     }
                 }
             }
         } catch (_: Exception) {}
 
-        throw Exception("امکان دریافت موقعیت و اطلاعات برای این آدرس مقدور نبود (بررسی کنید اینترنت و نام دامنه معتبر باشد)")
+        throw Exception("امکان دریافت موقعیت و اطلاعات کامل برای این آدرس مقدور نبود (بررسی کنید اینترنت متصل باشد)")
     }
 }
 

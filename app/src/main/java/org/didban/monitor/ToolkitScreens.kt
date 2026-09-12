@@ -542,21 +542,30 @@ private fun SslInspectorTab(t: Str) {
 @Composable
 private fun IpInfoTab(t: Str) {
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val ctx = LocalContext.current
+
     var host by remember { mutableStateOf("") }
     var isLookingUp by remember { mutableStateOf(false) }
     var geo by remember { mutableStateOf<GeoIpData?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
+    var dnsTypeFilter by remember { mutableStateOf("ALL") }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
-                InputField(value = host, onValueChange = { host = it }, label = "IP or Domain", placeholder = "e.g. 1.1.1.1 or cloudflare.com")
+                InputField(
+                    value = host,
+                    onValueChange = { host = it },
+                    label = "IP Address or Domain Name",
+                    placeholder = "e.g. 1.1.1.1 or cloudflare.com"
+                )
                 Spacer(Modifier.height(12.dp))
                 PrimaryButton(
-                    text = if (isLookingUp) "Looking up Geo Data…" else "Lookup GeoIP & ASN",
+                    text = if (isLookingUp) "در حال دریافت اطلاعات عمیق Geo & DNS..." else "🔍 استعلام جامع IP و تمام رکوردهای DNS",
                     icon = Icons.Rounded.Language,
                     loading = isLookingUp,
                     enabled = !isLookingUp && host.isNotBlank(),
@@ -584,48 +593,314 @@ private fun IpInfoTab(t: Str) {
         }
 
         geo?.let { g ->
+            // 1. Hero Identity & Location Pod
             item {
-                ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(g.flag.ifBlank { "🌐" }, fontSize = 24.sp)
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(g.country.ifBlank { "Unknown Location" }, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                            Text("${g.city}, ${g.region}", fontSize = 11.5.sp, color = Ds.textSecondary)
+                ModernCard(padding = 16.dp, cornerRadius = 22.dp) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(g.flag.ifBlank { "🌐" }, fontSize = 28.sp)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    "${g.country} (${g.countryCode})",
+                                    fontSize = 15.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ds.textPrimary
+                                )
+                                Text(
+                                    if (g.continent.isNotBlank()) "${g.city}, ${g.region} · ${g.continent}" else "${g.city}, ${g.region}",
+                                    fontSize = 11.5.sp,
+                                    color = Ds.textSecondary
+                                )
+                            }
                         }
+
+                        SoftButton(
+                            text = t.copy,
+                            onClick = {
+                                clipboard.setText(AnnotatedString(g.ip))
+                                Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
                     Hairline()
                     Spacer(Modifier.height(10.dp))
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // IP & PTR
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("IP:", fontSize = 11.sp, color = Ds.textTertiary)
+                            Spacer(Modifier.width(6.dp))
+                            Text(g.ip, fontSize = 13.5.sp, fontFamily = Telemetry, fontWeight = FontWeight.Bold, color = Ds.accent)
+                        }
+
                         Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Ds.surfaceLow)
-                                .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
-                                .padding(10.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Ds.accentDim)
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
                         ) {
-                            Column {
-                                Text("ISP / Org", fontSize = 10.sp, color = Ds.textTertiary)
-                                Spacer(Modifier.height(2.dp))
-                                Text(g.isp.ifBlank { g.org }, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(g.ipVersion, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Ds.accent)
+                        }
+                    }
+
+                    if (g.reverseDns.isNotBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("PTR / Hostname:", fontSize = 11.sp, color = Ds.textTertiary)
+                            Spacer(Modifier.width(6.dp))
+                            Text(g.reverseDns, fontSize = 11.5.sp, fontFamily = Telemetry, color = Ds.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Security & Type Tags
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (g.isHosting) Ds.violetDim else Ds.okDim)
+                                .border(BorderStroke(1.dp, if (g.isHosting) Ds.violet.copy(alpha = 0.3f) else Ds.ok.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                if (g.isHosting) "🏢 DataCenter / Cloud" else "🏠 Residential / Consumer",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (g.isHosting) Ds.violet else Ds.ok
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (g.isVpnProxy) Ds.dangerDim else Ds.okDim)
+                                .border(BorderStroke(1.dp, if (g.isVpnProxy) Ds.danger.copy(alpha = 0.3f) else Ds.ok.copy(alpha = 0.3f)), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                if (g.isVpnProxy) "⚠️ VPN / Proxy / Tor" else "🛡️ Clean IP",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (g.isVpnProxy) Ds.danger else Ds.ok
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Autonomous System (ASN & BGP Routing) Bento Pod
+            item {
+                ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                    Text("مسیریابی شبکه و خودمختاری (ASN & BGP):", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BentoMicroPod(
+                            title = "شماره ASN",
+                            value = g.asn.ifBlank { "—" },
+                            unit = "",
+                            color = Ds.accent,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BentoMicroPod(
+                            title = "سازمان / مالک AS",
+                            value = g.org.ifBlank { g.isp },
+                            unit = "",
+                            color = Ds.textPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BentoMicroPod(
+                            title = "سرویس‌دهنده (ISP)",
+                            value = g.isp.ifBlank { "—" },
+                            unit = "",
+                            color = Ds.textPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BentoMicroPod(
+                            title = "پیشوند BGP Route",
+                            value = g.routePrefix.ifBlank { "—" },
+                            unit = "",
+                            color = Ds.textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // 3. Location, Time & Currency Pod
+            item {
+                ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                    Text("مختصات جغرافیایی و زمان محلی:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BentoMicroPod(
+                            title = "مختصات (Lat, Lon)",
+                            value = "${String.format(Locale.US, "%.3f", g.lat)}, ${String.format(Locale.US, "%.3f", g.lon)}",
+                            unit = "🌐",
+                            color = Ds.ok,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BentoMicroPod(
+                            title = "منطقه زمانی",
+                            value = g.timezone.ifBlank { "—" },
+                            unit = g.utcOffset,
+                            color = Ds.violet,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BentoMicroPod(
+                            title = "کد پستی (ZIP)",
+                            value = g.postalCode.ifBlank { "—" },
+                            unit = "",
+                            color = Ds.textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BentoMicroPod(
+                            title = "پیش‌شماره تلفن",
+                            value = if (g.callingCode.isNotBlank()) "+${g.callingCode}" else "—",
+                            unit = "",
+                            color = Ds.textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        BentoMicroPod(
+                            title = "واحد پول",
+                            value = g.currency.ifBlank { "—" },
+                            unit = "",
+                            color = Ds.textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            // 4. Complete DNS Records Breakdown (when DNS records exist)
+            if (g.dnsRecords.isNotEmpty()) {
+                item {
+                    ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
+                        Text(
+                            "رکوردهای تفکیک‌شده DNS دامنه (${g.dnsRecords.size} رکورد):",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ds.textPrimary
+                        )
+
+                        Spacer(Modifier.height(10.dp))
+
+                        // Type Filter Chips
+                        val types = listOf("ALL", "A", "AAAA", "CNAME", "MX", "NS", "TXT", "SOA")
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(types) { tStr ->
+                                val isSelected = dnsTypeFilter == tStr
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) Ds.accent.copy(alpha = 0.2f) else Ds.surfaceLow)
+                                        .border(BorderStroke(1.dp, if (isSelected) Ds.accent else Ds.hairline), RoundedCornerShape(8.dp))
+                                        .clickable { dnsTypeFilter = tStr }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        tStr,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) Ds.accent else Ds.textSecondary
+                                    )
+                                }
                             }
                         }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Ds.surfaceLow)
-                                .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
-                                .padding(10.dp)
-                        ) {
-                            Column {
-                                Text("ASN", fontSize = 10.sp, color = Ds.textTertiary)
-                                Spacer(Modifier.height(2.dp))
-                                Text(g.asn.ifBlank { "—" }, fontSize = 11.5.sp, fontFamily = Telemetry, fontWeight = FontWeight.Bold, color = Ds.accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+
+                        Spacer(Modifier.height(12.dp))
+
+                        val filteredRecords = if (dnsTypeFilter == "ALL") {
+                            g.dnsRecords
+                        } else {
+                            g.dnsRecords.filter { it.type.equals(dnsTypeFilter, ignoreCase = true) }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            filteredRecords.forEach { rec ->
+                                val typeColor = when (rec.type.uppercase()) {
+                                    "A" -> Ds.accent
+                                    "AAAA" -> Ds.violet
+                                    "MX" -> Ds.warn
+                                    "NS" -> Ds.ok
+                                    "CNAME" -> Ds.info
+                                    else -> Ds.textSecondary
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Ds.surfaceLow)
+                                        .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(10.dp))
+                                        .padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(typeColor.copy(alpha = 0.15f))
+                                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                                        ) {
+                                            Text(rec.type, fontSize = 10.5.sp, fontWeight = FontWeight.Bold, color = typeColor)
+                                        }
+
+                                        Spacer(Modifier.width(10.dp))
+
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                rec.data,
+                                                fontSize = 11.5.sp,
+                                                fontFamily = Telemetry,
+                                                fontWeight = FontWeight.Medium,
+                                                color = Ds.textPrimary,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                "${rec.name} · TTL: ${rec.ttl}s",
+                                                fontSize = 10.sp,
+                                                color = Ds.textTertiary
+                                            )
+                                        }
+                                    }
+
+                                    SoftButton(
+                                        text = t.copy,
+                                        onClick = {
+                                            clipboard.setText(AnnotatedString(rec.data))
+                                            Toast.makeText(ctx, t.copied, Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
