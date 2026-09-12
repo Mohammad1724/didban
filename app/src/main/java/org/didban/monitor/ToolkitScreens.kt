@@ -810,8 +810,13 @@ private fun IpInfoTab(t: Str) {
 
                         // Type Filter Chips
                         val types = listOf("ALL", "A", "AAAA", "CNAME", "MX", "NS", "TXT", "SOA")
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(types) { tStr ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            types.forEach { tStr ->
                                 val isSelected = dnsTypeFilter == tStr
                                 Box(
                                     modifier = Modifier
