@@ -140,8 +140,9 @@ fun UptimeScreen(t: Str) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(top = 14.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -151,14 +152,14 @@ fun UptimeScreen(t: Str) {
                         icon = Icons.Rounded.Timer,
                         tint = Ds.accent,
                         background = Ds.accentDim,
-                        size = 36.dp,
-                        iconSize = 18.dp
+                        size = 38.dp,
+                        iconSize = 20.dp
                     )
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f, fill = false)) {
                         Text(
                             t.uptimeMonitoring,
-                            fontSize = 16.5.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Ds.textPrimary,
                             maxLines = 1,
@@ -166,7 +167,7 @@ fun UptimeScreen(t: Str) {
                         )
                         Text(
                             "24/7 Heartbeat & SLA Watch",
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             color = Ds.textTertiary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis

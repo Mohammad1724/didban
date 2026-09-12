@@ -175,8 +175,9 @@ fun TunnelScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 14.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = 14.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -193,15 +194,15 @@ fun TunnelScreen(
                 Column(Modifier.weight(1f, fill = false)) {
                     Text(
                         t.tunnelsHub,
-                        fontSize = 16.5.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Ds.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        "Dual-Node Auto-Deploy & Reverse Bridge",
-                        fontSize = 11.sp,
+                        "Dual-Node Tunnel Fleet",
+                        fontSize = 10.5.sp,
                         fontFamily = Telemetry,
                         color = Ds.textTertiary,
                         maxLines = 1,
@@ -212,30 +213,14 @@ fun TunnelScreen(
 
             Spacer(Modifier.width(8.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SoftButton(
-                    text = if (isDiscovering) t.discoveringTunnels else t.autoDiscoverTunnels,
-                    icon = Icons.Rounded.AutoAwesome,
-                    enabled = !isDiscovering,
-                    onClick = {
-                        isDiscovering = true
-                        scope.launch {
-                            val res = TunnelEngine.discoverTunnels(ctx)
-                            isDiscovering = false
-                            discoveryResultDialog = res
-                            refreshTunnels()
-                        }
-                    }
-                )
-                PrimaryButton(
-                    text = t.addTunnel,
-                    icon = Icons.Rounded.Add,
-                    onClick = {
-                        editingTunnel = null
-                        showForm = true
-                    }
-                )
-            }
+            PrimaryButton(
+                text = t.addTunnel,
+                icon = Icons.Rounded.Add,
+                onClick = {
+                    editingTunnel = null
+                    showForm = true
+                }
+            )
         }
 
         LazyColumn(
@@ -301,6 +286,24 @@ fun TunnelScreen(
                             modifier = Modifier.weight(1f)
                         )
                     }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    SoftButton(
+                        text = if (isDiscovering) t.discoveringTunnels else t.autoDiscoverTunnels,
+                        icon = Icons.Rounded.AutoAwesome,
+                        enabled = !isDiscovering,
+                        onClick = {
+                            isDiscovering = true
+                            scope.launch {
+                                val res = TunnelEngine.discoverTunnels(ctx)
+                                isDiscovering = false
+                                discoveryResultDialog = res
+                                refreshTunnels()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
 
