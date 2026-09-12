@@ -41,11 +41,23 @@ object SshEngine {
         val t0 = System.currentTimeMillis()
         var session: com.jcraft.jsch.Session? = null
         try {
+            CryptoSecurity.ensureInitialized()
             val jsch = JSch()
             session = jsch.getSession(user.trim(), host.trim(), if (sshPort > 0) sshPort else 22)
             session.setPassword(password)
             session.setConfig("StrictHostKeyChecking", "no")
             session.setConfig("PreferredAuthentications", "password,keyboard-interactive")
+
+            val kexAlgos = "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1"
+            val hostKeyAlgos = "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa,ssh-dss"
+            val cipherAlgos = "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com,aes128-cbc,3des-cbc"
+
+            session.setConfig("kex", kexAlgos)
+            session.setConfig("server_host_key", hostKeyAlgos)
+            session.setConfig("PubkeyAcceptedAlgorithms", hostKeyAlgos)
+            session.setConfig("cipher.s2c", cipherAlgos)
+            session.setConfig("cipher.c2s", cipherAlgos)
+
             session.connect(TimeUnit.SECONDS.toMillis(12).toInt())
 
             val channel = session.openChannel("exec") as ChannelExec
