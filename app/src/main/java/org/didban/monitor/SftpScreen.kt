@@ -71,8 +71,11 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,11 +90,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -551,126 +556,131 @@ fun SftpScreen(t: Str) {
                 }
             }
 
-            // Interactive Breadcrumb & Explorer Toolbar
-            item {
-                ModernCard(padding = 12.dp, cornerRadius = 16.dp) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        // Interactive Clickable Breadcrumb
-                        BreadcrumbBar(
-                            currentPath = currentPath,
-                            onNavigate = { loadDirectory(it) }
-                        )
+            // Sticky Interactive Breadcrumb & Explorer Toolbar
+            stickyHeader {
+                Surface(
+                    color = Ds.canvas,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    ModernCard(padding = 12.dp, cornerRadius = 16.dp) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Interactive Clickable Breadcrumb
+                            BreadcrumbBar(
+                                currentPath = currentPath,
+                                onNavigate = { loadDirectory(it) }
+                            )
 
-                        HorizontalDivider(color = Ds.hairline, thickness = 0.5.dp)
+                            HorizontalDivider(color = Ds.hairline, thickness = 0.5.dp)
 
-                        // Action Bar: Up, New File, New Folder, Sort, Hidden toggle
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                // Up button
-                                CircleIconButton(
-                                    icon = Icons.Rounded.ArrowUpward,
-                                    contentDescription = "پوشه بالا",
-                                    onClick = {
-                                        val parent = currentPath.substringBeforeLast("/").ifBlank { "/" }
-                                        loadDirectory(parent)
-                                    },
-                                    size = 32.dp
-                                )
-
-                                // Refresh
-                                CircleIconButton(
-                                    icon = Icons.Rounded.Refresh,
-                                    contentDescription = "رفرش",
-                                    onClick = { loadDirectory(currentPath) },
-                                    size = 32.dp
-                                )
-
-                                // New File
-                                CircleIconButton(
-                                    icon = Icons.Rounded.NoteAdd,
-                                    contentDescription = "فایل جدید",
-                                    onClick = { showNewFileDialog = true },
-                                    tint = Ds.accent,
-                                    size = 32.dp
-                                )
-
-                                // New Folder
-                                CircleIconButton(
-                                    icon = Icons.Rounded.CreateNewFolder,
-                                    contentDescription = "پوشه جدید",
-                                    onClick = { showNewFolderDialog = true },
-                                    tint = Ds.warn,
-                                    size = 32.dp
-                                )
-                            }
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                // Toggle hidden files
-                                CircleIconButton(
-                                    icon = if (showHiddenFiles) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
-                                    contentDescription = "فایل‌های مخفی",
-                                    onClick = {
-                                        showHiddenFiles = !showHiddenFiles
-                                        loadDirectory(currentPath)
-                                    },
-                                    tint = if (showHiddenFiles) Ds.accent else Ds.textTertiary,
-                                    size = 32.dp
-                                )
-
-                                // Sort selector
-                                Box {
+                            // Action Bar: Up, New File, New Folder, Sort, Hidden toggle
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    // Up button
                                     CircleIconButton(
-                                        icon = Icons.Rounded.Sort,
-                                        contentDescription = "مرتب‌سازی",
-                                        onClick = { showSortMenu = true },
+                                        icon = Icons.Rounded.ArrowUpward,
+                                        contentDescription = "پوشه بالا",
+                                        onClick = {
+                                            val parent = currentPath.substringBeforeLast("/").ifBlank { "/" }
+                                            loadDirectory(parent)
+                                        },
                                         size = 32.dp
                                     )
 
-                                    DropdownMenu(
-                                        expanded = showSortMenu,
-                                        onDismissRequest = { showSortMenu = false },
-                                        modifier = Modifier.background(Ds.surfaceElevated)
-                                    ) {
-                                        DropdownMenuItem(
-                                            text = { Text("نام (الفبا A-Z)", fontSize = 12.sp, color = Ds.textPrimary) },
-                                            onClick = {
-                                                sortMode = SftpSortMode.NAME_ASC
-                                                showSortMenu = false
-                                                loadDirectory(currentPath)
-                                            }
+                                    // Refresh
+                                    CircleIconButton(
+                                        icon = Icons.Rounded.Refresh,
+                                        contentDescription = "رفرش",
+                                        onClick = { loadDirectory(currentPath) },
+                                        size = 32.dp
+                                    )
+
+                                    // New File
+                                    CircleIconButton(
+                                        icon = Icons.Rounded.NoteAdd,
+                                        contentDescription = "فایل جدید",
+                                        onClick = { showNewFileDialog = true },
+                                        tint = Ds.accent,
+                                        size = 32.dp
+                                    )
+
+                                    // New Folder
+                                    CircleIconButton(
+                                        icon = Icons.Rounded.CreateNewFolder,
+                                        contentDescription = "پوشه جدید",
+                                        onClick = { showNewFolderDialog = true },
+                                        tint = Ds.warn,
+                                        size = 32.dp
+                                    )
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    // Toggle hidden files
+                                    CircleIconButton(
+                                        icon = if (showHiddenFiles) Icons.Rounded.Visibility else Icons.Rounded.VisibilityOff,
+                                        contentDescription = "فایل‌های مخفی",
+                                        onClick = {
+                                            showHiddenFiles = !showHiddenFiles
+                                            loadDirectory(currentPath)
+                                        },
+                                        tint = if (showHiddenFiles) Ds.accent else Ds.textTertiary,
+                                        size = 32.dp
+                                    )
+
+                                    // Sort selector
+                                    Box {
+                                        CircleIconButton(
+                                            icon = Icons.Rounded.Sort,
+                                            contentDescription = "مرتب‌سازی",
+                                            onClick = { showSortMenu = true },
+                                            size = 32.dp
                                         )
-                                        DropdownMenuItem(
-                                            text = { Text("حجم (بزرگ به کوچک)", fontSize = 12.sp, color = Ds.textPrimary) },
-                                            onClick = {
-                                                sortMode = SftpSortMode.SIZE_DESC
-                                                showSortMenu = false
-                                                loadDirectory(currentPath)
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text("تاریخ (جدیدترین)", fontSize = 12.sp, color = Ds.textPrimary) },
-                                            onClick = {
-                                                sortMode = SftpSortMode.DATE_DESC
-                                                showSortMenu = false
-                                                loadDirectory(currentPath)
-                                            }
-                                        )
+
+                                        DropdownMenu(
+                                            expanded = showSortMenu,
+                                            onDismissRequest = { showSortMenu = false },
+                                            modifier = Modifier.background(Ds.surfaceElevated)
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("نام (الفبا A-Z)", fontSize = 12.sp, color = Ds.textPrimary) },
+                                                onClick = {
+                                                    sortMode = SftpSortMode.NAME_ASC
+                                                    showSortMenu = false
+                                                    loadDirectory(currentPath)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("حجم (بزرگ به کوچک)", fontSize = 12.sp, color = Ds.textPrimary) },
+                                                onClick = {
+                                                    sortMode = SftpSortMode.SIZE_DESC
+                                                    showSortMenu = false
+                                                    loadDirectory(currentPath)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("تاریخ (جدیدترین)", fontSize = 12.sp, color = Ds.textPrimary) },
+                                                onClick = {
+                                                    sortMode = SftpSortMode.DATE_DESC
+                                                    showSortMenu = false
+                                                    loadDirectory(currentPath)
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Search Field in Current Folder
-                        InputField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            label = "",
-                            placeholder = "🔍 جستجو در این پوشه..."
-                        )
+                            // Search Field in Current Folder
+                            InputField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                label = "",
+                                placeholder = "🔍 جستجو در این پوشه..."
+                            )
+                        }
                     }
                 }
             }
@@ -1402,91 +1412,96 @@ private fun SftpEditorView(
         }
 
         // Quick Coding Symbols Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Font zoom buttons
-            Box(
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Ds.surfaceElevated)
-                    .clickable { if (fontSize > 9f) fontSize -= 1.5f }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("A-", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
-            }
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Ds.surfaceElevated)
-                    .clickable { if (fontSize < 20f) fontSize += 1.5f }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text("A+", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
-            }
+                // Font zoom buttons
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Ds.surfaceElevated)
+                        .clickable { if (fontSize > 9f) fontSize -= 1.5f }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("A-", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Ds.surfaceElevated)
+                        .clickable { if (fontSize < 20f) fontSize += 1.5f }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("A+", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary)
+                }
 
-            // Copy all
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Ds.surfaceElevated)
-                    .clickable {
-                        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("Config", content))
-                        Toast.makeText(ctx, "کل متن کپی شد", Toast.LENGTH_SHORT).show()
-                    }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text("📋 کپی", fontSize = 11.sp, color = Ds.textSecondary)
-            }
-
-            quickSymbols.forEach { sym ->
+                // Copy all
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
                         .background(Ds.surfaceElevated)
                         .clickable {
-                            if (!isReadOnly) {
-                                onContentChange(content + sym)
-                            }
+                            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("Config", content))
+                            Toast.makeText(ctx, "کل متن کپی شد", Toast.LENGTH_SHORT).show()
                         }
-                        .padding(horizontal = 9.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(if (sym == "    ") "Tab ⇥" else sym, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = Ds.accent)
+                    Text("📋 Copy", fontSize = 11.sp, color = Ds.textSecondary)
+                }
+
+                quickSymbols.forEach { sym ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Ds.surfaceElevated)
+                            .clickable {
+                                if (!isReadOnly) {
+                                    onContentChange(content + sym)
+                                }
+                            }
+                            .padding(horizontal = 9.dp, vertical = 4.dp)
+                    ) {
+                        Text(if (sym == "    ") "Tab ⇥" else sym, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = Ds.accent)
+                    }
                 }
             }
         }
 
-        // Main Monospace Text Editor Box
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF0D1117)) // Modern Dark Code Canvas
-                .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
-                .padding(10.dp)
-        ) {
-            val codeScrollState = rememberScrollState()
-            BasicTextField(
-                value = content,
-                onValueChange = { if (!isReadOnly) onContentChange(it) },
-                readOnly = isReadOnly,
-                textStyle = TextStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = fontSize.sp,
-                    color = Ds.textPrimary,
-                    lineHeight = (fontSize * 1.4f).sp
-                ),
-                cursorBrush = SolidColor(Ds.accent),
+        // Main Monospace Text Editor Box (adaptive high-contrast code canvas in LTR)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(codeScrollState)
-            )
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Ds.surfaceLow)
+                    .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                val codeScrollState = rememberScrollState()
+                BasicTextField(
+                    value = content,
+                    onValueChange = { if (!isReadOnly) onContentChange(it) },
+                    readOnly = isReadOnly,
+                    textStyle = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = fontSize.sp,
+                        color = Ds.textPrimary,
+                        textAlign = TextAlign.Start,
+                        lineHeight = (fontSize * 1.45f).sp
+                    ),
+                    cursorBrush = SolidColor(Ds.accent),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(codeScrollState)
+                )
+            }
         }
     }
 
