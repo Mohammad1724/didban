@@ -5,7 +5,6 @@ package org.didban.monitor
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.OpenableColumns
@@ -14,10 +13,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,21 +36,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowUpward
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.CreateNewFolder
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.DriveFileRenameOutline
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.FindReplace
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.FolderOpen
@@ -72,28 +60,22 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Sort
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material.icons.rounded.TextFormat
-import androidx.compose.material.icons.rounded.UploadFile
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -102,8 +84,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -115,7 +99,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.util.Locale
 
 @Composable
 fun SftpScreen(t: Str) {
@@ -595,8 +578,7 @@ fun SftpScreen(t: Str) {
                                         val parent = currentPath.substringBeforeLast("/").ifBlank { "/" }
                                         loadDirectory(parent)
                                     },
-                                    size = 32.dp,
-                                    iconSize = 16.dp
+                                    size = 32.dp
                                 )
 
                                 // Refresh
@@ -604,8 +586,7 @@ fun SftpScreen(t: Str) {
                                     icon = Icons.Rounded.Refresh,
                                     contentDescription = "رفرش",
                                     onClick = { loadDirectory(currentPath) },
-                                    size = 32.dp,
-                                    iconSize = 16.dp
+                                    size = 32.dp
                                 )
 
                                 // New File
@@ -614,9 +595,7 @@ fun SftpScreen(t: Str) {
                                     contentDescription = "فایل جدید",
                                     onClick = { showNewFileDialog = true },
                                     tint = Ds.accent,
-                                    background = Ds.accentDim,
-                                    size = 32.dp,
-                                    iconSize = 16.dp
+                                    size = 32.dp
                                 )
 
                                 // New Folder
@@ -625,9 +604,7 @@ fun SftpScreen(t: Str) {
                                     contentDescription = "پوشه جدید",
                                     onClick = { showNewFolderDialog = true },
                                     tint = Ds.warn,
-                                    background = Ds.warnDim,
-                                    size = 32.dp,
-                                    iconSize = 16.dp
+                                    size = 32.dp
                                 )
                             }
 
@@ -641,8 +618,7 @@ fun SftpScreen(t: Str) {
                                         loadDirectory(currentPath)
                                     },
                                     tint = if (showHiddenFiles) Ds.accent else Ds.textTertiary,
-                                    size = 32.dp,
-                                    iconSize = 16.dp
+                                    size = 32.dp
                                 )
 
                                 // Sort selector
@@ -651,8 +627,7 @@ fun SftpScreen(t: Str) {
                                         icon = Icons.Rounded.Sort,
                                         contentDescription = "مرتب‌سازی",
                                         onClick = { showSortMenu = true },
-                                        size = 32.dp,
-                                        iconSize = 16.dp
+                                        size = 32.dp
                                     )
 
                                     DropdownMenu(
@@ -694,21 +669,7 @@ fun SftpScreen(t: Str) {
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             label = "",
-                            placeholder = "🔍 جستجو در این پوشه...",
-                            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = Ds.textTertiary, modifier = Modifier.size(18.dp)) },
-                            trailingIcon = if (searchQuery.isNotBlank()) {
-                                {
-                                    Icon(
-                                        Icons.Rounded.Close,
-                                        contentDescription = "پاک کردن",
-                                        tint = Ds.textTertiary,
-                                        modifier = Modifier
-                                            .size(18.dp)
-                                            .clickable { searchQuery = "" }
-                                    )
-                                }
-                            } else null,
-                            modifier = Modifier.fillMaxWidth()
+                            placeholder = "🔍 جستجو در این پوشه..."
                         )
                     }
                 }
@@ -900,10 +861,10 @@ fun SftpScreen(t: Str) {
                 }
             },
             confirmButton = {
-                SoftButton(text = "حذف قطعی", onClick = { deleteItem(item) }, tone = ButtonTone.Danger)
+                SoftButton(text = "حذف قطعی", onClick = { deleteItem(item) }, tone = Ds.danger)
             },
             dismissButton = {
-                GhostButton(text = "انصراف", onClick = { itemToDelete = null })
+                SoftButton(text = "انصراف", onClick = { itemToDelete = null })
             },
             containerColor = Ds.surfaceElevated
         )
@@ -1060,7 +1021,7 @@ private fun SftpFileRowItem(
     } else {
         when (item.category) {
             SftpFileCategory.CONFIG -> {
-                icon = Icons.Rounded.Settings
+                icon = Icons.Rounded.Tune
                 iconTint = Color(0xFF10B981) // Emerald
             }
             SftpFileCategory.STRUCTURED -> {
@@ -1072,7 +1033,7 @@ private fun SftpFileRowItem(
                 iconTint = Color(0xFF8B5CF6) // Purple
             }
             SftpFileCategory.LOG_OR_TEXT -> {
-                icon = Icons.Rounded.TextFormat
+                icon = Icons.Rounded.Description
                 iconTint = Color(0xFFFB923C) // Orange
             }
             SftpFileCategory.CERTIFICATE -> {
@@ -1162,13 +1123,11 @@ private fun SftpFileRowItem(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (!item.isDirectory) {
                     CircleIconButton(
-                        icon = Icons.Rounded.Edit,
+                        icon = Icons.Rounded.Tune,
                         contentDescription = "ویرایش",
                         onClick = onEdit,
                         tint = Ds.accent,
-                        background = Ds.accentDim,
-                        size = 30.dp,
-                        iconSize = 15.dp
+                        size = 30.dp
                     )
                 }
 
@@ -1177,8 +1136,7 @@ private fun SftpFileRowItem(
                         icon = Icons.Rounded.MoreVert,
                         contentDescription = "بیشتر",
                         onClick = { showMenu = true },
-                        size = 30.dp,
-                        iconSize = 16.dp
+                        size = 30.dp
                     )
 
                     DropdownMenu(
@@ -1370,8 +1328,7 @@ private fun SftpEditorView(
                     contentDescription = "حالت فقط خواندنی",
                     onClick = { isReadOnly = !isReadOnly },
                     tint = if (isReadOnly) Ds.warn else Ds.textSecondary,
-                    size = 32.dp,
-                    iconSize = 16.dp
+                    size = 32.dp
                 )
 
                 CircleIconButton(
@@ -1379,8 +1336,7 @@ private fun SftpEditorView(
                     contentDescription = "جستجو و جایگزینی",
                     onClick = { showSearchRow = !showSearchRow },
                     tint = if (showSearchRow) Ds.accent else Ds.textSecondary,
-                    size = 32.dp,
-                    iconSize = 16.dp
+                    size = 32.dp
                 )
 
                 PrimaryButton(
@@ -1513,15 +1469,23 @@ private fun SftpEditorView(
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFF0D1117)) // Modern Dark Code Canvas
                 .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(12.dp))
-                .padding(8.dp)
+                .padding(10.dp)
         ) {
-            InputField(
+            val codeScrollState = rememberScrollState()
+            BasicTextField(
                 value = content,
                 onValueChange = { if (!isReadOnly) onContentChange(it) },
-                label = "",
-                placeholder = "محتوای فایل کانفیگ...",
                 readOnly = isReadOnly,
-                modifier = Modifier.fillMaxSize()
+                textStyle = TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = fontSize.sp,
+                    color = Ds.textPrimary,
+                    lineHeight = (fontSize * 1.4f).sp
+                ),
+                cursorBrush = SolidColor(Ds.accent),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(codeScrollState)
             )
         }
     }
@@ -1536,7 +1500,7 @@ private fun SftpEditorView(
                 SoftButton(text = "خروج بدون ذخیره", onClick = {
                     showUnsavedDialog = false
                     onClose()
-                }, tone = ButtonTone.Danger)
+                }, tone = Ds.danger)
             },
             dismissButton = {
                 PrimaryButton(text = "ذخیره و خروج", onClick = {
