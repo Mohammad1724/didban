@@ -55,6 +55,20 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion '1.5.14'
     }
+    packaging {
+        resources {
+            excludes += [
+                '/META-INF/{AL2.0,LGPL2.1}',
+                '/META-INF/INDEX.LIST',
+                '/META-INF/DEPENDENCIES'
+            ]
+            pickFirsts += [
+                'META-INF/versions/9/OSGI-INF/MANIFEST.MF',
+                'META-INF/versions/**',
+                'META-INF/OSGI-INF/**'
+            ]
+        }
+    }
 }
 
 dependencies {
