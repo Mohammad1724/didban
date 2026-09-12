@@ -4,6 +4,7 @@ package org.didban.monitor
 
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -112,6 +113,17 @@ fun TunnelScreen(
     var isDiscovering by remember { mutableStateOf(false) }
     var deployResultDialog by remember { mutableStateOf<AutoDeployResult?>(null) }
     var discoveryResultDialog by remember { mutableStateOf<TunnelEngine.DiscoveryResult?>(null) }
+
+    BackHandler(
+        enabled = showForm || editingTunnel != null || viewingCodeTunnel != null || deletingTunnel != null || deployResultDialog != null || discoveryResultDialog != null
+    ) {
+        showForm = false
+        editingTunnel = null
+        viewingCodeTunnel = null
+        deletingTunnel = null
+        deployResultDialog = null
+        discoveryResultDialog = null
+    }
 
     fun refreshTunnels() {
         tunnels = Prefs.loadTunnels(ctx)

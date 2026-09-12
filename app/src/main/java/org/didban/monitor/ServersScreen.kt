@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -125,6 +126,12 @@ fun ServersScreen(
     var editServer by remember { mutableStateOf<ServerConfig?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var filterTab by remember { mutableStateOf(0) } // 0: All, 1: Online, 2: Offline
+
+    BackHandler(enabled = showAdd || editServer != null || deletedServer != null) {
+        showAdd = false
+        editServer = null
+        deletedServer = null
+    }
 
     // Rolling telemetry history for sparklines
     var cpuHistory by remember { mutableStateOf<Map<Long, List<Float>>>(emptyMap()) }

@@ -3,6 +3,7 @@
 package org.didban.monitor
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,6 +94,8 @@ fun DashboardScreen(
     var tab by remember { mutableStateOf(0) }
     val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
+
+    BackHandler { onBack() }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { tab = it }

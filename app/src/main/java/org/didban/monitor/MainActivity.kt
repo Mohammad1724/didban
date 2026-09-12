@@ -10,7 +10,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -273,6 +275,30 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
 
     val t = if (lang == "fa") Locales.fa else Locales.en
     val isDarkMode = themeMode == "dark"
+
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+
+    // ── Global Back Navigation & Exit Guard Hierarchy ──
+    if (openServer != null) {
+        BackHandler {
+            openServer = null
+        }
+    } else if (currentNav != 0) {
+        BackHandler {
+            currentNav = 0
+        }
+    } else {
+        BackHandler {
+            val now = System.currentTimeMillis()
+            if (now - lastBackPressTime < 2000L) {
+                val activity = ctx.findActivity()
+                activity?.finish()
+            } else {
+                lastBackPressTime = now
+                Toast.makeText(ctx, t.pressAgainToExit, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     // Deep-link routing from push notifications
     LaunchedEffect(pendingServerId.value) {

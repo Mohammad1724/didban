@@ -4,6 +4,7 @@ package org.didban.monitor
 
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -87,6 +88,15 @@ fun UptimeScreen(t: Str) {
     var testingTargetId by remember { mutableStateOf<Long?>(null) }
     var showGuide by remember { mutableStateOf(targets.isEmpty()) }
     var selectedFilterType by remember { mutableStateOf<String?>(null) }
+
+    BackHandler(
+        enabled = showAddDialog || editTarget != null || deleteTarget != null || expandedIncidentsTargetId != null
+    ) {
+        showAddDialog = false
+        editTarget = null
+        deleteTarget = null
+        expandedIncidentsTargetId = null
+    }
 
     fun saveTargets() {
         Prefs.saveUptimeTargets(ctx, targets)

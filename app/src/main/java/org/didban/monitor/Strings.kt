@@ -226,6 +226,7 @@ interface Str {
     val bandwidthBenchmark: String
     val systemdManager: String
     val firewallSecurity: String
+    val pressAgainToExit: String
     val tipHeader: String
     val guideCensorship: String
     val guideVault: String
@@ -547,6 +548,7 @@ object FaStr : Str {
     override val bandwidthBenchmark: String = "بنچمارک پهنای باند و سرعت"
     override val systemdManager: String = "سرویس‌های Systemd و کران‌جاب"
     override val firewallSecurity: String = "فایروال و امنیت Fail2ban"
+    override val pressAgainToExit: String = "برای خروج از برنامه، دوباره دکمه بازگشت را بزنید"
     override val tipHeader: String = "💡 نکته: اطلاعات پردازنده، رم و دیسک هر چند ثانیه به‌صورت زنده دریافت می‌شوند."
     override val guideCensorship: String = "این ابزار هوشمند، اختلالات اینترنت و فیلترینگ را تفکیک می‌کند: آیا سرور فیلتر شده، پکت‌های TCP RST توسط فیلترینگ تزریق می‌شوند، یا پروتکل TLS/SNI قطع شده است."
     override val guideVault: String = "گاوصندوق امن محلی برای ذخیره کلیدهای SSH، رمزها، توکن‌ها و کانفیگ‌ها با رمزنگاری نظامی AES-256 (داده‌ها فقط روی گوشی شما ذخیره می‌شوند و به هیچ سروری ارسال نمی‌گردند)."
@@ -869,6 +871,7 @@ object EnStr : Str {
     override val bandwidthBenchmark: String = "Speed & Bandwidth Test"
     override val systemdManager: String = "Systemd & Cron Manager"
     override val firewallSecurity: String = "Firewall & Fail2ban"
+    override val pressAgainToExit: String = "Press back again to exit"
     override val tipHeader: String = "💡 Tip: CPU, RAM, and Disk metrics are refreshed in real-time from the Go agent."
     override val guideCensorship: String = "Diagnoses network interference: distinguishes between routing blackholes, DPI TCP RST packet injections, and TLS/SNI handshake filtering."
     override val guideVault: String = "A zero-knowledge AES-256 encrypted local vault to keep your SSH private keys, API credentials, and secrets safe right on your phone."
