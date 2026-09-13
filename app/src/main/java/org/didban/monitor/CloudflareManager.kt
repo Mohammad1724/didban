@@ -30,6 +30,13 @@ data class CfRecord(
 
 object CloudflareService {
 
+    // H11: the v4 API caps pages at 50 (zones) / 100 (dns_records) items;
+    // list endpoints must walk every page or large zones come back truncated.
+    private const val DEFAULT_API_BASE = "https://api.cloudflare.com/client/v4"
+    private const val ZONES_PER_PAGE = 50
+    private const val RECORDS_PER_PAGE = 100
+    private const val MAX_PAGES = 100 // safety valve against a misbehaving API
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -37,73 +44,108 @@ object CloudflareService {
 
     private val mediaType = "application/json; charset=utf-8".toMediaType()
 
-    suspend fun listZones(apiToken: String): List<CfZone> = withContext(Dispatchers.IO) {
+    /**
+     * One API page: fetch + success-check + return the raw JSON envelope.
+     * [endpoint] is the full URL (pagination query included).
+     *
+     * The v4 API returns its JSON error envelope for non-2xx responses too
+     * (401/403/429...), so the human-readable message is extracted from
+     * the body before falling back to the raw HTTP status.
+     */
+    private fun fetchJson(apiToken: String, endpoint: String): JSONObject {
         val req = Request.Builder()
-            .url("https://api.cloudflare.com/client/v4/zones?per_page=50")
+            .url(endpoint)
             .header("Authorization", "Bearer ${apiToken.trim()}")
             .build()
-
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: $body")
+            if (!resp.isSuccessful) {
+                val msg = try {
+                    val errs = JSONObject(body).optJSONArray("errors")
+                    if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else null
+                } catch (_: Exception) {
+                    null
+                }
+                throw Exception(msg ?: "HTTP ${resp.code}: $body")
+            }
             val j = JSONObject(body)
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")
-                val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Failed to list zones"
+                val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Cloudflare API error"
                 throw Exception(msg)
             }
-            val arr = j.optJSONArray("result") ?: JSONArray()
+            return j
+        }
+    }
+
+    /** total_count from `result_info`, or -1 when the API omitted it. */
+    private fun totalCountOf(j: JSONObject): Long =
+        j.optJSONObject("result_info")?.optLong("total_count", -1L) ?: -1L
+
+    /**
+     * All zones of the account (H11: every page, not just the first 50).
+     * [apiBase] exists so the JVM tests can point the walker at a local
+     * stub; production always uses the default.
+     */
+    suspend fun listZones(apiToken: String, apiBase: String = DEFAULT_API_BASE): List<CfZone> =
+        withContext(Dispatchers.IO) {
             val list = mutableListOf<CfZone>()
-            for (i in 0 until arr.length()) {
-                val z = arr.getJSONObject(i)
-                list.add(
-                    CfZone(
-                        id = z.optString("id"),
-                        name = z.optString("name"),
-                        status = z.optString("status"),
-                        paused = z.optBoolean("paused")
+            var page = 1
+            while (page <= MAX_PAGES) {
+                val j = fetchJson(apiToken, "$apiBase/zones?${CfPagination.pageQuery(page, ZONES_PER_PAGE)}")
+                val arr = j.optJSONArray("result") ?: JSONArray()
+                for (i in 0 until arr.length()) {
+                    val z = arr.getJSONObject(i)
+                    list.add(
+                        CfZone(
+                            id = z.optString("id"),
+                            name = z.optString("name"),
+                            status = z.optString("status"),
+                            paused = z.optBoolean("paused")
+                        )
                     )
-                )
+                }
+                val next = CfPagination.nextPage(page, ZONES_PER_PAGE, arr.length(), totalCountOf(j)) ?: break
+                page = next
             }
             list
         }
-    }
 
-    suspend fun listRecords(apiToken: String, zoneId: String): List<CfRecord> = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
-            .url("https://api.cloudflare.com/client/v4/zones/$zoneId/dns_records?per_page=100")
-            .header("Authorization", "Bearer ${apiToken.trim()}")
-            .build()
-
-        client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: $body")
-            val j = JSONObject(body)
-            if (!j.optBoolean("success", false)) {
-                val errs = j.optJSONArray("errors")
-                val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Failed to list records"
-                throw Exception(msg)
-            }
-            val arr = j.optJSONArray("result") ?: JSONArray()
+    /**
+     * All DNS records of a zone (H11: every page, not just the first 100).
+     * [apiBase] exists so the JVM tests can point the walker at a local
+     * stub; production always uses the default.
+     */
+    suspend fun listRecords(apiToken: String, zoneId: String, apiBase: String = DEFAULT_API_BASE): List<CfRecord> =
+        withContext(Dispatchers.IO) {
             val list = mutableListOf<CfRecord>()
-            for (i in 0 until arr.length()) {
-                val r = arr.getJSONObject(i)
-                list.add(
-                    CfRecord(
-                        id = r.optString("id"),
-                        zoneId = zoneId,
-                        type = r.optString("type"),
-                        name = r.optString("name"),
-                        content = r.optString("content"),
-                        proxiable = r.optBoolean("proxiable", false),
-                        proxied = r.optBoolean("proxied", false),
-                        ttl = r.optInt("ttl", 1)
-                    )
+            var page = 1
+            while (page <= MAX_PAGES) {
+                val j = fetchJson(
+                    apiToken,
+                    "$apiBase/zones/$zoneId/dns_records?${CfPagination.pageQuery(page, RECORDS_PER_PAGE)}"
                 )
+                val arr = j.optJSONArray("result") ?: JSONArray()
+                for (i in 0 until arr.length()) {
+                    val r = arr.getJSONObject(i)
+                    list.add(
+                        CfRecord(
+                            id = r.optString("id"),
+                            zoneId = zoneId,
+                            type = r.optString("type"),
+                            name = r.optString("name"),
+                            content = r.optString("content"),
+                            proxiable = r.optBoolean("proxiable", false),
+                            proxied = r.optBoolean("proxied", false),
+                            ttl = r.optInt("ttl", 1)
+                        )
+                    )
+                }
+                val next = CfPagination.nextPage(page, RECORDS_PER_PAGE, arr.length(), totalCountOf(j)) ?: break
+                page = next
             }
             list
         }
-    }
 
     suspend fun saveRecord(
         apiToken: String,
