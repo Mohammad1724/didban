@@ -6,20 +6,47 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.security.SecureRandom
 
 data class PortMapping(val iranPort: Int, val foreignPort: Int)
 
 object TunnelEngine {
 
-    fun generateRandomToken(length: Int = 16): String {
-        val chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        val rnd = SecureRandom()
-        val sb = StringBuilder()
-        for (i in 0 until length) {
-            sb.append(chars[rnd.nextInt(chars.length)])
+    fun generateRandomToken(length: Int = 16): String = TunnelSecrets.generateRandomToken(length)
+
+    /**
+     * Stable secret for [cfg] (H3): generated once (when blank) and written
+     * back into `cfg.token`, so every later code generation / redeploy reuses
+     * the SAME credential. Without this, each `generateCode` call minted a
+     * fresh token that was never persisted, and a redeploy broke the
+     * already-deployed pair (server still had the old key).
+     */
+    fun ensureToken(cfg: TunnelConfig): String =
+        TunnelSecrets.ensureToken(cfg.token) { cfg.token = it }
+
+    /**
+     * Deterministic key expansion for cores that need two secrets from one
+     * persisted one (SpoofTunnel's server/client keys). Same `cfg.token`
+     * always yields the same pair, so redeploys keep the pair intact.
+     */
+    private fun deriveKey(seed: String, domain: String): String =
+        TunnelSecrets.deriveKey(seed, domain)
+
+    /**
+     * Upserts [cfg] (with its materialized secret and sync status) into the
+     * persisted tunnel list. Guarantees the secret survives
+     * reload-from-disk (e.g. TunnelScreen.refreshTunnels after a deploy).
+     */
+    fun persistTunnel(ctx: android.content.Context, cfg: TunnelConfig) {
+        try {
+            val list = Prefs.loadTunnels(ctx).toMutableList()
+            val idx = list.indexOfFirst { it.id == cfg.id }
+            if (idx >= 0) list[idx] = cfg else list.add(cfg)
+            Prefs.saveTunnels(ctx, list)
+        } catch (_: Exception) {
+            // Best-effort: the deploy is the primary action. A failed save
+            // self-heals on the next explicit save (screen save loop /
+            // another deploy), and worst case the next deploy re-persists.
         }
-        return sb.toString()
     }
 
     fun parsePortMappings(cfg: TunnelConfig): List<PortMapping> {
@@ -90,7 +117,7 @@ object TunnelEngine {
             TunnelTransport.UDP -> "udp"
             else -> "tcp"
         }
-        val token = cfg.token.ifBlank { generateRandomToken(24) }
+        val token = ensureToken(cfg)
         val iranIp = cfg.iranHost.ifBlank { "IRAN_IP" }
         val preset = cfg.preset.ifBlank { "turbo" }
         val acceptUdpStr = if (cfg.acceptUdp) "accept_udp = true\n" else ""
@@ -222,7 +249,7 @@ services:
 
     private fun generatePaqet(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
-        val token = cfg.token.ifBlank { generateRandomToken(16) }
+        val token = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val kcpMode = cfg.kcpMode.ifBlank { "fast" }
         val encryption = cfg.encryption.ifBlank { "aes-128-gcm" }
@@ -365,7 +392,7 @@ services:
 
     private fun generateNarnia(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
-        val key = cfg.token.ifBlank { generateRandomToken(16) }
+        val key = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val vIpKharej = cfg.virtualIpKharej.ifBlank { "10.200.200.1" }
         val vIpIran = cfg.virtualIpIran.ifBlank { "10.200.200.2" }
@@ -484,8 +511,10 @@ services:
         val isIcmp = cfg.transport == TunnelTransport.IP_SPOOF_ICMP
         val transportType = if (isIcmp) "icmp" else "udp"
 
-        val serverPrivKey = generateRandomToken(32)
-        val clientPrivKey = generateRandomToken(32)
+        // Both keys derive from the single persisted cfg.token (H3): the
+        // pair is stable across code regeneration / redeploy.
+        val serverPrivKey = deriveKey(ensureToken(cfg), "server")
+        val clientPrivKey = deriveKey(ensureToken(cfg), "client")
 
         val firstPort = ports.firstOrNull() ?: PortMapping(cfg.iranPort, cfg.foreignPort)
 
@@ -680,7 +709,7 @@ services:
             TunnelTransport.TCPMUX -> "tcpmux"
             else -> "tcp"
         }
-        val token = cfg.token.ifBlank { "didban_backhaul_secret" }
+        val token = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
 
         val foreignPortsBlock = ports.joinToString("\n\n") { p ->
@@ -813,7 +842,7 @@ services:
 
     private fun generateRathole(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
-        val token = cfg.token.ifBlank { "didban_rathole_token" }
+        val token = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
 
         val serverServices = ports.joinToString("\n\n") { p ->
@@ -1055,7 +1084,7 @@ services:
     private fun generateChisel(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
-        val auth = "admin:${cfg.token.ifBlank { "didban_chisel_secret" }}"
+        val auth = "admin:${ensureToken(cfg)}"
 
         val reverseArgs = ports.joinToString(" ") { p -> "R:${p.iranPort}:127.0.0.1:${p.foreignPort}" }
 
@@ -1147,7 +1176,7 @@ services:
     private fun generateFrp(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
-        val token = cfg.token.ifBlank { "didban_frp_secret" }
+        val token = ensureToken(cfg)
 
         val frpProxies = ports.joinToString("\n\n") { p ->
             """[[proxies]]
@@ -1374,6 +1403,10 @@ $rules
                 cfg.syncStatusIran = "failed"
             }
         }
+
+        // Persist the materialized secret + final sync status so a later
+        // reload (refreshTunnels) or redeploy reuses the same credential (H3).
+        persistTunnel(ctx, cfg)
 
         val overall = (iranRes?.success != false) && (foreignRes?.success != false)
         val summary = when {

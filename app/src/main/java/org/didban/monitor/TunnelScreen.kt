@@ -1521,6 +1521,10 @@ private fun ViewTunnelCodeDialog(
     onDismiss: () -> Unit
 ) {
     val code = remember(tunnel) { TunnelEngine.generateCode(tunnel) }
+    // generateCode may materialize the tunnel secret on first use (H3):
+    // persist it immediately so a copied/redeployed command always matches.
+    val dlgCtx = LocalContext.current
+    LaunchedEffect(code) { TunnelEngine.persistTunnel(dlgCtx, tunnel) }
     var selectedTab by remember { mutableStateOf(0) } // 0: Iran, 1: Foreign, 2: Docker
 
     AlertDialog(
