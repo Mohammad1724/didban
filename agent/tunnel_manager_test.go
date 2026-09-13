@@ -295,6 +295,41 @@ func TestDeleteTunnelRemovesSandboxedConfig(t *testing.T) {
 	}
 }
 
+func TestApplyAndDeletePerTunnelDirectory(t *testing.T) {
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	// Item 26 layout: <configRoot>/<id>/<file> — the parent directory does
+	// not exist before the apply; the agent must create it, and delete
+	// must remove both the file and the (now empty) tunnel directory.
+	cfgPath := filepath.Join(root, "12", "server.toml")
+	if _, err := tm.ApplyTunnel(applyReq("12", cfgPath, "x", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	dir := filepath.Join(root, "12")
+	if _, err := os.Stat(cfgPath); err != nil {
+		t.Fatalf("config not written: %v", err)
+	}
+
+	// A non-tunnel-id sibling directory must survive the delete.
+	other := filepath.Join(root, "misc")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tm.DeleteTunnel("12", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	if _, err := os.Stat(cfgPath); !os.IsNotExist(err) {
+		t.Fatal("sandboxed config not removed")
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatal("per-tunnel directory not removed")
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Fatal("unrelated directory was removed")
+	}
+}
+
 // ── HTTP API layer ───────────────────────────────────────────────────────────
 
 func doJSON(t *testing.T, h http.Handler, method, path, token string, body any) *httptest.ResponseRecorder {

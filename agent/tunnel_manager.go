@@ -229,8 +229,11 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 		if err != nil {
 			return nil, err
 		}
-		if err := os.MkdirAll(tm.configRoot, 0o755); err != nil {
-			return nil, fmt.Errorf("failed to prepare config directory %s: %w", tm.configRoot, err)
+		// The config path may include per-tunnel subdirectories
+		// (<configRoot>/<id>/file — the Item 26 layout), so create the
+		// parent chain, not just the sandbox root.
+		if err := os.MkdirAll(filepath.Dir(cleanPath), 0o755); err != nil {
+			return nil, fmt.Errorf("failed to prepare config directory %s: %w", filepath.Dir(cleanPath), err)
 		}
 		if err := os.WriteFile(cleanPath, []byte(req.ConfigContent), 0o644); err != nil {
 			return nil, fmt.Errorf("failed to write config file %s: %w", cleanPath, err)
@@ -379,6 +382,15 @@ func (tm *TunnelManager) DeleteTunnel(id, customService string) error {
 	if meta.ConfigPath != "" {
 		if clean, err := tm.resolveConfigPath(meta.ConfigPath); err == nil {
 			_ = os.Remove(clean)
+			// Item 26 per-tunnel layout <configRoot>/<id>/ — remove the
+			// tunnel directory too when it sits directly under the sandbox
+			// root and is a valid tunnel id. os.Remove on a directory
+			// succeeds only when it is EMPTY, so it can never wipe files
+			// belonging to anything else.
+			dir := filepath.Dir(clean)
+			if filepath.Dir(dir) == tm.configRoot && ValidateTunnelID(filepath.Base(dir)) == nil {
+				_ = os.Remove(dir)
+			}
 		}
 	}
 	// Legacy layout cleanup (pre-sandbox installs).

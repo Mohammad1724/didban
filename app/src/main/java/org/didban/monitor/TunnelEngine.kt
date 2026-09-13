@@ -180,6 +180,9 @@ object TunnelEngine {
         val token = ensureToken(cfg)
         val iranIp = cfg.iranHost.ifBlank { "IRAN_IP" }
         val preset = cfg.preset.ifBlank { "turbo" }
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/server.toml"
+        val foreignCfgPath = "$cfgDir/client.toml"
         val acceptUdpStr = if (cfg.acceptUdp) "accept_udp = true\n" else ""
         val proxyProtoStr = if (cfg.proxyProtocol) "proxy_protocol = true\n" else ""
 
@@ -216,11 +219,11 @@ web_port = 0
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/backpack /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backpack/server.toml
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backpack Tunnel Server (Iran Node)
@@ -228,7 +231,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/backpack server -c /etc/backpack/server.toml
+ExecStart=/usr/local/bin/backpack server -c ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
@@ -240,11 +243,11 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/backpack /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backpack/client.toml
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backpack Tunnel Client (Kharej Node)
@@ -252,7 +255,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/backpack client -c /etc/backpack/client.toml
+ExecStart=/usr/local/bin/backpack client -c ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
@@ -297,6 +300,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل قدرتمند BackPack (توسعه‌یافته توسط AminMGMT): اتصال پورت‌های [$portsDesc] ایران به خارج با رمزنگاری ${cfg.transport.displayName} و پریست ${cfg.preset}."
         )
     }
@@ -309,6 +314,9 @@ services:
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val kcpMode = cfg.kcpMode.ifBlank { "fast" }
         val encryption = cfg.encryption.ifBlank { "aes-128-gcm" }
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/client.yaml"
+        val foreignCfgPath = "$cfgDir/server.yaml"
 
         val forwardsYaml = ports.joinToString("\n") { p ->
             """    - listen: "0.0.0.0:${p.iranPort}"
@@ -345,12 +353,12 @@ $forwardsYaml
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/paqet /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/paqet/server.yaml
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Paqet Tunnel Server (Raw Socket KCP)
@@ -358,7 +366,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/paqet server -c /etc/paqet/server.yaml
+ExecStart=/usr/local/bin/paqet server -c ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -371,12 +379,12 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/paqet /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/paqet/client.yaml
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Paqet Tunnel Client (Iran Entry)
@@ -384,7 +392,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/paqet client -c /etc/paqet/client.yaml
+ExecStart=/usr/local/bin/paqet client -c ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -436,6 +444,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل فوق سریع Paqet بر بستر Raw Socket و KCP: فوروارد پورت‌های [$portsDesc] با رمزنگاری $encryption و مود $kcpMode."
         )
     }
@@ -698,6 +708,9 @@ services:
         val spoofSrc = cfg.spoofSrcIp.ifBlank { "1.1.1.1" }
         val spoofPeer = cfg.spoofPeerIp.ifBlank { "8.8.8.8" }
         val isIcmp = cfg.transport == TunnelTransport.IP_SPOOF_ICMP
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/client.json"
+        val foreignCfgPath = "$cfgDir/server.json"
         val transportType = if (isIcmp) "icmp" else "udp"
 
         // Both keys derive from the single persisted cfg.token (H3): the
@@ -788,13 +801,13 @@ services:
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/spoof-tunnel/server.json
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Server
@@ -802,7 +815,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/spoof-tunnel -c /etc/spoof-tunnel/server.json
+ExecStart=/usr/local/bin/spoof-tunnel -c ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -815,13 +828,13 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/spoof-tunnel /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/ParsaKSH/spoof-tunnel/releases/latest/download/spoof-tunnel-linux-${'$'}ARCH.tar.gz -o /tmp/spoof.tar.gz && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/spoof-tunnel/client.json
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Client
@@ -829,7 +842,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/spoof-tunnel -c /etc/spoof-tunnel/client.json
+ExecStart=/usr/local/bin/spoof-tunnel -c ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -880,6 +893,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل جعل دوطرفه IP مبدا (Mutual IP Spoofing): تغییر فیلد Source IP در سطح Raw Socket با لایه تضمین تحویل پکت‌ها و بازیابی خطای Reed-Solomon FEC."
         )
     }
@@ -896,6 +911,9 @@ services:
         }
         val token = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/client.toml"
+        val foreignCfgPath = "$cfgDir/server.toml"
 
         val foreignPortsBlock = ports.joinToString("\n\n") { p ->
             """[[server.ports]]
@@ -934,11 +952,11 @@ web_port = 0
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/backhaul /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backhaul/config.toml
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backhaul Server Tunnel
@@ -946,7 +964,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/backhaul -c /etc/backhaul/config.toml
+ExecStart=/usr/local/bin/backhaul -c ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -958,11 +976,11 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/backhaul /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backhaul/config.toml
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backhaul Client Tunnel
@@ -970,7 +988,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/backhaul -c /etc/backhaul/config.toml
+ExecStart=/usr/local/bin/backhaul -c ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -1015,6 +1033,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل معکوس Backhaul: اتصال پورت‌های [$portsDesc] ایران به خارج با پروتکل ${cfg.transport.displayName}."
         )
     }
@@ -1026,6 +1046,9 @@ services:
         val token = ensureToken(cfg)
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
 
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/client.toml"
+        val foreignCfgPath = "$cfgDir/server.toml"
         val serverServices = ports.joinToString("\n\n") { p ->
             """[server.services.app_${p.iranPort}]
 token = "$token"
@@ -1055,14 +1078,14 @@ $clientServices
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/rathole /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m) && \
 ZIP_ARCH="x86_64-unknown-linux-musl" && \
 if [ "${'$'}ARCH" = "aarch64" ] || [ "${'$'}ARCH" = "arm64" ]; then ZIP_ARCH="aarch64-unknown-linux-musl"; fi && \
 curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${'$'}ZIP_ARCH.zip -o /tmp/rathole.zip && \
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/rathole/server.toml
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Rathole Server
@@ -1070,7 +1093,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/rathole /etc/rathole/server.toml
+ExecStart=/usr/local/bin/rathole ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -1082,14 +1105,14 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/rathole /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m) && \
 ZIP_ARCH="x86_64-unknown-linux-musl" && \
 if [ "${'$'}ARCH" = "aarch64" ] || [ "${'$'}ARCH" = "arm64" ]; then ZIP_ARCH="aarch64-unknown-linux-musl"; fi && \
 curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${'$'}ZIP_ARCH.zip -o /tmp/rathole.zip && \
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/rathole/client.toml
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Rathole Client
@@ -1097,7 +1120,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/rathole /etc/rathole/client.toml
+ExecStart=/usr/local/bin/rathole ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -1142,6 +1165,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل سبک و امن Rathole نوشته شده با Rust: رله پورت‌های [$portsDesc] با کمترین مصرف رم."
         )
     }
@@ -1359,6 +1384,9 @@ services:
         val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
         val token = ensureToken(cfg)
 
+        val cfgDir = "/etc/didban/tunnels/${cfg.id}"
+        val iranCfgPath = "$cfgDir/frpc.toml"
+        val foreignCfgPath = "$cfgDir/frps.toml"
         val frpProxies = ports.joinToString("\n\n") { p ->
             """[[proxies]]
 name = "tcp_${p.iranPort}"
@@ -1382,11 +1410,11 @@ $frpProxies
 """.trimIndent()
 
         val foreignInstall = """
-sudo mkdir -p /etc/frp /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frps /usr/local/bin/ && chmod +x /usr/local/bin/frps) || true && \
-printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/frp/frps.toml
+printf '%s' '${b64(foreignConfig)}' | base64 -d > ${foreignCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=FRP Server
@@ -1394,7 +1422,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/frps -c /etc/frp/frps.toml
+ExecStart=/usr/local/bin/frps -c ${foreignCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -1406,11 +1434,11 @@ systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && sys
 """.trimIndent()
 
         val iranInstall = """
-sudo mkdir -p /etc/frp /usr/local/bin && \
+sudo mkdir -p $cfgDir /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc) || true && \
-printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/frp/frpc.toml
+printf '%s' '${b64(iranConfig)}' | base64 -d > ${iranCfgPath}
 cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=FRP Client
@@ -1418,7 +1446,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.toml
+ExecStart=/usr/local/bin/frpc -c ${iranCfgPath}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -1461,6 +1489,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            iranConfigPath = iranCfgPath,
+            foreignConfigPath = foreignCfgPath,
             description = "تانل ریورس FRP: رله پورت‌های [$portsDesc] با هسته کلاسیک و باسابقه FRP."
         )
     }
@@ -1633,7 +1663,7 @@ services:
                     put("core", cfg.core.name)
                     put("role", "foreign")
                     put("config_content", code.foreignConfig)
-                    put("config_path", "/etc/didban/tunnels/${cfg.id}_foreign.conf")
+                    put("config_path", code.foreignConfigPath.ifEmpty { "/etc/didban/tunnels/${cfg.id}_foreign.conf" })
                     put("service_name", "didban-tunnel-${cfg.id}")
                     put("exec_script", code.foreignInstallCommand)
                     put("multi_ports", cfg.multiPorts)
@@ -1663,7 +1693,7 @@ services:
                     put("core", cfg.core.name)
                     put("role", "iran")
                     put("config_content", code.iranConfig)
-                    put("config_path", "/etc/didban/tunnels/${cfg.id}_iran.conf")
+                    put("config_path", code.iranConfigPath.ifEmpty { "/etc/didban/tunnels/${cfg.id}_iran.conf" })
                     put("service_name", "didban-tunnel-${cfg.id}")
                     put("exec_script", code.iranInstallCommand)
                     put("multi_ports", cfg.multiPorts)

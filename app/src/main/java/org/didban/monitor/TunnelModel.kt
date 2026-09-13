@@ -157,6 +157,12 @@ data class GeneratedTunnelCode(
     val foreignInstallCommand: String,
     val dockerComposeIran: String,
     val dockerComposeForeign: String,
+    // Item 26: the runtime config file the install script writes and the
+    // unit's ExecStart reads — per-tunnel, inside the agent's config
+    // sandbox, so same-core tunnels on one host never collide and the
+    // agent's delete removes the real file ("" = core keeps no file).
+    val iranConfigPath: String = "",
+    val foreignConfigPath: String = "",
     val description: String
 )
 
