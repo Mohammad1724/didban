@@ -51,4 +51,44 @@ object TunnelFieldValidation {
     /** Returns an error message, or null when [value] is a safe token. */
     fun checkToken(value: String, label: String): String? =
         if (isValidToken(value)) null else "$label باید ۱ تا ۱۲۸ کاراکتر از [A-Za-z0-9_-] باشد: $value"
+
+    /**
+     * H16: strict match between a tunnel's host field and a registered
+     * server's host.
+     *
+     * autoDeploy previously fell back to `tunnelField.contains(serverHost)`
+     * (substring), so a tunnel field "sub.example.com" matched a registered
+     * server "example.com" and "10.0.0.100" matched "10.0.0.1" — the agent
+     * then wrote configs and ran install scripts on the WRONG machine.
+     *
+     * Rules:
+     *  - both sides are trimmed and lowercased (hostnames and IPv6 are
+     *    case-insensitive);
+     *  - a blank server host never matches ("" is a substring of everything);
+     *  - an exact host match wins;
+     *  - the tunnel field may carry an explicit port ("host:443" or
+     *    "[2001:db8::1]:443"); in that case the host part is compared
+     *    against the server host. A trailing colon+number that is not a port
+     *    (non-digits) is never treated as one, so no false matches arise
+     *    from raw IPv6 addresses.
+     */
+    fun hostMatchesServer(tunnelField: String, serverHost: String): Boolean {
+        val s = serverHost.trim().lowercase()
+        if (s.isEmpty()) return false
+        val t = tunnelField.trim().lowercase()
+        if (t.isEmpty()) return false
+        if (t == s) return true
+        val colon = t.lastIndexOf(':')
+        if (colon > 0) {
+            val portPart = t.substring(colon + 1)
+            if (portPart.isNotEmpty() && portPart.all { it.isDigit() }) {
+                var hostPart = t.substring(0, colon)
+                if (hostPart.length >= 2 && hostPart.startsWith('[') && hostPart.endsWith(']')) {
+                    hostPart = hostPart.substring(1, hostPart.length - 1)
+                }
+                if (hostPart.isNotEmpty() && hostPart == s) return true
+            }
+        }
+        return false
+    }
 }

@@ -103,4 +103,50 @@ class TunnelFieldValidationTest {
             TunnelFieldValidation.checkToken("a b", "Token")
         )
     }
+
+    // ── H16: strict host matching (no substring) ─────────────────────────────
+
+    @Test
+    fun `hostMatchesServer - exact, trimmed and case-insensitive`() {
+        assertTrue(TunnelFieldValidation.hostMatchesServer("10.0.0.1", "10.0.0.1"))
+        assertTrue(TunnelFieldValidation.hostMatchesServer("  Example.com  ", "example.COM"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("", "example.com"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("   ", "example.com"))
+    }
+
+    @Test
+    fun `hostMatchesServer - never matches by substring (H16 regression)`() {
+        // The original bug: a tunnel field containing a registered host as a
+        // substring selected the wrong server for auto-deploy.
+        assertFalse(TunnelFieldValidation.hostMatchesServer("sub.example.com", "example.com"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("example.com", "sub.example.com"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("10.0.0.100", "10.0.0.1"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("10.0.0.1", "10.0.0.100"))
+    }
+
+    @Test
+    fun `hostMatchesServer - blank server host never matches`() {
+        // "" is a substring of everything; an empty registered host must
+        // never absorb a deploy.
+        assertFalse(TunnelFieldValidation.hostMatchesServer("example.com", ""))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("example.com", "   "))
+    }
+
+    @Test
+    fun `hostMatchesServer - tunnel field with explicit port`() {
+        assertTrue(TunnelFieldValidation.hostMatchesServer("10.0.0.1:443", "10.0.0.1"))
+        assertTrue(TunnelFieldValidation.hostMatchesServer("example.com:8443", "EXAMPLE.COM"))
+        assertFalse(TunnelFieldValidation.hostMatchesServer("10.0.0.1:443", "10.0.0.2"))
+        // A trailing colon+non-digits is not a port, so no match.
+        assertFalse(TunnelFieldValidation.hostMatchesServer("10.0.0.1:abc", "10.0.0.1"))
+    }
+
+    @Test
+    fun `hostMatchesServer - IPv6 handling`() {
+        assertTrue(TunnelFieldValidation.hostMatchesServer("[2001:db8::1]:443", "2001:db8::1"))
+        assertTrue(TunnelFieldValidation.hostMatchesServer("2001:db8::1", "2001:DB8::1"))
+        // Raw IPv6 without a port must not split on the last colon and
+        // false-match a different address sharing a prefix.
+        assertFalse(TunnelFieldValidation.hostMatchesServer("2001:db8::1", "2001:db8::2"))
+    }
 }

@@ -1373,16 +1373,19 @@ $rules
             )
         }
 
-        // Find Iran server in registered Didban servers
+        // Find Iran server in registered Didban servers.
+        // H16: strict normalized host match — the old substring `contains`
+        // could pick a DIFFERENT registered server (e.g. "example.com" for a
+        // tunnel field "sub.example.com") and deploy onto the wrong machine.
         val iranServer = servers.firstOrNull { s ->
             (cfg.iranServerId != null && s.id == cfg.iranServerId) ||
-            (cfg.iranHost.isNotBlank() && (s.host.trim() == cfg.iranHost.trim() || cfg.iranHost.trim().contains(s.host.trim())))
+            TunnelFieldValidation.hostMatchesServer(cfg.iranHost, s.host)
         }
 
-        // Find Foreign server in registered Didban servers
+        // Find Foreign server in registered Didban servers.
         val foreignServer = servers.firstOrNull { s ->
             (cfg.foreignServerId != null && s.id == cfg.foreignServerId) ||
-            (cfg.foreignHost.isNotBlank() && (s.host.trim() == cfg.foreignHost.trim() || cfg.foreignHost.trim().contains(s.host.trim())))
+            TunnelFieldValidation.hostMatchesServer(cfg.foreignHost, s.host)
         }
 
         var iranRes: AutoDeployServerResult? = null
@@ -1468,13 +1471,15 @@ $rules
         apiClient: ApiClient = ApiClient()
     ): Boolean = withContext(Dispatchers.IO) {
         val servers = Prefs.loadServers(ctx)
+        // H16: same strict matcher as autoDeploy — start/stop/delete must
+        // resolve to the machine the tunnel was actually deployed on.
         val iranServer = servers.firstOrNull { s ->
             (cfg.iranServerId != null && s.id == cfg.iranServerId) ||
-            (cfg.iranHost.isNotBlank() && s.host.trim() == cfg.iranHost.trim())
+            TunnelFieldValidation.hostMatchesServer(cfg.iranHost, s.host)
         }
         val foreignServer = servers.firstOrNull { s ->
             (cfg.foreignServerId != null && s.id == cfg.foreignServerId) ||
-            (cfg.foreignHost.isNotBlank() && s.host.trim() == cfg.foreignHost.trim())
+            TunnelFieldValidation.hostMatchesServer(cfg.foreignHost, s.host)
         }
 
         var ok = true
