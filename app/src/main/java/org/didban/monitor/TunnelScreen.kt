@@ -1520,7 +1520,22 @@ private fun ViewTunnelCodeDialog(
     tunnel: TunnelConfig,
     onDismiss: () -> Unit
 ) {
-    val code = remember(tunnel) { TunnelEngine.generateCode(tunnel) }
+    val code = remember(tunnel) {
+        try {
+            TunnelEngine.generateCode(tunnel)
+        } catch (e: IllegalArgumentException) {
+            // H4: invalid field values - show the reason instead of code.
+            GeneratedTunnelCode(
+                iranConfig = "خطای اعتبارسنجی:\n${e.message}",
+                iranInstallCommand = "خطای اعتبارسنجی:\n${e.message}",
+                foreignConfig = "خطای اعتبارسنجی:\n${e.message}",
+                foreignInstallCommand = "خطای اعتبارسنجی:\n${e.message}",
+                dockerComposeIran = "",
+                dockerComposeForeign = "",
+                description = "فیلدهای تانل را اصلاح کنید؛ تا آن زمان deploy نمی‌شود."
+            )
+        }
+    }
     // generateCode may materialize the tunnel secret on first use (H3):
     // persist it immediately so a copied/redeployed command always matches.
     val dlgCtx = LocalContext.current

@@ -32,6 +32,15 @@ object TunnelEngine {
         TunnelSecrets.deriveKey(seed, domain)
 
     /**
+     * Base64 for generated file contents (H4): the target script writes the
+     * config with `printf '%s' '<b64>' | base64 -d > file`, so user-supplied
+     * content can never terminate the heredoc early or be interpreted as
+     * shell (base64 is a single line of [A-Za-z0-9+/=]).
+     */
+    private fun b64(content: String): String =
+        java.util.Base64.getEncoder().encodeToString(content.toByteArray(Charsets.UTF_8))
+
+    /**
      * Upserts [cfg] (with its materialized secret and sync status) into the
      * persisted tunnel list. Guarantees the secret survives
      * reload-from-disk (e.g. TunnelScreen.refreshTunnels after a deploy).
@@ -84,7 +93,48 @@ object TunnelEngine {
         return if (result.isNotEmpty()) result else listOf(PortMapping(cfg.iranPort, cfg.foreignPort))
     }
 
+    /**
+     * Core-aware pre-deploy validation (H4): only the fields that reach a
+     * shell context (iptables arguments) or a systemd ExecStart line are
+     * checked - config-file content is written via base64 and cannot be
+     * interpreted, so it is validated only by the target binary itself.
+     */
+    fun validateForDeploy(cfg: TunnelConfig): List<String> = buildList {
+        fun addHostError(value: String) {
+            TunnelFieldValidation.checkHost(value, "Host")?.let { add(it) }
+        }
+        when (cfg.core) {
+            TunnelCore.IPTABLES -> {
+                if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
+            }
+            TunnelCore.NARNIA -> {
+                if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
+                if (cfg.virtualIpKharej.isNotBlank()) {
+                    // Used in iptables DNAT rules executed on the shell.
+                    TunnelFieldValidation.checkIpv4(cfg.virtualIpKharej, "Virtual IP (foreign)")?.let { add(it) }
+                }
+                if (cfg.token.isNotBlank()) {
+                    TunnelFieldValidation.checkToken(cfg.token, "Token")?.let { add(it) }
+                }
+            }
+            TunnelCore.GOST -> {
+                if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
+            }
+            TunnelCore.CHISEL -> {
+                if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
+                if (cfg.token.isNotBlank()) {
+                    TunnelFieldValidation.checkToken(cfg.token, "Token")?.let { add(it) }
+                }
+            }
+            else -> {}
+        }
+    }
+
     fun generateCode(cfg: TunnelConfig): GeneratedTunnelCode {
+        val errors = validateForDeploy(cfg)
+        if (errors.isNotEmpty()) {
+            throw IllegalArgumentException(errors.joinToString(" | "))
+        }
         return when (cfg.core) {
             TunnelCore.BACKPACK -> generateBackpack(cfg)
             TunnelCore.PAQET -> generatePaqet(cfg)
@@ -160,9 +210,7 @@ sudo mkdir -p /etc/backpack /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
-cat << 'EOF' > /etc/backpack/server.toml
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backpack/server.toml
 cat << 'EOF' > /etc/systemd/system/backpack-server.service
 [Unit]
 Description=Backpack Tunnel Server (Iran Node)
@@ -186,9 +234,7 @@ sudo mkdir -p /etc/backpack /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l/armv7/') && \
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
-cat << 'EOF' > /etc/backpack/client.toml
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backpack/client.toml
 cat << 'EOF' > /etc/systemd/system/backpack-client.service
 [Unit]
 Description=Backpack Tunnel Client (Kharej Node)
@@ -294,9 +340,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
-cat << 'EOF' > /etc/paqet/server.yaml
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/paqet/server.yaml
 cat << 'EOF' > /etc/systemd/system/paqet-server.service
 [Unit]
 Description=Paqet Tunnel Server (Raw Socket KCP)
@@ -322,9 +366,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/hanselime/paqet/releases/latest/download/paqet-linux-${'$'}ARCH.tar.gz -o /tmp/paqet.tar.gz || \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
-cat << 'EOF' > /etc/paqet/client.yaml
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/paqet/client.yaml
 cat << 'EOF' > /etc/systemd/system/paqet-client.service
 [Unit]
 Description=Paqet Tunnel Client (Iran Entry)
@@ -406,14 +448,7 @@ services:
             "iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort}"
         }
 
-        val foreignInstall = """
-sudo mkdir -p /usr/local/bin && \
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
-chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
-echo 1 > /proc/sys/net/ipv4/ip_forward && \
-cat << 'EOF' > /etc/systemd/system/narnia.service
+        val ForeignNarniaUnit = """
 [Unit]
 Description=Narnia ICMP Tunnel Server
 After=network.target
@@ -428,20 +463,19 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target
-EOF
-systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
 """.trimIndent()
-
-        val iranInstall = """
+        val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
 chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
 echo 1 > /proc/sys/net/ipv4/ip_forward && \
-$natRules && \
-iptables -t nat -A POSTROUTING -j MASQUERADE && \
-cat << 'EOF' > /etc/systemd/system/narnia.service
+printf '%s' '${b64(ForeignNarniaUnit)}' | base64 -d > /etc/systemd/system/narnia.service
+systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
+""".trimIndent()
+
+        val IranNarniaUnit = """
 [Unit]
 Description=Narnia ICMP Tunnel Client
 After=network.target
@@ -456,7 +490,17 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target
-EOF
+""".trimIndent()
+        val iranInstall = """
+sudo mkdir -p /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
+curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
+chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
+echo 1 > /proc/sys/net/ipv4/ip_forward && \
+$natRules && \
+iptables -t nat -A POSTROUTING -j MASQUERADE && \
+printf '%s' '${b64(IranNarniaUnit)}' | base64 -d > /etc/systemd/system/narnia.service
 systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
 """.trimIndent()
 
@@ -605,9 +649,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
-cat << 'EOF' > /etc/spoof-tunnel/server.json
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/spoof-tunnel/server.json
 cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Server
@@ -634,9 +676,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
-cat << 'EOF' > /etc/spoof-tunnel/client.json
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/spoof-tunnel/client.json
 cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Client
@@ -753,9 +793,7 @@ sudo mkdir -p /etc/backhaul /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
-cat << 'EOF' > /etc/backhaul/config.toml
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backhaul/config.toml
 cat << 'EOF' > /etc/systemd/system/backhaul.service
 [Unit]
 Description=Backhaul Server Tunnel
@@ -779,9 +817,7 @@ sudo mkdir -p /etc/backhaul /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
-cat << 'EOF' > /etc/backhaul/config.toml
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backhaul/config.toml
 cat << 'EOF' > /etc/systemd/system/backhaul.service
 [Unit]
 Description=Backhaul Client Tunnel
@@ -881,9 +917,7 @@ if [ "${'$'}ARCH" = "aarch64" ] || [ "${'$'}ARCH" = "arm64" ]; then ZIP_ARCH="aa
 curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${'$'}ZIP_ARCH.zip -o /tmp/rathole.zip && \
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
-cat << 'EOF' > /etc/rathole/server.toml
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/rathole/server.toml
 cat << 'EOF' > /etc/systemd/system/rathole.service
 [Unit]
 Description=Rathole Server
@@ -910,9 +944,7 @@ if [ "${'$'}ARCH" = "aarch64" ] || [ "${'$'}ARCH" = "arm64" ]; then ZIP_ARCH="aa
 curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${'$'}ZIP_ARCH.zip -o /tmp/rathole.zip && \
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
-cat << 'EOF' > /etc/rathole/client.toml
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/rathole/client.toml
 cat << 'EOF' > /etc/systemd/system/rathole.service
 [Unit]
 Description=Rathole Client
@@ -999,12 +1031,7 @@ services:
             "/usr/local/bin/gost $listeners -F \"$proto://$foreignIp:${cfg.corePort}\""
         }
 
-        val foreignInstall = """
-sudo mkdir -p /usr/local/bin && \
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-(curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
-tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
-cat << 'EOF' > /etc/systemd/system/gost.service
+        val ForeignGostUnit = """
 [Unit]
 Description=GOST Server
 After=network.target
@@ -1018,16 +1045,17 @@ LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
-EOF
-systemctl daemon-reload && systemctl enable --now gost && systemctl status gost --no-pager
 """.trimIndent()
-
-        val iranInstall = """
+        val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
 tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
-cat << 'EOF' > /etc/systemd/system/gost.service
+printf '%s' '${b64(ForeignGostUnit)}' | base64 -d > /etc/systemd/system/gost.service
+systemctl daemon-reload && systemctl enable --now gost && systemctl status gost --no-pager
+""".trimIndent()
+
+        val IranGostUnit = """
 [Unit]
 Description=GOST Client Forwarder
 After=network.target
@@ -1041,7 +1069,13 @@ LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
-EOF
+""".trimIndent()
+        val iranInstall = """
+sudo mkdir -p /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+(curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
+tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
+printf '%s' '${b64(IranGostUnit)}' | base64 -d > /etc/systemd/system/gost.service
 systemctl daemon-reload && systemctl enable --now gost && systemctl status gost --no-pager
 """.trimIndent()
 
@@ -1091,12 +1125,7 @@ services:
         val foreignCmd = "/usr/local/bin/chisel server --port ${cfg.corePort} --auth \"$auth\" --reverse"
         val iranCmd = "/usr/local/bin/chisel client --auth \"$auth\" http://$foreignIp:${cfg.corePort} $reverseArgs"
 
-        val foreignInstall = """
-sudo mkdir -p /usr/local/bin && \
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-(curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
-gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
-cat << 'EOF' > /etc/systemd/system/chisel.service
+        val ForeignChiselUnit = """
 [Unit]
 Description=Chisel Server
 After=network.target
@@ -1110,16 +1139,17 @@ LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
-EOF
-systemctl daemon-reload && systemctl enable --now chisel && systemctl status chisel --no-pager
 """.trimIndent()
-
-        val iranInstall = """
+        val foreignInstall = """
 sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
 gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
-cat << 'EOF' > /etc/systemd/system/chisel.service
+printf '%s' '${b64(ForeignChiselUnit)}' | base64 -d > /etc/systemd/system/chisel.service
+systemctl daemon-reload && systemctl enable --now chisel && systemctl status chisel --no-pager
+""".trimIndent()
+
+        val IranChiselUnit = """
 [Unit]
 Description=Chisel Client
 After=network.target
@@ -1133,7 +1163,13 @@ LimitNOFILE=65535
 
 [Install]
 WantedBy=multi-user.target
-EOF
+""".trimIndent()
+        val iranInstall = """
+sudo mkdir -p /usr/local/bin && \
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
+(curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
+gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
+printf '%s' '${b64(IranChiselUnit)}' | base64 -d > /etc/systemd/system/chisel.service
 systemctl daemon-reload && systemctl enable --now chisel && systemctl status chisel --no-pager
 """.trimIndent()
 
@@ -1205,9 +1241,7 @@ sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frps /usr/local/bin/ && chmod +x /usr/local/bin/frps) || true && \
-cat << 'EOF' > /etc/frp/frps.toml
-$foreignConfig
-EOF
+printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/frp/frps.toml
 cat << 'EOF' > /etc/systemd/system/frps.service
 [Unit]
 Description=FRP Server
@@ -1231,9 +1265,7 @@ sudo mkdir -p /etc/frp /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc) || true && \
-cat << 'EOF' > /etc/frp/frpc.toml
-$iranConfig
-EOF
+printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/frp/frpc.toml
 cat << 'EOF' > /etc/systemd/system/frpc.service
 [Unit]
 Description=FRP Client
@@ -1330,7 +1362,16 @@ $rules
         apiClient: ApiClient = ApiClient()
     ): AutoDeployResult = withContext(Dispatchers.IO) {
         val servers = Prefs.loadServers(ctx)
-        val code = generateCode(cfg)
+        val code: GeneratedTunnelCode
+        try {
+            code = generateCode(cfg)
+        } catch (e: IllegalArgumentException) {
+            // H4: invalid field values - deploy nothing, surface the reason.
+            return@withContext AutoDeployResult(
+                null, null, false,
+                "خطای اعتبارسنجی فیلدهای تانل — هیچ چیزی deploy نشد: ${e.message}"
+            )
+        }
 
         // Find Iran server in registered Didban servers
         val iranServer = servers.firstOrNull { s ->
