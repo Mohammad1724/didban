@@ -24,8 +24,8 @@ type ContainerInfo struct {
 	ID      string          `json:"id"`
 	Name    string          `json:"name"`
 	Image   string          `json:"image"`
-	State   string          `json:"state"`   // running, exited, restarting, paused, dead
-	Status  string          `json:"status"`  // "Up 2 hours", "Exited (1) 5 mins ago"
+	State   string          `json:"state"`  // running, exited, restarting, paused, dead
+	Status  string          `json:"status"` // "Up 2 hours", "Exited (1) 5 mins ago"
 	Created int64           `json:"created"`
 	Ports   []ContainerPort `json:"ports"`
 }

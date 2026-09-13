@@ -156,6 +156,19 @@ All `/api/*` endpoints require `Authorization: Bearer <token>` (or `?token=`).
 | `GET` | `/api/events?limit=50` | spike events & container crash events (newest first) with top culprit processes |
 | `GET` | `/api/history?hours=24` | minute-resolution history for charts |
 
+### Tunnel deployment security
+
+Tunnel apply endpoints are hardened against command-injection and path-traversal:
+
+- **`config_path` is sandboxed.** Config files can only be written inside the agent's tunnel configuration directory (default `/etc/didban/tunnels`, override with `--config-dir` / `DIDBAN_TUNNEL_CONFIG_DIR`). Absolute paths outside the sandbox, `..` traversal, and symlink escapes are rejected with HTTP `400`.
+- **`id` and `service_name` are strictly validated** (`[A-Za-z0-9][A-Za-z0-9_-]{0,63}`). Path traversal via these fields is impossible.
+- **Deploy mode.** `--deploy-mode scripts` (default) allows the authenticated app to run its install script. `--deploy-mode config-only` (or `DIDBAN_DEPLOY_MODE=config-only`) is a hardened mode where the agent **never executes shell commands** — it only writes sandboxed configs and manages the systemd unit name. Blocked scripts return `success:false` with a clear error.
+- **Size caps.** Request bodies ≤ 2 MB, config content ≤ 1 MB, install script ≤ 64 KB.
+- **Audit trail.** Every deploy carrying a script records `tunnel_deploy_start` / `tunnel_deploy_ok` / `tunnel_deploy_failed` events (visible at `/api/events`) including the first 8 bytes of the script's SHA-256.
+- **Timeouts.** All `systemctl`/`journalctl` calls are bounded (10 s) so a hung D-Bus can never wedge an API handler.
+- **Proper status codes.** Unknown tunnel `status`/`start`/`stop` → `404`; invalid input → `400`; internal failure → `500`.
+- **Token hygiene.** The full token is printed only on the agent's first start; subsequent restarts show a prefix only, so the secret does not accumulate in the systemd journal.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

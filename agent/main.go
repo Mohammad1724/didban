@@ -35,6 +35,10 @@ type Config struct {
 	DiskThreshold  float64 // percent, disk usage event threshold
 	// Process watchlist (optional)
 	WatchProcs []string
+	// Tunnel deployment
+	DeployMode DeployMode // "scripts" (default) or "config-only"
+	ConfigDir  string     // sandboxed dir for tunnel config files
+
 	// Alerts
 	TelegramToken  string
 	TelegramChatID string
@@ -67,8 +71,14 @@ func main() {
 	flag.StringVar(&cfg.DiscordWebhook, "discord-webhook", os.Getenv("DIDBAN_DISCORD_WEBHOOK"), "Discord Webhook URL for alerts")
 	flag.StringVar(&cfg.GenericWebhook, "webhook-url", os.Getenv("DIDBAN_WEBHOOK_URL"), "Generic Webhook URL for alerts")
 	flag.BoolVar(&cfg.EnableAlerts, "alerts", os.Getenv("DIDBAN_ALERTS") != "0", "Enable outbound alerts")
+	flag.StringVar((*string)(&cfg.DeployMode), "deploy-mode", envOr("DIDBAN_DEPLOY_MODE", "scripts"), "tunnel deploy mode: 'scripts' (default) or 'config-only' (never execute install scripts)")
+	flag.StringVar(&cfg.ConfigDir, "config-dir", envOr("DIDBAN_TUNNEL_CONFIG_DIR", "/etc/didban/tunnels"), "sandboxed directory for tunnel configuration files")
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if !cfg.DeployMode.valid() {
+		fatal("invalid deploy mode %q (use 'scripts' or 'config-only')", cfg.DeployMode)
+	}
 
 	if *printVersion {
 		fmt.Println("didban-agent", version)
@@ -105,7 +115,7 @@ func main() {
 	}
 
 	mon := NewMonitor(cfg)
-	tm := NewTunnelManager(cfg.DataDir)
+	tm := NewTunnelManager(cfg.DataDir, cfg.ConfigDir, cfg.DeployMode)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go mon.Run(ctx)
@@ -116,7 +126,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders())
+	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), tokenFirstShow(cfg.DataDir))
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -156,7 +166,27 @@ func loadOrCreateToken(path string) string {
 	return tok
 }
 
-func banner(cfg *Config, fingerprint string, alertsActive bool) {
+// tokenFirstShow returns true only on the very first agent start (before the
+// token was ever printed). After that, the banner shows a token prefix so the
+// full secret does not accumulate in the systemd journal across restarts.
+func tokenFirstShow(dataDir string) bool {
+	marker := filepath.Join(dataDir, "token.shown")
+	if _, err := os.Stat(marker); err == nil {
+		return false
+	}
+	_ = os.WriteFile(marker, []byte(time.Now().UTC().Format(time.RFC3339)), 0o600)
+	return true
+}
+
+// tokenPrefix returns a short, non-secret preview of the token for logging.
+func tokenPrefix(tok string) string {
+	if len(tok) <= 8 {
+		return "****"
+	}
+	return tok[:8] + "…"
+}
+
+func banner(cfg *Config, fingerprint string, alertsActive bool, showFullToken bool) {
 	scheme := "https"
 	host := firstLocalIP()
 	if cfg.PlainHTTP {
@@ -175,12 +205,17 @@ func banner(cfg *Config, fingerprint string, alertsActive bool) {
 	fmt.Printf("  Version:      %s\n", version)
 	fmt.Printf("  Listening:    %s://%s\n", scheme, addr)
 	fmt.Printf("  Status Page:  %s://%s/status\n", scheme, addr)
-	fmt.Printf("  Token:        %s\n", cfg.Token)
+	if showFullToken {
+		fmt.Printf("  Token:        %s\n", cfg.Token)
+	} else {
+		fmt.Printf("  Token:        %s\n", tokenPrefix(cfg.Token))
+	}
 	if fingerprint != "" {
 		fmt.Printf("  Cert SHA256:  %s\n", fingerprint)
 	}
 	fmt.Printf("  Data dir:     %s\n", cfg.DataDir)
 	fmt.Printf("  Thresholds:   cpu>%.0f%%  mem>%.0f%%  steal>%.0f%%  disk>%.0f%%\n", cfg.CPUThreshold, cfg.MemThreshold, cfg.StealThreshold, cfg.DiskThreshold)
+	fmt.Printf("  Deploy mode:  %s\n", cfg.DeployMode)
 	if len(cfg.WatchProcs) > 0 {
 		fmt.Printf("  Process watch: %s\n", strings.Join(cfg.WatchProcs, ", "))
 	}
@@ -190,13 +225,19 @@ func banner(cfg *Config, fingerprint string, alertsActive bool) {
 		fmt.Println("  Alerts:       Disabled (configure Telegram, Discord, or Webhook)")
 	}
 	fmt.Println("──────────────────────────────────────────────────────")
-	if fingerprint != "" {
-		fmt.Printf("  Mobile Link:  didban://%s?token=%s&fp=%s\n", addr, cfg.Token, fingerprint)
+	if showFullToken {
+		if fingerprint != "" {
+			fmt.Printf("  Mobile Link:  didban://%s?token=%s&fp=%s\n", addr, cfg.Token, fingerprint)
+		} else {
+			fmt.Printf("  Mobile Link:  didban://%s?token=%s\n", addr, cfg.Token)
+		}
+		fmt.Printf("  Test:         curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",
+			scheme, addr, cfg.Token)
 	} else {
-		fmt.Printf("  Mobile Link:  didban://%s?token=%s\n", addr, cfg.Token)
+		fmt.Println("  Mobile Link:  token was printed on the first start (see install output / data dir)")
+		fmt.Printf("  Test:         curl -k %s://%s/api/metrics -H \"Authorization: Bearer <token>\"\n",
+			scheme, addr)
 	}
-	fmt.Printf("  Test:         curl -k %s://%s/api/metrics -H \"Authorization: Bearer %s\"\n",
-		scheme, addr, cfg.Token)
 	fmt.Println("──────────────────────────────────────────────────────")
 }
 

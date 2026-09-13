@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -160,17 +164,56 @@ func (a *API) handleTunnelApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelApplyReq
+	// Cap the request body so a (stolen) token cannot be used to exhaust memory.
+	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json: " + err.Error()})
 		return
 	}
 
+	// Audit trail: log deploy attempts that carry an install script.
+	if req.ExecScript != "" {
+		sum := sha256.Sum256([]byte(req.ExecScript))
+		a.mon.RecordEventLocal(Event{
+			Time:   time.Now(),
+			Type:   "tunnel_deploy_start",
+			Detail: fmt.Sprintf("id=%s core=%s role=%s script_sha256=%s", req.ID, req.Core, req.Role, hex.EncodeToString(sum[:8])),
+		})
+	}
+
 	res, err := a.tm.ApplyTunnel(req)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
+
+	if req.ExecScript != "" {
+		evType := "tunnel_deploy_ok"
+		if !res.Success {
+			evType = "tunnel_deploy_failed"
+		}
+		a.mon.RecordEventLocal(Event{
+			Time:   time.Now(),
+			Type:   evType,
+			Detail: fmt.Sprintf("id=%s service=%s error=%s", req.ID, res.ServiceName, res.Error),
+		})
+	}
+
 	writeJSON(w, http.StatusOK, res)
+}
+
+// writeTunnelError maps tunnel manager errors to proper HTTP status codes.
+func writeTunnelError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errTunnelNotFound):
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+	case errors.Is(err, errInvalidTunnelID),
+		errors.Is(err, errInvalidServiceName),
+		errors.Is(err, errConfigPathOutside):
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+	default:
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
 }
 
 func (a *API) handleTunnelStart(w http.ResponseWriter, r *http.Request) {
@@ -186,7 +229,7 @@ func (a *API) handleTunnelStart(w http.ResponseWriter, r *http.Request) {
 
 	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -205,7 +248,7 @@ func (a *API) handleTunnelStop(w http.ResponseWriter, r *http.Request) {
 
 	res, err := a.tm.StopTunnel(req.ID, req.ServiceName)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -224,7 +267,7 @@ func (a *API) handleTunnelRestart(w http.ResponseWriter, r *http.Request) {
 
 	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
@@ -242,7 +285,7 @@ func (a *API) handleTunnelDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.tm.DeleteTunnel(req.ID, req.ServiceName); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Tunnel removed"})
@@ -261,7 +304,7 @@ func (a *API) handleTunnelStatus(w http.ResponseWriter, r *http.Request) {
 
 	res, err := a.tm.GetTunnelStatus(id)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeTunnelError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)

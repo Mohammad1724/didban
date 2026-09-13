@@ -144,6 +144,12 @@ func (m *Monitor) RecordEvent(ev Event) {
 	}
 }
 
+// RecordEventLocal records an event in memory and disk only, without
+// dispatching alerts. Used for operational audit trails (e.g. deploys).
+func (m *Monitor) RecordEventLocal(ev Event) {
+	m.events.Add(ev)
+}
+
 // Run starts all sampling loops until ctx is cancelled.
 func (m *Monitor) Run(ctx context.Context) {
 	m.RecordEvent(Event{Time: time.Now(), Type: "agent_restart", Detail: "agent (re)started"})

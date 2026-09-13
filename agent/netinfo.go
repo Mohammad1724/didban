@@ -74,8 +74,14 @@ func parseHexPort(hexPort string) int {
 	return int(p)
 }
 
-func buildInodeMap() map[uint64]struct{ pid int; name string } {
-	res := make(map[uint64]struct{ pid int; name string })
+func buildInodeMap() map[uint64]struct {
+	pid  int
+	name string
+} {
+	res := make(map[uint64]struct {
+		pid  int
+		name string
+	})
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return res
@@ -105,7 +111,10 @@ func buildInodeMap() map[uint64]struct{ pid int; name string } {
 			if strings.HasPrefix(link, "socket:[") && strings.HasSuffix(link, "]") {
 				inodeStr := link[8 : len(link)-1]
 				if inode, err := strconv.ParseUint(inodeStr, 10, 64); err == nil {
-					res[inode] = struct{ pid int; name string }{pid: pid, name: name}
+					res[inode] = struct {
+						pid  int
+						name string
+					}{pid: pid, name: name}
 				}
 			}
 		}
@@ -113,7 +122,10 @@ func buildInodeMap() map[uint64]struct{ pid int; name string } {
 	return res
 }
 
-func parseNetFile(path, proto string, isIPv6 bool, inodeMap map[uint64]struct{ pid int; name string }) []SocketInfo {
+func parseNetFile(path, proto string, isIPv6 bool, inodeMap map[uint64]struct {
+	pid  int
+	name string
+}) []SocketInfo {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil
