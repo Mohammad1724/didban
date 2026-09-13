@@ -66,6 +66,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -79,11 +80,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -1353,6 +1357,29 @@ fun VaultScreen(t: Str) {
         Prefs.saveVaultNotes(ctx, notes, password)
     }
 
+    // M17: drop every reference to the unlocked material. Strings cannot be
+    // zeroed on the JVM, but clearing the state lets the GC reclaim them as
+    // soon as possible instead of holding them until process death.
+    fun lock() {
+        notes = emptyList()
+        password = ""
+        revealedNoteId = null
+        isUnlocked = false
+        showGuide = true
+    }
+
+    // M17: auto-lock — when the app goes to the background the vault re-locks
+    // on its own, so decrypted notes + the master password do not sit in
+    // memory across app switches.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) lock()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1414,11 +1441,7 @@ fun VaultScreen(t: Str) {
                         SoftButton(
                             text = "Lock Vault",
                             icon = Icons.Rounded.Lock,
-                            onClick = {
-                                isUnlocked = false
-                                password = ""
-                                notes = emptyList()
-                            },
+                            onClick = { lock() },
                             modifier = Modifier.height(34.dp)
                         )
                     }

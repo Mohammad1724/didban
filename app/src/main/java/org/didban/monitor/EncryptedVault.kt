@@ -1,9 +1,9 @@
 package org.didban.monitor
 
-import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.SecureRandom
+import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
@@ -38,11 +38,22 @@ data class VaultNote(
 
 object EncryptedVault {
 
-    private const val ITERATIONS = 100_000
+    // M17: OWASP's current minimum for PBKDF2-HMAC-SHA256 (2023+).
+    private const val ITERATIONS = 600_000
+    // Legacy payloads (before M17) used 100k; they stay decryptable.
+    private const val LEGACY_ITERATIONS = 100_000
     private const val KEY_LENGTH = 256
     private const val SALT_LENGTH = 16
     private const val IV_LENGTH = 12
     private const val TAG_LENGTH_BIT = 128
+
+    // Versioned payload format (v2). A 4-byte magic keeps v2 unambiguous:
+    // a legacy (v1) payload is a bare [salt][iv][ct] whose first 4 bytes
+    // would have to match this exact sequence to be misread (p = 1/2^32).
+    //   v2: [magic "DID2":4][version:1][iterations:4 big-endian][salt:16][iv:12][ct+tag]
+    //   v1: [salt:16][iv:12][ct+tag]
+    private val FORMAT_MAGIC = byteArrayOf(0x44, 0x49, 0x44, 0x32) // "DID2"
+    private const val FORMAT_VERSION = 1
 
     fun encrypt(plaintext: String, password: String): String {
         val random = SecureRandom()
@@ -52,10 +63,7 @@ object EncryptedVault {
         val iv = ByteArray(IV_LENGTH)
         random.nextBytes(iv)
 
-        val keySpec = PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val keyBytes = factory.generateSecret(keySpec).encoded
-        val secretKey = SecretKeySpec(keyBytes, "AES")
+        val secretKey = deriveKey(salt, password, ITERATIONS)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val gcmSpec = GCMParameterSpec(TAG_LENGTH_BIT, iv)
@@ -63,35 +71,63 @@ object EncryptedVault {
 
         val cipherText = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
 
-        // Output: [Salt (16B)] + [IV (12B)] + [Ciphertext + Tag]
-        val combined = ByteArray(salt.size + iv.size + cipherText.size)
-        System.arraycopy(salt, 0, combined, 0, salt.size)
-        System.arraycopy(iv, 0, combined, salt.size, iv.size)
-        System.arraycopy(cipherText, 0, combined, salt.size + iv.size, cipherText.size)
+        // Output (v2): [magic 4][version 1][iterations 4][Salt 16][IV 12][Ciphertext + Tag]
+        val combined = ByteArray(FORMAT_MAGIC.size + 1 + 4 + SALT_LENGTH + IV_LENGTH + cipherText.size)
+        var o = 0
+        for (b in FORMAT_MAGIC) {
+            combined[o++] = b
+        }
+        combined[o++] = FORMAT_VERSION.toByte()
+        combined[o++] = (ITERATIONS ushr 24).toByte()
+        combined[o++] = (ITERATIONS ushr 16).toByte()
+        combined[o++] = (ITERATIONS ushr 8).toByte()
+        combined[o++] = ITERATIONS.toByte()
+        salt.copyInto(combined, o); o += SALT_LENGTH
+        iv.copyInto(combined, o); o += IV_LENGTH
+        cipherText.copyInto(combined, o)
 
-        return Base64.encodeToString(combined, Base64.NO_WRAP)
+        return Base64.getEncoder().encodeToString(combined)
     }
 
     fun decrypt(encryptedB64: String, password: String): String {
-        val combined = Base64.decode(encryptedB64.trim(), Base64.NO_WRAP)
-        if (combined.size < SALT_LENGTH + IV_LENGTH + 16) {
+        val combined = try {
+            Base64.getDecoder().decode(encryptedB64.trim())
+        } catch (e: IllegalArgumentException) {
+            throw IllegalArgumentException("Invalid encrypted payload encoding", e)
+        }
+
+        var offset = 0
+        var iterations = LEGACY_ITERATIONS
+        if (combined.size > FORMAT_MAGIC.size && combined.copyOfRange(0, FORMAT_MAGIC.size).contentEquals(FORMAT_MAGIC)) {
+            // Versioned v2 payload — the iteration count travels with the
+            // data, so future KDF tuning cannot strand old backups.
+            if (combined.size < FORMAT_MAGIC.size + 1 + 4 + SALT_LENGTH + IV_LENGTH + 16) {
+                throw IllegalArgumentException("Invalid encrypted payload size")
+            }
+            offset = FORMAT_MAGIC.size
+            val version = combined[offset].toInt() and 0xFF
+            if (version != FORMAT_VERSION) {
+                throw IllegalArgumentException("Unsupported vault format version: $version")
+            }
+            iterations = ((combined[offset + 1].toInt() and 0xFF) shl 24) or
+                ((combined[offset + 2].toInt() and 0xFF) shl 16) or
+                ((combined[offset + 3].toInt() and 0xFF) shl 8) or
+                (combined[offset + 4].toInt() and 0xFF)
+            offset += 5
+            if (iterations < 1_000) {
+                throw IllegalArgumentException("Invalid iteration count in vault payload")
+            }
+        }
+
+        if (combined.size < offset + SALT_LENGTH + IV_LENGTH + 16) {
             throw IllegalArgumentException("Invalid encrypted payload size")
         }
 
-        val salt = ByteArray(SALT_LENGTH)
-        System.arraycopy(combined, 0, salt, 0, SALT_LENGTH)
+        val salt = combined.copyOfRange(offset, offset + SALT_LENGTH)
+        val iv = combined.copyOfRange(offset + SALT_LENGTH, offset + SALT_LENGTH + IV_LENGTH)
+        val cipherText = combined.copyOfRange(offset + SALT_LENGTH + IV_LENGTH, combined.size)
 
-        val iv = ByteArray(IV_LENGTH)
-        System.arraycopy(combined, SALT_LENGTH, iv, 0, IV_LENGTH)
-
-        val cipherTextSize = combined.size - SALT_LENGTH - IV_LENGTH
-        val cipherText = ByteArray(cipherTextSize)
-        System.arraycopy(combined, SALT_LENGTH + IV_LENGTH, cipherText, 0, cipherTextSize)
-
-        val keySpec = PBEKeySpec(password.toCharArray(), salt, ITERATIONS, KEY_LENGTH)
-        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-        val keyBytes = factory.generateSecret(keySpec).encoded
-        val secretKey = SecretKeySpec(keyBytes, "AES")
+        val secretKey = deriveKey(salt, password, iterations)
 
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val gcmSpec = GCMParameterSpec(TAG_LENGTH_BIT, iv)
@@ -99,6 +135,28 @@ object EncryptedVault {
 
         val plainBytes = cipher.doFinal(cipherText)
         return String(plainBytes, Charsets.UTF_8)
+    }
+
+    /**
+     * PBKDF2 derivation with the password material wiped as soon as it is
+     * no longer needed (M17): the char[] copy is zeroed, and PBEKeySpec's
+     * internal copy is cleared via [PBEKeySpec.clearPassword].
+     */
+    private fun deriveKey(salt: ByteArray, password: String, iterations: Int): SecretKeySpec {
+        val chars = password.toCharArray()
+        try {
+            val keySpec = PBEKeySpec(chars, salt, iterations, KEY_LENGTH)
+            try {
+                val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
+                return SecretKeySpec(factory.generateSecret(keySpec).encoded, "AES")
+            } finally {
+                keySpec.clearPassword()
+            }
+        } finally {
+            for (i in chars.indices) {
+                chars[i] = '\u0000'
+            }
+        }
     }
 
     fun exportBackup(servers: List<ServerConfig>, notes: List<VaultNote>, password: String): String {
