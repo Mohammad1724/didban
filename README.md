@@ -133,7 +133,7 @@ curl -sk -X POST https://YOUR_SERVER_IP:8686/api/alerts/test -H "Authorization: 
 
 ## API
 
-All `/api/*` endpoints require `Authorization: Bearer <token>` (or `?token=`).
+All `/api/*` endpoints require `Authorization: Bearer <token>`. The `?token=` query parameter is **no longer accepted** (it leaks into proxy logs and browser history). Requests are rate-limited per IP (10 req/s sustained, burst 20 — excess gets `429` with `Retry-After`), request bodies are capped at 2 MB, and an access log (IP, method, path, status, duration — never query strings, headers, or bodies) is written to the journal.
 
 | Method | Endpoint | Description |
 |---|---|---|

@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,13 +16,14 @@ import (
 
 // API serves the authenticated JSON endpoints and public status page.
 type API struct {
-	cfg *Config
-	mon *Monitor
-	tm  *TunnelManager
+	cfg     *Config
+	mon     *Monitor
+	tm      *TunnelManager
+	limiter *rateLimiter
 }
 
 func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager) *API {
-	return &API{cfg: cfg, mon: mon, tm: tm}
+	return &API{cfg: cfg, mon: mon, tm: tm, limiter: newRateLimiter()}
 }
 
 func (a *API) routes() http.Handler {
@@ -53,17 +56,75 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
-	return mux
+	return a.harden(mux)
+}
+
+// ── Hardening middleware (H5) ───────────────────────────────────────────────
+
+// maxRequestBodyBytes caps every request body globally (tunnel apply's own
+// cap is the same value and is therefore no longer needed per-handler).
+const maxRequestBodyBytes = 2 * 1024 * 1024
+
+// clientIP is the direct peer address. X-Forwarded-For is deliberately not
+// trusted: the agent listens directly on the LAN/WAN interface.
+func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+// harden wraps the mux with: a global body cap, per-IP rate limiting (except
+// the trivial /health liveness probe) and an access log that never writes
+// query strings, headers or bodies (no secrets in logs).
+func (a *API) harden(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Global body cap for every request (enforced at read time).
+		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+
+		if r.URL.Path != "/health" && !a.limiter.allow(clientIP(r)) {
+			w.Header().Set("Retry-After", "1")
+			writeJSON(rec, http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
+			logAccess(clientIP(r), r, rec.status, time.Since(start))
+			return
+		}
+
+		next.ServeHTTP(rec, r)
+		logAccess(clientIP(r), r, rec.status, time.Since(start))
+	})
+}
+
+func logAccess(ip string, r *http.Request, status int, d time.Duration) {
+	// ip method path status duration — path only, never the query string.
+	log.Printf("access %s %s %s %d %s", ip, r.Method, r.URL.Path, status, d.Round(time.Microsecond))
 }
 
 // auth wraps a handler with bearer-token authentication (constant time).
 func (a *API) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Bearer header only. Query-string tokens (?token=) were removed:
+		// they leak into proxy/access logs and browser history. The
+		// didban:// onboarding link still carries the token (one-time,
+		// user-initiated) — that is not an HTTP request.
 		tok := r.Header.Get("Authorization")
 		if len(tok) > 7 && tok[:7] == "Bearer " {
 			tok = tok[7:]
 		} else {
-			tok = r.URL.Query().Get("token")
+			tok = ""
 		}
 		if subtle.ConstantTimeCompare([]byte(tok), []byte(a.cfg.Token)) != 1 {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
@@ -168,8 +229,7 @@ func (a *API) handleTunnelApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelApplyReq
-	// Cap the request body so a (stolen) token cannot be used to exhaust memory.
-	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
+	// (Body is globally capped by the hardening middleware: 2 MB.)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json: " + err.Error()})
 		return
