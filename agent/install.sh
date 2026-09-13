@@ -88,6 +88,11 @@ if [[ -z "$TOKEN" ]]; then
   chmod 0600 "$CONF_DIR/token"
 fi
 
+# On upgrade, the operator's existing agent.conf (custom thresholds, alert
+# settings, deploy mode, ...) is preserved; it is only generated on first install.
+if [[ -f "$CONF_DIR/agent.conf" ]]; then
+  echo ">> Existing $CONF_DIR/agent.conf preserved (upgrade). Edit it to change settings."
+else
 cat > "$CONF_DIR/agent.conf" <<EOF
 # Didban agent configuration (read by systemd)
 DIDBAN_TOKEN=$TOKEN
@@ -113,9 +118,21 @@ ${TG_PROXY:+DIDBAN_TG_PROXY=$TG_PROXY}
 # ── Optional: process watchlist (alert when a process dies) ──────
 # DIDBAN_WATCH=xray,pg-node-service
 EOF
+fi
 chmod 0600 "$CONF_DIR/agent.conf"
 
 # ── systemd service ──────────────────────────────────────────────────────────
+# Sandbox design (H2): the agent is a *root control plane*, not a read-only
+# metrics collector. At runtime it:
+#   - writes tunnel configs to /etc/didban/tunnels and meta/data/certs to
+#     /var/lib/didban,
+#   - talks to /var/run/docker.sock (Docker) and the systemd bus (/run/dbus),
+#   - runs systemctl / journalctl for tunnel services,
+#   - (default deploy mode "scripts") runs operator-approved install scripts.
+# The old unit used ProtectSystem=strict (entire FS read-only except
+# /dev,/proc,/sys) which made /etc read-only and silently broke tunnel config
+# deployment. "full" keeps the OS image (/usr, /boot, /efi) immutable while
+# leaving /etc, /var, /run writable — exactly this role's requirement.
 cat > "$UNIT_FILE" <<'EOF'
 [Unit]
 Description=Didban monitoring agent — دیدبان
@@ -129,14 +146,35 @@ EnvironmentFile=/etc/didban/agent.conf
 ExecStart=/usr/local/bin/didban-agent
 Restart=always
 RestartSec=5
-NoNewPrivileges=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/didban
+
+# OS image immutable (/usr, /boot, /efi); /etc, /var, /run writable — the
+# agent deploys configs, stores data, and uses docker.sock + the systemd bus.
+ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
+
+# Hardening that cannot conflict with the functions above:
+NoNewPrivileges=true
 ProtectKernelTunables=true
-ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
 RestrictSUIDSGID=true
+
+# Deliberately NOT set — each would break a legitimate agent function:
+#   ProtectSystem=strict          tunnel config deploy writes under /etc
+#   ProtectControlGroups=true     service management via systemctl
+#   PrivateNetwork / RestrictAddressFamilies
+#                                 listens on :8686; needs AF_UNIX
+#                                 (docker.sock, dbus) + internet (alerts)
+#   MemoryDenyWriteExecute=true   install scripts may need exec mappings
+#
+# Hardened variant (verify on a real host before deploying): set
+# DIDBAN_DEPLOY_MODE=config-only in /etc/didban/agent.conf (agent then never
+# executes scripts) and tighten to:
+#   ProtectSystem=strict
+#   ReadWritePaths=/var/lib/didban /etc/didban /run/docker.sock /run/dbus
 
 [Install]
 WantedBy=multi-user.target
@@ -148,7 +186,9 @@ sleep 2
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-FINGERPRINT="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | head -1 | awk '{print $3}')"
+# (|| true: with `set -o pipefail`, an empty journal makes grep exit 1,
+# which would otherwise abort the script before the success banner.)
+FINGERPRINT="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | head -1 | awk '{print $3}' || true)"
 
 echo ""
 echo "══════════════════════════════════════════════════════════"
