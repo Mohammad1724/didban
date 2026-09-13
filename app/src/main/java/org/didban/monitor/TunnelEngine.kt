@@ -221,7 +221,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backpack/server.toml
-cat << 'EOF' > /etc/systemd/system/backpack-server.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backpack Tunnel Server (Iran Node)
 After=network.target
@@ -236,7 +236,7 @@ LimitNOFILE=1048576
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now backpack-server && systemctl status backpack-server --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val foreignInstall = """
@@ -245,7 +245,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/' | sed 's/armv7l
 (curl -fsSL https://github.com/AminMGMT/BackPack/releases/latest/download/backpack_linux_${'$'}ARCH.tar.gz -o /tmp/backpack.tar.gz && \
 tar -xzf /tmp/backpack.tar.gz -C /usr/local/bin/ backpack && chmod +x /usr/local/bin/backpack) || true && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backpack/client.toml
-cat << 'EOF' > /etc/systemd/system/backpack-client.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backpack Tunnel Client (Kharej Node)
 After=network.target
@@ -260,7 +260,7 @@ LimitNOFILE=1048576
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now backpack-client && systemctl status backpack-client --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerIran = """
@@ -351,7 +351,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/paqet/server.yaml
-cat << 'EOF' > /etc/systemd/system/paqet-server.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Paqet Tunnel Server (Raw Socket KCP)
 After=network.target
@@ -367,7 +367,7 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now paqet-server && systemctl status paqet-server --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val iranInstall = """
@@ -377,7 +377,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 curl -fsSL https://github.com/behzadea12/Paqet-Tunnel-Manager/releases/download/PaqetOptimized/paqet-linux-${'$'}ARCH-v2.2.0-optimize.tar.gz -o /tmp/paqet.tar.gz) && \
 tar -xzf /tmp/paqet.tar.gz -C /usr/local/bin/ paqet 2>/dev/null || true && chmod +x /usr/local/bin/paqet 2>/dev/null || true && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/paqet/client.yaml
-cat << 'EOF' > /etc/systemd/system/paqet-client.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Paqet Tunnel Client (Iran Entry)
 After=network.target
@@ -393,7 +393,7 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now paqet-client && systemctl status paqet-client --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -795,7 +795,7 @@ tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/spoof-tunnel/server.json
-cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Server
 After=network.target
@@ -811,7 +811,7 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_BPF
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now spoof-tunnel && systemctl status spoof-tunnel --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val iranInstall = """
@@ -822,7 +822,7 @@ tar -xzf /tmp/spoof.tar.gz -C /usr/local/bin/ spoof-tunnel 2>/dev/null || \
 curl -fsSL https://raw.githubusercontent.com/ParsaKSH/spoof-tunnel/main/install.sh -o /tmp/install.sh) && \
 chmod +x /usr/local/bin/spoof-tunnel 2>/dev/null || true && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/spoof-tunnel/client.json
-cat << 'EOF' > /etc/systemd/system/spoof-tunnel.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Mutual IP Spoofing Tunnel Client
 After=network.target
@@ -838,7 +838,7 @@ AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_BPF
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now spoof-tunnel && systemctl status spoof-tunnel --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -939,7 +939,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/backhaul/config.toml
-cat << 'EOF' > /etc/systemd/system/backhaul.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backhaul Server Tunnel
 After=network.target
@@ -954,7 +954,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now backhaul && systemctl status backhaul --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val iranInstall = """
@@ -963,7 +963,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/MusLatest/backhaul/releases/latest/download/backhaul_linux_${'$'}ARCH.tar.gz -o /tmp/backhaul.tar.gz && \
 tar -xzf /tmp/backhaul.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/backhaul) || true && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/backhaul/config.toml
-cat << 'EOF' > /etc/systemd/system/backhaul.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Backhaul Client Tunnel
 After=network.target
@@ -978,7 +978,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now backhaul && systemctl status backhaul --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -1063,7 +1063,7 @@ curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/rathole/server.toml
-cat << 'EOF' > /etc/systemd/system/rathole.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Rathole Server
 After=network.target
@@ -1078,7 +1078,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now rathole && systemctl status rathole --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val iranInstall = """
@@ -1090,7 +1090,7 @@ curl -fsSL https://github.com/rapiz1/rathole/releases/latest/download/rathole-${
 apt-get install -y unzip >/dev/null 2>&1 || yum install -y unzip >/dev/null 2>&1 && \
 unzip -o /tmp/rathole.zip -d /usr/local/bin/ && chmod +x /usr/local/bin/rathole && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/rathole/client.toml
-cat << 'EOF' > /etc/systemd/system/rathole.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=Rathole Client
 After=network.target
@@ -1105,7 +1105,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now rathole && systemctl status rathole --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -1196,8 +1196,8 @@ sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
 tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
-printf '%s' '${b64(ForeignGostUnit)}' | base64 -d > /etc/systemd/system/gost.service
-systemctl daemon-reload && systemctl enable --now gost && systemctl status gost --no-pager
+printf '%s' '${b64(ForeignGostUnit)}' | base64 -d > /etc/systemd/system/didban-tunnel-${cfg.id}.service
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val IranGostUnit = """
@@ -1220,8 +1220,8 @@ sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/go-gost/gost/releases/latest/download/gost_3.0.0_linux_${'$'}ARCH.tar.gz -o /tmp/gost.tar.gz && \
 tar -xzf /tmp/gost.tar.gz -C /usr/local/bin/ && chmod +x /usr/local/bin/gost) || true && \
-printf '%s' '${b64(IranGostUnit)}' | base64 -d > /etc/systemd/system/gost.service
-systemctl daemon-reload && systemctl enable --now gost && systemctl status gost --no-pager
+printf '%s' '${b64(IranGostUnit)}' | base64 -d > /etc/systemd/system/didban-tunnel-${cfg.id}.service
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -1290,8 +1290,8 @@ sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
 gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
-printf '%s' '${b64(ForeignChiselUnit)}' | base64 -d > /etc/systemd/system/chisel.service
-systemctl daemon-reload && systemctl enable --now chisel && systemctl status chisel --no-pager
+printf '%s' '${b64(ForeignChiselUnit)}' | base64 -d > /etc/systemd/system/didban-tunnel-${cfg.id}.service
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val IranChiselUnit = """
@@ -1314,8 +1314,8 @@ sudo mkdir -p /usr/local/bin && \
 ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/jpillora/chisel/releases/latest/download/chisel_linux_${'$'}ARCH.gz -o /tmp/chisel.gz && \
 gzip -d -f /tmp/chisel.gz && mv /tmp/chisel /usr/local/bin/chisel && chmod +x /usr/local/bin/chisel) || true && \
-printf '%s' '${b64(IranChiselUnit)}' | base64 -d > /etc/systemd/system/chisel.service
-systemctl daemon-reload && systemctl enable --now chisel && systemctl status chisel --no-pager
+printf '%s' '${b64(IranChiselUnit)}' | base64 -d > /etc/systemd/system/didban-tunnel-${cfg.id}.service
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
@@ -1387,7 +1387,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frps /usr/local/bin/ && chmod +x /usr/local/bin/frps) || true && \
 printf '%s' '${b64(foreignConfig)}' | base64 -d > /etc/frp/frps.toml
-cat << 'EOF' > /etc/systemd/system/frps.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=FRP Server
 After=network.target
@@ -1402,7 +1402,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now frps && systemctl status frps --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val iranInstall = """
@@ -1411,7 +1411,7 @@ ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
 (curl -fsSL https://github.com/fatedier/frp/releases/latest/download/frp_0.58.1_linux_${'$'}ARCH.tar.gz -o /tmp/frp.tar.gz && \
 tar -xzf /tmp/frp.tar.gz -C /tmp/ && cp /tmp/frp_*/frpc /usr/local/bin/ && chmod +x /usr/local/bin/frpc) || true && \
 printf '%s' '${b64(iranConfig)}' | base64 -d > /etc/frp/frpc.toml
-cat << 'EOF' > /etc/systemd/system/frpc.service
+cat << 'EOF' > /etc/systemd/system/didban-tunnel-${cfg.id}.service
 [Unit]
 Description=FRP Client
 After=network.target
@@ -1426,7 +1426,7 @@ LimitNOFILE=65535
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload && systemctl enable --now frpc && systemctl status frpc --no-pager
+systemctl daemon-reload && systemctl enable --now didban-tunnel-${cfg.id} && systemctl status didban-tunnel-${cfg.id} --no-pager
 """.trimIndent()
 
         val dockerForeign = """
