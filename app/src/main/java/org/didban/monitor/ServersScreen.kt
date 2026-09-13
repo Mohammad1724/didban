@@ -52,6 +52,7 @@ import androidx.compose.material.icons.rounded.QrCode
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -1052,11 +1053,30 @@ private fun SshInstallTab(t: Str, onSaved: () -> Unit) {
         }
 
         result?.let { r ->
+            // H14: three distinct outcomes — failed (danger), installed but
+            // fingerprint unreadable (warn: TLS saved unpinned, verify later),
+            // installed with fingerprint (ok). The warn case is the one that
+            // used to be a silent plaintext downgrade.
+            val bannerText = when {
+                !r.success -> "${t.installFailed}: ${r.error}"
+                r.fingerprint == null -> t.installDoneNoFingerprint
+                else -> t.installDone
+            }
+            val bannerTone = when {
+                !r.success -> BannerTone.Danger
+                r.fingerprint == null -> BannerTone.Warn
+                else -> BannerTone.Ok
+            }
+            val bannerIcon = when {
+                !r.success -> Icons.Rounded.ErrorOutline
+                r.fingerprint == null -> Icons.Rounded.Warning
+                else -> Icons.Rounded.CheckCircle
+            }
             item {
                 BannerCard(
-                    text = if (r.success) t.installDone else "${t.installFailed}: ${r.error}",
-                    tone = if (r.success) BannerTone.Ok else BannerTone.Danger,
-                    icon = if (r.success) Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline
+                    text = bannerText,
+                    tone = bannerTone,
+                    icon = bannerIcon
                 )
             }
         }
@@ -1085,7 +1105,12 @@ private fun SshInstallTab(t: Str, onSaved: () -> Unit) {
                                     host = host.trim(),
                                     port = r.port ?: 8686,
                                     token = r.token ?: "",
-                                    useTls = r.fingerprint != null,
+                                    // H14: the agent always serves TLS by
+                                    // default — a missing fingerprint must
+                                    // never silently downgrade the saved
+                                    // server to plaintext. TLS + empty pin
+                                    // is "lenient TLS" until the user pins.
+                                    useTls = true,
                                     fingerprint = r.fingerprint ?: ""
                                 )
                             )
@@ -1235,7 +1260,11 @@ private fun parseDeepLinkOrLogs(text: String): ServerConfig? {
                     host = host,
                     port = port,
                     token = token,
-                    useTls = fp.isNotBlank(),
+                    // H14: an empty fp means "unknown", not "plaintext" —
+                    // the agent serves TLS by default, so never guess the
+                    // insecure side. Unpinned TLS works; plaintext is only
+                    // reachable by the explicit toggle in the edit dialog.
+                    useTls = true,
                     fingerprint = fp
                 )
             }

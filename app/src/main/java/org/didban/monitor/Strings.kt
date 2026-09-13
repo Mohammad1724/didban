@@ -60,6 +60,7 @@ interface Str {
     val online: String
     val serverSaved: String
     val installDone: String
+    val installDoneNoFingerprint: String
     val installFailed: String
     val requiresRoot: String
     val available: String
@@ -380,6 +381,8 @@ object FaStr : Str {
     override val online: String = "فعال و آنلاین"
     override val serverSaved: String = "مشخصات سرور ذخیره شد"
     override val installDone: String = "ایجنت با موفقیت نصب شد و سرور متصل گردید"
+    override val installDoneNoFingerprint: String =
+        "ایجنت نصب شد، اما fingerprint گواهی TLS خوانده نشد. سرور با TLS و بدون pin ذخیره شد — بعداً fingerprint را در «ویرایش سرور» تأیید کنید"
     override val installFailed: String = "نصب ناموفق بود"
     override val requiresRoot: String = "کاربر باید دسترسی root داشته باشد"
     override val available: String = "فضای آزاد"
@@ -703,6 +706,8 @@ object EnStr : Str {
     override val online: String = "Online & Healthy"
     override val serverSaved: String = "Server saved successfully"
     override val installDone: String = "Agent installed and server connected!"
+    override val installDoneNoFingerprint: String =
+        "Agent installed, but the TLS certificate fingerprint could not be read. Server saved with TLS (unpinned) — verify the fingerprint in Edit Server later"
     override val installFailed: String = "Installation failed"
     override val requiresRoot: String = "User must be root"
     override val available: String = "available"

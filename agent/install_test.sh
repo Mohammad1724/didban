@@ -119,6 +119,9 @@ run_main() {  # sets MAIN_OUT / MAIN_RC
 E2E_CONF="$WORK/etc"; E2E_DATA="$WORK/lib"; E2E_BIN="$WORK/bin/didban-agent"
 CONF_DIR="$E2E_CONF"; DATA_DIR="$E2E_DATA"; UNIT_FILE="$WORK/agent.service"; BIN_DEST="$E2E_BIN"
 mkdir -p "$(dirname "$E2E_BIN")"   # mirrors the real /usr/local/bin always existing
+# Keep e2e runs fast: the stubbed journalctl never emits a cert line, so the
+# H14 fingerprint wait must not burn its real 15s default in every run.
+export DIDBAN_FP_RETRIES=2 DIDBAN_FP_DELAY=0
 
 # t6: local binary → no download at all
 mkdir -p "$WORK/localrun"
@@ -159,6 +162,41 @@ if [[ $MAIN_RC != 0 ]] && grep -q "refusing to install an unverified binary" "$W
   ok "missing checksum asset: install aborted"
 else
   bad "missing checksum (rc=$MAIN_RC): $MAIN_OUT / $(cat "$WORK/err")"
+fi
+
+# ── H14: wait_for_fingerprint (bounded, no racing fixed sleep) ──────────────
+echo "── wait_for_fingerprint (H14) ──"
+export DIDBAN_FP_DELAY=0   # fast for tests; real default is 1s
+
+FP_EXPECT="abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123"
+FP_CALLS="$WORK/fp_calls"; : > "$FP_CALLS"
+
+# Stub that emits the cert line only on the 3rd journalctl call (simulates a
+# slow agent whose startup banner lags the installer).
+journalctl() {
+  echo x >> "$FP_CALLS"
+  local n
+  n="$(wc -l < "$FP_CALLS")"
+  if [[ "$n" -ge 3 ]]; then
+    echo "Cert SHA256:  ${FP_EXPECT}"
+  fi
+}
+
+# t10: fingerprint arrives on the 3rd try → picked up, rc 0
+DIDBAN_FP_RETRIES=5
+if FP_GOT="$(wait_for_fingerprint)" && [[ "$FP_GOT" == "$FP_EXPECT" ]]; then
+  ok "fingerprint picked up after delayed banner (no race)"
+else
+  bad "delayed fingerprint missed (got: '$FP_GOT')"
+fi
+
+# t11: fingerprint never arrives → bounded failure, rc 1, no hang
+journalctl() { :; }   # empty forever
+DIDBAN_FP_RETRIES=4
+if FP_GOT="$(wait_for_fingerprint)" ; then
+  bad "wait_for_fingerprint should fail when the banner never appears"
+else
+  if [[ -z "$FP_GOT" ]]; then ok "no banner → bounded failure (rc!=0, empty)"; else bad "expected empty on failure, got '$FP_GOT'"; fi
 fi
 
 # ── summary ──────────────────────────────────────────────────────────────────

@@ -84,6 +84,26 @@ require_root() {
   fi
 }
 
+# Wait (bounded) for the agent's startup banner — specifically the
+# "Cert SHA256:" line — to reach the journal. On slow hosts the agent may
+# take a few seconds after `systemctl enable --now`, and a fixed `sleep 2`
+# raced that and printed a deep link with an EMPTY fingerprint, which made
+# the mobile app save the server without TLS pinning (H14). Bounded retry:
+# up to $DIDBAN_FP_RETRIES tries, $DIDBAN_FP_DELAY seconds apart (0/1 are
+# valid for tests).
+wait_for_fingerprint() {
+  local fp="" i
+  for i in $(seq 1 "${DIDBAN_FP_RETRIES:-15}"); do
+    fp="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | head -1 | awk '{print $3}' || true)"
+    if [[ -n "$fp" ]]; then
+      echo "$fp"
+      return 0
+    fi
+    sleep "${DIDBAN_FP_DELAY:-1}"
+  done
+  return 1
+}
+
 main() {
 # ── Preflight ────────────────────────────────────────────────────────────────
   require_root
@@ -257,9 +277,9 @@ EOF
 # ── Summary ──────────────────────────────────────────────────────────────────
   local SERVER_IP FINGERPRINT
   SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
-  # (|| true: with `set -o pipefail`, an empty journal makes grep exit 1,
-  # which would otherwise abort the script before the success banner.)
-  FINGERPRINT="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | head -1 | awk '{print $3}' || true)"
+  # H14: bounded wait for the cert line instead of a racing fixed sleep —
+  # an empty fingerprint here is what made the app save the server unpinned.
+  FINGERPRINT="$(wait_for_fingerprint || true)"
 
   echo ""
   echo "══════════════════════════════════════════════════════════"
