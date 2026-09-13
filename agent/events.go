@@ -17,8 +17,15 @@ type Event struct {
 	Top    []EventProc `json:"top,omitempty"`
 }
 
+// eventFileMaxBytes bounds the on-disk JSONL file (H12): the in-memory log
+// keeps at most `max` events, so when the file outgrows the budget it is
+// rewritten with exactly the events we still keep. ~1 MiB of event history
+// is plenty for a monitoring agent and keeps restart loading instant.
+const eventFileMaxBytes = 1 << 20
+
 // EventLog keeps the most recent events in memory and persists them
-// to a JSONL file so history survives agent restarts.
+// to a JSONL file so history survives agent restarts. The file is bounded
+// (see eventFileMaxBytes) and can no longer grow unboundedly (H12).
 type EventLog struct {
 	mu     sync.Mutex
 	events []Event
@@ -31,11 +38,30 @@ func NewEventLog(path string) *EventLog {
 		path: path,
 		max:  500,
 	}
+	// Remove a temp file left behind if a previous compaction crashed
+	// between write and rename.
+	os.Remove(path + ".tmp")
 	el.load()
+	// Reclaim disk on upgrade: files written by older versions (no
+	// rotation) may already be over budget.
+	if el.fileSize() > eventFileMaxBytes {
+		el.mu.Lock()
+		el.compactLocked()
+		el.mu.Unlock()
+	}
 	return el
 }
 
-// Add appends an event (in memory + JSONL file).
+func (e *EventLog) fileSize() int64 {
+	if fi, err := os.Stat(e.path); err == nil {
+		return fi.Size()
+	}
+	return 0
+}
+
+// Add appends an event (in memory + JSONL file). If the write pushes the
+// file over the size budget, the file is compacted to the capped in-memory
+// events so disk usage stays bounded (H12).
 func (e *EventLog) Add(ev Event) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -51,8 +77,43 @@ func (e *EventLog) Add(ev Event) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
-	_, _ = f.Write(append(line, '\n'))
+	wrote, _ := f.Write(append(line, '\n'))
+	var size int64
+	if fi, err := f.Stat(); err == nil {
+		size = fi.Size()
+	}
+	f.Close()
+	if wrote > 0 && size > eventFileMaxBytes {
+		e.compactLocked()
+	}
+}
+
+// compactLocked rewrites the JSONL file with the current (capped) in-memory
+// events, atomically (temp file + rename). Caller must hold e.mu.
+func (e *EventLog) compactLocked() {
+	tmp := e.path + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	w := bufio.NewWriter(f)
+	for _, ev := range e.events {
+		if line, err := json.Marshal(ev); err == nil {
+			w.Write(append(line, '\n'))
+		}
+	}
+	if err := w.Flush(); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return
+	}
+	if err := os.Rename(tmp, e.path); err != nil {
+		os.Remove(tmp)
+	}
 }
 
 // List returns up to limit events, newest first.

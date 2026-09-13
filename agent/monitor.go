@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
@@ -74,6 +75,18 @@ type HistPoint struct {
 	TX  float64 `json:"tx"`
 }
 
+// History persistence (H12): the 7-day chart used to live only in memory and
+// was wiped on every agent restart. It is now mirrored to a JSONL file that
+// is bounded the same way events.jsonl is.
+const (
+	// histMaxPoints = 7 days at 1-minute resolution (in-memory cap).
+	histMaxPoints = 10080
+	// histFileMaxLines = in-memory cap + 20% headroom. The file is
+	// compacted when it crosses this, so a single rewrite is amortized
+	// over ~2016 minutes of appends instead of rewriting every minute.
+	histFileMaxLines = histMaxPoints * 6 / 5
+)
+
 type cpuTicks struct {
 	user, nice, sys, idle, iowait, irq, sirq, steal, total uint64
 }
@@ -90,6 +103,8 @@ type Monitor struct {
 	snap       Snapshot
 	procs      []ProcessInfo
 	hist       []HistPoint
+	histPath   string // on-disk history (JSONL); "" disables persistence
+	histLines  int    // lines currently in histPath (single-writer counter)
 	events     *EventLog
 	dispatcher *AlertDispatcher
 
@@ -115,7 +130,7 @@ type Monitor struct {
 
 func NewMonitor(cfg *Config) *Monitor {
 	host, _ := os.Hostname()
-	return &Monitor{
+	m := &Monitor{
 		cfg:           cfg,
 		events:        NewEventLog(cfg.DataDir + "/events.jsonl"),
 		dispatcher:    NewAlertDispatcher(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy, cfg.DiscordWebhook, cfg.GenericWebhook),
@@ -129,6 +144,12 @@ func NewMonitor(cfg *Config) *Monitor {
 			LoadAvg:  []float64{0, 0, 0},
 		},
 	}
+	// H12: persist the 7-day chart so restarts do not wipe it.
+	if cfg.DataDir != "" {
+		m.histPath = cfg.DataDir + "/history.jsonl"
+		m.loadHistory()
+	}
+	return m
 }
 
 // RecordEvent records an event in memory, disk, and dispatches to notification channels.
@@ -532,8 +553,86 @@ func (m *Monitor) appendHistory() {
 
 	m.mu.Lock()
 	m.hist = append(m.hist, p)
-	if len(m.hist) > 10080 { // 7 days at 1-minute resolution
-		m.hist = m.hist[len(m.hist)-10080:]
+	if len(m.hist) > histMaxPoints {
+		m.hist = m.hist[len(m.hist)-histMaxPoints:]
+	}
+	if m.histPath != "" {
+		m.appendHistoryFileLocked(p)
 	}
 	m.mu.Unlock()
+}
+
+// appendHistoryFileLocked appends one point to the on-disk history file and
+// compacts the file once it outgrows the line budget (H12). Caller must hold
+// m.mu. Only the Run goroutine appends, so the line counter is exact.
+func (m *Monitor) appendHistoryFileLocked(p HistPoint) {
+	line, err := json.Marshal(p)
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(m.histPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	_, _ = f.Write(append(line, '\n'))
+	f.Close()
+	m.histLines++
+	if m.histLines > histFileMaxLines {
+		m.compactHistoryLocked()
+	}
+}
+
+// compactHistoryLocked rewrites the history file from the in-memory points
+// (atomic temp + rename) and resyncs the line counter. Caller must hold m.mu.
+func (m *Monitor) compactHistoryLocked() {
+	tmp := m.histPath + ".tmp"
+	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	w := bufio.NewWriter(f)
+	for _, p := range m.hist {
+		if line, err := json.Marshal(p); err == nil {
+			w.Write(append(line, '\n'))
+		}
+	}
+	if err := w.Flush(); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
+		return
+	}
+	if err := os.Rename(tmp, m.histPath); err != nil {
+		os.Remove(tmp)
+	}
+	m.histLines = len(m.hist)
+}
+
+// loadHistory restores the persisted chart so the 7-day history survives a
+// restart (H12). Points older than the window are pruned; at most
+// histMaxPoints are kept.
+func (m *Monitor) loadHistory() {
+	os.Remove(m.histPath + ".tmp")
+	f, err := os.Open(m.histPath)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	cutoff := time.Now().Add(-7 * 24 * time.Hour).Unix()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	for sc.Scan() {
+		m.histLines++
+		var p HistPoint
+		if err := json.Unmarshal(sc.Bytes(), &p); err != nil || p.T < cutoff {
+			continue
+		}
+		m.hist = append(m.hist, p)
+	}
+	if len(m.hist) > histMaxPoints {
+		m.hist = m.hist[len(m.hist)-histMaxPoints:]
+	}
 }

@@ -169,6 +169,18 @@ Tunnel apply endpoints are hardened against command-injection and path-traversal
 - **Proper status codes.** Unknown tunnel `status`/`start`/`stop` → `404`; invalid input → `400`; internal failure → `500`.
 - **Token hygiene.** The full token is printed only on the agent's first start; subsequent restarts show a prefix only, so the secret does not accumulate in the systemd journal.
 
+## Data & persistence
+
+All agent state lives in the data directory (default `/var/lib/didban`, `--data` / `DIDBAN_DATA`):
+
+| File | Content | Bound |
+|---|---|---|
+| `token` | API token | 48 chars |
+| `events.jsonl` | Spike / process / deploy events (newest last) | **≤ 1 MiB** — when the file outgrows the budget it is atomically rewritten with the 500 most recent events, so it can never grow unboundedly |
+| `history.jsonl` | Minute-resolution chart points (CPU/mem/net) | **7 days** at 1-minute resolution (10 080 points); the file compacts itself when it grows 20% past the window |
+
+Both files survive restarts: the event list (last 500) and the full 7-day chart are reloaded on startup — a reboot no longer wipes the history graphs.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
