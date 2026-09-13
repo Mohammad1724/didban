@@ -83,23 +83,47 @@ fun SecurityScreen(t: Str) {
         }
     }
 
-    fun allowPort(port: String) {
-        if (port.isBlank() || sshPassword.isBlank()) return
+    fun allowPort(portInput: String) {
+        if (portInput.isBlank() || sshPassword.isBlank()) return
+        val port = SecurityValidation.validatePort(portInput)
+        if (port == null) {
+            Toast.makeText(ctx, "شماره پورت معتبر نیست (1 تا 65535)", Toast.LENGTH_LONG).show()
+            return
+        }
         val server = servers.getOrNull(selectedServerIndex) ?: return
         scope.launch {
-            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw allow $port/tcp && ufw reload", 15)
-            Toast.makeText(ctx, "پورت $port با موفقیت باز شد!", Toast.LENGTH_SHORT).show()
+            // Port is strictly validated (digits only); the rule argument is
+            // additionally shell-quoted as defense in depth.
+            val rule = SecurityValidation.shellQuote("${port}/tcp")
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw allow $rule && ufw reload", 15)
+            if (res.isSuccess) {
+                Toast.makeText(ctx, "پورت $port با موفقیت باز شد!", Toast.LENGTH_SHORT).show()
+            } else {
+                val detail = res.stderr.ifBlank { res.errorMessage ?: "کد خروج $res.exitCode" }
+                Toast.makeText(ctx, "باز کردن پورت $port ناموفق بود: $detail", Toast.LENGTH_LONG).show()
+            }
             inspectFirewall()
         }
     }
 
     fun unban(item: BannedIpItem) {
         if (sshPassword.isBlank()) return
+        if (!SecurityValidation.isValidIpv4(item.ip) || !SecurityValidation.validateJail(item.jail)) {
+            Toast.makeText(ctx, "مقدار IP یا Jail نامعتبر است", Toast.LENGTH_LONG).show()
+            return
+        }
         val server = servers.getOrNull(selectedServerIndex) ?: return
         scope.launch {
-            SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client set ${item.jail} unbanip ${item.ip}", 15)
-            bannedIps.remove(item)
-            Toast.makeText(ctx, "آدرس ${item.ip} آن‌بلاک شد", Toast.LENGTH_SHORT).show()
+            val jail = SecurityValidation.shellQuote(item.jail)
+            val ip = SecurityValidation.shellQuote(item.ip)
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client set $jail unbanip $ip", 15)
+            if (res.isSuccess) {
+                bannedIps.remove(item)
+                Toast.makeText(ctx, "آدرس ${item.ip} آن‌بلاک شد", Toast.LENGTH_SHORT).show()
+            } else {
+                val detail = res.stderr.ifBlank { res.errorMessage ?: "کد خروج $res.exitCode" }
+                Toast.makeText(ctx, "آن‌بلاک ${item.ip} ناموفق بود: $detail", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
