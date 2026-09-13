@@ -9,34 +9,28 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 /**
- * Foreground service that polls every server's /api/metrics every 30 seconds,
- * updates the shared [Repo] (which the UI observes) and posts alerts when a
- * server is unreachable or crosses its CPU/memory thresholds.
+ * Foreground "background monitoring" service.
+ *
+ * Since H7 this service no longer polls: the single process-lifetime
+ * [PollingCoordinator] owns all /api/metrics polling and feeds [Repo]. The
+ * service's job now is:
+ *  - keep the process alive in the background (foreground notification) so
+ *    the coordinator keeps polling while the app is closed;
+ *  - expose [isRunning], which the coordinator uses to gate alert
+ *    notifications (engine off = no alerts, exactly as before);
+ *  - start/stop [UptimeEngine] with its lifetime (unchanged since H1).
  */
 class MonitorService : Service() {
 
     companion object {
         const val CHANNEL_STATUS = "didban_status"
         const val CHANNEL_ALERT = "didban_alerts"
-        private const val ALERT_COOLDOWN_MS = 10 * 60_000L
 
         @Volatile
         var isRunning: Boolean = false
     }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var pollJob: Job? = null
-    private val lastAlertAt = HashMap<String, Long>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -70,7 +64,10 @@ class MonitorService : Service() {
         } else {
             startForeground(1, notif)
         }
-        if (pollJob?.isActive != true) startPolling()
+        // The single poller runs for the life of the process (started by
+        // DidbanApplication); this is idempotent. While this service is
+        // alive the coordinator polls in the background and posts alerts.
+        PollingCoordinator.start(applicationContext)
         // Uptime probes run in this same long-lived engine (H1): they no
         // longer depend on the UptimeScreen being open, and each target's
         // user-configured interval is honored by the UptimeEngine scheduler.
@@ -78,107 +75,9 @@ class MonitorService : Service() {
         return START_STICKY
     }
 
-    private fun startPolling() {
-        pollJob = scope.launch {
-            while (isActive) {
-                val pollMs = Prefs.getPollIntervalMs(applicationContext)
-                val servers = Prefs.loadServers(applicationContext)
-                for (s in servers) {
-                    val t0 = System.currentTimeMillis()
-                    val prevState = Repo.states.value[s.id]
-                    try {
-                        val m = ApiClient().metrics(s)
-                        val ms = (System.currentTimeMillis() - t0).toFloat()
-                        Repo.set(s.id, metrics = m, latencyMs = ms)
-                        if (prevState?.error != null) {
-                            // Recovered
-                            AlertEngine.dispatchAlert(
-                                applicationContext,
-                                AlertType.SERVER_RECOVERED,
-                                s.name,
-                                "سرور مجدداً آنلاین شد و معیارهای سلامت نرمال هستند.",
-                                AlertLevel.RESOLVED
-                            )
-                        }
-                        checkThresholds(s, m)
-                    } catch (e: Exception) {
-                        Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
-                        alert(s, "${s.name}: ${e.message}")
-                        if (Prefs.isAlertTriggerDown(applicationContext)) {
-                            AlertEngine.dispatchAlert(
-                                applicationContext,
-                                AlertType.SERVER_DOWN,
-                                s.name,
-                                "سرور در دسترس نیست یا اتصال قطع شد: ${e.message}",
-                                AlertLevel.CRITICAL
-                            )
-                        }
-                    }
-                }
-                delay(pollMs)
-            }
-        }
-    }
-
-    private fun checkThresholds(s: ServerConfig, m: Metrics) {
-        if (m.cpuUsage >= s.cpuAlert) {
-            alert(s, "${s.name}: CPU ${m.cpuUsage.toInt()}%")
-            if (Prefs.isAlertTriggerSpike(applicationContext)) {
-                scope.launch {
-                    AlertEngine.dispatchAlert(
-                        applicationContext,
-                        AlertType.CPU_SPIKE,
-                        s.name,
-                        "مصرف پردازنده به ${m.cpuUsage.toInt()}% افزایش یافت (آستانه: ${s.cpuAlert.toInt()}%)",
-                        AlertLevel.WARNING
-                    )
-                }
-            }
-        }
-        if (m.memPct >= s.memAlert) {
-            alert(s, "${s.name}: RAM ${m.memPct.toInt()}%")
-            if (Prefs.isAlertTriggerSpike(applicationContext)) {
-                scope.launch {
-                    AlertEngine.dispatchAlert(
-                        applicationContext,
-                        AlertType.RAM_SPIKE,
-                        s.name,
-                        "مصرف حافظه رم به ${m.memPct.toInt()}% افزایش یافت (آستانه: ${s.memAlert.toInt()}%)",
-                        AlertLevel.WARNING
-                    )
-                }
-            }
-        }
-    }
-
-    private fun alert(server: ServerConfig, text: String) {
-        val now = System.currentTimeMillis()
-        val key = "${server.name}:$text"
-        if (now - (lastAlertAt[key] ?: 0L) < ALERT_COOLDOWN_MS) return
-        lastAlertAt[key] = now
-
-        val openIntent = Intent(this, MainActivity::class.java)
-            .putExtra("server_id", server.id)
-        val pi = PendingIntent.getActivity(
-            this, (server.id % 100000L).toInt(),
-            openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val notif = NotificationCompat.Builder(this, CHANNEL_ALERT)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setContentTitle("Didban")
-            .setContentText(text)
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .build()
-        getSystemService(NotificationManager::class.java).notify(text.hashCode(), notif)
-    }
-
     override fun onDestroy() {
         isRunning = false
         UptimeEngine.stop()
-        pollJob?.cancel()
-        scope.cancel()
         super.onDestroy()
     }
 }

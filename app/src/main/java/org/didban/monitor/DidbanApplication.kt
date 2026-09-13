@@ -10,6 +10,9 @@ class DidbanApplication : Application() {
         super.onCreate()
         CryptoSecurity.ensureInitialized()
         HostKeyTrustStore.init(this)
+        // H7: the single poller for all servers runs for the life of the
+        // process (see PollingCoordinator for the gating semantics).
+        PollingCoordinator.start(this)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("DidbanCrash", "Uncaught exception in thread: ${thread.name}", throwable)

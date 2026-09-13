@@ -82,7 +82,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 private const val AGENT_INSTALL_CMD =
@@ -140,25 +140,20 @@ fun ServersScreen(
         servers = Prefs.loadServers(ctx)
     }
 
-    // Direct background poll loop for active dashboard metrics
+    // CPU sparklines are appended on every Repo update (H7): the actual
+    // /api/metrics polling is owned by the single PollingCoordinator — the
+    // screen only observes the shared Repo. (Previously a per-screen loop
+    // re-polled every server every 10s with a fresh OkHttp client,
+    // duplicating the engine's work.)
     LaunchedEffect(servers) {
-        while (true) {
+        Repo.states.collect { all ->
             for (s in servers) {
-                try {
-                    val t0 = System.currentTimeMillis()
-                    val m = ApiClient().metrics(s)
-                    val latency = (System.currentTimeMillis() - t0).toFloat()
-                    Repo.set(s.id, metrics = m, latencyMs = latency)
-
-                    // Record sparkline history
-                    val existing = cpuHistory[s.id] ?: listOf(m.cpuUsage * 0.85f, m.cpuUsage * 1.1f)
-                    val updated = (existing + m.cpuUsage).takeLast(12)
-                    cpuHistory = cpuHistory + (s.id to updated)
-                } catch (e: Exception) {
-                    Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
-                }
+                val m = all[s.id]?.metrics ?: continue
+                val existing = cpuHistory[s.id] ?: listOf(m.cpuUsage * 0.85f, m.cpuUsage * 1.1f)
+                if (existing.lastOrNull() == m.cpuUsage && existing.size >= 2) continue
+                val updated = (existing + m.cpuUsage).takeLast(12)
+                cpuHistory = cpuHistory + (s.id to updated)
             }
-            delay(10_000)
         }
     }
 

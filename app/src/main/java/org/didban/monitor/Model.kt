@@ -316,7 +316,7 @@ object JsonParse {
     }
 }
 
-// ── Shared live state (written by MonitorService, read by UI) ───────────────
+// ── Shared live state (written by PollingCoordinator, read by UI) ───────────
 
 object Repo {
     data class State(

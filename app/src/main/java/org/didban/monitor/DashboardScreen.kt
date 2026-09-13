@@ -60,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,6 +77,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -101,11 +103,19 @@ fun DashboardScreen(
         snapshotFlow { pagerState.currentPage }.collect { tab = it }
     }
 
-    var metrics by remember { mutableStateOf<Metrics?>(null) }
+    // H7: metrics/latency/error come from the shared Repo (written by the
+    // single PollingCoordinator) — the same source the server list shows,
+    // so every screen agrees. Previously this screen ran its own 10s
+    // /api/metrics loop on top of the engine's, and reported its own
+    // latency/online state.
+    val repoState by Repo.states.collectAsState()
+    val live = repoState[server.id]
+    val metrics = live?.metrics
+    val latency = live?.latencyMs ?: -1f
+    val err = live?.error
+
     var hist by remember { mutableStateOf<List<HistPoint>>(emptyList()) }
-    var latency by remember { mutableStateOf(0f) }
     var latHist by remember { mutableStateOf<List<Float>>(emptyList()) }
-    var err by remember { mutableStateOf<String?>(null) }
     var procs by remember { mutableStateOf<List<ProcInfo>>(emptyList()) }
     var events by remember { mutableStateOf<List<SpikeEvent>>(emptyList()) }
     var socketsData by remember { mutableStateOf<SocketsData?>(null) }
@@ -137,27 +147,36 @@ fun DashboardScreen(
         }
     }
 
-    fun refreshAll() {
+    // Latency sparkline is fed by the shared Repo updates (H7).
+    LaunchedEffect(server.id) {
+        Repo.states.collect { all ->
+            val ms = all[server.id]?.latencyMs
+            if (ms != null && ms > 0f) latHist = (latHist + ms).takeLast(120)
+        }
+    }
+
+    fun refreshHistory() {
         scope.launch {
-            try {
-                val t0 = System.currentTimeMillis()
-                metrics = api.metrics(server)
-                latency = (System.currentTimeMillis() - t0).toFloat()
-                latHist = (latHist + latency).takeLast(120)
-                err = null
-            } catch (e: Exception) {
-                err = e.message
-                latency = -1f
-            }
             try { hist = api.history(server) } catch (_: Exception) { }
         }
     }
 
-    // Direct background poll loop
+    // Manual refresh (button): force an immediate probe via the coordinator
+    // and pull the history endpoint.
+    fun refreshAll() {
+        PollingCoordinator.requestNow(server.id)
+        refreshHistory()
+    }
+
+    // H7: metrics polling is owned by the single PollingCoordinator (user's
+    // interval, with backoff). This loop only refreshes the history
+    // endpoint — dashboard-specific, not part of the shared Repo.
     LaunchedEffect(server.id) {
+        PollingCoordinator.requestNow(server.id)
+        refreshHistory()
         while (true) {
-            refreshAll()
-            delay(10_000)
+            delay(Prefs.getPollIntervalMs(ctx))
+            refreshHistory()
         }
     }
 

@@ -145,6 +145,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        ProcessState.activityStarted()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        ProcessState.activityStopped()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         try {

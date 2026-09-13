@@ -166,6 +166,10 @@ fun BandwidthBenchmarkScreen(t: Str) {
                 }
                 Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
                 return@launch
+            } finally {
+                // H7: the streaming client is short-lived — release its
+                // dispatcher once the call has completed (or failed).
+                api.releaseStreaming()
             }
 
             // 3. Measure REAL upload throughput to the agent's sink endpoint.
@@ -196,6 +200,8 @@ fun BandwidthBenchmarkScreen(t: Str) {
                 }
                 Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
                 return@launch
+            } finally {
+                api.releaseStreaming()
             }
 
             testProgress = 1f

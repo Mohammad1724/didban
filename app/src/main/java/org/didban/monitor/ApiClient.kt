@@ -5,15 +5,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.security.MessageDigest
-import java.security.cert.CertificateException
-import java.security.cert.X509Certificate
-import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
 class ApiException(message: String) : Exception(message)
 
@@ -25,52 +19,32 @@ class ApiException(message: String) : Exception(message)
  *    the served certificate matches it (SHA-256 of the DER certificate).
  *  - If no fingerprint is set yet, any certificate is accepted (lenient) and
  *    [lastSeenFingerprint] can be saved back to the server config ("pin").
+ *
+ * H7: this class no longer builds OkHttpClients. [HttpClientPool] owns one
+ * long-lived client per server (host, port, TLS, fingerprint) on a shared
+ * connection pool — connection reuse, one TLS handshake per server per
+ * connection, no per-request thread churn. The class only shapes requests
+ * and responses. [lastSeenFingerprint] reflects the certificate the pooled
+ * client last observed on the server it last talked to (the holder is
+ * per-server, so it is correct even though the client is shared).
  */
 class ApiClient {
 
+    /** Certificate fingerprint observed on the last request (lowercase hex). */
     var lastSeenFingerprint: String? = null
         private set
 
-    /** Builder with the app's TLS posture (fingerprint pinning) applied. */
-    private fun pinnedBuilder(server: ServerConfig): OkHttpClient.Builder {
-        val builder = OkHttpClient.Builder()
-        if (server.useTls) {
-            val pinned = server.fingerprint.trim().lowercase().replace(":", "")
-            val tm = object : X509TrustManager {
-                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-
-                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
-                    if (chain.isEmpty()) throw CertificateException("empty certificate chain")
-                    val sha = MessageDigest.getInstance("SHA-256").digest(chain[0].encoded)
-                    val hex = sha.joinToString("") { String.format("%02x", it) }
-                    lastSeenFingerprint = hex
-                    if (pinned.isNotEmpty() && pinned != hex) {
-                        throw CertificateException("certificate fingerprint mismatch")
-                    }
-                }
-
-                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-            }
-            val ssl = SSLContext.getInstance("TLS")
-            ssl.init(null, arrayOf<TrustManager>(tm), null)
-            builder.sslSocketFactory(ssl.socketFactory, tm)
-            builder.hostnameVerifier { _, _ -> true }
-        }
-        return builder
-    }
-
-    private fun clientFor(server: ServerConfig): OkHttpClient =
-        pinnedBuilder(server)
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .build()
+    // Short-lived streaming clients opened by [openStreamingCall]; the
+    // bandwidth screen calls [releaseStreaming] when a call completes.
+    private val openStreaming = java.util.Collections.synchronizedList(mutableListOf<OkHttpClient>())
 
     /**
      * Opens a streaming call against the agent (used by the bandwidth test).
      * Same auth + certificate pinning as [get]; longer read/write timeouts
-     * because the body is large by design. Caller must close the response.
+     * because the body is large by design. Caller must close the response
+     * and call [releaseStreaming] afterwards.
      */
-    fun openStreamingCall(server: ServerConfig, path: String, body: okhttp3.RequestBody? = null): okhttp3.Call {
+    fun openStreamingCall(server: ServerConfig, path: String, body: RequestBody? = null): okhttp3.Call {
         val scheme = if (server.useTls) "https" else "http"
         val url = "$scheme://${server.host}:${server.port}$path"
         val request = Request.Builder()
@@ -78,12 +52,17 @@ class ApiClient {
             .header("Authorization", "Bearer ${server.token}")
             .apply { if (body != null) method("POST", body) }
             .build()
-        return pinnedBuilder(server)
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(120, TimeUnit.SECONDS)
-            .writeTimeout(120, TimeUnit.SECONDS)
-            .build()
-            .newCall(request)
+        val client = HttpClientPool.streamingClient(server)
+        openStreaming.add(client)
+        return client.newCall(request)
+    }
+
+    /** Releases the dispatchers of the streaming clients opened by this instance. */
+    fun releaseStreaming() {
+        val clients = synchronized(openStreaming) {
+            openStreaming.toList().also { openStreaming.clear() }
+        }
+        clients.forEach { HttpClientPool.releaseStreaming(it) }
     }
 
     private fun get(server: ServerConfig, path: String): JSONObject {
@@ -93,8 +72,9 @@ class ApiClient {
             .url(url)
             .header("Authorization", "Bearer ${server.token}")
             .build()
+        val pooled = HttpClientPool.standardClient(server)
         try {
-            clientFor(server).newCall(request).execute().use { resp ->
+            pooled.client.newCall(request).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
                 if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}: $body")
                 return JSONObject(body)
@@ -103,6 +83,8 @@ class ApiClient {
             throw e
         } catch (e: Exception) {
             throw ApiException(e.message ?: "network error")
+        } finally {
+            lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
     }
 
@@ -116,8 +98,9 @@ class ApiClient {
             .header("Authorization", "Bearer ${server.token}")
             .post(reqBody)
             .build()
+        val pooled = HttpClientPool.standardClient(server)
         try {
-            clientFor(server).newCall(request).execute().use { resp ->
+            pooled.client.newCall(request).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
                 if (!resp.isSuccessful) {
                     var errMsg = "HTTP ${resp.code}"
@@ -133,6 +116,8 @@ class ApiClient {
             throw e
         } catch (e: Exception) {
             throw ApiException(e.message ?: "network error")
+        } finally {
+            lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
     }
 
