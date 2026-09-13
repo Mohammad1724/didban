@@ -100,56 +100,17 @@ object SftpEngine {
         session.setConfig("StrictHostKeyChecking", "no")
         session.setConfig("PreferredAuthentications", "password,keyboard-interactive")
 
-        val kexAlgos = listOf(
-            "curve25519-sha256",
-            "curve25519-sha256@libssh.org",
-            "ecdh-sha2-nistp256",
-            "ecdh-sha2-nistp384",
-            "ecdh-sha2-nistp521",
-            "diffie-hellman-group-exchange-sha256",
-            "diffie-hellman-group16-sha512",
-            "diffie-hellman-group18-sha512",
-            "diffie-hellman-group14-sha256",
-            "diffie-hellman-group-exchange-sha1",
-            "diffie-hellman-group14-sha1",
-            "diffie-hellman-group1-sha1"
-        ).joinToString(",")
-
-        val hostKeyAlgos = listOf(
-            "ssh-ed25519",
-            "ecdsa-sha2-nistp256",
-            "ecdsa-sha2-nistp384",
-            "ecdsa-sha2-nistp521",
-            "rsa-sha2-512",
-            "rsa-sha2-256",
-            "ssh-rsa",
-            "ssh-dss"
-        ).joinToString(",")
-
-        val cipherAlgos = listOf(
-            "chacha20-poly1305@openssh.com",
-            "aes128-ctr",
-            "aes192-ctr",
-            "aes256-ctr",
-            "aes128-gcm@openssh.com",
-            "aes256-gcm@openssh.com",
-            "arcfour256",
-            "arcfour128",
-            "aes128-cbc",
-            "3des-cbc",
-            "blowfish-cbc",
-            "cast128-cbc",
-            "aes192-cbc",
-            "aes256-cbc",
-            "arcfour"
-        ).joinToString(",")
-
-        session.setConfig("kex", kexAlgos)
-        session.setConfig("server_host_key", hostKeyAlgos)
-        session.setConfig("PubkeyAcceptedAlgorithms", hostKeyAlgos)
-        session.setConfig("cipher.s2c", cipherAlgos)
-        session.setConfig("cipher.c2s", cipherAlgos)
-        session.setConfig("CheckCiphers", "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com")
+        // H10: shared modern whitelist (see SshAlgorithms) — the old local
+        // lists still offered arcfour/3DES/CBC ciphers and SHA-1 kex even
+        // though CheckCiphers rejected them at verification time.
+        session.setConfig("kex", SshAlgorithms.kexConfig())
+        session.setConfig("server_host_key", SshAlgorithms.hostKeyConfig())
+        session.setConfig("PubkeyAcceptedAlgorithms", SshAlgorithms.hostKeyConfig())
+        session.setConfig("cipher.s2c", SshAlgorithms.cipherConfig())
+        session.setConfig("cipher.c2s", SshAlgorithms.cipherConfig())
+        // Defense in depth: if a weak cipher were ever negotiated it fails
+        // the session instead of being silently accepted.
+        session.setConfig("CheckCiphers", SshAlgorithms.cipherConfig())
 
         session.connect(TimeUnit.SECONDS.toMillis(15).toInt())
 
