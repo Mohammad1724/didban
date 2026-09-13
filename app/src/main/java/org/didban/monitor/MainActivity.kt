@@ -66,6 +66,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -291,10 +292,24 @@ fun CrashRecoveryScreen(
 @Composable
 fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     val ctx = LocalContext.current
-    var lang by remember { mutableStateOf(Prefs.getLanguage(ctx)) }
-    var themeMode by remember { mutableStateOf(Prefs.getThemeMode(ctx)) }
-    var openServer by remember { mutableStateOf<ServerConfig?>(null) }
-    var currentNav by remember { mutableStateOf(0) } // 0: Fleet, 1: Tunnels, 2: Uptime, 3: Network & Cloud, 4: Vault & Tools
+    // H9: navigation state must survive rotation AND process death.
+    // rememberSaveable persists into the Activity's saved-instance-state
+    // bundle — no ViewModel/lifecycle dependency needed. (lang/themeMode
+    // are also persisted to Prefs on change; saving them here too keeps the
+    // restoration path uniform.)
+    var lang by rememberSaveable { mutableStateOf(Prefs.getLanguage(ctx)) }
+    var themeMode by rememberSaveable { mutableStateOf(Prefs.getThemeMode(ctx)) }
+    var openServerId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var currentNav by rememberSaveable { mutableStateOf(0) } // 0: Fleet, 1: Tunnels, 2: Uptime, 3: Network & Cloud, 4: Vault & Tools
+
+    // H9: the open server is addressed by id (a saveable primitive) and
+    // resolved against the persisted server list — so the dashboard comes
+    // back after rotation/process death, always shows the current (possibly
+    // edited) server data, and a deleted server degrades gracefully to the
+    // fleet view instead of a dangling object.
+    val openServer: ServerConfig? = openServerId?.let { id ->
+        Prefs.loadServers(ctx).firstOrNull { it.id == id }
+    }
 
     val t = if (lang == "fa") Locales.fa else Locales.en
     val isDarkMode = themeMode == "dark"
@@ -304,7 +319,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     // ── Global Back Navigation & Exit Guard Hierarchy ──
     if (openServer != null) {
         BackHandler {
-            openServer = null
+            openServerId = null
         }
     } else if (currentNav != 0) {
         BackHandler {
@@ -328,9 +343,15 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
         val id = pendingServerId.value
         if (id != null) {
             val s = Prefs.loadServers(ctx).firstOrNull { it.id == id }
-            if (s != null) openServer = s
+            if (s != null) openServerId = s.id
             pendingServerId.value = null
         }
+    }
+
+    // H9: if the saved id no longer resolves (server deleted), drop it so
+    // the state bundle never carries a dangling reference.
+    LaunchedEffect(openServerId) {
+        if (openServerId != null && openServer == null) openServerId = null
     }
 
     CompositionLocalProvider(
@@ -373,7 +394,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                                     themeMode = newMode
                                     Prefs.setThemeMode(ctx, newMode)
                                 },
-                                onBack = { openServer = null }
+                                onBack = { openServerId = null }
                             )
                         }
                     }
@@ -397,7 +418,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                                         lang = new
                                         Prefs.setLanguage(ctx, new)
                                     },
-                                    onOpen = { openServer = it }
+                                    onOpen = { openServerId = it.id }
                                 )
                                 1 -> TunnelScreen(t = t)
                                 2 -> UptimeScreen(t = t)
