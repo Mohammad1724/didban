@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -55,16 +56,49 @@ func envOr(key, def string) string {
 	return def
 }
 
+// floatEnvOr returns the env value parsed as float64, or def when the key is
+// unset/empty. A set-but-invalid value is an operator error, not a silent
+// default: it returns an error so startup fails loudly (H13 — the DIDBAN_*_TH
+// knobs in /etc/didban/agent.conf must actually do something, and a typo must
+// not be swallowed).
+func floatEnvOr(key string, def float64) (float64, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return def, nil
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s=%q: expected a number, e.g. 70", key, v)
+	}
+	return f, nil
+}
+
 func main() {
 	cfg := &Config{}
 	flag.StringVar(&cfg.Addr, "addr", envOr("DIDBAN_ADDR", ":8686"), "HTTP listen address")
 	flag.StringVar(&cfg.Token, "token", os.Getenv("DIDBAN_TOKEN"), "auth token (auto-generated if empty)")
 	flag.StringVar(&cfg.DataDir, "data", envOr("DIDBAN_DATA", "/var/lib/didban"), "data directory (events, TLS certs)")
 	flag.BoolVar(&cfg.PlainHTTP, "plain", os.Getenv("DIDBAN_PLAIN") == "1", "disable TLS (NOT recommended)")
-	flag.Float64Var(&cfg.CPUThreshold, "cpu-th", 70, "CPU spike event threshold (percent)")
-	flag.Float64Var(&cfg.MemThreshold, "mem-th", 90, "memory spike event threshold (percent)")
-	flag.Float64Var(&cfg.StealThreshold, "steal-th", 10, "CPU steal event threshold (percent)")
-	flag.Float64Var(&cfg.DiskThreshold, "disk-th", 90, "disk usage event threshold (percent)")
+	// Spike thresholds: flag > env (DIDBAN_*_TH in /etc/didban/agent.conf) >
+	// default. An invalid env value aborts startup instead of silently
+	// falling back (H13).
+	for _, t := range []struct {
+		env, fl, usage string
+		def            float64
+		out            *float64
+	}{
+		{"DIDBAN_CPU_TH", "cpu-th", "CPU spike event threshold (percent)", 70, &cfg.CPUThreshold},
+		{"DIDBAN_MEM_TH", "mem-th", "memory spike event threshold (percent)", 90, &cfg.MemThreshold},
+		{"DIDBAN_STEAL_TH", "steal-th", "CPU steal event threshold (percent)", 10, &cfg.StealThreshold},
+		{"DIDBAN_DISK_TH", "disk-th", "disk usage event threshold (percent)", 90, &cfg.DiskThreshold},
+	} {
+		v, err := floatEnvOr(t.env, t.def)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+			os.Exit(1)
+		}
+		flag.Float64Var(t.out, t.fl, v, t.usage)
+	}
 	flag.StringVar(&cfg.TelegramToken, "tg-token", os.Getenv("DIDBAN_TG_TOKEN"), "Telegram Bot Token for alerts")
 	flag.StringVar(&cfg.TelegramChatID, "tg-chat", os.Getenv("DIDBAN_TG_CHAT_ID"), "Telegram Chat/Channel ID for alerts")
 	flag.StringVar(&cfg.TelegramProxy, "tg-proxy", os.Getenv("DIDBAN_TG_PROXY"), "HTTP/SOCKS5 proxy for Telegram API")
