@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.InetSocketAddress
+import java.security.MessageDigest
 import java.net.Socket
 
 data class PortMapping(val iranPort: Int, val foreignPort: Int)
@@ -105,7 +106,16 @@ object TunnelEngine {
         }
         when (cfg.core) {
             TunnelCore.IPTABLES -> {
-                if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
+                // H19: the foreign host is the DNAT destination and is
+                // mandatory for this core; iptables has no DNS, so it must be
+                // a strict IPv4 (the old code embedded the "KHAREJ_IP"
+                // placeholder when the field was blank, producing rules like
+                // `--to-destination KHAREJ_IP:80` that fail obscurely).
+                if (cfg.foreignHost.isBlank()) {
+                    add("Foreign host برای core IPTables اجباری است (مقصد DNAT) و نمی‌تواند خالی باشد")
+                } else {
+                    TunnelFieldValidation.checkIpv4(cfg.foreignHost, "Foreign host")?.let { add(it) }
+                }
             }
             TunnelCore.NARNIA -> {
                 if (cfg.foreignHost.isNotBlank()) addHostError(cfg.foreignHost)
@@ -1455,37 +1465,125 @@ services:
         )
     }
 
-    // ── 9. IPTables Port Forwarding Generator ────────────────────────────────
+    // ── 9. IPTables Generator (kernel-level NAT forwarding) ───────────────────
+    //
+    // H19: the old generator embedded the "KHAREJ_IP" placeholder when
+    // foreignHost was blank (rules like `--to-destination KHAREJ_IP:80` fail
+    // obscurely), appended duplicate rules on every deploy (bare `-A`, no
+    // check) and duplicated `net.ipv4.ip_forward` lines via `tee -a
+    // /etc/sysctl.conf`.
+    //
+    // Now:
+    //  - foreignHost is validated before generation (required, strict IPv4 —
+    //    iptables has no DNS),
+    //  - DNAT/MASQUERADE rules live in dedicated per-tunnel chains that are
+    //    flushed before being repopulated: redeploying converges to the same
+    //    rule set and ports dropped from the list self-heal,
+    //  - ip_forward is persisted via an idempotent /etc/sysctl.d drop-in,
+    //  - a oneshot unit (the name the agent queries for status/control)
+    //    applies the rules at boot and re-apply, and removes them on stop
+    //    and delete.
 
     private fun generateIptables(cfg: TunnelConfig): GeneratedTunnelCode {
+        // validateForDeploy already rejects blank/non-IPv4; this guard stops a
+        // placeholder from ever leaking into a rule via any future call path.
+        require(TunnelFieldValidation.isIpv4(cfg.foreignHost)) {
+            "IPTABLES core requires a valid IPv4 foreign host, got: \"${cfg.foreignHost}\""
+        }
         val ports = parsePortMappings(cfg)
-        val foreignIp = cfg.foreignHost.ifBlank { "KHAREJ_IP" }
+        val foreignIp = cfg.foreignHost
+        // Deterministic per-tunnel salt for the chain names: iptables chain
+        // names are capped at 28 chars, tunnel ids are not.
+        val digest = MessageDigest.getInstance("SHA-256").digest(cfg.id.toString().toByteArray())
+        val hash = digest.take(8).joinToString("") { "%02x".format(it) }
+        val chain = "didban-tun-$hash" // 11 + 16 = 27 chars
+        val chainPo = "didban-tunp-$hash" // 12 + 16 = 28 chars
+        val unitName = "didban-tunnel-${cfg.id}"
+        val rulesScript = "/etc/didban/iptables-$hash-rules.sh"
 
-        val rules = ports.joinToString("\n") { p ->
-            """sudo iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}
-sudo iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}
-sudo iptables -t nat -A POSTROUTING -p tcp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE
-sudo iptables -t nat -A POSTROUTING -p udp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE"""
+        val rulesFw = buildString {
+            appendLine("#!/bin/sh")
+            appendLine("# Didban IPTables tunnel ${cfg.id}: (re)apply the NAT rule set — idempotent (H19).")
+            appendLine("CHAIN=$chain")
+            appendLine("CHAIN_PO=$chainPo")
+            appendLine("if ! iptables -t nat -nL \"${'$'}CHAIN\" >/dev/null 2>&1; then iptables -t nat -N \"${'$'}CHAIN\"; fi")
+            appendLine("iptables -t nat -F \"${'$'}CHAIN\"")
+            ports.forEach { p ->
+                appendLine("iptables -t nat -A \"${'$'}CHAIN\" -p tcp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}")
+                appendLine("iptables -t nat -A \"${'$'}CHAIN\" -p udp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}")
+            }
+            appendLine("if ! iptables -t nat -nL \"${'$'}CHAIN_PO\" >/dev/null 2>&1; then iptables -t nat -N \"${'$'}CHAIN_PO\"; fi")
+            appendLine("iptables -t nat -F \"${'$'}CHAIN_PO\"")
+            ports.forEach { p ->
+                appendLine("iptables -t nat -A \"${'$'}CHAIN_PO\" -p tcp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE")
+                appendLine("iptables -t nat -A \"${'$'}CHAIN_PO\" -p udp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE")
+            }
+            appendLine("if ! iptables -t nat -C PREROUTING -j \"${'$'}CHAIN\" 2>/dev/null; then iptables -t nat -I PREROUTING -j \"${'$'}CHAIN\"; fi")
+            appendLine("if ! iptables -t nat -C POSTROUTING -j \"${'$'}CHAIN_PO\" 2>/dev/null; then iptables -t nat -I POSTROUTING -j \"${'$'}CHAIN_PO\"; fi")
+            appendLine("exit 0")
         }
 
-        val iranInstall = """
-sudo sysctl -w net.ipv4.ip_forward=1
-echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-$rules
-(sudo apt-get install -y iptables-persistent >/dev/null 2>&1 && sudo netfilter-persistent save) || true
-""".trimIndent()
+        val unit = """
+            |[Unit]
+            |Description=Didban IPTables forwarding rules (tunnel ${cfg.id})
+            |After=network-online.target
+            |Wants=network-online.target
+            |
+            |[Service]
+            |Type=oneshot
+            |RemainAfterExit=yes
+            |ExecStart=$rulesScript
+            |ExecStop=-iptables -t nat -F $chain
+            |ExecStop=-iptables -t nat -F $chainPo
+            |ExecStop=-iptables -t nat -D PREROUTING -j $chain
+            |ExecStop=-iptables -t nat -D POSTROUTING -j $chainPo
+            |ExecStop=-iptables -t nat -X $chain
+            |ExecStop=-iptables -t nat -X $chainPo
+            |
+            |[Install]
+            |WantedBy=multi-user.target
+            """.trimMargin().trim()
+
+        val rulesRef = buildString {
+            appendLine("# IPTables kernel forwarding — tunnel ${cfg.id}")
+            appendLine("# chains: $chain (PREROUTING DNAT) / $chainPo (POSTROUTING MASQUERADE)")
+            ports.forEach { p ->
+                appendLine("iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}")
+                appendLine("iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $foreignIp:${p.foreignPort}")
+                appendLine("iptables -t nat -A POSTROUTING -p tcp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE")
+                appendLine("iptables -t nat -A POSTROUTING -p udp -d $foreignIp --dport ${p.foreignPort} -j MASQUERADE")
+            }
+        }
+
+        val install = buildString {
+            appendLine("set -u")
+            appendLine("UNIT=$unitName")
+            appendLine("sudo mkdir -p /etc/didban /etc/sysctl.d")
+            appendLine("# H19: ip_forward — idempotent sysctl.d drop-in (persists across reboots) + apply now")
+            appendLine("""printf 'net.ipv4.ip_forward=1\n' | sudo tee /etc/sysctl.d/99-didban-iptables.conf >/dev/null""")
+            appendLine("sudo sysctl -w net.ipv4.ip_forward=1")
+            appendLine("sudo tee $rulesScript >/dev/null <<'FW'")
+            append(rulesFw)
+            appendLine("FW")
+            appendLine("sudo chmod +x $rulesScript")
+            appendLine("printf '%s' '${b64(unit)}' | base64 -d | sudo tee /etc/systemd/system/${'$'}UNIT.service >/dev/null")
+            appendLine("sudo systemctl daemon-reload")
+            appendLine("sudo systemctl enable ${'$'}UNIT")
+            appendLine("sudo systemctl restart ${'$'}UNIT")
+            appendLine("sudo systemctl status ${'$'}UNIT --no-pager")
+        }
 
         val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         val foreignInfo = "# سرور خارج نیازی به تنظیمات خاصی ندارد؛ فقط سرویس‌های شما روی پورت‌های مقصد [$portsDesc] در حال اجرا باشند."
 
         return GeneratedTunnelCode(
-            iranConfig = "# IPTables Kernel Forwarding Rules:\n$rules",
-            iranInstallCommand = iranInstall,
+            iranConfig = rulesRef,
+            iranInstallCommand = install,
             foreignConfig = foreignInfo,
             foreignInstallCommand = "# No setup required on Foreign server",
             dockerComposeIran = "# IPTables runs directly in Linux kernel",
             dockerComposeForeign = "# No setup required",
-            description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: روتینگ فوق سریع پورت‌های [$portsDesc] بدون پردازش اضافه."
+            description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: روتینگ فوق سریع پورت‌های [$portsDesc] بدون پردازش اضافه — با زنجیره اختصاصی و idempotent (deploy تکراری = همان set)."
         )
     }
 
