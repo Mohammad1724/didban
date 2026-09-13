@@ -69,7 +69,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectAsState
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -79,8 +79,16 @@ import java.util.Locale
 fun UptimeScreen(t: Str) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val engineOn by UptimeEngine.monitoring.collectAsState()
 
-    var targets by remember { mutableStateOf<List<UptimeTarget>>(Prefs.loadUptimeTargets(ctx)) }
+    // Single source of truth is the UptimeEngine, which is driven in the
+    // background by MonitorService (H1). The screen only observes live state —
+    // it no longer runs its own check loop, so monitoring continues with the
+    // tab closed, and each target's user-configured interval is honored.
+    val targets by UptimeEngine.liveTargets.collectAsState()
+    // Load into memory before first composition so initial counts / guide
+    // visibility are accurate (idempotent: only reads from disk when empty).
+    UptimeEngine.ensureLoaded(ctx)
     var showAddDialog by remember { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<UptimeTarget?>(null) }
     var deleteTarget by remember { mutableStateOf<UptimeTarget?>(null) }
@@ -96,26 +104,6 @@ fun UptimeScreen(t: Str) {
         editTarget = null
         deleteTarget = null
         expandedIncidentsTargetId = null
-    }
-
-    fun saveTargets() {
-        Prefs.saveUptimeTargets(ctx, targets)
-        targets = targets.toList()
-    }
-
-    // Auto health check loop
-    LaunchedEffect(Unit) {
-        while (true) {
-            for (target in targets) {
-                if (!target.isPaused) {
-                    try {
-                        UptimeEngine.checkTarget(target, ctx)
-                    } catch (_: Exception) {}
-                }
-            }
-            saveTargets()
-            delay(15_000)
-        }
     }
 
     val upCount = targets.count { it.lastStatus == 1 }
@@ -222,6 +210,32 @@ fun UptimeScreen(t: Str) {
                     )
                 }
 
+                // Honest background-engine state: probes run inside the
+                // monitoring foreground service (Servers tab), not in this tab.
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (engineOn) Ds.okDim else Ds.surfaceHighlight)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (engineOn) "⚙️" else "⏸",
+                        fontSize = 12.sp
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (engineOn) "پایش پس‌زمینه فعال — چک‌ها طبق interval هر مانیتور اجرا می‌شوند"
+                        else "پایش پس‌زمینه خاموش — از تب «سرورها» آن را روشن کنید",
+                        fontSize = 10.5.sp,
+                        color = if (engineOn) Ds.ok else Ds.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
                 Spacer(Modifier.height(14.dp))
 
                 // 3-Column Micro Bento Stat Pods
@@ -306,15 +320,11 @@ fun UptimeScreen(t: Str) {
                     isTesting = isTesting,
                     isIncidentsExpanded = isIncidentsExpanded,
                     t = t,
-                    onTogglePause = {
-                        target.isPaused = !target.isPaused
-                        saveTargets()
-                    },
+                    onTogglePause = { UptimeEngine.togglePause(ctx, target.id) },
                     onTestNow = {
                         testingTargetId = target.id
                         scope.launch {
-                            UptimeEngine.checkTarget(target, ctx)
-                            saveTargets()
+                            UptimeEngine.checkNow(ctx, target)
                             testingTargetId = null
                         }
                     },
@@ -340,21 +350,10 @@ fun UptimeScreen(t: Str) {
                 editTarget = null
             },
             onSave = { updatedTarget ->
-                val list = targets.toMutableList()
-                val idx = list.indexOfFirst { it.id == updatedTarget.id }
-                if (idx >= 0) {
-                    list[idx] = updatedTarget
-                } else {
-                    list.add(updatedTarget)
-                }
-                targets = list
-                saveTargets()
+                // Persists, emits, and schedules an immediate check (next tick).
+                UptimeEngine.upsert(ctx, updatedTarget)
                 showAddDialog = false
                 editTarget = null
-                scope.launch {
-                    UptimeEngine.checkTarget(updatedTarget, ctx)
-                    saveTargets()
-                }
             }
         )
     }
@@ -367,8 +366,7 @@ fun UptimeScreen(t: Str) {
             text = { Text(t.confirmDeleteMonitorTpl.format(dt.name), color = Ds.textSecondary) },
             confirmButton = {
                 TextButton(onClick = {
-                    targets = targets.filter { it.id != dt.id }
-                    saveTargets()
+                    UptimeEngine.remove(ctx, dt.id)
                     deleteTarget = null
                 }) {
                     Text(t.delete, color = Ds.danger, fontWeight = FontWeight.Bold)
@@ -585,7 +583,10 @@ private fun UptimeBentoCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val heartbeats = remember(target.heartbeats.size) { target.heartbeats.takeLast(24) }
+    // Keyed on lastChecked so the sparkline/telemetry well refreshes on every
+    // background check (heartbeats is capped at 30, so size alone would not
+    // invalidate once full).
+    val heartbeats = remember(target.lastChecked) { target.heartbeats.takeLast(24) }
     val latencyValues = remember(heartbeats) { heartbeats.map { it.latencyMs.toFloat() } }
 
     ModernCard(

@@ -71,6 +71,10 @@ class MonitorService : Service() {
             startForeground(1, notif)
         }
         if (pollJob?.isActive != true) startPolling()
+        // Uptime probes run in this same long-lived engine (H1): they no
+        // longer depend on the UptimeScreen being open, and each target's
+        // user-configured interval is honored by the UptimeEngine scheduler.
+        UptimeEngine.start(applicationContext)
         return START_STICKY
     }
 
@@ -172,6 +176,7 @@ class MonitorService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        UptimeEngine.stop()
         pollJob?.cancel()
         scope.cancel()
         super.onDestroy()

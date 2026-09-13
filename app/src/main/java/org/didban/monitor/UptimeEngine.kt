@@ -5,8 +5,19 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -146,7 +157,144 @@ object UptimeEngine {
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
 
+    // ── Single source of truth ─────────────────────────────────────────────
+    // The engine (driven by MonitorService while the monitoring engine is on)
+    // owns the target list in memory. UI observes [liveTargets]; all mutations
+    // go through the mutate/upsert/remove/togglePause functions below, which
+    // persist and emit. Same-process singleton => no read-modify-write races
+    // between the screen and the background loop.
     val liveTargets = MutableStateFlow<List<UptimeTarget>>(emptyList())
+    private val _monitoring = MutableStateFlow(false)
+    val monitoring: StateFlow<Boolean> = _monitoring.asStateFlow()
+
+    private val scheduler = UptimeScheduler()
+    // Checked coroutines remove on IO threads; the loop adds on IO; stop()
+    // clears on main - synchronized set keeps this race-free.
+    private val inFlight = java.util.Collections.synchronizedSet(HashSet<Long>())
+    private var engineScope: CoroutineScope? = null
+
+    private const val TICK_MS = 2_000L
+    private const val MAX_CONCURRENT_CHECKS = 5
+
+    /** Load targets from disk into memory if memory is empty (idempotent). */
+    fun ensureLoaded(ctx: Context) {
+        if (liveTargets.value.isEmpty()) {
+            liveTargets.value = Prefs.loadUptimeTargets(ctx).map { normalize(it) }
+        }
+    }
+
+    /** Start the background scheduler (idempotent). Called by MonitorService. */
+    fun start(ctx: Context) {
+        val app = ctx.applicationContext
+        if (engineScope?.isActive == true) return
+        ensureLoaded(app)
+        _monitoring.value = true
+        engineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        engineScope!!.launch { schedulerLoop(app) }
+    }
+
+    /** Stop the background scheduler. Called by MonitorService on destroy. */
+    fun stop() {
+        _monitoring.value = false
+        engineScope?.cancel()
+        engineScope = null
+        inFlight.clear()
+    }
+
+    private fun normalize(t: UptimeTarget): UptimeTarget {
+        t.intervalSec = UptimeScheduler.clampInterval(t.intervalSec)
+        return t
+    }
+
+    private suspend fun schedulerLoop(app: Context) {
+        val sem = Semaphore(MAX_CONCURRENT_CHECKS)
+        while (currentCoroutineContext().isActive) {
+            // Reconcile with disk: backup restore or another writer may have
+            // changed the id set. Only act when the sets differ, so normal
+            // in-memory heartbeat updates are never clobbered.
+            val disk = Prefs.loadUptimeTargets(app)
+            val diskIds = disk.map { it.id }.toHashSet()
+            val memIds = liveTargets.value.map { it.id }.toHashSet()
+            if (diskIds != memIds) {
+                liveTargets.value = disk.map { normalize(it) }
+                inFlight.clear()
+            }
+
+            val targets = liveTargets.value
+            scheduler.prune(targets.map { it.id }.toHashSet())
+            val now = System.currentTimeMillis()
+            val paused = targets.filter { it.isPaused }.map { it.id }.toHashSet()
+            val due = scheduler.dueNow(now, targets.map { it.id }, paused)
+
+            for (id in due) {
+                val t = targets.firstOrNull { it.id == id } ?: continue
+                if (!inFlight.add(id)) continue // previous check still running
+                engineScope!!.launch {
+                    sem.withPermit {
+                        try {
+                            checkTarget(t, app)
+                            scheduler.markChecked(t.id, System.currentTimeMillis(), t.intervalSec)
+                        } catch (_: Exception) {
+                            // checkTarget never throws (it records errors as
+                            // down-heartbeats); defensive re-schedule anyway.
+                            scheduler.markChecked(t.id, System.currentTimeMillis(), t.intervalSec)
+                        } finally {
+                            inFlight.remove(id)
+                            commit(app)
+                        }
+                    }
+                }
+            }
+            delay(TICK_MS)
+        }
+    }
+
+    // ── Mutations (UI entry points) ─────────────────────────────────────────
+
+    /** Add or replace a target; it will be checked immediately. */
+    fun upsert(ctx: Context, target: UptimeTarget) {
+        val app = ctx.applicationContext
+        ensureLoaded(app)
+        normalize(target)
+        val list = liveTargets.value.toMutableList()
+        val idx = list.indexOfFirst { it.id == target.id }
+        if (idx >= 0) list[idx] = target else list.add(target)
+        liveTargets.value = list
+        scheduler.reschedule(target.id)
+        commit(app)
+    }
+
+    /** Remove a target and its schedule entry. */
+    fun remove(ctx: Context, id: Long) {
+        val app = ctx.applicationContext
+        ensureLoaded(app)
+        liveTargets.value = liveTargets.value.filter { it.id != id }
+        scheduler.prune(liveTargets.value.map { it.id }.toHashSet())
+        commit(app)
+    }
+
+    /** Toggle pause; unpausing triggers an immediate check. */
+    fun togglePause(ctx: Context, id: Long) {
+        val app = ctx.applicationContext
+        ensureLoaded(app)
+        val t = liveTargets.value.firstOrNull { it.id == id } ?: return
+        t.isPaused = !t.isPaused
+        if (!t.isPaused) scheduler.reschedule(id)
+        commit(app)
+    }
+
+    /** Manual "Test Now": one immediate check, reschedules normally. */
+    suspend fun checkNow(ctx: Context, target: UptimeTarget) {
+        val app = ctx.applicationContext
+        checkTarget(target, app)
+        scheduler.markChecked(target.id, System.currentTimeMillis(), target.intervalSec)
+        commit(app)
+    }
+
+    private fun commit(app: Context) {
+        liveTargets.value = liveTargets.value.toList() // new instance => UI recomposes
+        Prefs.saveUptimeTargets(app, liveTargets.value)
+    }
 
     suspend fun checkTarget(target: UptimeTarget, ctx: Context? = null): Heartbeat = withContext(Dispatchers.IO) {
         val t0 = System.currentTimeMillis()
