@@ -8,8 +8,7 @@ object Prefs {
     private const val FILE = "didban"
 
     fun loadServers(ctx: Context): MutableList<ServerConfig> {
-        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val raw = sp.getString("servers", null) ?: return mutableListOf()
+        val raw = SecureStorage.getSecret(ctx, FILE, "servers").ifEmpty { return mutableListOf() }
         val list = mutableListOf<ServerConfig>()
         return try {
             val arr = JSONArray(raw)
@@ -25,8 +24,7 @@ object Prefs {
     fun saveServers(ctx: Context, servers: List<ServerConfig>) {
         val arr = JSONArray()
         servers.forEach { arr.put(it.toJson()) }
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("servers", arr.toString()).apply()
+        SecureStorage.putSecret(ctx, FILE, "servers", arr.toString())
     }
 
     fun getLanguage(ctx: Context): String =
@@ -57,11 +55,10 @@ object Prefs {
     }
 
     fun getCfToken(ctx: Context): String =
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("cf_token", "") ?: ""
+        SecureStorage.getSecret(ctx, FILE, "cf_token")
 
     fun setCfToken(ctx: Context, token: String) {
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("cf_token", token.trim()).apply()
+        SecureStorage.putSecret(ctx, FILE, "cf_token", token.trim())
     }
 
     // ── Vault Master Password & Data Persistence ──
@@ -147,8 +144,7 @@ object Prefs {
     // ── Dual-Node Tunnels ──
 
     fun loadTunnels(ctx: Context): List<TunnelConfig> {
-        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-        val raw = sp.getString("didban_tunnels", null) ?: return emptyList()
+        val raw = SecureStorage.getSecret(ctx, FILE, "didban_tunnels").ifEmpty { return emptyList() }
         val list = mutableListOf<TunnelConfig>()
         return try {
             val arr = JSONArray(raw)
@@ -164,18 +160,16 @@ object Prefs {
     fun saveTunnels(ctx: Context, tunnels: List<TunnelConfig>) {
         val arr = JSONArray()
         tunnels.forEach { arr.put(it.toJson()) }
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("didban_tunnels", arr.toString()).apply()
+        SecureStorage.putSecret(ctx, FILE, "didban_tunnels", arr.toString())
     }
 
     // ── Telegram & Discord Alert Settings ──
 
     fun getTelegramBotToken(ctx: Context): String =
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("tg_bot_token", "") ?: ""
+        SecureStorage.getSecret(ctx, FILE, "tg_bot_token")
 
     fun setTelegramBotToken(ctx: Context, token: String) {
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("tg_bot_token", token.trim()).apply()
+        SecureStorage.putSecret(ctx, FILE, "tg_bot_token", token.trim())
     }
 
     fun getTelegramChatId(ctx: Context): String =
@@ -195,11 +189,10 @@ object Prefs {
     }
 
     fun getDiscordWebhookUrl(ctx: Context): String =
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("discord_webhook", "") ?: ""
+        SecureStorage.getSecret(ctx, FILE, "discord_webhook")
 
     fun setDiscordWebhookUrl(ctx: Context, url: String) {
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("discord_webhook", url.trim()).apply()
+        SecureStorage.putSecret(ctx, FILE, "discord_webhook", url.trim())
     }
 
     fun isDiscordAlertsEnabled(ctx: Context): Boolean =

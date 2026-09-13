@@ -238,7 +238,8 @@ object BackupEngine {
             // 5. Restore Cloudflare & Preferences
             val cfToken = root.optString("cf_token", "")
             if (cfToken.isNotEmpty() && (mode == RestoreMode.Overwrite || Prefs.getCfToken(ctx).isEmpty())) {
-                editor.putString("cf_token", cfToken)
+                // Prefs.setCfToken stores the token encrypted (item 4 / C4).
+                Prefs.setCfToken(ctx, cfToken)
             }
 
             if (mode == RestoreMode.Overwrite) {
