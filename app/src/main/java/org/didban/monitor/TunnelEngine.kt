@@ -431,6 +431,21 @@ services:
     }
 
     // ── 2. Narnia Generator (Dnt3e/Narnia - ICMP Ping Tunnel) ─────────────────
+    //
+    // H18: Narnia is distributed as a Docker image — the upstream repository
+    // has NO binary releases at all, so the old "download raw binary +
+    // systemd unit" path could never work: its "fallback" downloaded
+    // Narnia.sh but never executed it, and `|| true` swallowed the failure,
+    // leaving a service pointed at a binary that does not exist.
+    //
+    // Deploy now uses the official Docker mechanism (stormotron/narnia image,
+    // TUN device, env-var configuration — the same way as upstream
+    // Narnia.sh), wrapped in a systemd unit named didban-tunnel-<id> (the
+    // unit the agent queries for status and control). Reboot-safe:
+    // ip_forward is persisted via an idempotent /etc/sysctl.d drop-in and
+    // NAT rules are re-applied by the unit on every start.
+    //
+    // Constraint: one Narnia tunnel per host (upstream default TAP nvpn).
 
     private fun generateNarnia(cfg: TunnelConfig): GeneratedTunnelCode {
         val ports = parsePortMappings(cfg)
@@ -439,111 +454,231 @@ services:
         val vIpKharej = cfg.virtualIpKharej.ifBlank { "10.200.200.1" }
         val vIpIran = cfg.virtualIpIran.ifBlank { "10.200.200.2" }
         val mtu = cfg.mtu.coerceAtLeast(1200)
+        // Pinned upstream image (upstream Narnia.sh installs 0.0.3).
+        val image = "stormotron/narnia:0.0.3"
+        val unitName = "didban-tunnel-${cfg.id}"
+        val iface = "nvpn" // upstream default TAP; one Narnia tunnel per host
+        val operatingMode = "ip:30:$vIpKharej:$vIpIran:dynamic:50"
+        val fwForeign = "/etc/didban/narnia-${cfg.id}-foreign-fw.sh"
+        val fwIran = "/etc/didban/narnia-${cfg.id}-iran-fw.sh"
 
-        val foreignCmd = "/usr/local/bin/narnia -l -k \"$key\" -o ip:30:$vIpKharej:$vIpIran:dynamic:50 -t $mtu"
-        val iranCmd = "/usr/local/bin/narnia -r $foreignIp -k \"$key\" -t $mtu"
+        // CLI-equivalent form, kept in the config files for reference/discovery.
+        val foreignCmd = "narnia -l -k \"$key\" -o $operatingMode -t $mtu"
+        val iranCmd = "narnia -r $foreignIp -k \"$key\" -t $mtu"
 
-        val natRules = ports.joinToString(" && \\\n") { p ->
-            "iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort} && \\\n" +
-            "iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort}"
+        val foreignDocker = "docker run --rm --name $unitName --cap-add=NET_ADMIN " +
+            "--device /dev/net/tun:/dev/net/tun --net=host " +
+            "-e INTERFACE=$iface -e PASSWORD=$key -e SERVER=0.0.0.0 " +
+            "-e OPERATING_MODE=$operatingMode -e MTU=$mtu $image"
+        val iranDocker = "docker run --rm --name $unitName --cap-add=NET_ADMIN " +
+            "--device /dev/net/tun:/dev/net/tun --net=host " +
+            "-e INTERFACE=$iface -e PASSWORD=$key -e REMOTE_IP=$foreignIp " +
+            "-e MTU=$mtu $image"
+
+        // Client-side (Iran) port mappings, idempotent: delete stale copies
+        // first, then add — redeploying never duplicates rules.
+        val natBlock = ports.joinToString("\n") { p ->
+            "iptables -t nat -D PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort} 2>/dev/null\n" +
+                "iptables -t nat -D PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort} 2>/dev/null\n" +
+                "iptables -t nat -A PREROUTING -p tcp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort}\n" +
+                "iptables -t nat -A PREROUTING -p udp --dport ${p.iranPort} -j DNAT --to-destination $vIpKharej:${p.foreignPort}"
         }
 
-        val ForeignNarniaUnit = """
-[Unit]
-Description=Narnia ICMP Tunnel Server
-After=network.target
+        // Shared: wait for the TAP (the container creates it in the shared
+        // host netns), bring it up, set the MTU. Re-applied on every start.
+        val tapUp = """
+            |IFACE=$iface
+            |i=0
+            |while [ ${'$'}i -lt 30 ] && ! ip link show ${'$'}IFACE >/dev/null 2>&1; do sleep 1; i=${'$'}((i+1)); done
+            |if ! ip link show ${'$'}IFACE >/dev/null 2>&1; then
+            |  echo "narnia: ${'$'}IFACE did not appear within 30s (tunnel down?)" >&2
+            |  exit 1
+            |fi
+            |ip link set ${'$'}IFACE mtu $mtu 2>/dev/null || true
+            |ip link set ${'$'}IFACE up
+            |DEF_IF=${'$'}(ip -4 route show default | awk '{print ${'$'}5}' | head -n1)
+            """.trimMargin().trim()
 
-[Service]
-Type=simple
-ExecStart=$foreignCmd
-Restart=always
-RestartSec=3
-LimitNOFILE=65535
-AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+        val foreignFw = "#!/bin/sh\n" +
+            "# Didban Narnia (server): wait for TAP, bring it up, scoped masquerade.\n" +
+            "$tapUp\n" +
+            """
+                |if [ -n "${'$'}DEF_IF" ] && ! iptables -t nat -C POSTROUTING -o "${'$'}DEF_IF" -j MASQUERADE 2>/dev/null; then
+                |  iptables -t nat -A POSTROUTING -o "${'$'}DEF_IF" -j MASQUERADE
+                |fi
+                """.trimMargin().trim() + "\nexit 0\n"
 
-[Install]
-WantedBy=multi-user.target
-""".trimIndent()
-        val foreignInstall = """
-sudo mkdir -p /usr/local/bin && \
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
-chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
-echo 1 > /proc/sys/net/ipv4/ip_forward && \
-printf '%s' '${b64(ForeignNarniaUnit)}' | base64 -d > /etc/systemd/system/narnia.service
-systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
-""".trimIndent()
+        val iranFw = "#!/bin/sh\n" +
+            "# Didban Narnia (client): wait for TAP, bring it up, apply NAT.\n" +
+            "$tapUp\n" +
+            """|if [ -z "${'$'}DEF_IF" ]; then echo "narnia: no default route found" >&2; exit 1; fi""".trimMargin() + "\n" +
+            "$natBlock\n" +
+            """
+                |if ! iptables -t nat -C POSTROUTING -o "${'$'}DEF_IF" -j MASQUERADE 2>/dev/null; then
+                |  iptables -t nat -A POSTROUTING -o "${'$'}DEF_IF" -j MASQUERADE
+                |fi
+                |if ! iptables -t nat -C POSTROUTING -o "${'$'}IFACE" -j MASQUERADE 2>/dev/null; then
+                |  iptables -t nat -A POSTROUTING -o "${'$'}IFACE" -j MASQUERADE
+                |fi
+                |if ! iptables -C FORWARD -i "${'$'}DEF_IF" -o "${'$'}IFACE" -j ACCEPT 2>/dev/null; then
+                |  iptables -I FORWARD -i "${'$'}DEF_IF" -o "${'$'}IFACE" -j ACCEPT
+                |fi
+                |if ! iptables -C FORWARD -i "${'$'}IFACE" -o "${'$'}DEF_IF" -j ACCEPT 2>/dev/null; then
+                |  iptables -I FORWARD -i "${'$'}IFACE" -o "${'$'}DEF_IF" -j ACCEPT
+                |fi
+                """.trimMargin().trim() + "\nexit 0\n"
 
-        val IranNarniaUnit = """
-[Unit]
-Description=Narnia ICMP Tunnel Client
-After=network.target
+        val foreignUnit = """
+            |[Unit]
+            |Description=Didban Narnia tunnel server (container)
+            |After=network-online.target docker.service
+            |Wants=network-online.target
+            |Requires=docker.service
+            |
+            |[Service]
+            |Type=simple
+            |Restart=always
+            |RestartSec=3
+            |LimitNOFILE=65535
+            |ExecStartPre=-docker rm -f $unitName
+            |ExecStart=$foreignDocker
+            |ExecStop=-docker stop $unitName
+            |ExecStartPost=$fwForeign
+            |
+            |[Install]
+            |WantedBy=multi-user.target
+            """.trimMargin().trim()
 
-[Service]
-Type=simple
-ExecStart=$iranCmd
-Restart=always
-RestartSec=3
-LimitNOFILE=65535
-AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+        val iranUnit = """
+            |[Unit]
+            |Description=Didban Narnia tunnel client (container)
+            |After=network-online.target docker.service
+            |Wants=network-online.target
+            |Requires=docker.service
+            |
+            |[Service]
+            |Type=simple
+            |Restart=always
+            |RestartSec=3
+            |LimitNOFILE=65535
+            |ExecStartPre=-docker rm -f $unitName
+            |ExecStart=$iranDocker
+            |ExecStop=-docker stop $unitName
+            |ExecStartPost=/bin/sh -c '$fwIran >> /var/log/didban-narnia-${cfg.id}.log 2>&1 &'
+            |
+            |[Install]
+            |WantedBy=multi-user.target
+            """.trimMargin().trim()
 
-[Install]
-WantedBy=multi-user.target
-""".trimIndent()
-        val iranInstall = """
-sudo mkdir -p /usr/local/bin && \
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
-(curl -fsSL https://github.com/Dnt3e/Narnia/releases/latest/download/narnia-linux-${'$'}ARCH -o /usr/local/bin/narnia 2>/dev/null || \
-curl -fsSL https://raw.githubusercontent.com/Dnt3e/Narnia/main/Narnia.sh -o /tmp/Narnia.sh) && \
-chmod +x /usr/local/bin/narnia 2>/dev/null || true && \
-echo 1 > /proc/sys/net/ipv4/ip_forward && \
-$natRules && \
-iptables -t nat -A POSTROUTING -j MASQUERADE && \
-printf '%s' '${b64(IranNarniaUnit)}' | base64 -d > /etc/systemd/system/narnia.service
-systemctl daemon-reload && systemctl enable --now narnia && systemctl status narnia --no-pager
-""".trimIndent()
+        // Fail-fast install: docker must exist, the image must be present and
+        // /dev/net/tun must be available — otherwise exit non-zero with a
+        // clear reason (no more `|| true` swallowing a broken deploy).
+        val foreignInstall = buildString {
+            appendLine("set -u")
+            appendLine("IMG=$image")
+            appendLine("UNIT=$unitName")
+            appendLine("command -v docker >/dev/null 2>&1 || { echo \"ERROR: docker is required for Narnia but is not installed on this host\" >&2; exit 1; }")
+            appendLine("sudo mkdir -p /etc/didban /etc/sysctl.d")
+            appendLine("# H18: persist ip_forward across reboots (idempotent drop-in) and apply now")
+            appendLine("""printf 'net.ipv4.ip_forward=1\n' | sudo tee /etc/sysctl.d/99-didban-narnia.conf >/dev/null""")
+            appendLine("sudo sysctl -w net.ipv4.ip_forward=1 >/dev/null || { echo \"ERROR: cannot enable net.ipv4.ip_forward\" >&2; exit 1; }")
+            appendLine("if [ ! -e /dev/net/tun ]; then")
+            appendLine("  sudo mknod -m 600 /dev/net/tun c 10 200 || { echo \"ERROR: /dev/net/tun is missing and mknod failed\" >&2; exit 1; }")
+            appendLine("fi")
+            appendLine("if ! docker image inspect ${'$'}IMG >/dev/null 2>&1; then")
+            appendLine("  docker pull ${'$'}IMG || { echo \"ERROR: failed to pull ${'$'}IMG\" >&2; exit 1; }")
+            appendLine("fi")
+            appendLine("sudo tee $fwForeign >/dev/null <<'FW'")
+            append(foreignFw)
+            appendLine("FW")
+            appendLine("sudo chmod +x $fwForeign")
+            appendLine("printf '%s' '${b64(foreignUnit)}' | base64 -d | sudo tee /etc/systemd/system/${'$'}UNIT.service >/dev/null")
+            appendLine("sudo systemctl daemon-reload")
+            appendLine("sudo systemctl enable ${'$'}UNIT")
+            appendLine("sudo systemctl restart ${'$'}UNIT")
+            appendLine("sudo systemctl status ${'$'}UNIT --no-pager")
+        }
+
+        val iranInstall = buildString {
+            appendLine("set -u")
+            appendLine("IMG=$image")
+            appendLine("UNIT=$unitName")
+            appendLine("command -v docker >/dev/null 2>&1 || { echo \"ERROR: docker is required for Narnia but is not installed on this host\" >&2; exit 1; }")
+            appendLine("sudo mkdir -p /etc/didban /etc/sysctl.d")
+            appendLine("# H18: persist ip_forward across reboots (idempotent drop-in) and apply now")
+            appendLine("""printf 'net.ipv4.ip_forward=1\n' | sudo tee /etc/sysctl.d/99-didban-narnia.conf >/dev/null""")
+            appendLine("sudo sysctl -w net.ipv4.ip_forward=1 >/dev/null || { echo \"ERROR: cannot enable net.ipv4.ip_forward\" >&2; exit 1; }")
+            appendLine("if [ ! -e /dev/net/tun ]; then")
+            appendLine("  sudo mknod -m 600 /dev/net/tun c 10 200 || { echo \"ERROR: /dev/net/tun is missing and mknod failed\" >&2; exit 1; }")
+            appendLine("fi")
+            appendLine("if ! docker image inspect ${'$'}IMG >/dev/null 2>&1; then")
+            appendLine("  docker pull ${'$'}IMG || { echo \"ERROR: failed to pull ${'$'}IMG\" >&2; exit 1; }")
+            appendLine("fi")
+            appendLine("sudo tee $fwIran >/dev/null <<'FW'")
+            append(iranFw)
+            appendLine("FW")
+            appendLine("sudo chmod +x $fwIran")
+            appendLine("printf '%s' '${b64(iranUnit)}' | base64 -d | sudo tee /etc/systemd/system/${'$'}UNIT.service >/dev/null")
+            appendLine("sudo systemctl daemon-reload")
+            appendLine("sudo systemctl enable ${'$'}UNIT")
+            appendLine("sudo systemctl restart ${'$'}UNIT")
+            appendLine("sudo systemctl status ${'$'}UNIT --no-pager")
+        }
 
         val dockerForeign = """
-version: '3.8'
-services:
-  narnia-server:
-    image: dnt3e/narnia:latest
-    container_name: narnia_server
-    restart: always
-    network_mode: host
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-    command: -l -k "$key" -o ip:30:$vIpKharej:$vIpIran:dynamic:50 -t $mtu
-""".trimIndent()
+            |# Narnia server — official Docker mechanism (upstream Narnia.sh equivalent).
+            |# Note: one Narnia tunnel per host (TAP $iface). If the link stays down:
+            |#   ip link set $iface mtu $mtu && ip link set $iface up
+            |services:
+            |  narnia_server:
+            |    image: $image
+            |    container_name: narnia_server
+            |    restart: always
+            |    network_mode: host
+            |    cap_add:
+            |      - NET_ADMIN
+            |    devices:
+            |      - /dev/net/tun:/dev/net/tun
+            |    environment:
+            |      INTERFACE: $iface
+            |      PASSWORD: "$key"
+            |      SERVER: "0.0.0.0"
+            |      OPERATING_MODE: "$operatingMode"
+            |      MTU: "$mtu"
+            """.trimMargin().trim()
 
         val dockerIran = """
-version: '3.8'
-services:
-  narnia-client:
-    image: dnt3e/narnia:latest
-    container_name: narnia_client
-    restart: always
-    network_mode: host
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-    command: -r $foreignIp -k "$key" -t $mtu
-""".trimIndent()
+            |# Narnia client — official Docker mechanism (upstream Narnia.sh equivalent).
+            |# Note: one Narnia tunnel per host (TAP $iface). If the link stays down:
+            |#   ip link set $iface mtu $mtu && ip link set $iface up
+            |services:
+            |  narnia_client:
+            |    image: $image
+            |    container_name: narnia_client
+            |    restart: always
+            |    network_mode: host
+            |    cap_add:
+            |      - NET_ADMIN
+            |    devices:
+            |      - /dev/net/tun:/dev/net/tun
+            |    environment:
+            |      INTERFACE: $iface
+            |      PASSWORD: "$key"
+            |      REMOTE_IP: "$foreignIp"
+            |      MTU: "$mtu"
+            """.trimMargin().trim()
 
         val portsDesc = ports.joinToString(", ") { "${it.iranPort}➔${it.foreignPort}" }
         return GeneratedTunnelCode(
-            iranConfig = iranCmd,
+            iranConfig = "# Narnia client (ICMP) — container $unitName, unit $unitName.service\n$iranCmd\n",
             iranInstallCommand = iranInstall,
-            foreignConfig = foreignCmd,
+            foreignConfig = "# Narnia server (ICMP) — container $unitName, unit $unitName.service\n$foreignCmd\n",
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
-            description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): روتینگ پورت‌های [$portsDesc] روی شبکه مجازی $vIpIran به $vIpKharej با رمزنگاری ChaCha20."
+            description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): روتینگ پورت‌های [$portsDesc] روی شبکه مجازی $vIpIran به $vIpKharej با رمزنگاری ChaCha20 — استقرار از طریق Docker (stormotron/narnia) و systemd، با فورواردینگ دائمی."
         )
     }
-
     // ── 3. Spoof Tunnel Generator (ParsaKSH/spoof-tunnel & forks) ────────────
 
     private fun generateSpoofTunnel(cfg: TunnelConfig): GeneratedTunnelCode {
