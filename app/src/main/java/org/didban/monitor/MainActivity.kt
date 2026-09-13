@@ -83,6 +83,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,23 +120,16 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            var crashTrace by remember {
-                mutableStateOf(
-                    getSharedPreferences("didban", Context.MODE_PRIVATE).getString("last_crash_trace", null)
-                )
-            }
+            // H8: the trace is decrypted here (stored encrypted at rest).
+            var crashTrace by remember { mutableStateOf(CrashLog.loadTrace(this)) }
+            val consecutiveCrashes = remember { CrashLog.readRecord(this)?.consecutiveCount ?: 0 }
 
             if (crashTrace != null) {
                 CrashRecoveryScreen(
                     trace = crashTrace!!,
+                    consecutiveCount = consecutiveCrashes,
                     onReset = {
-                        try {
-                            getSharedPreferences("didban", Context.MODE_PRIVATE)
-                                .edit()
-                                .remove("last_crash_trace")
-                                .remove("last_crash_msg")
-                                .commit()
-                        } catch (_: Throwable) {}
+                        CrashLog.clear(this)
                         crashTrace = null
                     }
                 )
@@ -148,6 +142,9 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         ProcessState.activityStarted()
+        // H8: the startup survived — clear the consecutive-crash counter so
+        // a later (non-startup) crash is not mistaken for a cannot-start loop.
+        CrashLog.markStartupOk(this)
     }
 
     override fun onStop() {
@@ -175,7 +172,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CrashRecoveryScreen(
     trace: String,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    consecutiveCount: Int = 0
 ) {
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
@@ -215,6 +213,21 @@ fun CrashRecoveryScreen(
                     color = Ds.textSecondary,
                     lineHeight = 17.sp
                 )
+
+                // H8: make a detected cannot-start loop explicit to the user.
+                if (consecutiveCount >= CrashPolicy.CRASH_LOOP_THRESHOLD) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "$consecutiveCount consecutive crashes at startup were detected — " +
+                                "auto-restart is disabled. Use Reset & Launch to try again.",
+                        fontSize = 12.sp,
+                        color = Ds.warn,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Spacer(Modifier.height(14.dp))
 
