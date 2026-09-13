@@ -342,7 +342,7 @@ fun SinglePortScreen(t: Str) {
                     )
 
                     // Route 3: REALITY
-                    ModernCard(padding = 10.dp, cornerRadius = 14.dp, background = Ds.surfaceLow) {
+                    ModernCard(padding = 10.dp, cornerRadius = 14.dp, containerColor = Ds.surfaceLow) {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("⚡ دامنه‌های استتار REALITY (Camouflage SNI):", fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
                             Text("دامنه‌های فیک که در کانفیگ ریلیتی استفاده کرده‌اید (با کاما جدا کنید)", fontSize = 10.sp, color = Ds.textTertiary)
@@ -655,7 +655,7 @@ private fun RouteConfigCard(
     onPortChange: (String) -> Unit,
     portLabel: String
 ) {
-    ModernCard(padding = 10.dp, cornerRadius = 14.dp, background = Ds.surfaceLow) {
+    ModernCard(padding = 10.dp, cornerRadius = 14.dp, containerColor = Ds.surfaceLow) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, fontSize = 11.5.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
             Text(hint, fontSize = 10.sp, color = Ds.textTertiary)
