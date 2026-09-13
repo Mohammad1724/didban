@@ -6,8 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
+import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
+
+/** M10: max concurrent SSH sessions for batch runs (device resource cap). */
+private const val MAX_CONCURRENT_BATCH_SSH = 5
 
 data class SshExecResult(
     val exitCode: Int,
@@ -82,8 +85,10 @@ object SshEngine {
 
             val channel = session.openChannel("exec") as ChannelExec
             channel.setCommand(command)
-            val out = ByteArrayOutputStream()
-            val err = ByteArrayOutputStream()
+            // M10: bounded streams — an unbounded remote command (e.g.
+            // `cat /dev/urandom`) can no longer OOM the device.
+            val out = CappedOutputStream(MAX_SSH_OUTPUT_BYTES)
+            val err = CappedOutputStream(MAX_SSH_OUTPUT_BYTES)
             channel.setOutputStream(out)
             channel.setErrStream(err)
             channel.connect(TimeUnit.SECONDS.toMillis(12).toInt())
@@ -92,12 +97,16 @@ object SshEngine {
             while (!channel.isClosed && System.currentTimeMillis() < deadline) {
                 Thread.sleep(100)
             }
-
+            // M10: distinguish "timed out" from a genuine non-zero exit —
+            // otherwise a hung command silently reports exitStatus -1.
+            val timedOut = !channel.isClosed
             val exitCode = channel.exitStatus
             channel.disconnect()
 
-            val stdoutStr = cleanAnsi(out.toString("UTF-8"))
-            val stderrStr = cleanAnsi(err.toString("UTF-8"))
+            val stdoutStr = cleanAnsi(out.toUtf8String()) +
+                if (out.isTruncated) "\n…[خروجی بریده شد — فقط ${MAX_SSH_OUTPUT_BYTES / 1024}KB از ${out.totalBytes / 1024}KB نگه داشته شد]" else ""
+            val stderrStr = cleanAnsi(err.toUtf8String()) +
+                if (err.isTruncated) "\n…[خطا بریده شد — فقط ${MAX_SSH_OUTPUT_BYTES / 1024}KB از ${err.totalBytes / 1024}KB نگه داشته شد]" else ""
             val dur = System.currentTimeMillis() - t0
 
             SshExecResult(
@@ -105,8 +114,12 @@ object SshEngine {
                 stdout = stdoutStr,
                 stderr = stderrStr,
                 durationMs = dur,
-                isSuccess = exitCode == 0,
-                errorMessage = if (exitCode != 0 && stderrStr.isNotEmpty()) stderrStr else null
+                isSuccess = exitCode == 0 && !timedOut,
+                errorMessage = when {
+                    timedOut -> "زمان‌بندی تمام شد (${timeoutSec} ثانیه) — خروجی ممکن است ناقص باشد"
+                    exitCode != 0 && stderrStr.isNotEmpty() -> stderrStr
+                    else -> null
+                }
             )
         } catch (e: Exception) {
             val dur = System.currentTimeMillis() - t0
@@ -134,23 +147,31 @@ object SshEngine {
         timeoutSec: Int = 30,
         hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): List<BatchServerResult> = withContext(Dispatchers.IO) {
+        // M10: bound the fan-out — N targets must not mean N simultaneous
+        // SSH sessions (each with up to 2×1MB of streams) on the phone.
+        val sem = Semaphore(MAX_CONCURRENT_BATCH_SSH)
         val deferreds = targets.map { (server, port, pass) ->
             async {
-                val res = execute(
-                    host = server.host,
-                    sshPort = port,
-                    user = "root",
-                    password = pass,
-                    command = command,
-                    timeoutSec = timeoutSec,
-                    hostKeyPolicy = hostKeyPolicy
-                )
-                BatchServerResult(
-                    serverId = server.id,
-                    serverName = server.name,
-                    host = server.host,
-                    result = res
-                )
+                sem.acquire()
+                try {
+                    val res = execute(
+                        host = server.host,
+                        sshPort = port,
+                        user = "root",
+                        password = pass,
+                        command = command,
+                        timeoutSec = timeoutSec,
+                        hostKeyPolicy = hostKeyPolicy
+                    )
+                    BatchServerResult(
+                        serverId = server.id,
+                        serverName = server.name,
+                        host = server.host,
+                        result = res
+                    )
+                } finally {
+                    sem.release()
+                }
             }
         }
         deferreds.awaitAll()

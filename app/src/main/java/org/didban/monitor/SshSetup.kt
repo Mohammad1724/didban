@@ -4,7 +4,6 @@ import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
 /**
@@ -60,8 +59,11 @@ object SshSetup {
 
                 val channel = session.openChannel("exec") as ChannelExec
                 channel.setCommand(INSTALL_CMD)
-                val out = ByteArrayOutputStream()
-                val err = ByteArrayOutputStream()
+                // M10: bounded streams — the installer banner is small, but a
+                // misbehaving remote (huge curl error, verbose bash) must not
+                // be able to OOM the device either.
+                val out = CappedOutputStream(MAX_SSH_OUTPUT_BYTES)
+                val err = CappedOutputStream(MAX_SSH_OUTPUT_BYTES)
                 channel.setOutputStream(out)
                 channel.setErrStream(err)
                 channel.connect(TimeUnit.SECONDS.toMillis(20).toInt())
@@ -70,9 +72,15 @@ object SshSetup {
                 while (!channel.isClosed && System.currentTimeMillis() < deadline) {
                     Thread.sleep(150)
                 }
+                // M10: tell the user the install timed out rather than
+                // reporting a vague "could not be parsed".
+                val timedOut = !channel.isClosed
                 channel.disconnect()
 
-                val text = out.toString("UTF-8") + "\n" + err.toString("UTF-8")
+                val text = out.toUtf8String() + "\n" +
+                    err.toUtf8String() +
+                    (if (out.isTruncated || err.isTruncated)
+                        "\n…[خروجی بریده شد — فقط ${MAX_SSH_OUTPUT_BYTES / 1024}KB نگه داشته شد]" else "")
                 val token = parseField(text, "Token:")
                 val fp = parseField(text, "Cert SHA256:")
                 val url = parseField(text, "URL:")
@@ -80,7 +88,14 @@ object SshSetup {
                 if (token != null) {
                     Result(success = true, output = text, token = token, fingerprint = fp, port = portFromUrl(url))
                 } else {
-                    Result(success = false, output = text, error = "installer output could not be parsed")
+                    Result(
+                        success = false,
+                        output = text,
+                        error = if (timedOut)
+                            "زمان‌بندی نصب تمام شد (۵ دقیقه) — خروجی کامل دریافت نشد"
+                        else
+                            "installer output could not be parsed"
+                    )
                 }
             } catch (e: Exception) {
                 Result(success = false, error = e.message ?: "SSH error")

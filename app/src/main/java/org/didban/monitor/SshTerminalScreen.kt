@@ -56,6 +56,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+/** M10: hard ceiling for the on-screen terminal buffer (chars, not bytes). */
+private const val MAX_TERMINAL_BUFFER_CHARS = 64 * 1024
+
 data class SshSnippet(
     val title: String,
     val command: String,
@@ -83,6 +86,17 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
     var customCommand by remember { mutableStateOf("") }
     var terminalOutput by remember { mutableStateOf("Didban Secure SSH Terminal Ready.\nSelect a node, enter password, and run any command or preset.\n") }
     var isExecuting by remember { mutableStateOf(false) }
+
+    // M10: the per-command output is capped in SshEngine, but the terminal
+    // buffer itself must also be bounded — repeated large commands must not
+    // grow a single Compose state string without limit.
+    fun appendTerminal(text: String) {
+        terminalOutput += text
+        if (terminalOutput.length > MAX_TERMINAL_BUFFER_CHARS) {
+            terminalOutput = "…[بخش قدیمی خروجی حذف شد]\n" +
+                terminalOutput.substring(terminalOutput.length - MAX_TERMINAL_BUFFER_CHARS)
+        }
+    }
 
     // ── SSH host-key trust (TOFU): prompts are serialized so concurrent
     // connections can never show two dialogs at once.
@@ -131,7 +145,7 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
         val port = sshPortStr.toIntOrNull() ?: 22
 
         isExecuting = true
-        terminalOutput += "\n[didban@${server.name} ~]# $cmdToRun\n⏳ در حال اجرا...\n"
+        appendTerminal("\n[didban@${server.name} ~]# $cmdToRun\n⏳ در حال اجرا...\n")
 
         scope.launch {
             val res = SshEngine.execute(
@@ -149,7 +163,7 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
                 if (res.stderr.isNotBlank()) append("⚠️ Error: ").append(res.stderr).append("\n")
                 append("── [Exit: ${res.exitCode} · ${res.durationMs}ms] ──\n")
             }
-            terminalOutput += text
+            appendTerminal(text)
         }
     }
 
@@ -318,7 +332,7 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
                                 } else if (key == "Tab") {
                                     customCommand += "  "
                                 } else if (key == "Ctrl+C") {
-                                    terminalOutput += "\n^C\n"
+                                    appendTerminal("\n^C\n")
                                 } else {
                                     customCommand += if (customCommand.endsWith(" ") || customCommand.isEmpty()) key else " $key"
                                 }
