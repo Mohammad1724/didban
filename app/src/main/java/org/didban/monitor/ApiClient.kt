@@ -31,10 +31,9 @@ class ApiClient {
     var lastSeenFingerprint: String? = null
         private set
 
-    private fun clientFor(server: ServerConfig): OkHttpClient {
+    /** Builder with the app's TLS posture (fingerprint pinning) applied. */
+    private fun pinnedBuilder(server: ServerConfig): OkHttpClient.Builder {
         val builder = OkHttpClient.Builder()
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
         if (server.useTls) {
             val pinned = server.fingerprint.trim().lowercase().replace(":", "")
             val tm = object : X509TrustManager {
@@ -57,7 +56,34 @@ class ApiClient {
             builder.sslSocketFactory(ssl.socketFactory, tm)
             builder.hostnameVerifier { _, _ -> true }
         }
-        return builder.build()
+        return builder
+    }
+
+    private fun clientFor(server: ServerConfig): OkHttpClient =
+        pinnedBuilder(server)
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
+
+    /**
+     * Opens a streaming call against the agent (used by the bandwidth test).
+     * Same auth + certificate pinning as [get]; longer read/write timeouts
+     * because the body is large by design. Caller must close the response.
+     */
+    fun openStreamingCall(server: ServerConfig, path: String, body: okhttp3.RequestBody? = null): okhttp3.Call {
+        val scheme = if (server.useTls) "https" else "http"
+        val url = "$scheme://${server.host}:${server.port}$path"
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer ${server.token}")
+            .apply { if (body != null) method("POST", body) }
+            .build()
+        return pinnedBuilder(server)
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .build()
+            .newCall(request)
     }
 
     private fun get(server: ServerConfig, path: String): JSONObject {

@@ -81,13 +81,11 @@ fun SecurityScreen(t: Str) {
         }
     }
 
-    val bannedIps = remember {
-        mutableStateListOf(
-            BannedIpItem("194.26.29.112", "sshd", "10m ago"),
-            BannedIpItem("45.154.255.89", "sshd", "25m ago"),
-            BannedIpItem("185.220.101.5", "sshd", "1h ago")
-        )
-    }
+    // Real fail2ban data, fetched over SSH (item 5 / C5).
+    val bannedIps = remember { mutableStateListOf<BannedIpItem>() }
+    var bannedLoading by remember { mutableStateOf(false) }
+    var bannedError by remember { mutableStateOf("") }
+    var bannedFetched by remember { mutableStateOf(false) }
 
     fun inspectFirewall() {
         if (servers.isEmpty()) return
@@ -137,12 +135,52 @@ fun SecurityScreen(t: Str) {
             val ip = SecurityValidation.shellQuote(item.ip)
             val res = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client set $jail unbanip $ip", 15, hostKeyPolicy = sshPolicy)
             if (res.isSuccess) {
-                bannedIps.remove(item)
                 Toast.makeText(ctx, "آدرس ${item.ip} آن‌بلاک شد", Toast.LENGTH_SHORT).show()
+                refreshBannedIps()
             } else {
                 val detail = res.stderr.ifBlank { res.errorMessage ?: "کد خروج $res.exitCode" }
                 Toast.makeText(ctx, "آن‌بلاک ${item.ip} ناموفق بود: $detail", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    fun refreshBannedIps() {
+        if (sshPassword.isBlank()) {
+            Toast.makeText(ctx, "رمز عبور SSH را وارد کنید", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val server = servers.getOrNull(selectedServerIndex) ?: return
+        bannedLoading = true
+        bannedError = ""
+        scope.launch {
+            // 1. Jail list.
+            val jailsRes = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client status 2>/dev/null", 15, hostKeyPolicy = sshPolicy)
+            if (!jailsRes.isSuccess) {
+                bannedLoading = false
+                bannedFetched = true
+                bannedIps.clear()
+                val out = (jailsRes.stdout + jailsRes.stderr).trim()
+                bannedError = if (out.contains("not found") || jailsRes.stdout.isBlank()) {
+                    "fail2ban روی این سرور نصب نیست (یا راه‌اندازی نشده)."
+                } else {
+                    "دریافت وضعیت fail2ban ناموفق بود: ${out.take(120)}"
+                }
+                return@launch
+            }
+            val jails = OutputParsers.fail2banJails(jailsRes.stdout)
+
+            // 2. Banned IPs per jail (validated + quoted: item 2 / C6).
+            val items = mutableListOf<BannedIpItem>()
+            for (jail in jails) {
+                val stRes = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client status ${SecurityValidation.shellQuote(jail)} 2>/dev/null", 15, hostKeyPolicy = sshPolicy)
+                if (!stRes.isSuccess) continue
+                OutputParsers.fail2banBannedIps(stRes.stdout)
+                    .forEach { ip -> items.add(BannedIpItem(ip, jail, "")) }
+            }
+            bannedIps.clear()
+            bannedIps.addAll(items)
+            bannedFetched = true
+            bannedLoading = false
         }
     }
 
@@ -254,36 +292,47 @@ fun SecurityScreen(t: Str) {
             }
         }
 
-        // Fail2ban Blacklist
+        // Fail2ban Blacklist (real data over SSH)
         item {
             ModernCard(padding = 16.dp, cornerRadius = 20.dp) {
-                Text("IPهای بلاک‌شده توسط Fail2ban:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("IPهای بلاک‌شده توسط Fail2ban:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary, modifier = Modifier.weight(1f))
+                    SoftButton(
+                        text = if (bannedLoading) "در حال بارگذاری..." else "🔄 بازخوانی",
+                        onClick = { refreshBannedIps() },
+                        enabled = !bannedLoading
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
 
-                if (bannedIps.isEmpty()) {
-                    Text("هیچ آدرس IP مشکوکی در حال حاضر بلاک نیست.", fontSize = 11.5.sp, color = Ds.ok)
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        bannedIps.forEach { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Ds.danger.copy(alpha = 0.08f))
-                                    .border(BorderStroke(1.dp, Ds.danger.copy(alpha = 0.25f)), RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text(item.ip, fontSize = 12.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = Ds.danger)
-                                    Text("Jail: ${item.jail} · ${item.banTime}", fontSize = 10.5.sp, color = Ds.textTertiary)
-                                }
+                when {
+                    bannedLoading -> Text("در حال پرس‌وجوی fail2ban روی سرور...", fontSize = 11.5.sp, color = Ds.textSecondary)
+                    bannedError.isNotEmpty() -> Text(bannedError, fontSize = 11.5.sp, color = Ds.warn)
+                    !bannedFetched -> Text("رمز SSH را وارد کرده و «بازخوانی» را بزنید تا لیست واقعیِ سرور بارگذاری شود.", fontSize = 11.5.sp, color = Ds.textSecondary)
+                    bannedIps.isEmpty() -> Text("در حال حاضر هیچ آدرس IP بلاک‌شده‌ای وجود ندارد.", fontSize = 11.5.sp, color = Ds.ok)
+                    else -> {
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            bannedIps.forEach { item ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Ds.danger.copy(alpha = 0.08f))
+                                        .border(BorderStroke(1.dp, Ds.danger.copy(alpha = 0.25f)), RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(item.ip, fontSize = 12.5.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = Ds.danger)
+                                        Text("Jail: ${item.jail}", fontSize = 10.5.sp, color = Ds.textTertiary)
+                                    }
 
-                                SoftButton(
-                                    text = "آن‌بلاک (Unban)",
-                                    onClick = { unban(item) }
-                                )
+                                    SoftButton(
+                                        text = "آن‌بلاک (Unban)",
+                                        onClick = { unban(item) }
+                                    )
+                                }
                             }
                         }
                     }

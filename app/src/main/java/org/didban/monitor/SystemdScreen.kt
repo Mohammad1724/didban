@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
@@ -93,16 +94,41 @@ fun SystemdScreen(t: Str) {
         }
     }
 
-    val services = remember {
-        mutableStateListOf(
-            SystemdServiceItem("didban-agent.service", "Didban Monitoring Daemon", "active (running)", true),
-            SystemdServiceItem("x-ui.service", "X-UI Proxy Panel", "active (running)", true),
-            SystemdServiceItem("gost.service", "GOST Multi-Protocol Tunnel", "active (running)", true),
-            SystemdServiceItem("nginx.service", "Nginx HTTP & Reverse Proxy", "active (running)", true),
-            SystemdServiceItem("docker.service", "Docker Application Container Engine", "active (running)", true),
-            SystemdServiceItem("ssh.service", "OpenBSD Secure Shell Server", "active (running)", true),
-            SystemdServiceItem("cron.service", "Regular Background Program Daemon", "active (running)", true)
-        )
+    // Real systemd data, fetched over SSH (item 5 / C5).
+    val services = remember { mutableStateListOf<SystemdServiceItem>() }
+    var servicesLoading by remember { mutableStateOf(false) }
+    var servicesError by remember { mutableStateOf("") }
+    var servicesFetched by remember { mutableStateOf(false) }
+
+    fun refreshServices() {
+        if (sshPassword.isBlank()) {
+            Toast.makeText(ctx, "لطفاً رمز عبور SSH را وارد کنید", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val server = servers.getOrNull(selectedServerIndex) ?: return
+        servicesLoading = true
+        servicesError = ""
+        scope.launch {
+            val res = SshEngine.execute(
+                server.host, 22, "root", sshPassword,
+                "systemctl list-units --type=service --state=running,failed --no-pager --no-legend --output=plain 2>/dev/null",
+                20, hostKeyPolicy = sshPolicy
+            )
+            if (!res.isSuccess) {
+                servicesLoading = false
+                servicesFetched = true
+                services.clear()
+                servicesError = "دریافت لیست سرویس‌ها ناموفق بود: ${(res.stderr.ifBlank { res.errorMessage ?: "خطای SSH" }).take(120)}"
+                return@launch
+            }
+            val parsed = OutputParsers.systemdUnits(res.stdout).map { u ->
+                    SystemdServiceItem(u.unit, u.description, "${u.active} (${u.sub})", u.active == "active")
+                }
+            services.clear()
+            services.addAll(parsed)
+            servicesFetched = true
+            servicesLoading = false
+        }
     }
 
     fun controlService(unit: String, action: String) {
@@ -113,10 +139,12 @@ fun SystemdScreen(t: Str) {
         }
 
         val server = servers.getOrNull(selectedServerIndex) ?: return
+        // Unit names come from parsed server output; still quoted (C6 defense).
+        val qunit = SecurityValidation.shellQuote(unit)
         val cmd = if (action == "logs") {
-            "journalctl -u $unit -n 30 --no-pager"
+            "journalctl -u $qunit -n 30 --no-pager"
         } else {
-            "systemctl $action $unit && systemctl is-active $unit"
+            "systemctl $action $qunit && systemctl is-active $qunit"
         }
 
         isActionInProgress = true
@@ -125,9 +153,13 @@ fun SystemdScreen(t: Str) {
             isActionInProgress = false
             if (action == "logs") {
                 logOutput = res.stdout.ifBlank { res.stderr.ifBlank { "No logs found for $unit" } }
-            } else {
-                Toast.makeText(ctx, "عملیات $action روی $unit انجام شد", Toast.LENGTH_SHORT).show()
+            } else if (res.isSuccess) {
+                val state = res.stdout.lineSequence().lastOrNull { it.isNotBlank() }?.trim() ?: "unknown"
+                Toast.makeText(ctx, "عملیات $action روی $unit انجام شد ($state)", Toast.LENGTH_SHORT).show()
                 logOutput = res.stdout
+                refreshServices()
+            } else {
+                Toast.makeText(ctx, "عملیات $action ناموفق بود: ${res.stderr.ifBlank { res.errorMessage ?: "کد ${res.exitCode}" }.take(100)}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -219,7 +251,27 @@ fun SystemdScreen(t: Str) {
             }
         }
 
-        // Services List
+        // Services List (real data over SSH)
+        item {
+            ModernCard(padding = 14.dp, cornerRadius = 18.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("سرویس‌های در حال اجرا (Systemd):", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = Ds.textSecondary, modifier = Modifier.weight(1f))
+                    SoftButton(
+                        text = if (servicesLoading) "در حال بارگذاری..." else "🔄 بازخوانی",
+                        onClick = { refreshServices() },
+                        enabled = !servicesLoading
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                when {
+                    servicesLoading -> Text("در حال دریافت لیست واقعی سرویس‌ها...", fontSize = 11.5.sp, color = Ds.textSecondary)
+                    servicesError.isNotEmpty() -> Text(servicesError, fontSize = 11.5.sp, color = Ds.warn)
+                    !servicesFetched -> Text("رمز SSH را وارد کرده و «بازخوانی» را بزنید تا سرویس‌های واقعی سرور بارگذاری شوند.", fontSize = 11.5.sp, color = Ds.textSecondary)
+                    services.isEmpty() -> Text("هیچ سرویس فعالی یافت نشد.", fontSize = 11.5.sp, color = Ds.ok)
+                }
+            }
+        }
+
         items(services) { item ->
             ModernCard(padding = 14.dp, cornerRadius = 18.dp) {
                 Row(
@@ -227,16 +279,32 @@ fun SystemdScreen(t: Str) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = Ds.ok, modifier = Modifier.size(18.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Icon(
+                            if (item.isRunning) Icons.Rounded.CheckCircle else Icons.Rounded.Close,
+                            contentDescription = null,
+                            tint = if (item.isRunning) Ds.ok else Ds.danger,
+                            modifier = Modifier.size(18.dp)
+                        )
                         Spacer(Modifier.width(10.dp))
                         Column {
                             Text(item.unitName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ds.textPrimary)
-                            Text(item.description, fontSize = 10.5.sp, color = Ds.textTertiary)
+                            if (item.description.isNotEmpty()) {
+                                Text(item.description, fontSize = 10.5.sp, color = Ds.textTertiary)
+                            }
+                            Text(item.status, fontSize = 9.5.sp, color = if (item.isRunning) Ds.ok else Ds.danger)
                         }
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SoftButton(
+                            text = "▶ Start",
+                            onClick = { controlService(item.unitName, "start") }
+                        )
+                        SoftButton(
+                            text = "⏹ Stop",
+                            onClick = { controlService(item.unitName, "stop") }
+                        )
                         SoftButton(
                             text = "🔄 Restart",
                             onClick = { controlService(item.unitName, "restart") }

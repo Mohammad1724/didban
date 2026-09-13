@@ -32,6 +32,10 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/processes/kill", a.auth(a.handleProcessKill))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
+
+	// Real bandwidth test (streaming download / upload sink)
+	mux.HandleFunc("/api/bandwidth/download", a.auth(a.handleBandwidthDownload))
+	mux.HandleFunc("/api/bandwidth/upload", a.auth(a.handleBandwidthUpload))
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
 	mux.HandleFunc("/api/docker/restart", a.auth(a.handleDockerRestart))
 	mux.HandleFunc("/api/docker/stop", a.auth(a.handleDockerStop))

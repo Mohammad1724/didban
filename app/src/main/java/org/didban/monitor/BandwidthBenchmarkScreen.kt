@@ -49,12 +49,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
+import okio.BufferedSink
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.util.concurrent.TimeUnit
-import kotlin.random.Random
+import java.security.SecureRandom
+import kotlin.math.min
+
+// 100 MiB per direction; the agent clamps any larger request server-side.
+private const val BENCH_BYTES = 104_857_600L
 
 data class BenchmarkResult(
     val downloadMbps: Float,
@@ -69,9 +73,9 @@ data class BenchmarkResult(
 fun BandwidthBenchmarkScreen(t: Str) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    val api = remember { ApiClient() }
 
     val servers = remember { Prefs.loadServers(ctx) }
-    var sourceServerIndex by remember { mutableStateOf(0) }
     var targetServerIndex by remember { mutableStateOf(if (servers.size > 1) 1 else 0) }
 
     var isRunning by remember { mutableStateOf(false) }
@@ -90,6 +94,7 @@ fun BandwidthBenchmarkScreen(t: Str) {
         testProgress = 0f
         currentSpeedMbps = 0f
         benchmarkResult = null
+        val startWall = System.currentTimeMillis()
 
         scope.launch {
             // 1. Measure Ping & Jitter
@@ -99,7 +104,7 @@ fun BandwidthBenchmarkScreen(t: Str) {
             val targetPort = if (targetServer.port > 0) targetServer.port else 80
 
             for (i in 1..5) {
-                testProgress = i * 0.1f
+                testProgress = (i * 0.09f).coerceAtMost(0.45f)
                 val t0 = System.currentTimeMillis()
                 try {
                     withContext(Dispatchers.IO) {
@@ -121,39 +126,105 @@ fun BandwidthBenchmarkScreen(t: Str) {
             } else 2L
             val lossPct = (lostPackets * 100) / 5
 
-            // 2. Measure Download Throughput
-            val downloadChunks = mutableListOf<Float>()
-            for (step in 1..10) {
-                testProgress = 0.5f + (step * 0.03f)
-                val simulatedSpeed = 45f + Random.nextFloat() * 85f
-                currentSpeedMbps = simulatedSpeed
-                downloadChunks.add(simulatedSpeed)
-                delay(180)
+            // 2. Measure REAL download throughput from the agent's streaming
+            //    endpoint (100 MiB; the agent caps it server-side).
+            val downloadMbps: Float
+            try {
+                val call = api.openStreamingCall(targetServer, "/api/bandwidth/download?bytes=$BENCH_BYTES")
+                val t0 = System.nanoTime()
+                var lastUi = System.currentTimeMillis()
+                var bytes = 0L
+                call.execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        if (resp.code == 404 || resp.code == 405) {
+                            throw ApiException("agent-bandwidth-unsupported")
+                        }
+                        throw ApiException("HTTP ${resp.code}")
+                    }
+                    val source = resp.body?.source() ?: throw ApiException("empty body")
+                    val buf = ByteArray(64 * 1024)
+                    while (true) {
+                        val n = source.read(buf)
+                        if (n == -1) break
+                        bytes += n
+                        testProgress = (0.45f + 0.35f * bytes / BENCH_BYTES).coerceAtMost(0.8f)
+                        val now = System.currentTimeMillis()
+                        if (now - lastUi > 250) {
+                            lastUi = now
+                            currentSpeedMbps = (bytes * 8.0 / (now - startWall) / 1e6).toFloat()
+                        }
+                    }
+                }
+                val secs = (System.nanoTime() - t0) / 1e9
+                downloadMbps = (bytes * 8.0 / secs / 1e6).toFloat()
+            } catch (e: Exception) {
+                isRunning = false
+                val msg = if (e.message == "agent-bandwidth-unsupported") {
+                    "نسخه ایجنت سرور از تست پهنای باند پشتیبانی نمی‌کند؛ ایجنت را به‌روزرسانی کنید."
+                } else {
+                    "تست دانلود ناموفق بود: ${e.message ?: "خطای شبکه"}"
+                }
+                Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                return@launch
             }
-            val finalDownload = downloadChunks.average().toFloat()
 
-            // 3. Measure Upload Throughput
-            val uploadChunks = mutableListOf<Float>()
-            for (step in 1..8) {
-                testProgress = 0.8f + (step * 0.025f)
-                val simulatedSpeed = 25f + Random.nextFloat() * 45f
-                currentSpeedMbps = simulatedSpeed
-                uploadChunks.add(simulatedSpeed)
-                delay(180)
+            // 3. Measure REAL upload throughput to the agent's sink endpoint.
+            val uploadMbps: Float
+            try {
+                val t0 = System.nanoTime()
+                var lastUi = System.currentTimeMillis()
+                val body = BenchmarkUploadBody(BENCH_BYTES) { written ->
+                    val now = System.currentTimeMillis()
+                    if (now - lastUi > 250) {
+                        lastUi = now
+                        currentSpeedMbps = (written * 8.0 / (now - startWall) / 1e6).toFloat()
+                        testProgress = (0.8f + 0.2f * written / BENCH_BYTES).coerceAtMost(1f)
+                    }
+                }
+                val call = api.openStreamingCall(targetServer, "/api/bandwidth/upload", body)
+                call.execute().use { resp ->
+                    if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}")
+                }
+                val secs = (System.nanoTime() - t0) / 1e9
+                uploadMbps = (BENCH_BYTES * 8.0 / secs / 1e6).toFloat()
+            } catch (e: Exception) {
+                isRunning = false
+                val msg = if (e.message == "agent-bandwidth-unsupported") {
+                    "نسخه ایجنت سرور از تست پهنای باند پشتیبانی نمی‌کند؛ ایجنت را به‌روزرسانی کنید."
+                } else {
+                    "تست آپلود ناموفق بود: ${e.message ?: "خطای شبکه"}"
+                }
+                Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show()
+                return@launch
             }
-            val finalUpload = uploadChunks.average().toFloat()
 
             testProgress = 1f
-            currentSpeedMbps = finalDownload
+            currentSpeedMbps = downloadMbps
             benchmarkResult = BenchmarkResult(
-                downloadMbps = finalDownload,
-                uploadMbps = finalUpload,
+                downloadMbps = downloadMbps,
+                uploadMbps = uploadMbps,
                 pingMs = avgPing,
                 jitterMs = jitter,
                 packetLossPct = lossPct
             )
             isRunning = false
             Toast.makeText(ctx, "تست پهنای باند با موفقیت تکمیل شد! 🚀", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Streams [total] random bytes (repeated 64 KiB block) and reports progress. */
+    private class BenchmarkUploadBody(private val total: Long, private val onProgress: (Long) -> Unit) : RequestBody() {
+        private val block = ByteArray(64 * 1024).also { SecureRandom().nextBytes(it) }
+        override fun contentType() = "application/octet-stream".toMediaType()
+        override fun contentLength() = total
+        override fun write(to: BufferedSink) {
+            var written = 0L
+            while (written < total) {
+                val n = min(block.size.toLong(), total - written)
+                to.write(block, 0, n.toInt())
+                written += n
+                onProgress(written)
+            }
         }
     }
 
