@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -350,8 +352,12 @@ func (tm *TunnelManager) StopTunnel(id, customService string) (*TunnelStatusResp
 	return tm.queryServiceStatusLocked(id, meta.Name, meta.Core, meta.Role, serviceName), nil
 }
 
-// DeleteTunnel disables and removes the systemd unit and configuration files.
-// It is idempotent: deleting an unknown tunnel still succeeds.
+// DeleteTunnel disables and removes the systemd unit, the tunnel's config
+// files and the core's remaining deploy residue on this host (Item 27:
+// helper scripts, logs, sysctl drop-ins, NAT chains, the shared binary and
+// legacy fixed config paths — each under the refcounting rules described on
+// cleanupCoreResidue). It is idempotent: deleting an unknown tunnel still
+// succeeds.
 func (tm *TunnelManager) DeleteTunnel(id, customService string) error {
 	if err := ValidateTunnelID(id); err != nil {
 		return err
@@ -397,6 +403,11 @@ func (tm *TunnelManager) DeleteTunnel(id, customService string) error {
 	for _, ext := range []string{".toml", ".json", ".yaml", ".conf"} {
 		_ = os.Remove(filepath.Join(tm.configRoot, id+ext))
 	}
+
+	// Item 27: core residue (fw scripts, logs, drop-ins, chains, shared
+	// binary, legacy fixed config paths). Best effort — see
+	// cleanupCoreResidue for the exact rules.
+	tm.cleanupCoreResidue(meta)
 
 	return nil
 }
@@ -518,4 +529,187 @@ func (tm *TunnelManager) queryServiceStatusLocked(id, name, core, role, serviceN
 // has finished so the underlying timer does not linger until the deadline.
 func systemCmdContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), systemCommandTimeout)
+}
+
+// ── Item 27: full delete-time cleanup ────────────────────────────────────────
+//
+// What a deploy leaves on a host beyond the unit + per-tunnel config, and how
+// delete removes it:
+//
+//	Narnia     fw script (per-id), log (per-id, iran), docker container
+//	           (named after the unit, dies with --rm), shared sysctl drop-in
+//	IPTables   rules script (per-id hash), NAT chains (unit ExecStop),
+//	           shared sysctl drop-in
+//	all cores  shared binary (/usr/local/bin/<core>)
+//	legacy     pre-Item-26 fixed config paths (/etc/backpack/..., /etc/frp/...)
+//
+// Shared artifacts are removed ONLY when no other agent-deployed tunnel of
+// the same core remains on this node (meta-file reference count). Manual
+// (non-agent) installs are invisible to that count — by design: the agent
+// only removes what it can account for.
+
+// Layout roots (overridable in tests).
+var (
+	binRoot    = "/usr/local/bin"
+	didbanEtc  = "/etc/didban"
+	sysctlRoot = "/etc/sysctl.d"
+	legacyEtc  = "/etc"
+	logRoot    = "/var/log"
+)
+
+// coreBinaryPath returns the shared binary a core's install script places,
+// per role ("" for cores without one).
+func coreBinaryPath(core, role string) string {
+	switch core {
+	case "BACKPACK":
+		return filepath.Join(binRoot, "backpack")
+	case "PAQET":
+		return filepath.Join(binRoot, "paqet")
+	case "SPOOF_TUNNEL":
+		return filepath.Join(binRoot, "spoof-tunnel")
+	case "BACKHAUL":
+		return filepath.Join(binRoot, "backhaul")
+	case "RATHOLE":
+		return filepath.Join(binRoot, "rathole")
+	case "GOST":
+		return filepath.Join(binRoot, "gost")
+	case "CHISEL":
+		return filepath.Join(binRoot, "chisel")
+	case "FRP":
+		if role == "iran" {
+			return filepath.Join(binRoot, "frpc")
+		}
+		return filepath.Join(binRoot, "frps")
+	default:
+		return ""
+	}
+}
+
+// legacyConfigPaths lists the config file (+ dir) the pre-Item-26
+// generators wrote to fixed per-core paths, so a delete after a migration
+// deploy also removes the old layout.
+func legacyConfigPaths(core, role string) (file, dir string) {
+	switch core {
+	case "BACKPACK":
+		if role == "iran" {
+			return filepath.Join(legacyEtc, "backpack/server.toml"), filepath.Join(legacyEtc, "backpack")
+		}
+		return filepath.Join(legacyEtc, "backpack/client.toml"), filepath.Join(legacyEtc, "backpack")
+	case "PAQET":
+		if role == "iran" {
+			return filepath.Join(legacyEtc, "paqet/client.yaml"), filepath.Join(legacyEtc, "paqet")
+		}
+		return filepath.Join(legacyEtc, "paqet/server.yaml"), filepath.Join(legacyEtc, "paqet")
+	case "SPOOF_TUNNEL":
+		if role == "iran" {
+			return filepath.Join(legacyEtc, "spoof-tunnel/client.json"), filepath.Join(legacyEtc, "spoof-tunnel")
+		}
+		return filepath.Join(legacyEtc, "spoof-tunnel/server.json"), filepath.Join(legacyEtc, "spoof-tunnel")
+	case "BACKHAUL":
+		return filepath.Join(legacyEtc, "backhaul/config.toml"), filepath.Join(legacyEtc, "backhaul")
+	case "RATHOLE":
+		if role == "iran" {
+			return filepath.Join(legacyEtc, "rathole/client.toml"), filepath.Join(legacyEtc, "rathole")
+		}
+		return filepath.Join(legacyEtc, "rathole/server.toml"), filepath.Join(legacyEtc, "rathole")
+	case "FRP":
+		if role == "iran" {
+			return filepath.Join(legacyEtc, "frp/frpc.toml"), filepath.Join(legacyEtc, "frp")
+		}
+		return filepath.Join(legacyEtc, "frp/frps.toml"), filepath.Join(legacyEtc, "frp")
+	default:
+		return "", ""
+	}
+}
+
+// iptablesChainHash reproduces the app's deterministic chain salt: the first
+// 8 bytes of SHA-256("<id>") as lowercase hex (16 chars; keeps the chain
+// names inside iptables' 28-char limit).
+func iptablesChainHash(id string) string {
+	h := sha256.Sum256([]byte(id))
+	return hex.EncodeToString(h[:8])
+}
+
+// otherMetaCount counts agent-deployed tunnels of [core] still registered on
+// THIS node, excluding [id]. With roleOnly it additionally requires the same
+// role (FRP: frpc and frps are distinct binaries per role).
+func (tm *TunnelManager) otherMetaCount(id, core string, roleOnly bool, role string) int {
+	n := 0
+	files, _ := filepath.Glob(filepath.Join(tm.tunnelsDir, "meta-*.json"))
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var m TunnelMeta
+		if json.Unmarshal(data, &m) != nil {
+			continue
+		}
+		if m.ID == id || m.Core != core {
+			continue
+		}
+		if roleOnly && m.Role != role {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// cleanupCoreResidue removes the deploy residue for [meta] on this host
+// (see the Item 27 layout table above). Best effort: a missing file or a
+// missing docker/iptables binary is not an error — the unit+config+meta
+// deletion has already succeeded.
+func (tm *TunnelManager) cleanupCoreResidue(meta TunnelMeta) {
+	ctx, cancel := systemCmdContext()
+	defer cancel()
+	rm := func(paths ...string) {
+		for _, p := range paths {
+			_ = os.Remove(p)
+		}
+	}
+
+	switch meta.Core {
+	case "NARNIA":
+		suffix := "iran"
+		if meta.Role == "foreign" {
+			suffix = "foreign"
+		}
+		rm(filepath.Join(didbanEtc, "narnia-"+meta.ID+"-"+suffix+"-fw.sh"))
+		if meta.Role == "iran" {
+			rm(filepath.Join(logRoot, "didban-narnia-"+meta.ID+".log"))
+		}
+		// The container is named after the unit and dies with `docker stop`
+		// (docker run --rm); force-remove a stuck one.
+		_ = exec.CommandContext(ctx, "docker", "rm", "-f", "didban-tunnel-"+meta.ID).Run()
+		if tm.otherMetaCount(meta.ID, "NARNIA", false, "") == 0 {
+			rm(filepath.Join(sysctlRoot, "99-didban-narnia.conf"))
+		}
+	case "IPTABLES":
+		hash := iptablesChainHash(meta.ID)
+		rm(filepath.Join(didbanEtc, "iptables-"+hash+"-rules.sh"))
+		// The unit's ExecStop normally removed the chains; heal the case
+		// where the unit was already gone when the delete started.
+		for _, pair := range [][2]string{{"PREROUTING", "didban-tun-" + hash}, {"POSTROUTING", "didban-tunp-" + hash}} {
+			_ = exec.CommandContext(ctx, "iptables", "-t", "nat", "-F", pair[1]).Run()
+			_ = exec.CommandContext(ctx, "iptables", "-t", "nat", "-D", pair[0], "-j", pair[1]).Run()
+			_ = exec.CommandContext(ctx, "iptables", "-t", "nat", "-X", pair[1]).Run()
+		}
+		if tm.otherMetaCount(meta.ID, "IPTABLES", false, "") == 0 {
+			rm(filepath.Join(sysctlRoot, "99-didban-iptables.conf"))
+		}
+	}
+
+	// Shared binary + legacy fixed config paths: remove only when this was
+	// the LAST agent-deployed tunnel of the same core (FRP: same role,
+	// because frpc/frps are separate binaries).
+	roleOnly := meta.Core == "FRP"
+	if tm.otherMetaCount(meta.ID, meta.Core, roleOnly, meta.Role) == 0 {
+		if bin := coreBinaryPath(meta.Core, meta.Role); bin != "" {
+			_ = os.Remove(bin)
+		}
+		if file, dir := legacyConfigPaths(meta.Core, meta.Role); file != "" {
+			rm(file, dir) // dir removal succeeds only when empty
+		}
+	}
 }

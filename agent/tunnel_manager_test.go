@@ -40,11 +40,15 @@ func newTestAPI(t *testing.T, deployMode DeployMode) (*API, string) {
 }
 
 func applyReq(id, configPath, configContent, script string) TunnelApplyReq {
+	return applyReqCore(id, "marzban", "iran", configPath, configContent, script)
+}
+
+func applyReqCore(id, core, role, configPath, configContent, script string) TunnelApplyReq {
 	return TunnelApplyReq{
 		ID:            id,
 		Name:          "test-tunnel",
-		Core:          "marzban",
-		Role:          "iran",
+		Core:          core,
+		Role:          role,
 		ConfigContent: configContent,
 		ConfigPath:    configPath,
 		ExecScript:    script,
@@ -328,6 +332,193 @@ func TestApplyAndDeletePerTunnelDirectory(t *testing.T) {
 	if _, err := os.Stat(other); err != nil {
 		t.Fatal("unrelated directory was removed")
 	}
+}
+
+// withResidueLayouts redirects the Item 27 layout roots into temp dirs and
+// restores them afterwards, so tests never touch /etc or /usr/local/bin.
+func withResidueLayouts(t *testing.T) string {
+	t.Helper()
+	base := t.TempDir()
+	old := struct {
+		bin, didbanEtc, sysctl, legacy, log string
+	}{binRoot, didbanEtc, sysctlRoot, legacyEtc, logRoot}
+	binRoot = filepath.Join(base, "usr-local-bin")
+	didbanEtc = filepath.Join(base, "etc-didban")
+	sysctlRoot = filepath.Join(base, "etc-sysctl.d")
+	legacyEtc = filepath.Join(base, "etc")
+	logRoot = filepath.Join(base, "var-log")
+	for _, d := range []string{binRoot, didbanEtc, sysctlRoot, legacyEtc, logRoot} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		binRoot, didbanEtc, sysctlRoot, legacyEtc, logRoot = old.bin, old.didbanEtc, old.sysctl, old.legacy, old.log
+	})
+	return base
+}
+
+func touchFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected %s to exist: %v", path, err)
+	}
+}
+
+func mustNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected %s to be gone, stat err = %v", path, err)
+	}
+}
+
+func TestIptablesChainHashMatchesApp(t *testing.T) {
+	// The app computes SHA-256("<id>") and takes the first 8 bytes as hex.
+	// Pin the exact vector so the Go and Kotlin sides cannot drift apart:
+	// the iptables chain names are derived from this on both ends.
+	const want = "73475cb40a568e8d" // hex(sha256("42")[:8])
+	if got := iptablesChainHash("42"); got != want {
+		t.Fatalf("iptablesChainHash(42) = %q, want %q", got, want)
+	}
+	if len(want) != 16 {
+		t.Fatalf("hash must be 16 hex chars, got %q", want)
+	}
+}
+
+func TestDeleteTunnelRemovesNarniaResidue(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	fw := filepath.Join(didbanEtc, "narnia-42-iran-fw.sh")
+	log := filepath.Join(logRoot, "didban-narnia-42.log")
+	dropIn := filepath.Join(sysctlRoot, "99-didban-narnia.conf")
+	touchFile(t, fw)
+	touchFile(t, log)
+	touchFile(t, dropIn)
+
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "NARNIA", "iran", filepath.Join(root, "42", "ref.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, fw)
+	mustNotExist(t, log)
+	mustNotExist(t, dropIn) // no other NARNIA meta → shared drop-in removed
+}
+
+func TestDeleteTunnelKeepsSharedDropInWhileSiblingRemains(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	dropIn := filepath.Join(sysctlRoot, "99-didban-narnia.conf")
+	touchFile(t, dropIn)
+
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "NARNIA", "iran", filepath.Join(root, "42", "ref.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if _, err := tm.ApplyTunnel(applyReqCore("43", "NARNIA", "foreign", filepath.Join(root, "43", "ref.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustExist(t, dropIn) // sibling NARNIA still registered → drop-in kept
+	if err := tm.DeleteTunnel("43", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, dropIn)
+}
+
+func TestDeleteTunnelRemovesIptablesRulesAndChains(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	hash := iptablesChainHash("42")
+	rules := filepath.Join(didbanEtc, "iptables-"+hash+"-rules.sh")
+	dropIn := filepath.Join(sysctlRoot, "99-didban-iptables.conf")
+	touchFile(t, rules)
+	touchFile(t, dropIn)
+
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "IPTABLES", "iran", filepath.Join(root, "42", "ref.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, rules)
+	mustNotExist(t, dropIn)
+}
+
+func TestDeleteTunnelKeepsSharedBinaryWhileSiblingRemains(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	bin := coreBinaryPath("BACKPACK", "iran")
+	touchFile(t, bin)
+
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "BACKPACK", "iran", filepath.Join(root, "42", "a.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if _, err := tm.ApplyTunnel(applyReqCore("43", "BACKPACK", "foreign", filepath.Join(root, "43", "b.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustExist(t, bin) // sibling BACKPACK still registered → binary kept
+	if err := tm.DeleteTunnel("43", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, bin)
+}
+
+func TestDeleteTunnelFRPRoleSpecificBinaries(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	frps := coreBinaryPath("FRP", "foreign")
+	frpc := coreBinaryPath("FRP", "iran")
+	touchFile(t, frps)
+	touchFile(t, frpc)
+
+	// Only the foreign (frps) side exists for tunnel 42.
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "FRP", "foreign", filepath.Join(root, "42", "a.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, frps) // last foreign-role FRP → frps removed
+	mustExist(t, frpc)    // no iran-role FRP ever existed → frpc untouched
+}
+
+func TestDeleteTunnelRemovesLegacyConfigAndDir(t *testing.T) {
+	withResidueLayouts(t)
+	tm, root := newTestManager(t, DeployModeScripts)
+
+	legacyFile := filepath.Join(legacyEtc, "backpack/server.toml")
+	legacyDir := filepath.Join(legacyEtc, "backpack")
+	touchFile(t, legacyFile)
+
+	if _, err := tm.ApplyTunnel(applyReqCore("42", "BACKPACK", "iran", filepath.Join(root, "42", "a.conf"), "# ref", "")); err != nil {
+		t.Fatalf("ApplyTunnel: %v", err)
+	}
+	if err := tm.DeleteTunnel("42", ""); err != nil {
+		t.Fatalf("DeleteTunnel: %v", err)
+	}
+	mustNotExist(t, legacyFile)
+	mustNotExist(t, legacyDir)
 }
 
 // ── HTTP API layer ───────────────────────────────────────────────────────────
