@@ -26,8 +26,13 @@ object SshSetup {
     private const val INSTALL_CMD =
         "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o /tmp/didban-install.sh && bash /tmp/didban-install.sh"
 
-    suspend fun installAgent(host: String, sshPort: Int, user: String, password: String): Result =
-        withContext(Dispatchers.IO) {
+    suspend fun installAgent(
+        host: String,
+        sshPort: Int,
+        user: String,
+        password: String,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+    ): Result = withContext(Dispatchers.IO) {
             var session: com.jcraft.jsch.Session? = null
             try {
                 CryptoSecurity.ensureInitialized()
@@ -48,6 +53,13 @@ object SshSetup {
                 session.setConfig("cipher.c2s", cipherAlgos)
 
                 session.connect(TimeUnit.SECONDS.toMillis(20).toInt())
+
+                // TOFU: verify the host key before running the installer.
+                val hostKeyError = verifySessionHostKey(session, host, sshPort, hostKeyPolicy)
+                if (hostKeyError != null) {
+                    session.disconnect()
+                    return@withContext Result(success = false, error = hostKeyError)
+                }
 
                 val channel = session.openChannel("exec") as ChannelExec
                 channel.setCommand(INSTALL_CMD)

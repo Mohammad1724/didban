@@ -29,6 +29,11 @@ object SshEngine {
 
     /**
      * Executes a command over SSH on a remote host.
+     *
+     * Host keys are verified against the local trust store (TOFU) via
+     * [hostKeyPolicy] right after the key exchange. Default is automatic
+     * TOFU; interactive screens pass a [ConfirmingHostKeyPolicy] so the
+     * first contact requires explicit user confirmation.
      */
     suspend fun execute(
         host: String,
@@ -36,7 +41,8 @@ object SshEngine {
         user: String = "root",
         password: String,
         command: String,
-        timeoutSec: Int = 25
+        timeoutSec: Int = 25,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): SshExecResult = withContext(Dispatchers.IO) {
         val t0 = System.currentTimeMillis()
         var session: com.jcraft.jsch.Session? = null
@@ -59,6 +65,21 @@ object SshEngine {
             session.setConfig("cipher.c2s", cipherAlgos)
 
             session.connect(TimeUnit.SECONDS.toMillis(12).toInt())
+
+            // TOFU: verify the host key before any command is sent.
+            val portForTrust = if (sshPort > 0) sshPort else 22
+            val hostKeyError = verifySessionHostKey(session, host, portForTrust, hostKeyPolicy)
+            if (hostKeyError != null) {
+                session.disconnect()
+                return@withContext SshExecResult(
+                    exitCode = -1,
+                    stdout = "",
+                    stderr = hostKeyError,
+                    durationMs = System.currentTimeMillis() - t0,
+                    isSuccess = false,
+                    errorMessage = hostKeyError
+                )
+            }
 
             val channel = session.openChannel("exec") as ChannelExec
             channel.setCommand(command)
@@ -111,7 +132,8 @@ object SshEngine {
     suspend fun executeBatch(
         targets: List<Triple<ServerConfig, Int, String>>, // ServerConfig, sshPort, password
         command: String,
-        timeoutSec: Int = 30
+        timeoutSec: Int = 30,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): List<BatchServerResult> = withContext(Dispatchers.IO) {
         val deferreds = targets.map { (server, port, pass) ->
             async {
@@ -121,7 +143,8 @@ object SshEngine {
                     user = "root",
                     password = pass,
                     command = command,
-                    timeoutSec = timeoutSec
+                    timeoutSec = timeoutSec,
+                    hostKeyPolicy = hostKeyPolicy
                 )
                 BatchServerResult(
                     serverId = server.id,

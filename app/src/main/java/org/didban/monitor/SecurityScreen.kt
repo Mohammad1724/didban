@@ -43,7 +43,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class BannedIpItem(
     val ip: String,
@@ -62,6 +67,20 @@ fun SecurityScreen(t: Str) {
     var firewallOutput by remember { mutableStateOf("") }
     var portToAllow by remember { mutableStateOf("") }
 
+    // ── SSH host-key trust (TOFU): prompts are serialized so concurrent
+    // connections can never show two dialogs at once.
+    var hostKeyPrompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
+    val hostKeyChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
+    val hostKeyGate = remember { Mutex() }
+    val sshPolicy = remember {
+        ConfirmingHostKeyPolicy(HostKeyTrustStore) { prompt ->
+            hostKeyGate.withLock {
+                withContext(Dispatchers.Main) { hostKeyPrompt = prompt }
+                hostKeyChannel.receive()
+            }
+        }
+    }
+
     val bannedIps = remember {
         mutableStateListOf(
             BannedIpItem("194.26.29.112", "sshd", "10m ago"),
@@ -78,7 +97,7 @@ fun SecurityScreen(t: Str) {
         }
         val server = servers.getOrNull(selectedServerIndex) ?: return
         scope.launch {
-            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw status verbose 2>/dev/null || iptables -L -n -v | head -n 25", 15)
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw status verbose 2>/dev/null || iptables -L -n -v | head -n 25", 15, hostKeyPolicy = sshPolicy)
             firewallOutput = res.stdout.ifBlank { res.stderr }
         }
     }
@@ -95,7 +114,7 @@ fun SecurityScreen(t: Str) {
             // Port is strictly validated (digits only); the rule argument is
             // additionally shell-quoted as defense in depth.
             val rule = SecurityValidation.shellQuote("${port}/tcp")
-            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw allow $rule && ufw reload", 15)
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "ufw allow $rule && ufw reload", 15, hostKeyPolicy = sshPolicy)
             if (res.isSuccess) {
                 Toast.makeText(ctx, "پورت $port با موفقیت باز شد!", Toast.LENGTH_SHORT).show()
             } else {
@@ -116,7 +135,7 @@ fun SecurityScreen(t: Str) {
         scope.launch {
             val jail = SecurityValidation.shellQuote(item.jail)
             val ip = SecurityValidation.shellQuote(item.ip)
-            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client set $jail unbanip $ip", 15)
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, "fail2ban-client set $jail unbanip $ip", 15, hostKeyPolicy = sshPolicy)
             if (res.isSuccess) {
                 bannedIps.remove(item)
                 Toast.makeText(ctx, "آدرس ${item.ip} آن‌بلاک شد", Toast.LENGTH_SHORT).show()
@@ -273,5 +292,15 @@ fun SecurityScreen(t: Str) {
         }
 
         item { Spacer(Modifier.height(90.dp)) }
+    }
+
+    hostKeyPrompt?.let { prompt ->
+        HostKeyTrustDialog(
+            prompt = prompt,
+            onDecision = { approved ->
+                hostKeyPrompt = null
+                hostKeyChannel.trySend(approved)
+            }
+        )
     }
 }

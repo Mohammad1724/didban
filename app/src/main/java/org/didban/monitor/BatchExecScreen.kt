@@ -54,7 +54,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @Composable
 fun BatchExecScreen(t: Str) {
@@ -69,6 +74,19 @@ fun BatchExecScreen(t: Str) {
     var batchCommand by remember { mutableStateOf("apt update -y") }
     var isExecuting by remember { mutableStateOf(false) }
     var batchResults by remember { mutableStateOf<List<BatchServerResult>>(emptyList()) }
+
+    // ── SSH host-key trust (TOFU): one prompt per new server, serialized.
+    var hostKeyPrompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
+    val hostKeyChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
+    val hostKeyGate = remember { Mutex() }
+    val sshPolicy = remember {
+        ConfirmingHostKeyPolicy(HostKeyTrustStore) { prompt ->
+            hostKeyGate.withLock {
+                withContext(Dispatchers.Main) { hostKeyPrompt = prompt }
+                hostKeyChannel.receive()
+            }
+        }
+    }
     val expandedCards = remember { mutableStateListOf<Long>() }
 
     val batchPresets = remember {
@@ -98,7 +116,7 @@ fun BatchExecScreen(t: Str) {
         isExecuting = true
         scope.launch {
             val targets = selected.map { Triple(it, port, sshPassword) }
-            val results = SshEngine.executeBatch(targets, batchCommand, timeoutSec = 35)
+            val results = SshEngine.executeBatch(targets, batchCommand, timeoutSec = 35, hostKeyPolicy = sshPolicy)
             batchResults = results
             isExecuting = false
             Toast.makeText(ctx, "اجرای همزمان روی ${results.size} سرور به پایان رسید", Toast.LENGTH_SHORT).show()
@@ -376,5 +394,15 @@ fun BatchExecScreen(t: Str) {
         }
 
         item { Spacer(Modifier.height(90.dp)) }
+    }
+
+    hostKeyPrompt?.let { prompt ->
+        HostKeyTrustDialog(
+            prompt = prompt,
+            onDecision = { approved ->
+                hostKeyPrompt = null
+                hostKeyChannel.trySend(approved)
+            }
+        )
     }
 }

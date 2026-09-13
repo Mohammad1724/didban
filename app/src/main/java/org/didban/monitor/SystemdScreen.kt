@@ -54,7 +54,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class SystemdServiceItem(
     val unitName: String,
@@ -73,6 +78,20 @@ fun SystemdScreen(t: Str) {
     var sshPassword by remember { mutableStateOf("") }
     var logOutput by remember { mutableStateOf("") }
     var isActionInProgress by remember { mutableStateOf(false) }
+
+    // ── SSH host-key trust (TOFU): prompts are serialized so concurrent
+    // connections can never show two dialogs at once.
+    var hostKeyPrompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
+    val hostKeyChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
+    val hostKeyGate = remember { Mutex() }
+    val sshPolicy = remember {
+        ConfirmingHostKeyPolicy(HostKeyTrustStore) { prompt ->
+            hostKeyGate.withLock {
+                withContext(Dispatchers.Main) { hostKeyPrompt = prompt }
+                hostKeyChannel.receive()
+            }
+        }
+    }
 
     val services = remember {
         mutableStateListOf(
@@ -102,7 +121,7 @@ fun SystemdScreen(t: Str) {
 
         isActionInProgress = true
         scope.launch {
-            val res = SshEngine.execute(server.host, 22, "root", sshPassword, cmd, 15)
+            val res = SshEngine.execute(server.host, 22, "root", sshPassword, cmd, 15, hostKeyPolicy = sshPolicy)
             isActionInProgress = false
             if (action == "logs") {
                 logOutput = res.stdout.ifBlank { res.stderr.ifBlank { "No logs found for $unit" } }
@@ -256,5 +275,15 @@ fun SystemdScreen(t: Str) {
         }
 
         item { Spacer(Modifier.height(90.dp)) }
+    }
+
+    hostKeyPrompt?.let { prompt ->
+        HostKeyTrustDialog(
+            prompt = prompt,
+            onDecision = { approved ->
+                hostKeyPrompt = null
+                hostKeyChannel.trySend(approved)
+            }
+        )
     }
 }

@@ -9,6 +9,7 @@ class DidbanApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         CryptoSecurity.ensureInitialized()
+        HostKeyTrustStore.init(this)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e("DidbanCrash", "Uncaught exception in thread: ${thread.name}", throwable)

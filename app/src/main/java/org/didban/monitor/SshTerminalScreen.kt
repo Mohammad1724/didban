@@ -49,7 +49,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 data class SshSnippet(
     val title: String,
@@ -78,6 +83,20 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
     var customCommand by remember { mutableStateOf("") }
     var terminalOutput by remember { mutableStateOf("Didban Secure SSH Terminal Ready.\nSelect a node, enter password, and run any command or preset.\n") }
     var isExecuting by remember { mutableStateOf(false) }
+
+    // ── SSH host-key trust (TOFU): prompts are serialized so concurrent
+    // connections can never show two dialogs at once.
+    var hostKeyPrompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
+    val hostKeyChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
+    val hostKeyGate = remember { Mutex() }
+    val sshPolicy = remember {
+        ConfirmingHostKeyPolicy(HostKeyTrustStore) { prompt ->
+            hostKeyGate.withLock {
+                withContext(Dispatchers.Main) { hostKeyPrompt = prompt }
+                hostKeyChannel.receive()
+            }
+        }
+    }
 
     val snippets = remember {
         listOf(
@@ -121,7 +140,8 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
                 user = sshUser.ifBlank { "root" },
                 password = sshPassword,
                 command = cmdToRun,
-                timeoutSec = 25
+                timeoutSec = 25,
+                hostKeyPolicy = sshPolicy
             )
             isExecuting = false
             val text = buildString {
@@ -403,5 +423,15 @@ fun SshTerminalScreen(t: Str, initialServerId: Long? = null) {
         }
 
         item { Spacer(Modifier.height(90.dp)) }
+    }
+
+    hostKeyPrompt?.let { prompt ->
+        HostKeyTrustDialog(
+            prompt = prompt,
+            onDecision = { approved ->
+                hostKeyPrompt = null
+                hostKeyChannel.trySend(approved)
+            }
+        )
     }
 }

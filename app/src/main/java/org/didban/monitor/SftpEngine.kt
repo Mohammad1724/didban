@@ -86,7 +86,13 @@ enum class SftpSortMode {
 
 object SftpEngine {
 
-    private fun createSession(host: String, port: Int, user: String, pass: String): com.jcraft.jsch.Session {
+    private suspend fun createSession(
+        host: String,
+        port: Int,
+        user: String,
+        pass: String,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+    ): com.jcraft.jsch.Session {
         CryptoSecurity.ensureInitialized()
         val jsch = JSch()
         val session = jsch.getSession(user.trim().ifBlank { "root" }, host.trim(), if (port > 0) port else 22)
@@ -146,6 +152,14 @@ object SftpEngine {
         session.setConfig("CheckCiphers", "chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com")
 
         session.connect(TimeUnit.SECONDS.toMillis(15).toInt())
+
+        // TOFU: verify the host key before any SFTP operation.
+        val portForTrust = if (port > 0) port else 22
+        val hostKeyError = verifySessionHostKey(session, host, portForTrust, hostKeyPolicy)
+        if (hostKeyError != null) {
+            session.disconnect()
+            throw Exception(hostKeyError)
+        }
         return session
     }
 
