@@ -1633,7 +1633,7 @@ fun VaultScreen(t: Str) {
 @Composable
 fun DevLabScreen(t: Str) {
     var subTab by remember { mutableStateOf(0) }
-    val pagerState = rememberPagerState(initialPage = 0) { 9 }
+    val pagerState = rememberPagerState(initialPage = 0) { 10 }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(pagerState.currentPage) { subTab = pagerState.currentPage }
@@ -1641,6 +1641,7 @@ fun DevLabScreen(t: Str) {
     val tabTitles = listOf(
         "SSH Terminal",
         "Fleet Batch",
+        "Single Port",
         "SFTP Explorer",
         "Proxy & Sub",
         "Bandwidth",
@@ -1680,13 +1681,14 @@ fun DevLabScreen(t: Str) {
             when (page) {
                 0 -> SshTerminalScreen(t)
                 1 -> BatchExecScreen(t)
-                2 -> SftpScreen(t)
-                3 -> ProxyTesterScreen(t)
-                4 -> BandwidthBenchmarkScreen(t)
-                5 -> SystemdScreen(t)
-                6 -> SecurityScreen(t)
-                7 -> JsonTab(t)
-                8 -> SubnetTab(t)
+                2 -> SinglePortScreen(t)
+                3 -> SftpScreen(t)
+                4 -> ProxyTesterScreen(t)
+                5 -> BandwidthBenchmarkScreen(t)
+                6 -> SystemdScreen(t)
+                7 -> SecurityScreen(t)
+                8 -> JsonTab(t)
+                9 -> SubnetTab(t)
             }
         }
     }
