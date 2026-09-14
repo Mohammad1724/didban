@@ -1,0 +1,277 @@
+package org.didban.monitor
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+
+private data class CommandProbePoint(
+    val name: String,
+    val mode: String,
+    val host: String,
+    val port: Int,
+    val state: String,
+    val observed: Boolean,
+    val latencyMs: Long,
+    val detail: String,
+    val source: String
+)
+
+private fun parseProbePoints(payload: JSONObject): List<CommandProbePoint> {
+    val source = payload.optString("hostname", "Agent")
+    val points = payload.optJSONArray("points") ?: JSONArray()
+    return buildList {
+        for (index in 0 until points.length()) {
+            val point = points.optJSONObject(index) ?: continue
+            val target = point.optJSONObject("target") ?: JSONObject()
+            val last = point.optJSONObject("last") ?: JSONObject()
+            add(
+                CommandProbePoint(
+                    name = target.optString("name"),
+                    mode = target.optString("mode"),
+                    host = target.optString("host"),
+                    port = target.optInt("port"),
+                    state = point.optString("state"),
+                    observed = point.optBoolean("observed", false),
+                    latencyMs = last.optLong("latency_ms", -1L),
+                    detail = last.optString("detail"),
+                    source = source
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun CommandRadarScreen(
+    copy: CommandCopy,
+    server: ServerConfig?,
+    onSelectServer: () -> Unit,
+    onBack: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var points by remember(server?.id) { mutableStateOf<List<CommandProbePoint>>(emptyList()) }
+    var loading by remember(server?.id) { mutableStateOf(false) }
+    var error by remember(server?.id) { mutableStateOf<String?>(null) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var targetName by remember { mutableStateOf("") }
+    var targetHost by remember { mutableStateOf("") }
+    var targetPort by remember { mutableStateOf("443") }
+    var targetMode by remember { mutableStateOf("tcp") }
+
+    fun load() {
+        val target = server ?: return
+        loading = true
+        error = null
+        scope.launch {
+            runCatching { ApiClient().probeStatus(target) }
+                .onSuccess { payload -> points = parseProbePoints(payload) }
+                .onFailure { error = it.message ?: copy.operationFailed }
+            loading = false
+        }
+    }
+
+    fun syncTarget() {
+        val target = server ?: return
+        val name = targetName.trim()
+        val host = targetHost.trim()
+        val port = targetPort.toIntOrNull()
+        if (name.isEmpty() || host.isEmpty() || port == null) {
+            error = "${copy.target}: ${copy.host} و ${copy.port}"
+            return
+        }
+        scope.launch {
+            loading = true
+            runCatching {
+                val targets = JSONArray()
+                points.forEach { point ->
+                    targets.put(JSONObject().apply {
+                        put("name", point.name)
+                        put("mode", point.mode)
+                        put("host", point.host)
+                        put("port", point.port)
+                    })
+                }
+                targets.put(JSONObject().apply {
+                    put("name", name)
+                    put("mode", targetMode.lowercase())
+                    put("host", host)
+                    put("port", port)
+                })
+                ApiClient().probeTargetsSync(target, JSONObject().put("targets", targets))
+            }.onSuccess {
+                message = copy.operationDone
+                targetName = ""
+                targetHost = ""
+                load()
+            }.onFailure { error = it.message ?: copy.operationFailed }
+            loading = false
+        }
+    }
+
+    fun runProbe(name: String) {
+        val target = server ?: return
+        scope.launch {
+            loading = true
+            runCatching { ApiClient().probeNow(target, name) }
+                .onSuccess { message = copy.operationDone; load() }
+                .onFailure { error = it.message ?: copy.operationFailed }
+            loading = false
+        }
+    }
+
+    LaunchedEffect(server?.id) { load() }
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                CommandBackButton(copy.back, onBack)
+                CommandSectionTitle(copy.radar, server?.name ?: copy.noServerSelected, copy.refresh, ::load, Modifier.weight(1f))
+            }
+        }
+        if (server == null) {
+            item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
+        } else {
+            item {
+                CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        Text(copy.target, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(targetName, { targetName = it }, label = { Text(copy.target) }, modifier = Modifier.weight(1f), singleLine = true)
+                            OutlinedTextField(targetMode, { targetMode = it }, label = { Text(copy.mode) }, modifier = Modifier.width(110.dp), singleLine = true)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, modifier = Modifier.weight(1f), singleLine = true)
+                            OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = Modifier.width(110.dp), singleLine = true)
+                        }
+                        CommandPrimaryButton(copy.addTarget, ::syncTarget, enabled = !loading)
+                    }
+                }
+            }
+            if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, ::load) }
+            if (message != null) item { Text(message ?: "", color = CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+            item { CommandSectionTitle(copy.sources, "${points.size}") }
+            if (loading && points.isEmpty()) {
+                item { CommandStateBlock(copy.waitingForData, copy.waitingForData, CommandHealthTone.UNKNOWN) }
+            } else if (points.isEmpty()) {
+                item { CommandEmptyState(copy.sources, copy.noAttentionBody) }
+            } else {
+                items(points, key = { "${it.source}:${it.name}" }) { point ->
+                    val tone = when {
+                        !point.observed -> CommandHealthTone.UNKNOWN
+                        point.state == "up" -> CommandHealthTone.HEALTHY
+                        point.state == "down" -> CommandHealthTone.OFFLINE
+                        else -> CommandHealthTone.UNKNOWN
+                    }
+                    CommandSurface(Modifier.fillMaxWidth().clickable { runProbe(point.name) }) {
+                        Column(Modifier.padding(CommandSpacing.md)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CommandStatusMark(point.state.ifBlank { copy.waitingForData }, tone, Modifier.weight(1f), point.source)
+                                Text(copy.runProbe, color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+                            }
+                            Spacer(Modifier.height(CommandSpacing.xs))
+                            Text("${point.mode} ${point.host}:${point.port}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                            if (point.observed) Text("${point.latencyMs} ms · ${point.detail}", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                        }
+                    }
+                }
+            }
+        }
+        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+}
+
+@Composable
+fun CommandUptimeScreen(
+    copy: CommandCopy,
+    onOpenLegacyEditor: () -> Unit
+) {
+    val context = LocalContext.current
+    val targets by UptimeEngine.liveTargets.collectAsState()
+    UptimeEngine.ensureLoaded(context)
+    val scope = rememberCoroutineScope()
+    var testingId by remember { mutableStateOf<Long?>(null) }
+    var result by remember { mutableStateOf<String?>(null) }
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
+        item {
+            CommandSectionTitle(copy.uptime, copy.incidentsFromLiveState, copy.refresh, { UptimeEngine.ensureLoaded(context) }, Modifier.padding(top = CommandSpacing.sm))
+        }
+        item {
+            CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md)) {
+                    Text(copy.uptime, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Spacer(Modifier.height(CommandSpacing.xs))
+                    Text("${targets.count { it.lastStatus == 1 }} ${copy.healthy} · ${targets.count { it.lastStatus == 0 }} ${copy.offline}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(CommandSpacing.sm))
+                    CommandSecondaryButton(copy.addMonitor, onOpenLegacyEditor)
+                }
+            }
+        }
+        if (targets.isEmpty()) {
+            item { CommandEmptyState(copy.uptime, copy.noServersBody, copy.addMonitor, onOpenLegacyEditor) }
+        } else {
+            items(targets, key = { it.id }) { target ->
+                CommandSurface(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CommandStatusMark(
+                                when (target.lastStatus) { 1 -> copy.healthy; 0 -> copy.offline; else -> copy.waitingForData },
+                                when (target.lastStatus) { 1 -> CommandHealthTone.HEALTHY; 0 -> CommandHealthTone.OFFLINE; else -> CommandHealthTone.UNKNOWN },
+                                Modifier.weight(1f),
+                                target.name
+                            )
+                            CommandTextButton(copy.test, {
+                                testingId = target.id
+                                scope.launch {
+                                    runCatching { UptimeEngine.checkNow(context, target) }
+                                        .onSuccess { result = copy.operationDone }
+                                        .onFailure { result = "${copy.operationFailed}: ${it.message}" }
+                                    testingId = null
+                                }
+                            }, Icons.Rounded.PlayArrow)
+                        }
+                        Spacer(Modifier.height(CommandSpacing.xs))
+                        Text("${target.type} · ${target.target}:${target.port}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                        Text("${target.uptimePct.toInt()}% · ${target.lastLatencyMs} ms · ${target.intervalSec}s", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                        if (testingId == target.id) CircularLoadingLine()
+                    }
+                }
+            }
+        }
+        if (result != null) item { Text(result ?: "", color = CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+}
+
+@Composable
+private fun CircularLoadingLine() {
+    Text("…", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+}

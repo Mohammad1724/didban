@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.OutlinedTextField
@@ -589,4 +588,3 @@ fun CommandSettingsScreen(
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 }
-EOF

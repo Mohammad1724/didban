@@ -254,6 +254,8 @@ data class CommandCopy(
     val refreshing: String,
     val refresh: String,
     val addServer: String,
+    val addTunnel: String,
+    val addMonitor: String,
     val attention: String,
     val healthy: String,
     val offline: String,
@@ -299,7 +301,22 @@ data class CommandCopy(
     val capabilities: String,
     val notAvailable: String,
     val retry: String,
-    val dataIsStale: String
+    val dataIsStale: String,
+    val start: String,
+    val stop: String,
+    val restart: String,
+    val test: String,
+    val edit: String,
+    val run: String,
+    val operationDone: String,
+    val operationFailed: String,
+    val target: String,
+    val host: String,
+    val port: String,
+    val mode: String,
+    val addTarget: String,
+    val sources: String,
+    val runProbe: String
 ) {
     companion object {
         val fa = CommandCopy(
@@ -337,6 +354,8 @@ data class CommandCopy(
             refreshing = "در حال تازه‌سازی",
             refresh = "تازه‌سازی",
             addServer = "افزودن سرور",
+            addTunnel = "افزودن تونل",
+            addMonitor = "افزودن Monitor",
             attention = "نیازمند توجه",
             healthy = "سالم",
             offline = "آفلاین",
@@ -382,7 +401,22 @@ data class CommandCopy(
             capabilities = "قابلیت‌ها",
             notAvailable = "در Agent فعلی در دسترس نیست",
             retry = "تلاش دوباره",
-            dataIsStale = "داده قدیمی است"
+            dataIsStale = "داده قدیمی است",
+            start = "شروع",
+            stop = "توقف",
+            restart = "راه‌اندازی مجدد",
+            test = "آزمون",
+            edit = "ویرایش",
+            run = "اجرا",
+            operationDone = "عملیات با موفقیت انجام شد",
+            operationFailed = "عملیات ناموفق بود",
+            target = "هدف",
+            host = "Host",
+            port = "Port",
+            mode = "Mode",
+            addTarget = "افزودن هدف",
+            sources = "منابع Probe",
+            runProbe = "اجرای Probe"
         )
 
         val en = fa.copy(
@@ -416,6 +450,8 @@ data class CommandCopy(
             refreshing = "Refreshing",
             refresh = "Refresh",
             addServer = "Add server",
+            addTunnel = "Add tunnel",
+            addMonitor = "Add monitor",
             attention = "Needs attention",
             healthy = "Healthy",
             offline = "Offline",
@@ -460,10 +496,24 @@ data class CommandCopy(
             capabilities = "Capabilities",
             notAvailable = "Not available from this Agent",
             retry = "Retry",
-            dataIsStale = "Data is stale"
+            dataIsStale = "Data is stale",
+            start = "Start",
+            stop = "Stop",
+            restart = "Restart",
+            test = "Test",
+            edit = "Edit",
+            run = "Run",
+            operationDone = "Operation completed",
+            operationFailed = "Operation failed",
+            target = "Target",
+            host = "Host",
+            port = "Port",
+            mode = "Mode",
+            addTarget = "Add target",
+            sources = "Probe sources",
+            runProbe = "Run probe"
         )
 
         fun forLanguage(language: String): CommandCopy = if (language == "fa") fa else en
     }
 }
-EOF

@@ -94,15 +94,18 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     MANAGE_SERVERS("manage-servers", CommandWorkspace.FLEET),
 
     TUNNELS("tunnels", CommandWorkspace.OPERATE),
+    TUNNELS_EDITOR("tunnels-editor", CommandWorkspace.OPERATE),
     DOCKER("docker", CommandWorkspace.OPERATE),
     PROCESSES("processes", CommandWorkspace.OPERATE),
     SERVICES("services", CommandWorkspace.OPERATE),
 
     RADAR("radar", CommandWorkspace.DIAGNOSE),
     UPTIME("uptime", CommandWorkspace.DIAGNOSE),
+    UPTIME_EDITOR("uptime-editor", CommandWorkspace.DIAGNOSE),
     NETWORK_TOOLS("network-tools", CommandWorkspace.DIAGNOSE),
     DNS("dns", CommandWorkspace.DIAGNOSE),
 
+    WORKBENCH_HOME("workbench-home", CommandWorkspace.WORKBENCH),
     SSH("ssh", CommandWorkspace.WORKBENCH),
     BATCH("batch", CommandWorkspace.WORKBENCH),
     SFTP("sftp", CommandWorkspace.WORKBENCH),
@@ -110,6 +113,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     PROXY("proxy", CommandWorkspace.WORKBENCH),
     DEVELOPER_LAB("developer-lab", CommandWorkspace.WORKBENCH),
 
+    PROTECT_HOME("protect-home", CommandWorkspace.PROTECT),
     VAULT("vault", CommandWorkspace.PROTECT),
     ALERTS("alerts", CommandWorkspace.PROTECT),
     BACKUP("backup", CommandWorkspace.PROTECT),
@@ -138,26 +142,28 @@ private fun CommandWorkspace.icon(): ImageVector = when (this) {
     CommandWorkspace.PROTECT -> Icons.Rounded.Security
 }
 
-private fun CommandRoute.label(copy: CommandCopy): String = when (this) {
+fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.OVERVIEW -> copy.overview
     CommandRoute.INCIDENTS -> copy.incidents
     CommandRoute.FLEET -> copy.servers
     CommandRoute.SERVER_DOSSIER -> copy.serverDossier
     CommandRoute.MANAGE_SERVERS -> copy.manageServers
-    CommandRoute.TUNNELS -> copy.tunnels
+    CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR -> copy.tunnels
     CommandRoute.DOCKER -> copy.docker
     CommandRoute.PROCESSES -> copy.processes
     CommandRoute.SERVICES -> copy.services
     CommandRoute.RADAR -> copy.radar
-    CommandRoute.UPTIME -> copy.uptime
+    CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> copy.uptime
     CommandRoute.NETWORK_TOOLS -> copy.networkTools
     CommandRoute.DNS -> copy.dns
+    CommandRoute.WORKBENCH_HOME -> copy.workbench
     CommandRoute.SSH -> copy.ssh
     CommandRoute.BATCH -> copy.batch
     CommandRoute.SFTP -> copy.sftp
     CommandRoute.SINGLE_PORT -> copy.singlePort
     CommandRoute.PROXY -> copy.proxy
     CommandRoute.DEVELOPER_LAB -> copy.developerLab
+    CommandRoute.PROTECT_HOME -> copy.protect
     CommandRoute.VAULT -> copy.vault
     CommandRoute.ALERTS -> copy.alerts
     CommandRoute.BACKUP -> copy.backup
@@ -170,20 +176,22 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.FLEET -> Icons.Rounded.Groups
     CommandRoute.SERVER_DOSSIER -> Icons.Rounded.Storage
     CommandRoute.MANAGE_SERVERS -> Icons.Rounded.Settings
-    CommandRoute.TUNNELS -> Icons.Rounded.Hub
+    CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR -> Icons.Rounded.Hub
     CommandRoute.DOCKER -> Icons.Rounded.Widgets
     CommandRoute.PROCESSES -> Icons.Rounded.ListAlt
     CommandRoute.SERVICES -> Icons.Rounded.Tune
     CommandRoute.RADAR -> Icons.Rounded.Public
-    CommandRoute.UPTIME -> Icons.Rounded.MonitorHeart
+    CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> Icons.Rounded.MonitorHeart
     CommandRoute.NETWORK_TOOLS -> Icons.Rounded.NetworkCheck
     CommandRoute.DNS -> Icons.Rounded.Dns
+    CommandRoute.WORKBENCH_HOME -> Icons.Rounded.Terminal
     CommandRoute.SSH -> Icons.Rounded.Terminal
     CommandRoute.BATCH -> Icons.Rounded.Groups
     CommandRoute.SFTP -> Icons.Rounded.Folder
     CommandRoute.SINGLE_PORT -> Icons.Rounded.Router
     CommandRoute.PROXY -> Icons.Rounded.Public
     CommandRoute.DEVELOPER_LAB -> Icons.Rounded.Code
+    CommandRoute.PROTECT_HOME -> Icons.Rounded.Security
     CommandRoute.VAULT -> Icons.Rounded.Security
     CommandRoute.ALERTS -> Icons.Rounded.NotificationsNone
     CommandRoute.BACKUP -> Icons.Rounded.Storage
@@ -191,7 +199,7 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
 }
 
 private fun routesFor(workspace: CommandWorkspace): List<CommandRoute> =
-    CommandRoute.values().filter { it.workspace == workspace }
+    CommandRoute.values().filter { it.workspace == workspace && it != CommandRoute.TUNNELS_EDITOR && it != CommandRoute.UPTIME_EDITOR }
 
 @Composable
 fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
@@ -367,8 +375,8 @@ private fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (
     CommandWorkspace.FLEET -> CommandRoute.FLEET
     CommandWorkspace.OPERATE -> CommandRoute.TUNNELS
     CommandWorkspace.DIAGNOSE -> CommandRoute.RADAR
-    CommandWorkspace.WORKBENCH -> CommandRoute.SSH
-    CommandWorkspace.PROTECT -> CommandRoute.VAULT
+    CommandWorkspace.WORKBENCH -> CommandRoute.WORKBENCH_HOME
+    CommandWorkspace.PROTECT -> CommandRoute.PROTECT_HOME
 }
 
 @Composable
@@ -423,9 +431,9 @@ private fun CommandRail(
                             .padding(start = CommandSpacing.xl, end = CommandSpacing.sm, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(destination.icon(), contentDescription = destination.label(copy), tint = if (selected) CommandColors.accent else CommandColors.textTertiary, modifier = Modifier.size(16.dp))
+                        Icon(destination.icon(), contentDescription = destination.commandLabel(copy), tint = if (selected) CommandColors.accent else CommandColors.textTertiary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(CommandSpacing.xs))
-                        Text(destination.label(copy), color = if (selected) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(destination.commandLabel(copy), color = if (selected) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -451,7 +459,7 @@ private fun CommandMobileHeader(
     ) {
         CommandIconButton(Icons.Rounded.Menu, if (navigationOpen) copy.close else copy.observe, onToggleNavigation)
         Column(Modifier.weight(1f)) {
-            Text(route.label(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
@@ -482,9 +490,9 @@ private fun CommandMobileNavigation(
                         .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(destination.icon(), contentDescription = destination.label(copy), tint = if (route == destination) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(19.dp))
+                    Icon(destination.icon(), contentDescription = destination.commandLabel(copy), tint = if (route == destination) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(19.dp))
                     Spacer(Modifier.width(CommandSpacing.sm))
-                    Text(destination.label(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                    Text(destination.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
                 }
             }
             Spacer(Modifier.height(CommandSpacing.xs))
@@ -510,7 +518,7 @@ private fun CommandScopeBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(copy.scopeLabel(route, copy), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+            Text(copy.scopeLabel(route), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
             Box {
                 Row(
                     Modifier
@@ -542,13 +550,13 @@ private fun CommandScopeBar(
     }
 }
 
-private fun CommandCopy.scopeLabel(route: CommandRoute, copy: CommandCopy): String = when (route.workspace) {
-    CommandWorkspace.OBSERVE -> copy.observe
-    CommandWorkspace.FLEET -> copy.fleet
-    CommandWorkspace.OPERATE -> copy.operate
-    CommandWorkspace.DIAGNOSE -> copy.diagnose
-    CommandWorkspace.WORKBENCH -> copy.workbench
-    CommandWorkspace.PROTECT -> copy.protect
+private fun CommandCopy.scopeLabel(route: CommandRoute): String = when (route.workspace) {
+    CommandWorkspace.OBSERVE -> observe
+    CommandWorkspace.FLEET -> fleet
+    CommandWorkspace.OPERATE -> operate
+    CommandWorkspace.DIAGNOSE -> diagnose
+    CommandWorkspace.WORKBENCH -> workbench
+    CommandWorkspace.PROTECT -> protect
 }
 
 @Composable
@@ -571,6 +579,13 @@ private fun CommandRouteContent(
         CommandRoute.INCIDENTS -> CommandIncidentsScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onRefresh)
         CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh)
         CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, { onNavigate(CommandRoute.FLEET, null) }, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) })
+        CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) }
+        CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
+        CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
+        CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
+        CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
+        CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
+        CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
         else -> CommandLegacySurface(
             route = route,
@@ -610,7 +625,7 @@ private fun CommandLegacySurface(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CommandBackButton(copy.back) { onNavigate(workspaceDefault(route.workspace), null) }
                     Spacer(Modifier.width(CommandSpacing.sm))
-                    Text(route.label(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                    Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                 }
                 Spacer(Modifier.height(CommandSpacing.xs))
                 Text(copy.legacyBridgeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -626,8 +641,8 @@ private fun CommandLegacySurface(
                         onLanguage = onLanguageChange,
                         onOpen = { server -> onNavigate(CommandRoute.SERVER_DOSSIER, server) }
                     )
-                    CommandRoute.TUNNELS -> AeroTunnelFleetScreen(legacyStrings, Prefs.loadTunnels(context), onRefresh = {})
-                    CommandRoute.UPTIME -> UptimeScreen(legacyStrings)
+                    CommandRoute.TUNNELS_EDITOR -> AeroTunnelFleetScreen(legacyStrings, Prefs.loadTunnels(context), onRefresh = {})
+                    CommandRoute.UPTIME_EDITOR -> UptimeScreen(legacyStrings)
                     CommandRoute.NETWORK_TOOLS, CommandRoute.RADAR -> NetworkHubScreen(legacyStrings)
                     CommandRoute.DNS -> CloudflareScreen(legacyStrings)
                     CommandRoute.SSH -> SshTerminalScreen(legacyStrings, selectedServer?.id)
@@ -653,4 +668,3 @@ private fun CommandLegacySurface(
         }
     }
 }
-EOF

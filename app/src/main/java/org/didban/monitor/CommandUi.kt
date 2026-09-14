@@ -427,4 +427,3 @@ fun CommandSectionRule() {
     CommandRule()
     Spacer(Modifier.height(CommandSpacing.lg))
 }
-EOF
