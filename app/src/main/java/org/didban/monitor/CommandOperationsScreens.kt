@@ -55,7 +55,7 @@ fun CommandTunnelsScreen(
     copy: CommandCopy,
     reloadTick: Int,
     selectedServer: ServerConfig?,
-    onOpenLegacyEditor: () -> Unit,
+    onOpenEditor: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -107,12 +107,12 @@ fun CommandTunnelsScreen(
                     Spacer(Modifier.height(CommandSpacing.xs))
                     Text("ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     Spacer(Modifier.height(CommandSpacing.sm))
-                    CommandSecondaryButton(copy.addTunnel, onOpenLegacyEditor, icon = Icons.Rounded.Add)
+                    CommandSecondaryButton(copy.addTunnel, onOpenEditor, icon = Icons.Rounded.Add)
                 }
             }
         }
         if (tunnels.isEmpty()) {
-            item { CommandEmptyState(copy.tunnels, copy.noServersBody, copy.addTunnel, onOpenLegacyEditor) }
+            item { CommandEmptyState(copy.tunnels, copy.noServersBody, copy.addTunnel, onOpenEditor) }
         } else {
             items(tunnels, key = { it.id }) { tunnel ->
                 CommandSurface(
@@ -135,7 +135,7 @@ fun CommandTunnelsScreen(
         }
         if (selected != null) {
             item {
-                CommandTunnelDetail(copy, selected, selectedServer, busyId == selected.id, operationMessage, onOpenLegacyEditor, onAction = { action ->
+                CommandTunnelDetail(copy, selected, selectedServer, busyId == selected.id, operationMessage, onOpenEditor, onAction = { action ->
                     busyId = selected.id
                     operationMessage = null
                     scope.launch {
@@ -174,7 +174,7 @@ private fun CommandTunnelDetail(
     selectedServer: ServerConfig?,
     busy: Boolean,
     operationMessage: String?,
-    onOpenLegacyEditor: () -> Unit,
+    onOpenEditor: () -> Unit,
     onAction: (String) -> Unit
 ) {
     CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
@@ -192,7 +192,7 @@ private fun CommandTunnelDetail(
                 CommandSecondaryButton(copy.stop, { onAction("stop") }, icon = Icons.Rounded.Stop, enabled = !busy)
                 CommandSecondaryButton(copy.restart, { onAction("restart") }, icon = Icons.Rounded.Refresh, enabled = !busy)
             }
-            CommandTextButton(copy.edit, onOpenLegacyEditor)
+            CommandTextButton(copy.edit, onOpenEditor)
             if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = CommandColors.accent)
         }
     }

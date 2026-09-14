@@ -211,7 +211,7 @@ fun CommandRadarScreen(
 @Composable
 fun CommandUptimeScreen(
     copy: CommandCopy,
-    onOpenLegacyEditor: () -> Unit
+    onOpenEditor: () -> Unit
 ) {
     val context = LocalContext.current
     val targets by UptimeEngine.liveTargets.collectAsState()
@@ -231,12 +231,12 @@ fun CommandUptimeScreen(
                     Spacer(Modifier.height(CommandSpacing.xs))
                     Text("${targets.count { it.lastStatus == 1 }} ${copy.healthy} · ${targets.count { it.lastStatus == 0 }} ${copy.offline}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(CommandSpacing.sm))
-                    CommandSecondaryButton(copy.addMonitor, onOpenLegacyEditor)
+                    CommandSecondaryButton(copy.addMonitor, onOpenEditor)
                 }
             }
         }
         if (targets.isEmpty()) {
-            item { CommandEmptyState(copy.uptime, copy.noServersBody, copy.addMonitor, onOpenLegacyEditor) }
+            item { CommandEmptyState(copy.uptime, copy.noServersBody, copy.addMonitor, onOpenEditor) }
         } else {
             items(targets, key = { it.id }) { target ->
                 CommandSurface(Modifier.fillMaxWidth()) {

@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -516,75 +515,5 @@ private fun CommandDossierAction(label: String, copy: CommandCopy, onClick: () -
     ) {
         Text(label, Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
         Text("›", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
-    }
-}
-
-@Composable
-fun CommandSettingsLegacyScreen(
-    copy: CommandCopy,
-    themeMode: String,
-    language: String,
-    onThemeChange: (String) -> Unit,
-    onLanguageChange: (String) -> Unit
-) {
-    val context = LocalContext.current
-    var interval by remember { mutableStateOf((Prefs.getPollIntervalMs(context) / 1000L).toString()) }
-    var saved by remember { mutableStateOf(false) }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)
-    ) {
-        item {
-            CommandSectionTitle(copy.settings, copy.settings, modifier = Modifier.padding(top = CommandSpacing.sm))
-        }
-        item {
-            CommandSurface(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text(copy.language, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandSecondaryButton(copy.persian, { onLanguageChange("fa") }, enabled = language != "fa")
-                        CommandSecondaryButton(copy.english, { onLanguageChange("en") }, enabled = language != "en")
-                    }
-                }
-            }
-        }
-        item {
-            CommandSurface(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text(copy.theme, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandSecondaryButton(copy.light, { onThemeChange("light") }, enabled = themeMode != "light")
-                        CommandSecondaryButton(copy.dark, { onThemeChange("dark") }, enabled = themeMode != "dark")
-                        CommandSecondaryButton(copy.automatic, { onThemeChange("auto") }, enabled = themeMode != "auto")
-                    }
-                }
-            }
-        }
-        item {
-            CommandSurface(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text(copy.pollInterval, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(
-                        value = interval,
-                        onValueChange = { input -> interval = input.filter(Char::isDigit).take(4) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(copy.pollInterval) }
-                    )
-                    CommandPrimaryButton(
-                        text = if (saved) copy.saved else copy.save,
-                        onClick = {
-                            interval.toLongOrNull()?.coerceIn(5L, 3600L)?.let {
-                                Prefs.setPollIntervalSec(context, it)
-                                saved = true
-                            }
-                        },
-                        icon = Icons.Rounded.Settings
-                    )
-                }
-            }
-        }
-        item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 }

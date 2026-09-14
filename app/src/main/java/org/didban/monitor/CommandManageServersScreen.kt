@@ -135,6 +135,11 @@ fun CommandManageServersScreen(
     }
 
     fun test(server: ServerConfig) {
+        val validation = validate(server)
+        if (validation != null) {
+            error = validation
+            return
+        }
         busy = true
         error = null
         message = "در حال اتصال به Agent واقعی..."
