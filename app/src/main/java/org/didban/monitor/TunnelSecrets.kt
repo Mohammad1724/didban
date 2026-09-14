@@ -48,4 +48,37 @@ object TunnelSecrets {
         }
         return current
     }
+
+    /**
+     * Best-effort recovery of the REAL credential from a live process command
+     * line (auto-discovery, M17).
+     *
+     * Only a few cores put their token on the command line at all — Chisel
+     * does, on both sides: `chisel server ... --auth user:token` /
+     * `chisel client --auth user:token ...`. The agent truncates cmdlines to
+     * 100 chars, so extraction works when the flag fits; otherwise it simply
+     * returns null.
+     *
+     * Every other core returns null ON PURPOSE: their token lives in a config
+     * file the scanner cannot read, and the old code papered over that with
+     * the fake "auto-detected" placeholder, which ensureToken then treated as
+     * a real secret. A null result keeps the tunnel "token unknown" — the
+     * deploy gate blocks it until the user enters the actual token.
+     */
+    fun extractTokenFromCmd(core: TunnelCore, cmd: String): String? {
+        if (core != TunnelCore.CHISEL) return null
+        val idx = cmd.indexOf("--auth")
+        if (idx < 0) return null
+        val rest = cmd.substring(idx + "--auth".length).trimStart()
+        val fields = rest.split(Regex("\\s+"))
+        val value = fields.firstOrNull()?.trim('"', '\'') ?: return null
+        // The agent appends "…" when a cmdline exceeded its 100-char cap —
+        // if the auth value is the LAST token, its tail was cut and the
+        // "token" is a prefix, not the secret: refuse it.
+        if (fields.size <= 1 && rest.trimEnd().endsWith("…")) return null
+        // chisel auth format is user:token — chisel itself splits at the
+        // FIRST colon, so the password (token) is everything after it.
+        val token = if (value.contains(":")) value.substringAfter(":") else value
+        return if (token.isNotBlank() && token.length <= 256) token else null
+    }
 }

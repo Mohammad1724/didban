@@ -915,6 +915,23 @@ private fun TunnelBentoCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    if (tunnel.discovered) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Ds.surfaceElevated)
+                                .border(BorderStroke(1.dp, Ds.hairlineStrong), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                "کشف‌شده",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Ds.textSecondary
+                            )
+                        }
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1113,7 +1130,20 @@ private fun TunnelFormDialog(
     var foreignHost by remember { mutableStateOf(existing?.foreignHost ?: "") }
     var multiPorts by remember { mutableStateOf(existing?.multiPorts ?: "443:8443, 2096:2096") }
     var corePort by remember { mutableStateOf(existing?.corePort?.toString() ?: "3080") }
-    var token by remember { mutableStateOf(existing?.token ?: TunnelEngine.generateRandomToken(24)) }
+    // M17: a discovered tunnel owns no credential — do NOT prefill a fresh
+    // random token (that would silently convert "unknown" into "invented").
+    // It stays blank until the user enters the real one; the deploy gate
+    // blocks deploys until then.
+    var token by remember {
+        mutableStateOf(
+            when {
+                existing == null -> TunnelEngine.generateRandomToken(24)
+                existing.token.isNotBlank() -> existing.token
+                existing.discovered -> ""
+                else -> TunnelEngine.generateRandomToken(24)
+            }
+        )
+    }
     var preset by remember { mutableStateOf(existing?.preset ?: "turbo") }
     var kcpMode by remember { mutableStateOf(existing?.kcpMode ?: "fast") }
     var encryption by remember { mutableStateOf(existing?.encryption ?: "aes-128-gcm") }
@@ -1279,6 +1309,14 @@ private fun TunnelFormDialog(
                             label = "",
                             placeholder = "Encryption Key / Token"
                         )
+                        if (existing?.discovered == true && token.isBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "این تانل کشف‌شده است و توکن واقعی‌اش ناشناخته است — برای deploy، توکن واقعی را وارد کنید.",
+                                fontSize = 10.5.sp,
+                                color = Ds.warn
+                            )
+                        }
                     }
                 }
 

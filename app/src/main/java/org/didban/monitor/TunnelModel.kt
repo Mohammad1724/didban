@@ -60,6 +60,11 @@ data class TunnelConfig(
     var wsHost: String = "",
     var multiPorts: String = "", // e.g. "443:8443, 80:8080"
     var autoSync: Boolean = true, // Auto-deploy and configure on servers like Smite panel
+    // M17: true when this tunnel came from auto-discovery (process/docker
+    // scan) instead of manual creation. Discovered tunnels do NOT own a
+    // credential — their token stays blank until the user enters the real
+    // one, and the deploy gate refuses to mint/fabricate one.
+    var discovered: Boolean = false,
     var iranServerId: Long? = null,
     var foreignServerId: Long? = null,
     var syncStatusIran: String = "",
@@ -94,6 +99,7 @@ data class TunnelConfig(
         put("wsHost", wsHost)
         put("multiPorts", multiPorts)
         put("autoSync", autoSync)
+        put("discovered", discovered)
         iranServerId?.let { put("iranServerId", it) }
         foreignServerId?.let { put("foreignServerId", it) }
         put("syncStatusIran", syncStatusIran)
@@ -109,6 +115,13 @@ data class TunnelConfig(
             val coreStr = o.optString("core", TunnelCore.BACKPACK.name)
             val coreEnum = try { TunnelCore.valueOf(coreStr) } catch (_: Exception) { TunnelCore.BACKPACK }
 
+            // M17 migration: the old discovery path stored the literal
+            // "auto-detected" as a fake token. It is healed to a BLANK token
+            // (unknown) and the tunnel is marked discovered, so the deploy
+            // gate blocks it instead of silently deploying a wrong secret.
+            val rawToken = o.optString("token")
+            val wasPlaceholder = rawToken == "auto-detected"
+
             val transportStr = o.optString("transport", TunnelTransport.STEALTH.name)
             val transportEnum = try { TunnelTransport.valueOf(transportStr) } catch (_: Exception) { TunnelTransport.STEALTH }
 
@@ -122,7 +135,7 @@ data class TunnelConfig(
                 foreignHost = o.optString("foreignHost"),
                 foreignPort = o.optInt("foreignPort", 8443),
                 corePort = o.optInt("corePort", 3080),
-                token = o.optString("token"),
+                token = if (wasPlaceholder) "" else rawToken,
                 preset = o.optString("preset", "turbo"),
                 kcpMode = o.optString("kcpMode", "fast"),
                 encryption = o.optString("encryption", "aes-128-gcm"),
@@ -137,6 +150,7 @@ data class TunnelConfig(
                 wsHost = o.optString("wsHost"),
                 multiPorts = o.optString("multiPorts"),
                 autoSync = o.optBoolean("autoSync", true),
+                discovered = o.optBoolean("discovered") || wasPlaceholder,
                 iranServerId = if (o.has("iranServerId")) o.optLong("iranServerId") else null,
                 foreignServerId = if (o.has("foreignServerId")) o.optLong("foreignServerId") else null,
                 syncStatusIran = o.optString("syncStatusIran"),

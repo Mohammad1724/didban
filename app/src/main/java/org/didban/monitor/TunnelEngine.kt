@@ -104,6 +104,15 @@ object TunnelEngine {
         fun addHostError(value: String) {
             TunnelFieldValidation.checkHost(value, "Host")?.let { add(it) }
         }
+        // M17: a discovered tunnel does not own a credential. The old code
+        // stamped it with the literal "auto-detected", which ensureToken
+        // treated as a real token — deploys silently used a secret the live
+        // process does not know. Block generation/deploy until the user
+        // enters the actual token. GOST/IPTABLES run without a token.
+        val tokenlessCore = cfg.core == TunnelCore.GOST || cfg.core == TunnelCore.IPTABLES
+        if (cfg.discovered && !tokenlessCore && cfg.token.isBlank()) {
+            add("این تانل به‌صورت خودکار کشف شده و توکن واقعی آن ناشناخته است — قبل از deploy، توکن واقعی را از صفحه‌ی ویرایش تانل وارد کنید")
+        }
         when (cfg.core) {
             TunnelCore.IPTABLES -> {
                 // H19: the foreign host is the DNAT destination and is
@@ -1877,11 +1886,15 @@ services:
                                 iranPort = detectedPort,
                                 foreignPort = detectedPort,
                                 corePort = if (detectedPort != 443) detectedPort else 3080,
-                                token = "auto-detected",
+                                // M17: never fabricate a credential — recover the real
+                                // one when it is visible on the command line (Chisel),
+                                // otherwise the token stays blank (unknown).
+                                token = TunnelSecrets.extractTokenFromCmd(detectedCore, proc.cmd) ?: "",
                                 autoSync = false,
                                 isEnabled = true,
                                 lastStatus = 1,
                                 lastChecked = System.currentTimeMillis(),
+                                discovered = true,
                                 iranServerId = if (isIran) server.id else null,
                                 foreignServerId = if (!isIran) server.id else null
                             )
@@ -1934,11 +1947,14 @@ services:
                                 iranPort = port,
                                 foreignPort = port,
                                 corePort = port,
-                                token = "auto-detected",
+                                // M17: docker env vars are not exposed by the scanner,
+                                // so the token stays blank (unknown) — never a fake one.
+                                token = "",
                                 autoSync = false,
                                 isEnabled = true,
                                 lastStatus = 1,
                                 lastChecked = System.currentTimeMillis(),
+                                discovered = true,
                                 iranServerId = if (isIran) server.id else null,
                                 foreignServerId = if (!isIran) server.id else null
                             )
