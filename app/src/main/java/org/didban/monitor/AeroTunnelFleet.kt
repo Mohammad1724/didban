@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -181,13 +182,16 @@ fun AeroTunnelFleetScreen(
             val owners = servers.filter { srv ->
                 tunnels.any { it.iranServerId == srv.id || it.foreignServerId == srv.id }
             }
-            val wdByServer = owners.associateWith { srv ->
-                try {
-                    api.tunnelWatchdog(srv).let { TunnelEngine.parseWatchdog(it) }
-                } catch (_: Exception) {
-                    null
+            val wdByServer = owners.associateBy(
+                keySelector = { srv -> srv.id },
+                valueTransform = { srv ->
+                    try {
+                        api.tunnelWatchdog(srv).let { TunnelEngine.parseWatchdog(it) }
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
-            }
+            )
             val map = mutableMapOf<Long, String>()
             tunnels.forEach { tun ->
                 val states = listOfNotNull(tun.iranServerId, tun.foreignServerId)
@@ -1237,8 +1241,8 @@ private fun AeroGuideCard(
         // 3-F: motion-aware — instant under the system reduce-motion setting
         AnimatedVisibility(
             visible = isExpanded,
-            enter = fadeIn(aeroTween(300)) + expandVertically(aeroTween(300)),
-            exit = fadeOut(aeroTween(300)) + shrinkVertically(aeroTween(300))
+            enter = fadeIn(aeroTween(300)) + expandVertically(aeroTweenSpec<IntSize>(300)),
+            exit = fadeOut(aeroTween(300)) + shrinkVertically(aeroTweenSpec<IntSize>(300))
         ) {
             Column(
                 modifier = Modifier.padding(top = 10.dp),

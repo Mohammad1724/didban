@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Sensors
 import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Stop
@@ -229,7 +230,7 @@ fun AeroCockpitScreen(
                         Prefs.saveServers(ctx, list)
                     }
                 },
-                modifier = Modifier.padding(horizontal = 14.dp, bottom = 10.dp)
+                modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 10.dp)
             )
         }
 
@@ -268,7 +269,6 @@ fun AeroCockpitScreen(
         // ── Section pages ──
         HorizontalPager(
             state = pagerState,
-            offscreenLimit = 0,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {

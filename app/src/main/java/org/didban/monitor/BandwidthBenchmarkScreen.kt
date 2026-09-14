@@ -218,21 +218,7 @@ fun BandwidthBenchmarkScreen(t: Str) {
         }
     }
 
-    /** Streams [total] random bytes (repeated 64 KiB block) and reports progress. */
-    private class BenchmarkUploadBody(private val total: Long, private val onProgress: (Long) -> Unit) : RequestBody() {
-        private val block = ByteArray(64 * 1024).also { SecureRandom().nextBytes(it) }
-        override fun contentType() = "application/octet-stream".toMediaType()
-        override fun contentLength() = total
-        override fun write(to: BufferedSink) {
-            var written = 0L
-            while (written < total) {
-                val n = min(block.size.toLong(), total - written)
-                to.write(block, 0, n.toInt())
-                written += n
-                onProgress(written)
-            }
-        }
-    }
+
 
     LazyColumn(
         modifier = Modifier
@@ -418,5 +404,24 @@ fun BandwidthBenchmarkScreen(t: Str) {
         }
 
         item { Spacer(Modifier.height(90.dp)) }
+    }
+}
+
+/** Streams [total] random bytes (repeated 64 KiB block) and reports progress. */
+private class BenchmarkUploadBody(
+    private val total: Long,
+    private val onProgress: (Long) -> Unit
+) : RequestBody() {
+    private val block = ByteArray(64 * 1024).also { SecureRandom().nextBytes(it) }
+    override fun contentType() = "application/octet-stream".toMediaType()
+    override fun contentLength() = total
+    override fun writeTo(sink: BufferedSink) {
+        var written = 0L
+        while (written < total) {
+            val n = min(block.size.toLong(), total - written)
+            sink.write(block, 0, n.toInt())
+            written += n
+            onProgress(written)
+        }
     }
 }

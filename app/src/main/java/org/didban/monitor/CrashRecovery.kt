@@ -33,9 +33,12 @@ object CrashPolicy {
 
     /** Update the record when a crash occurs. [now] is the crash timestamp. */
     fun recordCrash(now: Long, prev: CrashRecord?): CrashRecord {
-        val consecutive =
-            prev != null && now - prev.lastCrashAt < CRASH_WINDOW_MS
-        return CrashRecord(now, if (consecutive) prev.consecutiveCount + 1 else 1)
+        val count = if (prev != null && now - prev.lastCrashAt < CRASH_WINDOW_MS) {
+            prev.consecutiveCount + 1
+        } else {
+            1
+        }
+        return CrashRecord(now, count)
     }
 
     /**

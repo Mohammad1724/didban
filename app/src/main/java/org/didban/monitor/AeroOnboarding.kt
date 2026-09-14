@@ -125,7 +125,7 @@ fun AeroOnboarding(
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 34.dp, bottom = 22.dp),
+                .padding(start = 34.dp, end = 34.dp, bottom = 22.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             SoftButton(text = t.onbSkip, onClick = onDone)

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -51,7 +50,7 @@ import androidx.compose.ui.unit.sp
 // ── Tunnel Form Dialog ──────────────────────────────────────────────────────
 
 @Composable
-private fun AeroTunnelFormDialog(
+fun AeroTunnelFormDialog(
     t: Str,
     existing: TunnelConfig?,
     onDismiss: () -> Unit,
@@ -490,7 +489,7 @@ private fun AeroTunnelFormDialog(
 // ── View Codes & Docker Dialog ──────────────────────────────────────────────
 
 @Composable
-private fun AeroViewTunnelCodeDialog(
+fun AeroViewTunnelCodeDialog(
     t: Str,
     tunnel: TunnelConfig,
     onDismiss: () -> Unit

@@ -2,6 +2,7 @@ package org.didban.monitor
 
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -38,13 +39,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -138,14 +139,16 @@ object AeroMotion {
 
 /** Respect the system "reduce motion" accessibility setting. */
 @Composable
-fun useReduceMotion(): Boolean = remember {
-    try {
-        val ctx = LocalContext.current.applicationContext
-        android.provider.Settings.Secure.getInt(
-            ctx.contentResolver, "accessibility_reduce_motion", 0
-        ) == 1
-    } catch (_: Throwable) {
-        false
+fun useReduceMotion(): Boolean {
+    val ctx = LocalContext.current.applicationContext
+    return remember {
+        try {
+            android.provider.Settings.Secure.getInt(
+                ctx.contentResolver, "accessibility_reduce_motion", 0
+            ) == 1
+        } catch (_: Throwable) {
+            false
+        }
     }
 }
 
@@ -155,7 +158,12 @@ fun useReduceMotion(): Boolean = remember {
  * `aeroTween(AeroMotion.xMs)` respects the setting without extra wiring.
  */
 @Composable
-fun aeroTween(ms: Int): FiniteAnimationSpec<Float> =
+fun aeroTween(ms: Int): FiniteAnimationSpec<Float> = aeroTweenSpec(ms)
+
+/** Type-parameterized variant: size-based transitions (expandVertically &
+ *  friends) need FiniteAnimationSpec<IntSize>, fade ones need <Float>. */
+@Composable
+fun <T> aeroTweenSpec(ms: Int): FiniteAnimationSpec<T> =
     if (useReduceMotion()) tween(0) else tween(ms)
 
 // ── Instrument band: one continuous cluster (NOT four cards) ───────────────
@@ -434,7 +442,9 @@ fun StaleBadge(ageLabel: String, modifier: Modifier = Modifier) {
 
 // ── Shared v3 list/surface helpers (used by cockpit, deck, fleet) ──────────
 
-/** v3 surface container: one surface + hairline (no shadow stacks). */
+/** v3 surface container: one surface + hairline (no shadow stacks).
+ *  @Composable because the [Ds] color accessors are composition-scoped. */
+@Composable
 fun Modifier.v3Surface(radius: Dp = AeroRadii.table): Modifier =
     this
         .clip(RoundedCornerShape(radius))
@@ -443,6 +453,7 @@ fun Modifier.v3Surface(radius: Dp = AeroRadii.table): Modifier =
 
 /** v3 surface for LISTS: applied to the LazyColumn itself so an unbounded
  *  list keeps one continuous surface + hairline while staying lazy. */
+@Composable
 fun Modifier.v3ListSurface(): Modifier = v3Surface()
 
 /** Dense list header row (v3 language; pairs of label to ltr). */

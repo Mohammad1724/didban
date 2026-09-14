@@ -25,14 +25,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudSync
 import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Dns
-import androidx.compose.material.icons.rounded.Moon
+import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
@@ -42,18 +42,19 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material.icons.rounded.Sunny
-import androidx.compose.material.icons.rounded.Tersearch
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.WbSunny
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -73,8 +74,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.hypot
@@ -178,6 +181,16 @@ fun AeroDeckHome(
         PollingCoordinator.requestNow(server.id)
     }
 
+    // H9: the deck page survives process death via the saveable state and is
+    // restored into a fresh PagerState; settled pages persist back.
+    var deckPage by rememberSaveable { mutableStateOf(0) }
+    val pagerState = rememberPagerState(
+        initialPage = deckPage.coerceIn(0, DECK_PAGES - 1)
+    ) { DECK_PAGES }
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.collect { deckPage = it }
+    }
+
     val paletteCommands = remember(servers, tunnels, t, reduceMotion) {
         val list = mutableListOf<PaletteCommand>()
         servers.forEach { s ->
@@ -223,7 +236,7 @@ fun AeroDeckHome(
         list += PaletteCommand(
             id = "theme",
             label = if (isDarkMode) "Light" else "Dark",
-            icon = if (isDarkMode) Icons.Rounded.Sunny else Icons.Rounded.Moon,
+            icon = if (isDarkMode) Icons.Rounded.WbSunny else Icons.Rounded.DarkMode,
             action = { onToggleTheme() }
         )
         list += PaletteCommand(
@@ -271,14 +284,6 @@ fun AeroDeckHome(
         list
     }
 
-    // H9: the deck page survives process death via the saveable state and is
-    // restored into a fresh PagerState; settled pages persist back.
-    var deckPage by rememberSaveable { mutableStateOf(0) }
-    val pagerState = remember { PagerState(initialPage = deckPage.coerceIn(0, DECK_PAGES - 1)) }
-    LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.collect { deckPage = it }
-    }
-
     // Back while off-page-0 returns to the map. This handler is registered
     // AFTER the shell's (it is composed deeper), so it wins while enabled;
     // deckBackEnabled is false under the manage overlay so the overlay's
@@ -294,7 +299,6 @@ fun AeroDeckHome(
     ) {
         HorizontalPager(
             state = pagerState,
-            offscreenLimit = 0, // only the current page is composed (parity with the old `when` nav)
             modifier = Modifier.fillMaxSize()
         ) { page ->
             when (page) {
@@ -406,7 +410,7 @@ private fun AeroHud(
         modifier = Modifier
             .statusBarsPadding()
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, top = 8.dp)
+            .padding(start = 14.dp, end = 14.dp, top = 8.dp)
             .clip(RoundedCornerShape(AeroRadii.hud))
             .background(Ds.surfaceElevated.copy(alpha = 0.92f))
             .border(1.dp, Ds.hairlineStrong, RoundedCornerShape(AeroRadii.hud))
@@ -434,9 +438,9 @@ private fun AeroHud(
         )
         Spacer(Modifier.weight(1f))
         HudIcon(Icons.Rounded.Dns, t.manageServers, onManage)
-        HudIcon(Icons.Rounded.Tersearch, t.paletteTitle, onOpenPalette)
+        HudIcon(Icons.Rounded.Search, t.paletteTitle, onOpenPalette)
         HudIcon(
-            if (isDarkMode) Icons.Rounded.Sunny else Icons.Rounded.Moon,
+            if (isDarkMode) Icons.Rounded.WbSunny else Icons.Rounded.DarkMode,
             if (isDarkMode) "Light" else "Dark",
             onToggleTheme
         )
@@ -506,6 +510,11 @@ private fun AeroMapPage(
             // node overlays (tap targets, labels) line up with the draw.
             .onSizeChanged { mapPx = it }
     ) {
+        // The canvas draws in absolute left-origin coordinates. Lock the
+        // overlay layer to LTR so tap targets, labels and the radial menu
+        // use the same absolute space in both locales (3-F: a `start`
+        // padding on the fa/RTL base mirrored the whole map).
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         AeroMapCanvas(graph = graph, reduceMotion = reduceMotion)
         if (mapPx != IntSize.Zero) {
             val density = LocalDensity.current.density
@@ -517,14 +526,13 @@ private fun AeroMapPage(
                 // 44dp tap target centered on the node.
                 // Tap → cockpit (layer 2). Long-press → radial quick actions
                 // (layer 3).
-                // 3-F: `left`, not `start` — these are absolute canvas
-                // coordinates (same space as the draw) and must NOT flip
-                // with layout direction; on the fa (RTL) base a `start`
-                // padding mirrored the whole map.
+                // 3-F: absolute canvas coordinates (same space as the draw) —
+                // `start` here is safe because the whole overlay layer is
+                // locked to LTR above, so it never flips with the locale.
                 Box(
                     modifier = Modifier
                         .padding(
-                            left = ((x - 22).dp).coerceAtLeast(0.dp),
+                            start = ((x - 22).dp).coerceAtLeast(0.dp),
                             top = ((y - 22).dp).coerceAtLeast(0.dp)
                         )
                         .size(44.dp)
@@ -536,10 +544,10 @@ private fun AeroMapPage(
                         }
                 )
                 // label + sub-label (clamped so edge nodes never produce
-                // negative padding). `left` — absolute canvas coordinate.
+                // negative padding). Absolute canvas coordinate (LTR-locked).
                 Column(
                     modifier = Modifier
-                        .padding(left = ((x - 70).dp).coerceAtLeast(0.dp), top = (y + 18).dp)
+                        .padding(start = ((x - 70).dp).coerceAtLeast(0.dp), top = (y + 18).dp)
                         .width(140.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -583,6 +591,7 @@ private fun AeroMapPage(
                 )
             }
         }
+        }
     }
 }
 
@@ -600,15 +609,15 @@ private fun AeroRadialMenu(
     // Satellites sit 54dp above the node on either side; the primary
     // (cockpit) action covers the node itself. Same coordinate convention
     // as the node tap targets (clamped so edge nodes stay on screen).
-    // 3-F: `left` everywhere — absolute canvas coordinates, direction-
-    // independent (a `start` padding mirrored the menu on fa/RTL).
+    // 3-F: absolute canvas coordinates, direction-independent — the parent
+    // map layer is locked to LTR, so `start` is a fixed left offset here.
     val satDy = 54f
 
     // left satellite: test alert
     Column(
         modifier = Modifier
             .padding(
-                left = ((x - 54f - 22f).dp).coerceAtLeast(0.dp),
+                start = ((x - 54f - 22f).dp).coerceAtLeast(0.dp),
                 top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -627,7 +636,7 @@ private fun AeroRadialMenu(
     Column(
         modifier = Modifier
             .padding(
-                left = ((x + 54f - 22f).dp).coerceAtLeast(0.dp),
+                start = ((x + 54f - 22f).dp).coerceAtLeast(0.dp),
                 top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -646,7 +655,7 @@ private fun AeroRadialMenu(
     Column(
         modifier = Modifier
             .padding(
-                left = ((x - 28f).dp).coerceAtLeast(0.dp),
+                start = ((x - 28f).dp).coerceAtLeast(0.dp),
                 top = ((y - 28f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -733,13 +742,24 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
         }
     }
 
+    // Ds.* accessors are composition-scoped; the DrawScope lambda below is
+    // NOT a composable context, so capture the needed colors up front.
+    val hairline = Ds.hairline
+    val okColor = Ds.ok
+    val warnColor = Ds.warn
+    val dangerColor = Ds.danger
+    val neutralColor = Ds.neutral
+    val accentColor = Ds.accent
+    val canvasColor = Ds.canvas
+    val textTertiary = Ds.textTertiary
+
     Canvas(modifier = Modifier.fillMaxSize()) {
-        drawMapGrid()
+        drawMapGrid(hairline.copy(alpha = 0.5f))
         val cx = size.width / 2f
         val cy = size.height / 2f
         val minDim = size.minDimension
-        drawOrbitalRing(Offset(cx, cy), minDim * 0.36f)
-        drawOrbitalRing(Offset(cx, cy), minDim * 0.56f)
+        drawOrbitalRing(Offset(cx, cy), minDim * 0.36f, hairline.copy(alpha = 0.8f))
+        drawOrbitalRing(Offset(cx, cy), minDim * 0.56f, hairline.copy(alpha = 0.8f))
 
         // arcs
         graph.arcs.forEach { arc ->
@@ -755,14 +775,14 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
             val ctrl = Offset(mid.x + (-dy / len) * bow, mid.y + (dx / len) * bow)
             val path = Path().apply {
                 moveTo(f.x, f.y)
-                quadTo(ctrl.x, ctrl.y, p.x, p.y)
+                quadraticBezierTo(ctrl.x, ctrl.y, p.x, p.y)
             }
             when (arc.state) {
                 MapArcState.ACTIVE -> {
-                    drawPath(path, Ds.hairline, style = Stroke(width = 2.4.dp.toPx()))
+                    drawPath(path, hairline, style = Stroke(width = 2.4.dp.toPx()))
                     drawPath(
                         path,
-                        Ds.ok,
+                        okColor,
                         style = Stroke(
                             width = 2.dp.toPx(),
                             cap = StrokeCap.Round,
@@ -776,7 +796,7 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
                 MapArcState.DOWN -> {
                     drawPath(
                         path,
-                        Ds.danger.copy(alpha = 0.55f),
+                        dangerColor.copy(alpha = 0.55f),
                         style = Stroke(
                             width = 1.6.dp.toPx(),
                             pathEffect = PathEffect.dashPathEffect(
@@ -788,7 +808,7 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
                 MapArcState.DORMANT -> {
                     drawPath(
                         path,
-                        Ds.neutral.copy(alpha = 0.3f),
+                        neutralColor.copy(alpha = 0.3f),
                         style = Stroke(width = 1.4.dp.toPx())
                     )
                 }
@@ -800,9 +820,9 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
             val c = Offset(node.fx * size.width, node.fy * size.height)
             val primary = index == 0
             val coreColor = when (node.status) {
-                MapNodeStatus.ONLINE -> if (primary) Ds.accent else Ds.ok
-                MapNodeStatus.WARN -> Ds.warn
-                MapNodeStatus.OFFLINE -> Ds.textTertiary
+                MapNodeStatus.ONLINE -> if (primary) accentColor else okColor
+                MapNodeStatus.WARN -> warnColor
+                MapNodeStatus.OFFLINE -> textTertiary
             }
             // radial halo
             val haloR = if (primary) 52.dp.toPx() else 34.dp.toPx()
@@ -818,7 +838,7 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
             // status ring (dashed when offline)
             val ringR = if (primary) 20.dp.toPx() else 12.dp.toPx()
             drawCircle(
-                color = if (node.status == MapNodeStatus.OFFLINE) Ds.textTertiary.copy(alpha = 0.7f) else coreColor,
+                color = if (node.status == MapNodeStatus.OFFLINE) textTertiary.copy(alpha = 0.7f) else coreColor,
                 radius = ringR,
                 center = c,
                 style = Stroke(
@@ -832,7 +852,7 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
             val coreR = if (primary) 11.dp.toPx() else 6.5.dp.toPx()
             drawCircle(color = coreColor, radius = coreR, center = c)
             drawCircle(
-                color = Ds.canvas,
+                color = canvasColor,
                 radius = (coreR - 2.6.dp.toPx()).coerceAtLeast(0f),
                 center = c
             )
@@ -841,23 +861,23 @@ private fun AeroMapCanvas(graph: MapGraph, reduceMotion: Boolean) {
     }
 }
 
-private fun DrawScope.drawMapGrid() {
+private fun DrawScope.drawMapGrid(dot: Color) {
     val step = 26.dp.toPx()
     val r = 1.1.dp.toPx()
     var y = step / 2f
     while (y < size.height) {
         var x = step / 2f
         while (x < size.width) {
-            drawCircle(color = Ds.hairline.copy(alpha = 0.5f), radius = r, center = Offset(x, y))
+            drawCircle(color = dot, radius = r, center = Offset(x, y))
             x += step
         }
         y += step
     }
 }
 
-private fun DrawScope.drawOrbitalRing(center: Offset, radius: Float) {
+private fun DrawScope.drawOrbitalRing(center: Offset, radius: Float, ring: Color) {
     drawCircle(
-        color = Ds.hairline.copy(alpha = 0.8f),
+        color = ring,
         radius = radius,
         center = center,
         style = Stroke(

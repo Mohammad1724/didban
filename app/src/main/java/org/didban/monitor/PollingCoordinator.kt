@@ -72,7 +72,7 @@ object PollingCoordinator {
         nextCheckAt[serverId] = 0L
     }
 
-    private fun tick() {
+    private suspend fun tick() {
         val ctx = contextRef ?: return
         // Preserve pre-H7 semantics: no background polling while the app is
         // backgrounded and the monitoring engine is off.
@@ -107,7 +107,7 @@ object PollingCoordinator {
         }
     }
 
-    private fun probe(ctx: Context, s: ServerConfig, pollMs: Long) {
+    private suspend fun probe(ctx: Context, s: ServerConfig, pollMs: Long) {
         val t0 = System.currentTimeMillis()
         val prevState = Repo.states.value[s.id]
         try {
