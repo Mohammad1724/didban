@@ -43,6 +43,15 @@ object Prefs {
             .edit().putString("theme_mode", mode).apply()
     }
 
+    /** Phase 3 (3-E): v3 onboarding shown once, on first launch. */
+    fun isOnboardingSeen(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("onboarding_seen_v3", false)
+
+    fun setOnboardingSeen(ctx: Context) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("onboarding_seen_v3", true).apply()
+    }
+
     fun getPollIntervalMs(ctx: Context): Long {
         val sec = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .getString("poll_sec", "30")?.toLongOrNull() ?: 30L

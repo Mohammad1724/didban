@@ -37,7 +37,10 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Sunny
 import androidx.compose.material.icons.rounded.Tersearch
@@ -235,6 +238,31 @@ fun AeroDeckHome(
             hint = "${servers.size}",
             icon = Icons.Rounded.Refresh,
             action = { servers.forEach { PollingCoordinator.requestNow(it.id) } }
+        )
+        // Deck navigation — the four context pages (tool wiring).
+        list += PaletteCommand(
+            id = "nav-tunnels",
+            label = t.navTunnels,
+            icon = Icons.Rounded.SwapHoriz,
+            action = { scope.launch { pagerState.animateScrollToPage(1) } }
+        )
+        list += PaletteCommand(
+            id = "nav-uptime",
+            label = t.navUptime,
+            icon = Icons.Rounded.Timer,
+            action = { scope.launch { pagerState.animateScrollToPage(2) } }
+        )
+        list += PaletteCommand(
+            id = "nav-network",
+            label = t.navNetwork,
+            icon = Icons.Rounded.Public,
+            action = { scope.launch { pagerState.animateScrollToPage(3) } }
+        )
+        list += PaletteCommand(
+            id = "nav-vault",
+            label = t.navVault,
+            icon = Icons.Rounded.Security,
+            action = { scope.launch { pagerState.animateScrollToPage(4) } }
         )
         list
     }

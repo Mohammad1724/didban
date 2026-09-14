@@ -110,6 +110,17 @@ interface Str {
     val radialCockpit: String
     val radialTest: String
     val radialRefresh: String
+    val onb1Title: String
+    val onb1Body: String
+    val onb2Title: String
+    val onb2Body: String
+    val onb3Title: String
+    val onb3Body: String
+    val onb4Title: String
+    val onb4Body: String
+    val onbSkip: String
+    val onbNext: String
+    val onbStart: String
     val staleSuffix: String
     val nodes: String
     val portNumber: String
@@ -450,6 +461,17 @@ object FaStr : Str {
     override val radialCockpit: String = "کاکپیت"
     override val radialTest: String = "تست هشدار"
     override val radialRefresh: String = "پایش دوباره"
+    override val onb1Title: String = "خانه‌ای فضایی برای سرورها"
+    override val onb1Body: String = "نقشه‌ی زنده: هر سرور یک گره، هر تانل یک کمان. با سواپ، تانل‌ها، آپ‌تایم، شبکه و ابزارها در دسترس‌اند."
+    override val onb2Title: String = "یک ضربه، کل کاکپیت"
+    override val onb2Body: String = "روی هر گره بزنید: متریک‌ها، فرآیندها، رویدادها، پورت‌ها، دکر و پایش سراسری — همه در یک کاکپیت."
+    override val onb3Title: String = "عملیات سریع، بی‌واسطه"
+    override val onb3Body: String = "بلند-ضربه روی گره: منوی رادیال. ذره‌بینِ HUD: پالت فرمان برای هر سرور و تانل."
+    override val onb4Title: String = "دو تم، یک زبان طراحی"
+    override val onb4Body: String = "پلاتینِ روشن به‌طور پیش‌فرض؛ کاکپیتِ تیره برای کار شبانه. از هر جایی قابل تعویض‌اند."
+    override val onbSkip: String = "رد کردن"
+    override val onbNext: String = "بعدی"
+    override val onbStart: String = "شروع دیدبان"
     override val staleSuffix: String = "پیش"
     override val nodes: String = "نود جهانی"
     override val portNumber: String = "شماره پورت (مثلا 22 یا 443)"
@@ -793,6 +815,17 @@ object EnStr : Str {
     override val radialCockpit: String = "Cockpit"
     override val radialTest: String = "Test Alert"
     override val radialRefresh: String = "Refresh"
+    override val onb1Title: String = "A spatial home for your servers"
+    override val onb1Body: String = "A live map: each server is a node, each tunnel an arc. Swipe to reach tunnels, uptime, network and tools."
+    override val onb2Title: String = "One tap, the full cockpit"
+    override val onb2Body: String = "Tap any node: metrics, processes, events, ports, docker and the global check — all in one cockpit."
+    override val onb3Title: String = "Quick actions, no detours"
+    override val onb3Body: String = "Long-press a node for the radial menu. The HUD scope opens the command palette for any server or tunnel."
+    override val onb4Title: String = "Two themes, one design language"
+    override val onb4Body: String = "Light Platinum by default; dark Cockpit for night work. Switchable from anywhere."
+    override val onbSkip: String = "Skip"
+    override val onbNext: String = "Next"
+    override val onbStart: String = "Start Didban"
     override val staleSuffix: String = "ago"
     override val nodes: String = "nodes"
     override val portNumber: String = "Port (e.g. 22 or 443)"

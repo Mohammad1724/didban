@@ -292,6 +292,8 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
     val isDarkMode = themeMode == "dark"
 
     var lastBackPressTime by remember { mutableStateOf(0L) }
+    // 3-E: v3 onboarding — shown once, on first launch, above the deck.
+    var onboardingSeen by remember { mutableStateOf(Prefs.isOnboardingSeen(ctx)) }
 
     // ── Global Back Navigation & Exit Guard Hierarchy ──
     // Priority (innermost wins): the deck's page-reset handler (registered by
@@ -361,6 +363,7 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                 }
             }
 
+            Box(Modifier.fillMaxSize()) {
             if (openServer != null) {
                 Column(
                     Modifier
@@ -433,6 +436,19 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                         }
                     }
                 }
+            }
+
+            // First-launch onboarding (3-E): one-time tour of the v3
+            // structure. Back or Skip records it as seen.
+            if (!onboardingSeen) {
+                AeroOnboarding(
+                    t = t,
+                    onDone = {
+                        Prefs.setOnboardingSeen(ctx)
+                        onboardingSeen = true
+                    }
+                )
+            }
             }
         }
     }
