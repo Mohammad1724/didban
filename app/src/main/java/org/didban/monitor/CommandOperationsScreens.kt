@@ -103,9 +103,9 @@ fun CommandTunnelsScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
-                    Text(copy.legacyBridgeTitle, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text("Tunnel configuration", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Spacer(Modifier.height(CommandSpacing.xs))
-                    Text(copy.legacyBridgeBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
+                    Text("ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     Spacer(Modifier.height(CommandSpacing.sm))
                     CommandSecondaryButton(copy.addTunnel, onOpenLegacyEditor, icon = Icons.Rounded.Add)
                 }

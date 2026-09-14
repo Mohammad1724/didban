@@ -597,6 +597,7 @@ private fun CommandRouteContent(
         CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh)
         CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, { onNavigate(CommandRoute.FLEET, null) }, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) })
         CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) }
+        CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onNavigate(CommandRoute.TUNNELS, selectedServer) }
         CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
@@ -646,7 +647,6 @@ private fun CommandLegacySurface(
     onThemeChange: (String) -> Unit,
     onLanguageChange: (String) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val legacyStrings = if (language == "fa") Locales.fa else Locales.en
     Column(Modifier.fillMaxSize()) {
         CommandSurface(modifier = Modifier.fillMaxWidth(), raised = true) {
@@ -670,7 +670,6 @@ private fun CommandLegacySurface(
                         onLanguage = onLanguageChange,
                         onOpen = { server -> onNavigate(CommandRoute.SERVER_DOSSIER, server) }
                     )
-                    CommandRoute.TUNNELS_EDITOR -> AeroTunnelFleetScreen(legacyStrings, Prefs.loadTunnels(context), onRefresh = {})
                     CommandRoute.UPTIME_EDITOR -> UptimeScreen(legacyStrings)
                     CommandRoute.NETWORK_TOOLS_EDITOR -> NetworkHubScreen(legacyStrings)
                     CommandRoute.DNS_EDITOR -> CloudflareScreen(legacyStrings)
