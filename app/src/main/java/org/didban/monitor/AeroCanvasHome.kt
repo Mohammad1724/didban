@@ -318,10 +318,18 @@ fun AeroDeckHome(
                     },
                     onManageServers = onManageServers
                 )
-                1 -> AeroTunnelFleetScreen(t = t, seedTunnels = tunnels)
-                2 -> UptimeScreen(t = t)
-                3 -> NetworkCloudScreen(t = t)
-                4 -> VaultToolsScreen(t = t)
+                else -> DeckPageBelowHud {
+                    // The floating HUD overlays the top of the canvas; the
+                    // four card pages must start below it, or their headers
+                    // (fleet title, uptime add-button, vault/tools/backup
+                    // tabs) render behind the HUD and look "missing".
+                    when (page) {
+                        1 -> AeroTunnelFleetScreen(t = t, seedTunnels = tunnels)
+                        2 -> UptimeScreen(t = t)
+                        3 -> NetworkCloudScreen(t = t)
+                        else -> VaultToolsScreen(t = t)
+                    }
+                }
             }
         }
 
@@ -391,6 +399,22 @@ fun AeroDeckHome(
                 onDismiss = { showPalette = false }
             )
         }
+    }
+}
+
+// The floating HUD occupies statusBar + 8dp + 40dp from the top of the
+// canvas. Card pages start below it (plus a breathing gap) and keep a
+// bottom margin for the pagination dots, so no header ever hides behind
+// the HUD and no last list item tucks under the dots.
+@Composable
+private fun DeckPageBelowHud(content: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(top = 58.dp, bottom = 34.dp)
+    ) {
+        content()
     }
 }
 
