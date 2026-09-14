@@ -322,12 +322,16 @@ private val DidbanShapes = Shapes(
 @Composable
 fun DidbanTheme(
     dark: Boolean = isSystemInDarkTheme(),
+    palette: DidbanPalette? = null,
     content: @Composable () -> Unit
 ) {
-    val palette = if (dark) ObsidianPalette else PlatinumPalette
-    CompositionLocalProvider(LocalDidbanPalette provides palette) {
+    // Phase 3 (3-A): optional palette override lets the v3 Aero themes
+    // (AeroTheme.kt) reuse this exact pipeline. Existing call sites keep
+    // the legacy behavior when `palette` is null.
+    val activePalette = palette ?: if (dark) ObsidianPalette else PlatinumPalette
+    CompositionLocalProvider(LocalDidbanPalette provides activePalette) {
         MaterialTheme(
-            colorScheme = schemeFor(palette, dark),
+            colorScheme = schemeFor(activePalette, dark),
             typography = didbanTypography(),
             shapes = DidbanShapes,
             content = content
