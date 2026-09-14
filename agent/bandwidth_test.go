@@ -13,7 +13,7 @@ func newBandwidthTestAPI(t *testing.T) *API {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := &Config{Token: "bw-token", DataDir: dir}
-	return newAPI(cfg, NewMonitor(cfg), NewTunnelManager(dir, dir+"/configs", DeployModeScripts))
+	return newAPI(cfg, NewMonitor(cfg), NewTunnelManager(dir, dir+"/configs", DeployModeScripts), nil)
 }
 
 func TestBandwidthDownloadStreamsExactBytes(t *testing.T) {

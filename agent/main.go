@@ -40,6 +40,10 @@ type Config struct {
 	DeployMode DeployMode // "scripts" (default) or "config-only"
 	ConfigDir  string     // sandboxed dir for tunnel config files
 
+	// Tunnel watchdog (Phase 4 · 4-A)
+	WatchdogEnabled     bool
+	WatchdogIntervalSec int
+
 	// Alerts
 	TelegramToken  string
 	TelegramChatID string
@@ -71,6 +75,19 @@ func floatEnvOr(key string, def float64) (float64, error) {
 		return 0, fmt.Errorf("invalid %s=%q: expected a number, e.g. 70", key, v)
 	}
 	return f, nil
+}
+
+// intEnvOr: same fail-loud contract as floatEnvOr for integer knobs.
+func intEnvOr(key string, def int) (int, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s=%q: expected an integer, e.g. 30", key, v)
+	}
+	return n, nil
 }
 
 func main() {
@@ -107,6 +124,17 @@ func main() {
 	flag.BoolVar(&cfg.EnableAlerts, "alerts", os.Getenv("DIDBAN_ALERTS") != "0", "Enable outbound alerts")
 	flag.StringVar((*string)(&cfg.DeployMode), "deploy-mode", envOr("DIDBAN_DEPLOY_MODE", "scripts"), "tunnel deploy mode: 'scripts' (default) or 'config-only' (never execute install scripts)")
 	flag.StringVar(&cfg.ConfigDir, "config-dir", envOr("DIDBAN_TUNNEL_CONFIG_DIR", "/etc/didban/tunnels"), "sandboxed directory for tunnel configuration files")
+	// Tunnel watchdog: enabled by default; interval 5..600s. A set-but-invalid
+	// interval aborts startup (fail-loud, same contract as the thresholds).
+	cfg.WatchdogEnabled = os.Getenv("DIDBAN_WATCHDOG_ENABLED") != "0"
+	wdSec, err := intEnvOr("DIDBAN_WATCHDOG_INTERVAL_SEC", 30)
+	if err != nil {
+		fatal("%v", err)
+	}
+	if wdSec < 5 || wdSec > 600 {
+		fatal("invalid DIDBAN_WATCHDOG_INTERVAL_SEC=%d: must be 5..600", wdSec)
+	}
+	cfg.WatchdogIntervalSec = wdSec
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -154,13 +182,19 @@ func main() {
 	defer stop()
 	go mon.Run(ctx)
 
+	var wd *TunnelWatchdog
+	if cfg.WatchdogEnabled {
+		wd = NewTunnelWatchdog(tm, mon, time.Duration(cfg.WatchdogIntervalSec)*time.Second)
+		go wd.Run(ctx)
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newAPI(cfg, mon, tm).routes(),
+		Handler:           newAPI(cfg, mon, tm, wd).routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), tokenFirstShow(cfg.DataDir))
+	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), cfg.WatchdogEnabled, cfg.WatchdogIntervalSec, tokenFirstShow(cfg.DataDir))
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -220,7 +254,7 @@ func tokenPrefix(tok string) string {
 	return tok[:8] + "…"
 }
 
-func banner(cfg *Config, fingerprint string, alertsActive bool, showFullToken bool) {
+func banner(cfg *Config, fingerprint string, alertsActive bool, watchdogEnabled bool, watchdogIntervalSec int, showFullToken bool) {
 	scheme := "https"
 	host := firstLocalIP()
 	if cfg.PlainHTTP {
@@ -250,6 +284,11 @@ func banner(cfg *Config, fingerprint string, alertsActive bool, showFullToken bo
 	fmt.Printf("  Data dir:     %s\n", cfg.DataDir)
 	fmt.Printf("  Thresholds:   cpu>%.0f%%  mem>%.0f%%  steal>%.0f%%  disk>%.0f%%\n", cfg.CPUThreshold, cfg.MemThreshold, cfg.StealThreshold, cfg.DiskThreshold)
 	fmt.Printf("  Deploy mode:  %s\n", cfg.DeployMode)
+	if watchdogEnabled {
+		fmt.Printf("  Watchdog:     Enabled (tunnel check every %ds)\n", watchdogIntervalSec)
+	} else {
+		fmt.Println("  Watchdog:     Disabled")
+	}
 	if len(cfg.WatchProcs) > 0 {
 		fmt.Printf("  Process watch: %s\n", strings.Join(cfg.WatchProcs, ", "))
 	}

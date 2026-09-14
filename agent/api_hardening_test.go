@@ -13,7 +13,7 @@ func hardeningAPI(t *testing.T) *API {
 	t.Helper()
 	dir := t.TempDir()
 	cfg := &Config{Token: "hard-token", DataDir: dir}
-	return newAPI(cfg, NewMonitor(cfg), NewTunnelManager(dir, dir+"/configs", DeployModeScripts))
+	return newAPI(cfg, NewMonitor(cfg), NewTunnelManager(dir, dir+"/configs", DeployModeScripts), nil)
 }
 
 func doAuth(t *testing.T, api *API, method, path, token string) *httptest.ResponseRecorder {

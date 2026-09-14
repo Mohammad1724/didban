@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -88,6 +89,12 @@ type TunnelApplyReq struct {
 	ServiceName   string `json:"service_name"`
 	ExecScript    string `json:"exec_script"`
 	MultiPorts    string `json:"multi_ports"`
+	// Port is the local TCP port this node's service is expected to listen
+	// on (0 = this role does not listen, e.g. the dialing client side). The
+	// watchdog uses it for the "service alive but port dead" (degraded)
+	// check. Old agents ignore the field; new agents with old apps (port 0)
+	// fall back to the service-active check only.
+	Port int `json:"port"`
 }
 
 type TunnelActionReq struct {
@@ -97,13 +104,16 @@ type TunnelActionReq struct {
 }
 
 type TunnelMeta struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Core          string    `json:"core"`
-	Role          string    `json:"role"`
-	ConfigPath    string    `json:"config_path"`
-	ServiceName   string    `json:"service_name"`
-	MultiPorts    string    `json:"multi_ports"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Core        string `json:"core"`
+	Role        string `json:"role"`
+	ConfigPath  string `json:"config_path"`
+	ServiceName string `json:"service_name"`
+	MultiPorts  string `json:"multi_ports"`
+	// Port: local TCP port this role listens on (0 = does not listen).
+	// Persisted so the watchdog survives agent restarts.
+	Port          int       `json:"port"`
 	CreatedAt     time.Time `json:"created_at"`
 	LastUpdatedAt time.Time `json:"last_updated_at"`
 }
@@ -213,6 +223,9 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 	if len(req.Name) > maxFieldNameLen || len(req.Core) > 32 || len(req.Role) > 16 {
 		return nil, errors.New("invalid metadata: name/core/role too long")
 	}
+	if req.Port < 0 || req.Port > 65535 {
+		return nil, fmt.Errorf("invalid port %d: must be 0-65535", req.Port)
+	}
 
 	base := &TunnelStatusResp{
 		ID:          req.ID,
@@ -277,6 +290,7 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 		ConfigPath:    req.ConfigPath,
 		ServiceName:   serviceName,
 		MultiPorts:    req.MultiPorts,
+		Port:          req.Port,
 		CreatedAt:     time.Now(),
 		LastUpdatedAt: time.Now(),
 	}
@@ -712,4 +726,76 @@ func (tm *TunnelManager) cleanupCoreResidue(meta TunnelMeta) {
 			rm(file, dir) // dir removal succeeds only when empty
 		}
 	}
+}
+
+// ── Watchdog support (Phase 4 · 4-A) ────────────────────────────────────────
+
+// WatchInputs is the lightweight, allocation-cheap service health read the
+// tunnel watchdog performs every interval: is-active + MainPID +
+// ActiveEnterTimestamp + NRestarts (no journal scrape — that stays for the
+// on-demand status endpoint).
+type WatchInputs struct {
+	Active    bool   // systemctl is-active == "active"
+	Status    string // raw is-active output: active|inactive|failed|activating|...
+	PID       int
+	UptimeSec int // seconds since ActiveEnterTimestamp (0 if unknown)
+	NRestarts int // systemd restart counter for the unit lifetime
+}
+
+// WatchInputs reads the service state for one tunnel unit. A missing unit or
+// a failed systemctl call reports Active=false (the watchdog treats it as
+// down, exactly like the on-demand status endpoint does for "unknown").
+func (tm *TunnelManager) WatchInputs(serviceName string) WatchInputs {
+	wi := WatchInputs{}
+	ctx, cancel := systemCmdContext()
+	defer cancel()
+
+	outActive, _ := exec.CommandContext(ctx, "systemctl", "is-active", serviceName).Output()
+	statusStr := strings.TrimSpace(string(outActive))
+	wi.Status = statusStr
+	wi.Active = statusStr == "active"
+
+	if outShow, err := exec.CommandContext(ctx, "systemctl", "show", serviceName,
+		"--property=MainPID,ActiveEnterTimestamp,NRestarts").Output(); err == nil {
+		for _, l := range strings.Split(string(outShow), "\n") {
+			switch {
+			case strings.HasPrefix(l, "MainPID="):
+				_, _ = fmt.Sscanf(l, "MainPID=%d", &wi.PID)
+			case strings.HasPrefix(l, "NRestarts="):
+				_, _ = fmt.Sscanf(l, "NRestarts=%d", &wi.NRestarts)
+			case strings.HasPrefix(l, "ActiveEnterTimestamp="):
+				ts := strings.TrimPrefix(l, "ActiveEnterTimestamp=")
+				if t, perr := time.Parse(time.RFC3339, ts); perr == nil {
+					wi.UptimeSec = int(time.Since(t).Seconds())
+					if wi.UptimeSec < 0 {
+						wi.UptimeSec = 0
+					}
+				}
+			}
+		}
+	}
+	return wi
+}
+
+// ListMeta returns the tunnels registered on this node (meta files). The
+// watchdog iterates it each tick; ordering is stable by id.
+func (tm *TunnelManager) ListMeta() []TunnelMeta {
+	entries, err := os.ReadDir(tm.tunnelsDir)
+	if err != nil {
+		return nil
+	}
+	var metas []TunnelMeta
+	for _, e := range entries {
+		n := e.Name()
+		if !strings.HasPrefix(n, "meta-") || !strings.HasSuffix(n, ".json") {
+			continue
+		}
+		id := strings.TrimSuffix(strings.TrimPrefix(n, "meta-"), ".json")
+		meta, ok := tm.loadMetaChecked(id)
+		if ok {
+			metas = append(metas, meta)
+		}
+	}
+	sort.Slice(metas, func(i, j int) bool { return metas[i].ID < metas[j].ID })
+	return metas
 }

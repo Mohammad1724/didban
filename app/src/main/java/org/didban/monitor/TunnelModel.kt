@@ -177,7 +177,38 @@ data class GeneratedTunnelCode(
     // agent's delete removes the real file ("" = core keeps no file).
     val iranConfigPath: String = "",
     val foreignConfigPath: String = "",
+    // Phase 4 · 4-A: the local TCP port each role's service is expected to
+    // listen on (0 = this role does not listen, e.g. the dialing client side).
+    // The agent's watchdog uses these for the "service alive but port dead"
+    // (degraded) check. Each generator sets them where it writes the bind.
+    val listenPortIran: Int = 0,
+    val listenPortForeign: Int = 0,
     val description: String
+)
+
+// Phase 4 · 4-A — agent-side tunnel watchdog views.
+// The agent watches every registered tunnel service (systemd state +
+// listen port + restart counters) and reports state changes; the fleet
+// page shows a per-tunnel shield badge from these.
+data class WatchdogTunnelState(
+    val id: String,
+    val name: String,
+    val core: String,
+    val role: String,
+    val state: String, // "unknown" | "up" | "down" | "degraded" | "crash_loop"
+    val active: Boolean,
+    val port: Int, // 0 = this role does not listen
+    val portOk: Boolean,
+    val nRestarts: Int,
+    val uptimeSec: Int,
+    val changedAtMs: Long, // 0 = not observed yet
+    val detail: String
+)
+
+data class WatchdogStatus(
+    val enabled: Boolean,
+    val intervalMs: Long,
+    val tunnels: List<WatchdogTunnelState>
 )
 
 data class AutoDeployServerResult(

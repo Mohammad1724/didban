@@ -224,6 +224,14 @@ interface Str {
     val alertsStep3Desc: String
     val navVault: String
     val navTools: String
+    // Phase 4 · 4-A: tunnel watchdog badge (fleet page)
+    val watchdogTitle: String
+    val wdUp: String
+    val wdDown: String
+    val wdDegraded: String
+    val wdCrashLoop: String
+    val wdUnknown: String
+    val wdOff: String
     val navBackup: String
     val deckHint: String
     val mapEmptyTitle: String
@@ -576,6 +584,13 @@ object FaStr : Str {
     override val alertsStep3Title: String = "۳. دریافت آنی هشدارهای قطعی ۲۴/۷"
     override val alertsStep3Desc: String = "دیدبان در صورت قطعی سرور یا تانل، سریعاً پیام هشدار با جزییات کامل ارسال می‌کند."
     override val navVault: String = "گاوصندوق"
+    override val watchdogTitle: String = "نگهبان تونل"
+    override val wdUp: String = "سالم"
+    override val wdDown: String = "قطع"
+    override val wdDegraded: String = "تدعیل"
+    override val wdCrashLoop: String = "حلقهٔ کرش"
+    override val wdUnknown: String = "ناظر نشده"
+    override val wdOff: String = "خاموش"
     override val navTools: String = "ابزارها"
     override val navBackup: String = "بکاپ و بازیابی"
     override val deckHint: String = "برای تانل‌ها و بقیه بکشید ←"
@@ -930,6 +945,13 @@ object EnStr : Str {
     override val alertsStep3Title: String = "3. 24/7 Real-Time Incident Dispatch"
     override val alertsStep3Desc: String = "Didban will automatically dispatch instant alert payloads on server failures and spikes."
     override val navVault: String = "Vault"
+    override val watchdogTitle: String = "Tunnel Watchdog"
+    override val wdUp: String = "Up"
+    override val wdDown: String = "Down"
+    override val wdDegraded: String = "Degraded"
+    override val wdCrashLoop: String = "Crash loop"
+    override val wdUnknown: String = "Unobserved"
+    override val wdOff: String = "Off"
     override val navTools: String = "Tools"
     override val navBackup: String = "Backup"
     override val deckHint: String = "Swipe for tunnels & more ←"

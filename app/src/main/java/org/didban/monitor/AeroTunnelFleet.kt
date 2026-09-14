@@ -45,6 +45,7 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Terminal
@@ -164,6 +165,46 @@ fun AeroTunnelFleetScreen(
             }
             Prefs.saveTunnels(ctx, tunnels)
             delay(15_000)
+        }
+    }
+
+    // Phase 4 · 4-A: per-tunnel watchdog badge. The agent (not the phone)
+    // is the source of truth — we poll each owning server's watchdog view
+    // every 60s and keep the worst state across the tunnel's role nodes.
+    // Unreachable/disabled agents simply yield no data (no badge, no error
+    // spam): the phone-side latency test above keeps working regardless.
+    var wdStates by remember { mutableStateOf<Map<Long, String>>(emptyMap()) }
+
+    fun refreshWatchdog() {
+        scope.launch {
+            val api = ApiClient()
+            val owners = servers.filter { srv ->
+                tunnels.any { it.iranServerId == srv.id || it.foreignServerId == srv.id }
+            }
+            val wdByServer = owners.associateWith { srv ->
+                try {
+                    api.tunnelWatchdog(srv).let { TunnelEngine.parseWatchdog(it) }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            val map = mutableMapOf<Long, String>()
+            tunnels.forEach { tun ->
+                val states = listOfNotNull(tun.iranServerId, tun.foreignServerId)
+                    .mapNotNull { sid -> wdByServer[sid] }
+                    .mapNotNull { wd -> wd.tunnels.firstOrNull { it.id == tun.id.toString() }?.state }
+                if (states.isNotEmpty()) {
+                    map[tun.id] = TunnelEngine.worstWatchdogState(states)
+                }
+            }
+            wdStates = map
+        }
+    }
+
+    LaunchedEffect(tunnels) {
+        while (true) {
+            refreshWatchdog()
+            delay(60_000)
         }
     }
 
@@ -483,6 +524,13 @@ fun AeroTunnelFleetScreen(
                                                 Spacer(Modifier.width(3.dp))
                                                 Text("🌐", fontSize = 9.sp)
                                             }
+                                        }
+                                        // 4-A: watchdog shield — shown only for
+                                        // non-healthy states (a healthy tunnel
+                                        // is already vouched for by the ⚡ chip).
+                                        wdStates[tunnel.id]?.takeIf { it != "up" }?.let { wstate ->
+                                            Spacer(Modifier.width(8.dp))
+                                            WatchdogBadge(t = t, state = wstate)
                                         }
                                         Spacer(Modifier.width(8.dp))
                                         // status
@@ -1252,5 +1300,43 @@ private fun AeroGuideStep(
                 content()
             }
         }
+    }
+}
+
+// ── Phase 4 · 4-A: watchdog shield badge ────────────────────────────────────
+
+/**
+ * Compact watchdog state chip for a fleet row: shield + label, colored by
+ * severity (down/crash_loop = danger, degraded = warn, unknown = neutral).
+ */
+@Composable
+private fun WatchdogBadge(t: Str, state: String) {
+    val (color, dim, label) = when (state) {
+        "down" -> Triple(Ds.danger, Ds.dangerDim, t.wdDown)
+        "crash_loop" -> Triple(Ds.danger, Ds.dangerDim, t.wdCrashLoop)
+        "degraded" -> Triple(Ds.warn, Ds.warnDim, t.wdDegraded)
+        else -> Triple(Ds.textTertiary, Ds.surfaceLow, t.wdUnknown)
+    }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(dim)
+            .border(BorderStroke(1.dp, color.copy(alpha = 0.35f)), RoundedCornerShape(8.dp))
+            .padding(horizontal = 7.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            Icons.Rounded.Shield,
+            contentDescription = t.watchdogTitle,
+            tint = color,
+            modifier = Modifier.size(11.dp)
+        )
+        Spacer(Modifier.width(3.dp))
+        Text(
+            text = label,
+            fontSize = 9.5.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
     }
 }

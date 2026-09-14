@@ -14,6 +14,63 @@ object TunnelEngine {
 
     fun generateRandomToken(length: Int = 16): String = TunnelSecrets.generateRandomToken(length)
 
+    // ── Phase 4 · 4-A: watchdog payload parsing (JVM-testable) ──────────────
+
+    /**
+     * Parses the agent's /api/tunnel/watchdog payload. Tolerant of the
+     * disabled-watchdog shape ({"enabled":false}) and of missing fields on
+     * older agents (an agent without the endpoint simply 404s and the
+     * caller treats that as "watchdog unavailable" — never a crash).
+     */
+    fun parseWatchdog(o: org.json.JSONObject): WatchdogStatus {
+        val tunnels = mutableListOf<WatchdogTunnelState>()
+        val arr = o.optJSONArray("tunnels")
+        if (arr != null) {
+            for (i in 0 until arr.length()) {
+                val t = arr.optJSONObject(i) ?: continue
+                tunnels += WatchdogTunnelState(
+                    id = t.optString("id"),
+                    name = t.optString("name"),
+                    core = t.optString("core"),
+                    role = t.optString("role"),
+                    state = t.optString("state", "unknown"),
+                    active = t.optBoolean("active", false),
+                    port = t.optInt("port", 0),
+                    portOk = t.optBoolean("port_ok", false),
+                    nRestarts = t.optInt("n_restarts", 0),
+                    uptimeSec = t.optInt("uptime_sec", 0),
+                    changedAtMs = parseChangedAtMs(t.optString("changed_at", "")),
+                    detail = t.optString("detail", "")
+                )
+            }
+        }
+        return WatchdogStatus(
+            enabled = o.optBoolean("enabled", false),
+            intervalMs = o.optLong("interval_ms", 0),
+            tunnels = tunnels
+        )
+    }
+
+    // The agent sends RFC3339 (Go time.Time); blank/zero for "not observed".
+    private fun parseChangedAtMs(s: String): Long =
+        if (s.isBlank() || s == "0001-01-01T00:00:00Z") 0L
+        else runCatching { java.time.Instant.parse(s).toEpochMilli() }.getOrDefault(0L)
+
+    /**
+     * 4-A: the worst state across the role nodes a tunnel is registered on
+     * (a tunnel is only as healthy as its worst side). Severity ordering:
+     * up < unknown < degraded < down < crash_loop — so a real "down" is
+     * never hidden by an "unknown" side (fresh agent, first tick pending),
+     * while "unknown" does hide "up" (we honestly cannot vouch for a side
+     * we have not observed yet).
+     */
+    fun worstWatchdogState(states: List<String>): String {
+        val severity = mapOf(
+            "up" to 0, "unknown" to 1, "degraded" to 2, "down" to 3, "crash_loop" to 4
+        )
+        return states.maxByOrNull { severity[it] ?: 1 } ?: "unknown"
+    }
+
     /**
      * Stable secret for [cfg] (H3): generated once (when blank) and written
      * back into `cfg.token`, so every later code generation / redeploy reuses
@@ -311,6 +368,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = cfg.corePort, // 4-A: server binds corePort; client dials out
+            listenPortForeign = 0,
             description = "تانل قدرتمند BackPack (توسعه‌یافته توسط AminMGMT): اتصال پورت‌های [$portsDesc] ایران به خارج با رمزنگاری ${cfg.transport.displayName} و پریست ${cfg.preset}."
         )
     }
@@ -455,6 +514,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = 0, // 4-A: kharej server listens; iran client dials
+            listenPortForeign = cfg.corePort,
             description = "تانل فوق سریع Paqet بر بستر Raw Socket و KCP: فوروارد پورت‌های [$portsDesc] با رمزنگاری $encryption و مود $kcpMode."
         )
     }
@@ -705,6 +766,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            listenPortIran = 0, // 4-A: docker host-net tunnel: no fixed host port to probe
+            listenPortForeign = 0,
             description = "تانل اختصاصی Narnia پنهان درون پکت‌های ICMP (Ping): روتینگ پورت‌های [$portsDesc] روی شبکه مجازی $vIpIran به $vIpKharej با رمزنگاری ChaCha20 — استقرار از طریق Docker (stormotron/narnia) و systemd، با فورواردینگ دائمی."
         )
     }
@@ -904,6 +967,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = firstPort.iranPort, // 4-A: client listens on first forward port; server on corePort
+            listenPortForeign = cfg.corePort,
             description = "تانل جعل دوطرفه IP مبدا (Mutual IP Spoofing): تغییر فیلد Source IP در سطح Raw Socket با لایه تضمین تحویل پکت‌ها و بازیابی خطای Reed-Solomon FEC."
         )
     }
@@ -1044,6 +1109,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = cfg.corePort, // 4-A: server binds corePort; client dials out
+            listenPortForeign = 0,
             description = "تانل معکوس Backhaul: اتصال پورت‌های [$portsDesc] ایران به خارج با پروتکل ${cfg.transport.displayName}."
         )
     }
@@ -1176,6 +1243,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = cfg.corePort, // 4-A: server binds corePort; client dials out
+            listenPortForeign = 0,
             description = "تانل سبک و امن Rathole نوشته شده با Rust: رله پورت‌های [$portsDesc] با کمترین مصرف رم."
         )
     }
@@ -1288,6 +1357,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            listenPortIran = cfg.corePort, // 4-A: server -L corePort; forwarder dials out
+            listenPortForeign = 0,
             description = "تانل همه‌کاره GOST: رله و فوروارد پورت‌های [$portsDesc] با پروتکل ${cfg.transport.displayName}."
         )
     }
@@ -1382,6 +1453,8 @@ services:
             foreignInstallCommand = foreignInstall,
             dockerComposeIran = dockerIran,
             dockerComposeForeign = dockerForeign,
+            listenPortIran = 0, // 4-A: kharej chisel server listens; iran client dials
+            listenPortForeign = cfg.corePort,
             description = "تانل امن Chisel بر بستر WebSocket و HTTP: رله پورت‌های [$portsDesc] با پوشش ترافیک عادی وب."
         )
     }
@@ -1500,6 +1573,8 @@ services:
             dockerComposeForeign = dockerForeign,
             iranConfigPath = iranCfgPath,
             foreignConfigPath = foreignCfgPath,
+            listenPortIran = 0, // 4-A: kharej frps binds; iran frpc dials
+            listenPortForeign = cfg.corePort,
             description = "تانل ریورس FRP: رله پورت‌های [$portsDesc] با هسته کلاسیک و باسابقه FRP."
         )
     }
@@ -1622,6 +1697,8 @@ services:
             foreignInstallCommand = "# No setup required on Foreign server",
             dockerComposeIran = "# IPTables runs directly in Linux kernel",
             dockerComposeForeign = "# No setup required",
+            listenPortIran = 0, // 4-A: no process — kernel NAT rules only
+            listenPortForeign = 0,
             description = "فوروارد مستقیم در سطح هسته لینوکس با IPTables: روتینگ فوق سریع پورت‌های [$portsDesc] بدون پردازش اضافه — با زنجیره اختصاصی و idempotent (deploy تکراری = همان set)."
         )
     }
@@ -1676,6 +1753,8 @@ services:
                     put("service_name", "didban-tunnel-${cfg.id}")
                     put("exec_script", code.foreignInstallCommand)
                     put("multi_ports", cfg.multiPorts)
+                    // 4-A: the watchdog on this node probes this port.
+                    put("port", code.listenPortForeign)
                 }
                 val resp = apiClient.tunnelApply(foreignServer, reqJson)
                 val success = resp.optBoolean("success", resp.optBoolean("active", false))
@@ -1706,6 +1785,8 @@ services:
                     put("service_name", "didban-tunnel-${cfg.id}")
                     put("exec_script", code.iranInstallCommand)
                     put("multi_ports", cfg.multiPorts)
+                    // 4-A: the watchdog on this node probes this port.
+                    put("port", code.listenPortIran)
                 }
                 val resp = apiClient.tunnelApply(iranServer, reqJson)
                 val success = resp.optBoolean("success", resp.optBoolean("active", false))

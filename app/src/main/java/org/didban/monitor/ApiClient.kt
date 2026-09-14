@@ -205,4 +205,11 @@ class ApiClient {
         withContext(Dispatchers.IO) {
             get(server, "/api/tunnel/list")
         }
+
+    // Phase 4 · 4-A: the agent-side tunnel watchdog view (per-tunnel
+    // state + port health + restart counters).
+    suspend fun tunnelWatchdog(server: ServerConfig): JSONObject =
+        withContext(Dispatchers.IO) {
+            get(server, "/api/tunnel/watchdog")
+        }
 }

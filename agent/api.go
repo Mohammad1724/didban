@@ -19,11 +19,12 @@ type API struct {
 	cfg     *Config
 	mon     *Monitor
 	tm      *TunnelManager
+	wd      *TunnelWatchdog // nil when the watchdog is disabled
 	limiter *rateLimiter
 }
 
-func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager) *API {
-	return &API{cfg: cfg, mon: mon, tm: tm, limiter: newRateLimiter()}
+func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog) *API {
+	return &API{cfg: cfg, mon: mon, tm: tm, wd: wd, limiter: newRateLimiter()}
 }
 
 func (a *API) routes() http.Handler {
@@ -51,6 +52,7 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/tunnel/delete", a.auth(a.handleTunnelDelete))
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
+	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
 
 	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
@@ -389,6 +391,16 @@ func (a *API) handleTunnelList(w http.ResponseWriter, r *http.Request) {
 type killRequest struct {
 	PID    int    `json:"pid"`
 	Signal string `json:"signal"`
+}
+
+// handleTunnelWatchdog reports the watchdog's current per-tunnel
+// classification and recent transitions (Phase 4 · 4-A).
+func (a *API) handleTunnelWatchdog(w http.ResponseWriter, r *http.Request) {
+	if a.wd == nil {
+		writeJSON(w, http.StatusOK, WatchdogSnapshot{Enabled: false})
+		return
+	}
+	writeJSON(w, http.StatusOK, a.wd.Snapshot())
 }
 
 func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {

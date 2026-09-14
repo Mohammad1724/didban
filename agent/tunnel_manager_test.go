@@ -36,7 +36,7 @@ func newTestAPI(t *testing.T, deployMode DeployMode) (*API, string) {
 	mon := NewMonitor(cfg)
 	tm := NewTunnelManager(dataDir, configRoot, deployMode)
 	tm.settleDelay = 0
-	return newAPI(cfg, mon, tm), configRoot
+	return newAPI(cfg, mon, tm, nil), configRoot
 }
 
 func applyReq(id, configPath, configContent, script string) TunnelApplyReq {
