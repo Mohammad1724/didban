@@ -1873,7 +1873,7 @@ services:
                             it.core == detectedCore && (it.iranHost == server.host || it.foreignHost == server.host || it.corePort == detectedPort || it.iranPort == detectedPort)
                         }
 
-                        val isIran = server.name.lowercase().let { "ir" in it || "iran" in it || "teh" in it || "mci" in it || "mtn" in it }
+                        val isIran = TunnelFieldValidation.looksLikeIranServer(server.name)
 
                         if (!alreadyExists) {
                             val newTun = TunnelConfig(
@@ -1937,7 +1937,7 @@ services:
                         val alreadyExists = existingTunnels.any {
                             it.core == detectedCore && (it.iranHost == server.host || it.foreignHost == server.host)
                         }
-                        val isIran = server.name.lowercase().let { "ir" in it || "iran" in it || "teh" in it }
+                        val isIran = TunnelFieldValidation.looksLikeIranServer(server.name)
                         val port = container.ports.firstOrNull()?.publicPort ?: 443
 
                         if (!alreadyExists) {

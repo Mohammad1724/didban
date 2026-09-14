@@ -149,4 +149,29 @@ class TunnelFieldValidationTest {
         // false-match a different address sharing a prefix.
         assertFalse(TunnelFieldValidation.hostMatchesServer("2001:db8::1", "2001:db8::2"))
     }
+
+    // ── Stage 1 (M): iran/foreign role heuristic for discovery ────────────
+
+    @Test
+    fun `iran heuristic matches real iran server names`() {
+        val names = listOf(
+            "ir-01", "IR-PROD", "ir12", "iran", "iran-host", "tehran",
+            "tehran-01", "teh", "teh-02", "mci", "mci-01", "mtn", "mtn1",
+            "سرور ایران", "تهران", "ایران-1"
+        )
+        for (name in names) {
+            assertTrue("expected Iran for [$name]", TunnelFieldValidation.looksLikeIranServer(name))
+        }
+    }
+
+    @Test
+    fun `iran heuristic rejects lookalikes and foreign names`() {
+        val names = listOf(
+            "mirror-01", "bird-02", "technical-7", "iron-01", "iris-1",
+            "paris-01", "mcintosh", "us-east-1", "de-frankfurt", "prod-01", ""
+        )
+        for (name in names) {
+            assertFalse("expected NOT-Iran for [$name]", TunnelFieldValidation.looksLikeIranServer(name))
+        }
+    }
 }

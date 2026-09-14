@@ -31,6 +31,27 @@ object TunnelFieldValidation {
     fun isHost(value: String): Boolean =
         value.length in 1..253 && (isIpv4(value) || HOSTNAME_RE.matches(value))
 
+    /**
+     * Heuristic: does this server NAME look like an Iranian host?
+     *
+     * Used only as the DEFAULT iran/foreign role assignment when
+     * auto-discovery registers a tunnel — the user can always correct it in
+     * the edit dialog. The previous inline check was a plain substring scan
+     * duplicated in two diverged copies: "ir" matched "mirror-01" and
+     * "bird-02", "teh" matched "technical-7". Now matching is per WORD
+     * SEGMENT (split on non-alphanumerics) and recognizes ASCII
+     * (ir, ir12, iran*, teh, tehran*, mci, mtn) and Persian (ایران/تهران)
+     * names — one function for both the process and the docker scans.
+     */
+    fun looksLikeIranServer(name: String): Boolean {
+        val n = name.lowercase()
+        if ("ایران" in n || "تهران" in n) return true
+        val seg = Regex("^(ir|mci|mtn)\\d*$")
+        return n.split(Regex("[^a-z0-9]+"))
+            .filter { it.isNotEmpty() }
+            .any { it.startsWith("iran") || it == "teh" || it.startsWith("tehran") || seg.matches(it) }
+    }
+
     fun isValidPort(port: Int): Boolean = port in 1..65535
 
     /**
