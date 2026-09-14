@@ -206,6 +206,16 @@ interface Str {
     val navVault: String
     val navTools: String
     val navBackup: String
+    val deckHint: String
+    val mapEmptyTitle: String
+    val mapEmptyBody: String
+    val mapAddServer: String
+    val manageServers: String
+    val kpiOnline: String
+    val kpiTunnels: String
+    val kpiAlerts: String
+    val mapOffline: String
+    val mapSpike: String
     val createBackup: String
     val restoreBackup: String
     val backupPasswordHint: String
@@ -530,6 +540,16 @@ object FaStr : Str {
     override val navVault: String = "گاوصندوق"
     override val navTools: String = "ابزارها"
     override val navBackup: String = "بکاپ و بازیابی"
+    override val deckHint: String = "برای تانل‌ها و بقیه بکشید ←"
+    override val mapEmptyTitle: String = "نقشه‌ات هنوز خالی است"
+    override val mapEmptyBody: String = "اولین سرور را اضافه کن تا شبکه‌ات روی نقشه زنده شود"
+    override val mapAddServer: String = "افزودن اولین سرور"
+    override val manageServers: String = "مدیریت سرورها"
+    override val kpiOnline: String = "آنلاین"
+    override val kpiTunnels: String = "تانل"
+    override val kpiAlerts: String = "هشدار"
+    override val mapOffline: String = "آفلاین"
+    override val mapSpike: String = "سپایک"
     override val createBackup: String = "تهیه نسخه پشتیبان"
     override val restoreBackup: String = "بازیابی اطلاعات (Restore)"
     override val backupPasswordHint: String = "رمز عبور دلخواه برای رمزنگاری بکاپ (اختیاری):"
@@ -855,6 +875,16 @@ object EnStr : Str {
     override val navVault: String = "Vault"
     override val navTools: String = "Tools"
     override val navBackup: String = "Backup"
+    override val deckHint: String = "Swipe for tunnels & more ←"
+    override val mapEmptyTitle: String = "Your map is empty"
+    override val mapEmptyBody: String = "Add your first server to bring your network to life on the map"
+    override val mapAddServer: String = "Add first server"
+    override val manageServers: String = "Manage servers"
+    override val kpiOnline: String = "Online"
+    override val kpiTunnels: String = "Tunnels"
+    override val kpiAlerts: String = "Alerts"
+    override val mapOffline: String = "Offline"
+    override val mapSpike: String = "Spike"
     override val createBackup: String = "Create Backup"
     override val restoreBackup: String = "Restore Backup"
     override val backupPasswordHint: String = "Optional password for AES-256 backup encryption:"
