@@ -2,7 +2,6 @@ package org.didban.monitor
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -72,11 +71,13 @@ fun AeroOnboarding(
             .navigationBarsPadding()
     ) {
         Box(Modifier.weight(1f)) {
+            // 3-F: instant page switch under the system reduce-motion setting
+            val fade = aeroTween(AeroMotion.fadeMs)
             AnimatedContent(
                 targetState = page,
                 label = "onboarding",
                 transitionSpec = {
-                    (fadeIn(tween(AeroMotion.fadeMs)) togetherWith fadeOut(tween(AeroMotion.fadeMs)))
+                    (fadeIn(fade) togetherWith fadeOut(fade))
                 }
             ) { p ->
                 Column(
@@ -283,7 +284,7 @@ private fun OnboardingGlyph(kind: Int) {
                     drawCircle(color = accent, radius = 4f, center = Offset(l.x + 14f, l.y + 14f))
                     // dark swatch
                     drawRoundRect(
-                        color = Color(0xFF14161C),
+                        color = Color(AeroCockpitTokens.canvas), // 3-F: the real cockpit canvas token, not a guessed hex
                         topLeft = r, size = Size(sw, sh),
                         cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f)
                     )

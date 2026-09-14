@@ -34,7 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CloudSync
@@ -465,7 +465,7 @@ fun AeroTunnelFleetScreen(
                                                     modifier = Modifier.weight(1f, fill = false)
                                                 )
                                                 Icon(
-                                                    Icons.Rounded.ArrowForward,
+                                                    Icons.AutoMirrored.Rounded.ArrowForward,
                                                     contentDescription = null,
                                                     tint = Ds.accent,
                                                     modifier = Modifier.size(10.dp)
@@ -934,7 +934,7 @@ private fun AeroTunnelSheet(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(4.dp).background(Ds.accent, CircleShape))
                             Icon(
-                                imageVector = Icons.Rounded.ArrowForward,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
                                 contentDescription = null,
                                 tint = Ds.accent,
                                 modifier = Modifier.size(13.dp)
@@ -1186,10 +1186,11 @@ private fun AeroGuideCard(
             )
         }
 
+        // 3-F: motion-aware — instant under the system reduce-motion setting
         AnimatedVisibility(
             visible = isExpanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = fadeIn(aeroTween(300)) + expandVertically(aeroTween(300)),
+            exit = fadeOut(aeroTween(300)) + shrinkVertically(aeroTween(300))
         ) {
             Column(
                 modifier = Modifier.padding(top = 10.dp),

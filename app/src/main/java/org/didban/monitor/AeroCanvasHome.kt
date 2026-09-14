@@ -178,7 +178,7 @@ fun AeroDeckHome(
         PollingCoordinator.requestNow(server.id)
     }
 
-    val paletteCommands = remember(servers, tunnels, t) {
+    val paletteCommands = remember(servers, tunnels, t, reduceMotion) {
         val list = mutableListOf<PaletteCommand>()
         servers.forEach { s ->
             list += PaletteCommand(
@@ -244,25 +244,29 @@ fun AeroDeckHome(
             id = "nav-tunnels",
             label = t.navTunnels,
             icon = Icons.Rounded.SwapHoriz,
-            action = { scope.launch { pagerState.animateScrollToPage(1) } }
+            action = { scope.launch { if (reduceMotion) pagerState.scrollToPage(1)
+                                   else pagerState.animateScrollToPage(1) } }
         )
         list += PaletteCommand(
             id = "nav-uptime",
             label = t.navUptime,
             icon = Icons.Rounded.Timer,
-            action = { scope.launch { pagerState.animateScrollToPage(2) } }
+            action = { scope.launch { if (reduceMotion) pagerState.scrollToPage(2)
+                                   else pagerState.animateScrollToPage(2) } }
         )
         list += PaletteCommand(
             id = "nav-network",
             label = t.navNetwork,
             icon = Icons.Rounded.Public,
-            action = { scope.launch { pagerState.animateScrollToPage(3) } }
+            action = { scope.launch { if (reduceMotion) pagerState.scrollToPage(3)
+                                   else pagerState.animateScrollToPage(3) } }
         )
         list += PaletteCommand(
             id = "nav-vault",
             label = t.navVault,
             icon = Icons.Rounded.Security,
-            action = { scope.launch { pagerState.animateScrollToPage(4) } }
+            action = { scope.launch { if (reduceMotion) pagerState.scrollToPage(4)
+                                   else pagerState.animateScrollToPage(4) } }
         )
         list
     }
@@ -343,8 +347,8 @@ fun AeroDeckHome(
         ) {
             AnimatedVisibility(
                 visible = pagerState.currentPage == 0,
-                enter = fadeIn(tween(AeroMotion.fadeMs)),
-                exit = fadeOut(tween(AeroMotion.fadeMs))
+                enter = fadeIn(aeroTween(AeroMotion.fadeMs)),
+                exit = fadeOut(aeroTween(AeroMotion.fadeMs))
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -513,10 +517,14 @@ private fun AeroMapPage(
                 // 44dp tap target centered on the node.
                 // Tap → cockpit (layer 2). Long-press → radial quick actions
                 // (layer 3).
+                // 3-F: `left`, not `start` — these are absolute canvas
+                // coordinates (same space as the draw) and must NOT flip
+                // with layout direction; on the fa (RTL) base a `start`
+                // padding mirrored the whole map.
                 Box(
                     modifier = Modifier
                         .padding(
-                            start = ((x - 22).dp).coerceAtLeast(0.dp),
+                            left = ((x - 22).dp).coerceAtLeast(0.dp),
                             top = ((y - 22).dp).coerceAtLeast(0.dp)
                         )
                         .size(44.dp)
@@ -528,10 +536,10 @@ private fun AeroMapPage(
                         }
                 )
                 // label + sub-label (clamped so edge nodes never produce
-                // negative padding)
+                // negative padding). `left` — absolute canvas coordinate.
                 Column(
                     modifier = Modifier
-                        .padding(start = ((x - 70).dp).coerceAtLeast(0.dp), top = (y + 18).dp)
+                        .padding(left = ((x - 70).dp).coerceAtLeast(0.dp), top = (y + 18).dp)
                         .width(140.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
@@ -592,13 +600,15 @@ private fun AeroRadialMenu(
     // Satellites sit 54dp above the node on either side; the primary
     // (cockpit) action covers the node itself. Same coordinate convention
     // as the node tap targets (clamped so edge nodes stay on screen).
+    // 3-F: `left` everywhere — absolute canvas coordinates, direction-
+    // independent (a `start` padding mirrored the menu on fa/RTL).
     val satDy = 54f
 
     // left satellite: test alert
     Column(
         modifier = Modifier
             .padding(
-                start = ((x - 54f - 22f).dp).coerceAtLeast(0.dp),
+                left = ((x - 54f - 22f).dp).coerceAtLeast(0.dp),
                 top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -617,7 +627,7 @@ private fun AeroRadialMenu(
     Column(
         modifier = Modifier
             .padding(
-                start = ((x + 54f - 22f).dp).coerceAtLeast(0.dp),
+                left = ((x + 54f - 22f).dp).coerceAtLeast(0.dp),
                 top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -636,7 +646,7 @@ private fun AeroRadialMenu(
     Column(
         modifier = Modifier
             .padding(
-                start = ((x - 28f).dp).coerceAtLeast(0.dp),
+                left = ((x - 28f).dp).coerceAtLeast(0.dp),
                 top = ((y - 28f).dp).coerceAtLeast(0.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally

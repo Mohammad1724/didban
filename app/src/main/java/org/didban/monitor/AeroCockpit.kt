@@ -107,6 +107,7 @@ fun AeroCockpitScreen(
 ) {
     val ctx = LocalContext.current
     val api = remember { ApiClient() }
+    val reduceMotion = useReduceMotion()
     var section by remember { mutableStateOf(0) }
     val pagerState = rememberPagerState(initialPage = 0) { 6 }
     val scope = rememberCoroutineScope()
@@ -115,6 +116,15 @@ fun AeroCockpitScreen(
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { section = it }
+    }
+
+    // 3-F: section navigation respects the system reduce-motion setting
+    // (instant jump instead of an animated swipe).
+    fun gotoPage(page: Int) {
+        scope.launch {
+            if (reduceMotion) pagerState.scrollToPage(page)
+            else pagerState.animateScrollToPage(page)
+        }
     }
 
     // H7: metrics/latency/error come from the shared Repo (written by the
@@ -250,7 +260,7 @@ fun AeroCockpitScreen(
                 AeroSectionChip(
                     label = label,
                     active = section == i,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(i) } }
+                    onClick = { gotoPage(i) }
                 )
             }
         }
@@ -268,7 +278,7 @@ fun AeroCockpitScreen(
                     err = err,
                     hist = hist,
                     dockerCount = dockerData?.containers?.size ?: 0,
-                    onNavigate = { target -> scope.launch { pagerState.animateScrollToPage(target) } },
+                    onNavigate = { target -> gotoPage(target) },
                     onRefresh = { refreshAll() },
                     onTestAlert = {
                         if (!isTestingTg) {
@@ -1079,6 +1089,7 @@ private fun AeroDockerSection(t: Str, server: ServerConfig, data: DockerSummaryD
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val api = remember { ApiClient() }
+    val reduceMotion = useReduceMotion()
 
     if (data == null) {
         LoadingState(t.connecting)
@@ -1119,7 +1130,8 @@ private fun AeroDockerSection(t: Str, server: ServerConfig, data: DockerSummaryD
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    PulseDot(color = if (isRunning) Ds.ok else Ds.danger, size = 8.dp, pulsing = isRunning)
+                    // 3-F: a "running" dot stays visible but stops pulsing under reduce-motion
+                    PulseDot(color = if (isRunning) Ds.ok else Ds.danger, size = 8.dp, pulsing = isRunning && !reduceMotion)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(

@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -37,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -146,6 +148,15 @@ fun useReduceMotion(): Boolean = remember {
         false
     }
 }
+
+/**
+ * Motion-aware finite animation spec (3-F): collapses to instant (0ms) when
+ * the system reduce-motion setting is on, so any v3 animation written as
+ * `aeroTween(AeroMotion.xMs)` respects the setting without extra wiring.
+ */
+@Composable
+fun aeroTween(ms: Int): FiniteAnimationSpec<Float> =
+    if (useReduceMotion()) tween(0) else tween(ms)
 
 // ── Instrument band: one continuous cluster (NOT four cards) ───────────────
 
@@ -290,7 +301,13 @@ fun DenseTable(
 
 @Composable
 private fun DenseCellText(cell: DenseCell, modifier: Modifier, headerStyle: Boolean = false) {
-    val direction = if (cell.ltr) LayoutDirection.Ltr else LayoutDirection.Rtl
+    // 3-F: LTR cells (IPs, metrics) force Ltr direction; non-LTR cells
+    // INHERIT the app's base direction (fa→Rtl, en→Ltr) instead of forcing
+    // Rtl — the old code broke the English locale. An LTR cell aligns to
+    // the visual reading edge only when the table base is RTL (where LTR
+    // runs sit on the opposite side of the line).
+    val baseIsRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val direction = if (cell.ltr) LayoutDirection.Ltr else LocalLayoutDirection.current
     CompositionLocalProvider(
         androidx.compose.ui.platform.LocalLayoutDirection provides direction
     ) {
@@ -305,7 +322,7 @@ private fun DenseCellText(cell: DenseCell, modifier: Modifier, headerStyle: Bool
             },
             fontFamily = if (cell.mono) Telemetry else AppFontFamily,
             color = cell.color ?: (if (headerStyle) Ds.textTertiary else Ds.textPrimary),
-            textAlign = if (cell.ltr) TextAlign.End else cell.align,
+            textAlign = if (cell.ltr && baseIsRtl) TextAlign.End else cell.align,
             maxLines = 1,
             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = TabularNums
@@ -431,6 +448,9 @@ fun Modifier.v3ListSurface(): Modifier = v3Surface()
 /** Dense list header row (v3 language; pairs of label to ltr). */
 @Composable
 fun v3ListHeaderRow(cells: List<Pair<String, Boolean>>) {
+    // 3-F: LTR headers align to the visual edge only on an RTL base
+    // (matching DenseCellText); on an LTR base they stay Start-aligned.
+    val baseIsRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Row(
         Modifier
             .fillMaxWidth()
@@ -445,7 +465,7 @@ fun v3ListHeaderRow(cells: List<Pair<String, Boolean>>) {
                 fontWeight = FontWeight.Bold,
                 color = Ds.textTertiary,
                 modifier = Modifier.weight(1f),
-                textAlign = if (ltr) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start
+                textAlign = if (ltr && baseIsRtl) androidx.compose.ui.text.style.TextAlign.End else androidx.compose.ui.text.style.TextAlign.Start
             )
         }
     }
