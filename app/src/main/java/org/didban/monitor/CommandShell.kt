@@ -103,7 +103,9 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     UPTIME("uptime", CommandWorkspace.DIAGNOSE),
     UPTIME_EDITOR("uptime-editor", CommandWorkspace.DIAGNOSE),
     NETWORK_TOOLS("network-tools", CommandWorkspace.DIAGNOSE),
+    NETWORK_TOOLS_EDITOR("network-tools-editor", CommandWorkspace.DIAGNOSE),
     DNS("dns", CommandWorkspace.DIAGNOSE),
+    DNS_EDITOR("dns-editor", CommandWorkspace.DIAGNOSE),
 
     WORKBENCH_HOME("workbench-home", CommandWorkspace.WORKBENCH),
     SSH("ssh", CommandWorkspace.WORKBENCH),
@@ -154,8 +156,8 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.SERVICES -> copy.services
     CommandRoute.RADAR -> copy.radar
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> copy.uptime
-    CommandRoute.NETWORK_TOOLS -> copy.networkTools
-    CommandRoute.DNS -> copy.dns
+    CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> copy.networkTools
+    CommandRoute.DNS, CommandRoute.DNS_EDITOR -> copy.dns
     CommandRoute.WORKBENCH_HOME -> copy.workbench
     CommandRoute.SSH -> copy.ssh
     CommandRoute.BATCH -> copy.batch
@@ -182,8 +184,8 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.SERVICES -> Icons.Rounded.Tune
     CommandRoute.RADAR -> Icons.Rounded.Public
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> Icons.Rounded.MonitorHeart
-    CommandRoute.NETWORK_TOOLS -> Icons.Rounded.NetworkCheck
-    CommandRoute.DNS -> Icons.Rounded.Dns
+    CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> Icons.Rounded.NetworkCheck
+    CommandRoute.DNS, CommandRoute.DNS_EDITOR -> Icons.Rounded.Dns
     CommandRoute.WORKBENCH_HOME -> Icons.Rounded.Terminal
     CommandRoute.SSH -> Icons.Rounded.Terminal
     CommandRoute.BATCH -> Icons.Rounded.Groups
@@ -199,7 +201,13 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
 }
 
 private fun routesFor(workspace: CommandWorkspace): List<CommandRoute> =
-    CommandRoute.values().filter { it.workspace == workspace && it != CommandRoute.TUNNELS_EDITOR && it != CommandRoute.UPTIME_EDITOR }
+    CommandRoute.values().filter {
+    it.workspace == workspace &&
+        it != CommandRoute.TUNNELS_EDITOR &&
+        it != CommandRoute.UPTIME_EDITOR &&
+        it != CommandRoute.NETWORK_TOOLS_EDITOR &&
+        it != CommandRoute.DNS_EDITOR
+}
 
 @Composable
 fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
@@ -377,6 +385,15 @@ private fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (
     CommandWorkspace.DIAGNOSE -> CommandRoute.RADAR
     CommandWorkspace.WORKBENCH -> CommandRoute.WORKBENCH_HOME
     CommandWorkspace.PROTECT -> CommandRoute.PROTECT_HOME
+}
+
+private fun bridgeParent(route: CommandRoute): CommandRoute = when (route) {
+    CommandRoute.TUNNELS_EDITOR -> CommandRoute.TUNNELS
+    CommandRoute.UPTIME_EDITOR -> CommandRoute.UPTIME
+    CommandRoute.NETWORK_TOOLS_EDITOR -> CommandRoute.NETWORK_TOOLS
+    CommandRoute.DNS_EDITOR -> CommandRoute.DNS
+    CommandRoute.MANAGE_SERVERS -> CommandRoute.FLEET
+    else -> workspaceDefault(route.workspace)
 }
 
 @Composable
@@ -584,6 +601,8 @@ private fun CommandRouteContent(
         CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
+        CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) })
+        CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
         CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
         CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
@@ -623,7 +642,7 @@ private fun CommandLegacySurface(
         CommandSurface(modifier = Modifier.fillMaxWidth(), raised = true) {
             Column(Modifier.padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CommandBackButton(copy.back) { onNavigate(workspaceDefault(route.workspace), null) }
+                    CommandBackButton(copy.back) { onNavigate(bridgeParent(route), null) }
                     Spacer(Modifier.width(CommandSpacing.sm))
                     Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                 }
@@ -643,8 +662,8 @@ private fun CommandLegacySurface(
                     )
                     CommandRoute.TUNNELS_EDITOR -> AeroTunnelFleetScreen(legacyStrings, Prefs.loadTunnels(context), onRefresh = {})
                     CommandRoute.UPTIME_EDITOR -> UptimeScreen(legacyStrings)
-                    CommandRoute.NETWORK_TOOLS, CommandRoute.RADAR -> NetworkHubScreen(legacyStrings)
-                    CommandRoute.DNS -> CloudflareScreen(legacyStrings)
+                    CommandRoute.NETWORK_TOOLS_EDITOR -> NetworkHubScreen(legacyStrings)
+                    CommandRoute.DNS_EDITOR -> CloudflareScreen(legacyStrings)
                     CommandRoute.SSH -> SshTerminalScreen(legacyStrings, selectedServer?.id)
                     CommandRoute.BATCH -> BatchExecScreen(legacyStrings)
                     CommandRoute.SFTP -> SftpScreen(legacyStrings)
@@ -662,7 +681,7 @@ private fun CommandLegacySurface(
                         }
                     }
                     CommandRoute.SERVICES -> SystemdScreen(legacyStrings)
-                    else -> CommandStateBlock(copy.stagedWorkspace, copy.legacyBridgeBody, CommandHealthTone.INFO, copy.back) { onNavigate(workspaceDefault(route.workspace), null) }
+                    else -> CommandStateBlock(copy.stagedWorkspace, copy.legacyBridgeBody, CommandHealthTone.INFO, copy.back) { onNavigate(bridgeParent(route), null) }
                 }
             })
         }
