@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دیدبان — فاز ۳ v3 — کوکپیت = برگهٔ زمینه‌ای</title>
+<style>
+  :root{
+    --canvas:#F4F6FA; --surface:#FFFFFF; --low:#EEF2F8;
+    --hairline:#E3E8F0; --hairline-strong:#CBD5E1;
+    --ink:#0E1B2C; --ink2:#46566E; --ink3:#8A97AB;
+    --accent:#1E40AF; --accent-deep:#1E3A8A;
+    --ok:#0E9F6E; --warn:#B45309; --danger:#DC2626; --info:#2563EB; --violet:#7C3AED; --offline:#A8B2C2;
+    --font:"Vazirmatn","Segoe UI",Tahoma,system-ui,sans-serif;
+    --mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+    --sh:0 12px 32px rgba(14,27,44,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#E9EDF3;font-family:var(--font);display:flex;flex-direction:column;align-items:center;padding:28px 12px;gap:14px}
+  .caption{color:#8A97AB;font-size:12px;text-align:center}.caption b{color:#46566E}
+  .phone{width:390px;height:820px;background:var(--canvas);border-radius:44px;border:1px solid #D5DCE8;box-shadow:0 30px 80px rgba(14,27,44,.18),0 0 0 8px #fff;overflow:hidden;position:relative}
+  .statusbar{position:absolute;top:0;left:0;right:0;z-index:9;display:flex;justify-content:space-between;align-items:center;padding:14px 26px 4px;font-size:13px;font-weight:600;color:var(--ink)}
+  /* map behind sheet: blurred + dimmed (context preserved) */
+  .canvas{position:absolute;inset:0;filter:blur(3px) saturate(.9);transform:scale(1.02)}
+  .canvas svg{width:100%;height:100%;display:block}
+  .dim{position:absolute;inset:0;background:rgba(244,246,250,.55)}
+  /* THE SHEET: context detail anchored on canvas — not a new screen */
+  .sheet{position:absolute;left:0;right:0;bottom:0;height:668px;background:#fff;border-radius:30px 30px 0 0;box-shadow:0 -18px 50px rgba(14,27,44,.25);z-index:8;display:flex;flex-direction:column}
+  .grabber{width:46px;height:5px;border-radius:3px;background:var(--hairline-strong);margin:10px auto 4px;flex-shrink:0}
+  .sh{display:flex;align-items:center;gap:9px;padding:8px 18px 10px;flex-shrink:0}
+  .sh .n{font-size:18px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .sh .n .d{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px rgba(14,159,110,.5)}
+  .sh .ip{font-family:var(--mono);font-size:9.5px;color:var(--ink3);direction:ltr;text-align:right}
+  .sh .pill{margin-right:auto;display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--ok);background:rgba(14,159,110,.08);border:1px solid rgba(14,159,110,.25);padding:4.5px 10px;border-radius:99px}
+  .sh .x{width:30px;height:30px;border-radius:10px;background:var(--low);display:flex;align-items:center;justify-content:center;color:var(--ink3)}
+  .sc{flex:1;overflow-y:auto;scrollbar-width:none;padding:0 16px 26px}
+  .sc::-webkit-scrollbar{display:none}
+  /* instrument band: ONE continuous cluster (not 4 cards) */
+  .band{display:grid;grid-template-columns:repeat(4,1fr);background:var(--low);border:1px solid var(--hairline);border-radius:18px}
+  .band .cell{padding:11px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+  .band .cell+.cell::before{content:"";position:absolute;right:0;top:16%;bottom:16%;width:1px;background:var(--hairline)}
+  .ring{position:relative;width:44px;height:44px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
+  .band .l{font-size:9px;font-weight:700;color:var(--ink2)}
+  .band .d{font-size:8px;color:var(--ink3);font-variant-numeric:tabular-nums}
+  .band .d.bad{color:var(--warn)} .band .d.good{color:var(--ok)}
+  /* flat sections with hairlines (no card chrome) */
+  .sec{display:flex;justify-content:space-between;align-items:center;margin:16px 0 7px}
+  .sec .t{font-size:11.5px;font-weight:700;color:var(--ink2)}
+  .sec .a{font-size:9.5px;color:var(--ink3);font-variant-numeric:tabular-nums}
+  .chart{background:#fff;border:1px solid var(--hairline);border-radius:16px;padding:10px 12px}
+  .chart .h{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  .chart .h .t{font-size:11px;font-weight:700;color:var(--ink2)}
+  .chart .h .lg{margin-right:auto;display:flex;gap:8px;font-size:8.5px;color:var(--ink3);direction:ltr}
+  .chart .h .lg span{display:flex;align-items:center;gap:4px}
+  .chart .h .lg i{width:8px;height:2.5px;border-radius:2px;display:inline-block}
+  /* dense table (hairlines, not cards) */
+  .tbl{border:1px solid var(--hairline);border-radius:16px;overflow:hidden}
+  .tbl .th{display:flex;align-items:center;gap:8px;background:var(--low);font-size:9px;color:var(--ink3);font-weight:700;padding:7.5px 12px}
+  .tbl .tr{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid var(--hairline);font-size:11px}
+  .tbl .c1{flex:1;font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--ink);direction:ltr;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tbl .bar2{width:46px;height:4px;border-radius:2px;background:var(--low);overflow:hidden;flex-shrink:0}
+  .tbl .bar2 i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-deep),var(--accent))}
+  .tbl .c2{font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums;width:36px;text-align:left;direction:ltr;color:var(--ink)}
+  .tbl .c3{font-size:10px;color:var(--ink3);font-variant-numeric:tabular-nums;width:42px;text-align:left;direction:ltr}
+  .tbl .c4{font-family:var(--mono);font-size:9px;color:var(--ink3);width:32px;text-align:left;direction:ltr}
+  /* service chips */
+  .svcs{display:flex;flex-wrap:wrap;gap:6px}
+  .svc{display:flex;align-items:center;gap:6px;font-size:10px;font-weight:700;color:var(--ink2);background:#fff;border:1px solid var(--hairline);border-radius:9px;padding:5.5px 10px;font-family:var(--mono);direction:ltr}
+  .svc .d{width:7px;height:7px;border-radius:50%}
+  .svc .d.ok{background:var(--ok)} .svc .d.warn{background:var(--warn)}
+  .svc .d.fa{font-family:var(--font);color:var(--ink3);width:auto}
+  /* tunnel rows */
+  .trow{display:flex;align-items:center;gap:9px;padding:9px 2px;border-top:1px solid var(--hairline)}
+  .trow:first-child{border-top:none}
+  .trow .route{font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink);direction:ltr;flex:1}
+  .trow .core{font-size:9.5px;color:var(--ink3)}
+  .trow .ms{font-size:10px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums}
+  .trow .down{font-size:9.5px;font-weight:700;color:var(--danger)}
+  .tunwrap{border-top:1px solid var(--hairline);padding:4px 2px}
+  /* events */
+  .evs{border-top:1px solid var(--hairline)}
+  .ev{display:flex;gap:9px;padding:8.5px 2px;border-top:1px solid var(--hairline)}
+  .ev:first-child{border-top:none}
+  .ev .d{width:7px;height:7px;border-radius:50%;margin-top:4px;flex-shrink:0}
+  .ev .t1{font-size:11px;color:var(--ink);font-weight:600;line-height:1.55}
+  .ev .t2{font-size:9px;color:var(--ink3);font-variant-numeric:tabular-nums;margin-top:1px}
+  /* action rail */
+  .rail{display:flex;gap:7px;margin-top:14px;padding-bottom:4px;overflow-x:auto;scrollbar-width:none}
+  .rail::-webkit-scrollbar{display:none}
+  .achip{flex-shrink:0;display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;padding:9px 15px;border-radius:99px;background:#fff;border:1px solid var(--hairline);color:var(--ink2)}
+  .achip.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+  .achip svg{width:14px;height:14px}
+  @media (prefers-reduced-motion: reduce){.pulse{animation:none}}
+  .pulse{animation:pu 2.4s ease-in-out infinite}
+  @keyframes pu{0%,100%{opacity:1}50%{opacity:.5}}
+</style>
+</head>
+<body>
+  <div class="caption"><b>دیدبان</b> · فاز ۳ v3 «بوم فضایی» · mockup ۲ — <b>کوکپیت سرور = برگهٔ زمینه‌ای</b> · نقشه هنوز پشتش هست (کانتکست گم نمی‌شود) · نوار ابزارِ پیوسته به‌جای ۴ کارت · جدول با خط‌کود به‌جای کارت-به-کارت</div>
+
+  <div class="phone">
+    <div class="statusbar">
+      <span>۹:۴۲</span>
+      <span style="display:flex;gap:5px">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="#0E1B2C"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13" y="0" width="3" height="11" rx="1" opacity=".35"/></svg>
+        <svg width="23" height="11" viewBox="0 0 23 11"><rect x=".5" y=".5" width="19" height="10" rx="3" fill="none" stroke="#0E1B2C" opacity=".4"/><rect x="2" y="2" width="16" height="7" rx="1.5" fill="#0E9F6E"/><rect x="20.5" y="3.5" width="2" height="4" rx="1" fill="#0E1B2C" opacity=".4"/></svg>
+      </span>
+    </div>
+    <div class="canvas">
+      <svg viewBox="0 0 390 820" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="gd" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="1.3" cy="1.3" r="1.15" fill="#DCE3EE"/></pattern>
+          <radialGradient id="gAcc"><stop offset="0" stop-color="rgba(30,64,175,.3)"/><stop offset="1" stop-color="rgba(30,64,175,0)"/></radialGradient>
+          <radialGradient id="gOk"><stop offset="0" stop-color="rgba(14,159,110,.28)"/><stop offset="1" stop-color="rgba(14,159,110,0)"/></radialGradient>
+        </defs>
+        <rect width="390" height="820" fill="url(#gd)"/>
+        <path d="M195,400 Q120,300 88,208" fill="none" stroke="#E3E8F0" stroke-width="2.6"/>
+        <path d="M88,208 Q195,110 302,190" fill="none" stroke="#E3E8F0" stroke-width="2.6"/>
+        <path d="M195,400 Q262,470 300,556" fill="none" stroke="#E3E8F0" stroke-width="2.6"/>
+        <path d="M195,400 Q118,492 92,600" fill="none" stroke="var(--danger)" stroke-width="1.6" stroke-dasharray="4 6" opacity=".55"/>
+        <circle class="pulse" cx="195" cy="400" r="56" fill="url(#gAcc)"/>
+        <circle cx="195" cy="400" r="24" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        <circle cx="195" cy="400" r="15" fill="#fff" stroke="var(--accent)" stroke-width="3"/>
+        <circle cx="195" cy="400" r="5" fill="var(--accent)"/>
+        <circle cx="88" cy="208" r="14" fill="none" stroke="rgba(14,159,110,.55)" stroke-width="1.3"/>
+        <circle cx="88" cy="208" r="7.5" fill="#fff" stroke="var(--ok)" stroke-width="2.2"/>
+        <circle class="pulse" cx="88" cy="208" r="32" fill="url(#gOk)"/>
+        <circle cx="302" cy="190" r="15" fill="none" stroke="var(--warn)" stroke-width="1.6"/>
+        <circle cx="302" cy="190" r="7.5" fill="#fff" stroke="var(--warn)" stroke-width="2.2"/>
+        <circle cx="300" cy="556" r="13" fill="none" stroke="rgba(14,159,110,.55)" stroke-width="1.3"/>
+        <circle cx="300" cy="556" r="7.5" fill="#fff" stroke="var(--ok)" stroke-width="2.2"/>
+        <circle cx="92" cy="600" r="14" fill="none" stroke="var(--offline)" stroke-width="1.5" stroke-dasharray="3 4"/>
+        <circle cx="92" cy="600" r="7" fill="#fff" stroke="var(--offline)" stroke-width="1.8"/>
+      </svg>
+    </div>
+    <div class="dim"></div>
+
+    <div class="sheet">
+      <div class="grabber"></div>
+      <div class="sh">
+        <div>
+          <div class="n"><span class="d"></span>ir-01</div>
+          <div class="ip">185.42.112.8 · تهران · agent v2.4</div>
+        </div>
+        <div class="pill">سالم · ۱۴ روز uptime</div>
+        <div class="x"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div>
+      </div>
+      <div class="sc">
+        <!-- instrument band (one cluster) -->
+        <div class="band">
+          <div class="cell">
+            <div class="ring">
+              <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#E3E8F0" stroke-width="4.5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="74.6"/></svg>
+              <div class="val">۳۴٪</div>
+            </div>
+            <span class="l">CPU</span><span class="d bad">▲ ۲٪</span>
+          </div>
+          <div class="cell">
+            <div class="ring">
+              <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#E3E8F0" stroke-width="4.5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--violet)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="44.1"/></svg>
+              <div class="val">۶۱٪</div>
+            </div>
+            <span class="l">RAM</span><span class="d good">▼ ۱٪</span>
+          </div>
+          <div class="cell">
+            <div class="ring">
+              <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#E3E8F0" stroke-width="4.5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--info)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="58.8"/></svg>
+              <div class="val">۴۸٪</div>
+            </div>
+            <span class="l">DISK</span><span class="d">۲۱۰ روز</span>
+          </div>
+          <div class="cell">
+            <div class="ring">
+              <svg width="44" height="44" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="#E3E8F0" stroke-width="4.5"/><circle cx="22" cy="22" r="18" fill="none" stroke="var(--ok)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="96.1"/></svg>
+              <div class="val">۱۲.۴</div>
+            </div>
+            <span class="l">NET</span><span class="d good">↓12 ↑3</span>
+          </div>
+        </div>
+
+        <!-- chart -->
+        <div class="sec"><span class="t">۲۴ ساعت اخیر</span><span class="a">poll 15s · ۸ ثانیه پیش</span></div>
+        <div class="chart">
+          <div class="h">
+            <div class="lg">
+              <span><i style="background:var(--accent)"></i>CPU</span>
+              <span><i style="background:var(--violet)"></i>RAM</span>
+              <span><i style="background:var(--info)"></i>NET</span>
+            </div>
+          </div>
+          <svg viewBox="0 0 334 96" width="100%" height="96">
+            <defs>
+              <linearGradient id="lcpuFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="rgba(30,64,175,.12)"/><stop offset="1" stop-color="rgba(30,64,175,0)"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="20" x2="334" y2="20" stroke="var(--danger)" stroke-width=".8" stroke-dasharray="4 5" opacity=".45"/>
+            <text x="330" y="16" text-anchor="end" fill="var(--danger)" font-size="7" opacity=".7" font-family="JetBrains Mono,monospace">85%</text>
+            <line x1="0" y1="50" x2="334" y2="50" stroke="#EEF2F8" stroke-width=".6"/>
+            <line x1="0" y1="90" x2="334" y2="90" stroke="#EEF2F8" stroke-width=".6"/>
+            <path d="M0,58.6 L30,55.1 L61,56.9 L91,52.5 L121,48.7 L152,54.4 L182,58.6 L212,61.9 L243,60.1 L273,56 L303,58.6 L334,61.9 L334,90 L0,90 Z" fill="url(#lcpuFill)"/>
+            <path d="M0,58.6 L30,55.1 L61,56.9 L91,52.5 L121,48.7 L152,54.4 L182,58.6 L212,61.9 L243,60.1 L273,56 L303,58.6 L334,61.9" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M0,39.8 L30,38.2 L61,39.8 L91,37.4 L121,39.8 L152,36.5 L182,39 L212,40.5 L243,41.3 L273,38.2 L303,39.8 L334,41.3" fill="none" stroke="var(--violet)" stroke-width="1.4" stroke-linejoin="round" opacity=".9"/>
+            <path d="M0,67.7 L30,57.1 L61,65.5 L91,51.3 L121,59.3 L152,46.2 L182,57.1 L212,65.5 L243,55.1 L273,49.4 L303,57.1 L334,62.9" fill="none" stroke="var(--info)" stroke-width="1.4" stroke-linejoin="round" opacity=".9"/>
+          </svg>
+        </div>
+
+        <!-- processes: dense table -->
+        <div class="sec"><span class="t">فرایندها</span><span class="a">۴ از ۱۸۶</span></div>
+        <div class="tbl">
+          <div class="th"><span style="flex:1">فرایند</span><span style="width:46px">CPU</span><span style="width:36px;text-align:left;direction:ltr">%</span><span style="width:42px;text-align:left;direction:ltr">RAM</span><span style="width:32px;text-align:left;direction:ltr">PID</span></div>
+          <div class="tr"><span class="c1">nginx: worker</span><div class="bar2"><i style="width:76%"></i></div><span class="c2">۳۸</span><span class="c3">96MB</span><span class="c4">2214</span></div>
+          <div class="tr"><span class="c1">postgres</span><div class="bar2"><i style="width:22%"></i></div><span class="c2">۱۱</span><span class="c3">412MB</span><span class="c4">1204</span></div>
+          <div class="tr"><span class="c1">didban-agent</span><div class="bar2"><i style="width:18%"></i></div><span class="c2">۹</span><span class="c3">61MB</span><span class="c4">1877</span></div>
+          <div class="tr"><span class="c1">backpack server</span><div class="bar2"><i style="width:14%"></i></div><span class="c2">۷</span><span class="c3">28MB</span><span class="c4">3320</span></div>
+        </div>
+
+        <!-- services -->
+        <div class="sec"><span class="t">سرویس‌های systemd</span><span class="a">۴ + ۵ کانتینر</span></div>
+        <div class="svcs">
+          <div class="svc"><span class="d ok"></span>nginx</div>
+          <div class="svc"><span class="d ok"></span>postgres</div>
+          <div class="svc"><span class="d warn"></span>redis</div>
+          <div class="svc"><span class="d ok"></span>didban-agent</div>
+          <div class="svc"><span class="d fa">۵ کانتینر ✓</span></div>
+        </div>
+
+        <!-- tunnels on this server -->
+        <div class="sec"><span class="t">تانل‌های این سرور</span><span class="a">۳</span></div>
+        <div class="tunwrap">
+          <div class="trow"><span class="route">ir-01 ⇄ kh-02</span><span class="core">BackPack</span><span class="ms">۲۳ms ●</span></div>
+          <div class="trow"><span class="route">ir-01 ⇄ sa-01</span><span class="core">GOST</span><span class="ms">۶۱ms ●</span></div>
+          <div class="trow"><span class="route">ir-01 ⇄ us-01</span><span class="core">Wire</span><span class="down">● قطع · ۲h</span></div>
+        </div>
+
+        <!-- events -->
+        <div class="sec"><span class="t">رویدادها</span></div>
+        <div class="evs">
+          <div class="ev"><span class="d" style="background:var(--warn)"></span><div><div class="t1">سپایک CPU — ۹۸٪ برای ۴۰ ثانیه</div><div class="t2">امروز ۰۸:۱۲ · resolve: خودبه‌خود</div></div></div>
+          <div class="ev"><span class="d" style="background:var(--info)"></span><div><div class="t1">تانل ir-01 ⇄ kh-02 deploy شد</div><div class="t2">دیروز ۲۱:۴۷ · ۳ پورت</div></div></div>
+          <div class="ev"><span class="d" style="background:var(--ok)"></span><div><div class="t1">process_up: redis-server</div><div class="t2">دیروز ۰۳:۱۰ · watchlist</div></div></div>
+        </div>
+
+        <!-- actions -->
+        <div class="rail">
+          <div class="achip primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l6-5-6-5"/><path d="M12 19h8"/></svg>SSH</div>
+          <div class="achip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>SFTP</div>
+          <div class="achip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>Systemd</div>
+          <div class="achip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3M12 3v3M16 3v3"/><rect x="4" y="6" width="16" height="15" rx="2"/></svg>Batch</div>
+          <div class="achip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3.2"/></svg>پینگ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
