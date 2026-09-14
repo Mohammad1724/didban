@@ -1,0 +1,236 @@
+package org.didban.monitor
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+
+@Composable
+fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    UptimeEngine.ensureLoaded(context)
+    val targets by UptimeEngine.liveTargets.collectAsState()
+    var selectedId by remember { mutableStateOf<Long?>(null) }
+    var name by remember { mutableStateOf("New monitor") }
+    var type by remember { mutableStateOf("HTTP") }
+    var target by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("443") }
+    var interval by remember { mutableStateOf("30") }
+    var keyword by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<UptimeTarget?>(null) }
+
+    fun reset() {
+        selectedId = null
+        name = "New monitor"
+        type = "HTTP"
+        target = ""
+        port = "443"
+        interval = "30"
+        keyword = ""
+        message = null
+        error = null
+    }
+
+    fun select(item: UptimeTarget) {
+        selectedId = item.id
+        name = item.name
+        type = item.type
+        target = item.target
+        port = item.port.toString()
+        interval = item.intervalSec.toString()
+        keyword = item.keyword
+        message = null
+        error = null
+    }
+
+    fun buildTarget(): UptimeTarget {
+        val original = selectedId?.let { id -> targets.firstOrNull { it.id == id } }
+        return UptimeTarget(
+        id = selectedId ?: System.currentTimeMillis(),
+        name = name.trim().ifBlank { "Monitor ${selectedId ?: "new"}" },
+        type = type,
+        target = target.trim(),
+        port = port.toIntOrNull()?.coerceIn(1, 65535) ?: if (type == "HTTPS" || type == "SSL") 443 else 80,
+        intervalSec = interval.toIntOrNull()?.coerceIn(10, 86400) ?: 30,
+        keyword = keyword.trim(),
+        isPaused = selectedId?.let { id -> targets.firstOrNull { it.id == id }?.isPaused } ?: false,
+        lastStatus = selectedId?.let { id -> targets.firstOrNull { it.id == id }?.lastStatus } ?: -1,
+        lastLatencyMs = original?.lastLatencyMs ?: 0,
+        lastChecked = original?.lastChecked ?: 0,
+        heartbeats = original?.heartbeats?.toMutableList() ?: mutableListOf(),
+        incidents = original?.incidents?.toMutableList() ?: mutableListOf()
+        )
+    }
+
+    fun save() {
+        val item = buildTarget()
+        if (item.target.isBlank()) {
+            error = "Target نمی‌تواند خالی باشد."
+            return
+        }
+        if (item.type == "KEYWORD" && item.keyword.isBlank()) {
+            error = "برای KEYWORD باید keyword واقعی وارد شود."
+            return
+        }
+        UptimeEngine.upsert(context, item)
+        selectedId = item.id
+        message = "Monitor ذخیره شد؛ check بعدی توسط UptimeEngine انجام می‌شود."
+        error = null
+    }
+
+    fun test() {
+        val item = buildTarget()
+        if (item.target.isBlank()) {
+            error = "ابتدا target را وارد کنید."
+            return
+        }
+        UptimeEngine.upsert(context, item)
+        selectedId = item.id
+        busy = true
+        error = null
+        scope.launch {
+            runCatching { UptimeEngine.checkNow(context, item) }
+                .onSuccess { message = "Check واقعی انجام شد: ${if (item.lastStatus == 1) "UP" else "DOWN"} · ${item.lastLatencyMs} ms" }
+                .onFailure { error = it.message ?: "Check ناموفق بود." }
+            busy = false
+        }
+    }
+
+    val selected = selectedId?.let { id -> targets.firstOrNull { it.id == id } }
+
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
+        item {
+            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                CommandBackButton(copy.back, onBack)
+                CommandSectionTitle(copy.uptime, if (selectedId == null) "new monitor" else "editing #$selectedId", modifier = Modifier.weight(1f))
+            }
+        }
+        item {
+            CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Saved monitors", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        CommandTextButton("New", ::reset, icon = Icons.Rounded.Refresh)
+                    }
+                    if (targets.isEmpty()) {
+                        Text("هنوز Monitor واقعی ذخیره نشده است.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    } else {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                            targets.forEach { item ->
+                                CommandSecondaryButton(item.name, { select(item) }, enabled = selectedId != item.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            CommandSurface(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                    Text("Monitor contract", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Name") })
+                    Text("Probe type", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                        listOf("HTTP", "HTTPS", "TCP", "PING", "KEYWORD", "SSL").forEach { candidate ->
+                            CommandSecondaryButton(candidate, { type = candidate }, enabled = type != candidate)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text("Target / URL / host") })
+                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text("Interval seconds") })
+                        OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text("Keyword, only for KEYWORD") })
+                    }
+                    Text("URL/HTTP و SSL از engine واقعی استفاده می‌کنند؛ target نمونه یا synthetic result ساخته نمی‌شود.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                CommandPrimaryButton("Save", ::save, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
+                CommandSecondaryButton("Test now", ::test, Modifier.weight(1f), Icons.Rounded.PlayArrow, enabled = !busy)
+            }
+        }
+        if (selected != null) {
+            item {
+                CommandSurface(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        CommandStatusMark(
+                            if (selected.lastStatus == 1) "UP" else if (selected.lastStatus == 0) "DOWN" else "PENDING",
+                            if (selected.lastStatus == 1) CommandHealthTone.HEALTHY else if (selected.lastStatus == 0) CommandHealthTone.OFFLINE else CommandHealthTone.UNKNOWN,
+                            detail = "${selected.lastLatencyMs} ms · ${selected.intervalSec}s"
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                            CommandSecondaryButton(if (selected.isPaused) "Resume" else "Pause", { UptimeEngine.togglePause(context, selected.id) }, icon = if (selected.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause)
+                            CommandTextButton("Delete", { deleteTarget = selected }, icon = Icons.Rounded.DeleteOutline)
+                        }
+                        if (selected.incidents.isNotEmpty()) {
+                            Text("${selected.incidents.size} incident record(s)", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
+        if (message != null) item { CommandStateBlock("Operation", message ?: "", CommandHealthTone.INFO) }
+        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+
+    if (deleteTarget != null) {
+        val item = deleteTarget!!
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete monitor؟", fontWeight = FontWeight.Bold) },
+            text = { Text("${item.name} و heartbeat/incidentهای محلی آن حذف می‌شوند.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    UptimeEngine.remove(context, item.id)
+                    deleteTarget = null
+                    reset()
+                    message = "Monitor حذف شد."
+                }) { Text("حذف", color = CommandColors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("لغو") } }
+        )
+    }
+}

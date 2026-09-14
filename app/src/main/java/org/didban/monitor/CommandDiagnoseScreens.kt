@@ -227,7 +227,7 @@ fun CommandUptimeScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
-                    Text(copy.uptime, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text("Monitor configuration", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Spacer(Modifier.height(CommandSpacing.xs))
                     Text("${targets.count { it.lastStatus == 1 }} ${copy.healthy} · ${targets.count { it.lastStatus == 0 }} ${copy.offline}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     Spacer(Modifier.height(CommandSpacing.sm))

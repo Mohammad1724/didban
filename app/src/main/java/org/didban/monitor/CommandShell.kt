@@ -603,8 +603,11 @@ private fun CommandRouteContent(
         CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
+        CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onNavigate(CommandRoute.UPTIME, null) }
         CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) })
+        CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) }
         CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
+        CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onNavigate(CommandRoute.DNS, null) }
         CommandRoute.VAULT -> CommandVaultScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.BACKUP -> CommandBackupScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
@@ -670,9 +673,6 @@ private fun CommandLegacySurface(
                         onLanguage = onLanguageChange,
                         onOpen = { server -> onNavigate(CommandRoute.SERVER_DOSSIER, server) }
                     )
-                    CommandRoute.UPTIME_EDITOR -> UptimeScreen(legacyStrings)
-                    CommandRoute.NETWORK_TOOLS_EDITOR -> NetworkHubScreen(legacyStrings)
-                    CommandRoute.DNS_EDITOR -> CloudflareScreen(legacyStrings)
                     CommandRoute.SSH -> SshTerminalScreen(legacyStrings, selectedServer?.id)
                     CommandRoute.BATCH -> BatchExecScreen(legacyStrings)
                     CommandRoute.SFTP -> SftpScreen(legacyStrings)
