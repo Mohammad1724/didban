@@ -20,11 +20,12 @@ type API struct {
 	mon     *Monitor
 	tm      *TunnelManager
 	wd      *TunnelWatchdog // nil when the watchdog is disabled
+	pm      *ProbeMonitor   // nil when the probe monitor is disabled
 	limiter *rateLimiter
 }
 
-func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog) *API {
-	return &API{cfg: cfg, mon: mon, tm: tm, wd: wd, limiter: newRateLimiter()}
+func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog, pm *ProbeMonitor) *API {
+	return &API{cfg: cfg, mon: mon, tm: tm, wd: wd, pm: pm, limiter: newRateLimiter()}
 }
 
 func (a *API) routes() http.Handler {
@@ -53,6 +54,10 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
+	// Multi-point probing (Phase 4 · 4-B)
+	mux.HandleFunc("/api/probe", a.auth(a.handleProbeStatus))
+	mux.HandleFunc("/api/probe/targets", a.auth(a.handleProbeTargets))
+	mux.HandleFunc("/api/probe/now", a.auth(a.handleProbeNow))
 
 	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
 	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
@@ -401,6 +406,72 @@ func (a *API) handleTunnelWatchdog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, a.wd.Snapshot())
+}
+
+// handleProbeStatus reports the multi-point probe snapshot (Phase 4 · 4-B):
+// every registered target as seen from THIS host, with latency history.
+func (a *API) handleProbeStatus(w http.ResponseWriter, r *http.Request) {
+	if a.pm == nil {
+		writeJSON(w, http.StatusOK, ProbeSnapshot{Enabled: false})
+		return
+	}
+	writeJSON(w, http.StatusOK, a.pm.Snapshot())
+}
+
+type probeTargetsReq struct {
+	Targets []ProbeTargetSpec `json:"targets"`
+}
+
+// handleProbeTargets replaces the registered probe target set (owned by the
+// app). The whole batch is validated before anything is applied.
+func (a *API) handleProbeTargets(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed (PUT required)"})
+		return
+	}
+	if a.pm == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "probe monitor is disabled on this agent"})
+		return
+	}
+	var req probeTargetsReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		return
+	}
+	if err := a.pm.SetTargets(req.Targets); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, a.pm.Snapshot())
+}
+
+type probeNowReq struct {
+	Target string `json:"target"` // empty = probe everything
+}
+
+// handleProbeNow triggers an immediate probe (one target, or all).
+func (a *API) handleProbeNow(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed (POST required)"})
+		return
+	}
+	if a.pm == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "probe monitor is disabled on this agent"})
+		return
+	}
+	var req probeNowReq
+	_ = json.NewDecoder(r.Body).Decode(&req) // empty body = probe all
+	if req.Target != "" {
+		pt, ok := a.pm.ProbeNow(req.Target)
+		if !ok {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown target: " + req.Target})
+			return
+		}
+		writeJSON(w, http.StatusOK, pt)
+		return
+	}
+	a.pm.ProbeAll()
+	writeJSON(w, http.StatusOK, a.pm.Snapshot())
 }
 
 func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {

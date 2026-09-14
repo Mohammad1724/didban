@@ -224,6 +224,11 @@ interface Str {
     val alertsStep3Desc: String
     val navVault: String
     val navTools: String
+    // Phase 4 · 4-B: multi-point probe matrix (uptime page)
+    val multiPointTitle: String
+    val multiPointHint: String
+    val pointPhone: String
+    val pointUnreachable: String
     // Phase 4 · 4-A: tunnel watchdog badge (fleet page)
     val watchdogTitle: String
     val wdUp: String
@@ -584,6 +589,10 @@ object FaStr : Str {
     override val alertsStep3Title: String = "۳. دریافت آنی هشدارهای قطعی ۲۴/۷"
     override val alertsStep3Desc: String = "دیدبان در صورت قطعی سرور یا تانل، سریعاً پیام هشدار با جزییات کامل ارسال می‌کند."
     override val navVault: String = "گاوصندوق"
+    override val multiPointTitle: String = "پایش چند نقطه‌ای"
+    override val multiPointHint: String = "گوشی فقط یک نقطهٔ مشاهده است؛ سرورهای شما همین هدف‌ها را همزمان پروب می‌کنند."
+    override val pointPhone: String = "گوشی"
+    override val pointUnreachable: String = "دست‌نیافتنی"
     override val watchdogTitle: String = "نگهبان تونل"
     override val wdUp: String = "سالم"
     override val wdDown: String = "قطع"
@@ -945,6 +954,10 @@ object EnStr : Str {
     override val alertsStep3Title: String = "3. 24/7 Real-Time Incident Dispatch"
     override val alertsStep3Desc: String = "Didban will automatically dispatch instant alert payloads on server failures and spikes."
     override val navVault: String = "Vault"
+    override val multiPointTitle: String = "Multi-point monitoring"
+    override val multiPointHint: String = "Your phone is a single vantage point; your servers probe the same targets at the same time."
+    override val pointPhone: String = "Phone"
+    override val pointUnreachable: String = "Unreachable"
     override val watchdogTitle: String = "Tunnel Watchdog"
     override val wdUp: String = "Up"
     override val wdDown: String = "Down"

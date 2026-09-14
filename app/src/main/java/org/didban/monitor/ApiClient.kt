@@ -212,4 +212,25 @@ class ApiClient {
         withContext(Dispatchers.IO) {
             get(server, "/api/tunnel/watchdog")
         }
+
+    // ── Phase 4 · 4-B: multi-point probing ──────────────────────────────────
+
+    /** Probe snapshot from this agent (one probe point). */
+    suspend fun probeStatus(server: ServerConfig): JSONObject =
+        withContext(Dispatchers.IO) {
+            get(server, "/api/probe")
+        }
+
+    /** Replace the agent's registered probe target set (idempotent sync). */
+    suspend fun probeTargetsSync(server: ServerConfig, payload: JSONObject): JSONObject =
+        withContext(Dispatchers.IO) {
+            post(server, "/api/probe/targets", payload)
+        }
+
+    /** Immediate probe: one target by name, or all when name is blank. */
+    suspend fun probeNow(server: ServerConfig, target: String = ""): JSONObject =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().apply { if (target.isNotEmpty()) put("target", target) }
+            post(server, "/api/probe/now", body)
+        }
 }

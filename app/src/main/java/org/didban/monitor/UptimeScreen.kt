@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.AlertDialog
@@ -70,7 +73,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -96,6 +102,38 @@ fun UptimeScreen(t: Str) {
     var testingTargetId by remember { mutableStateOf<Long?>(null) }
     var showGuide by remember { mutableStateOf(targets.isEmpty()) }
     var selectedFilterType by remember { mutableStateOf<String?>(null) }
+
+    // ── Phase 4 · 4-B: multi-point matrix (phone + every server as probe points) ──
+    val mpServers = remember { Prefs.loadServers(ctx) }
+    var mpPoints by remember { mutableStateOf<List<ProbeMatrixPoint>>(emptyList()) }
+    var mpCells by remember { mutableStateOf<Map<Long, MutableMap<String, ProbeMatrixCell>>>(emptyMap()) }
+    LaunchedEffect(mpServers) {
+        val api = ApiClient()
+        while (isActive) {
+            if (mpServers.isNotEmpty()) {
+                val points = mutableListOf<ProbeMatrixPoint>()
+                val cells = LinkedHashMap<Long, MutableMap<String, ProbeMatrixCell>>()
+                // Column 1: the phone itself (the uptime engine's own view).
+                points += ProbeMatrixPoint("phone", t.pointPhone, true)
+                targets.forEach { tg ->
+                    if (tg.isPaused) return@forEach
+                    val st = when (tg.lastStatus) { 1 -> 1; 0 -> 0; else -> -1 }
+                    cells.getOrPut(tg.id) { LinkedHashMap() }["phone"] = ProbeMatrixCell(st, tg.lastLatencyMs)
+                }
+                // One column per reachable agent (an unreachable agent is
+                // shown as a dimmed column, never as an error — same
+                // convention as the fleet watchdog badge).
+                for (s in mpServers) {
+                    val (pt, sc) = syncProbePoint(api, s, targets)
+                    points += pt
+                    sc.forEach { (tid, cell) -> cells.getOrPut(tid) { LinkedHashMap() }[pt.key] = cell }
+                }
+                mpPoints = points
+                mpCells = cells
+            }
+            delay(60_000)
+        }
+    }
 
     BackHandler(
         enabled = showAddDialog || editTarget != null || deleteTarget != null || expandedIncidentsTargetId != null
@@ -337,6 +375,18 @@ fun UptimeScreen(t: Str) {
             }
         }
 
+        // ── Multi-point matrix (Phase 4 · 4-B) ──
+        if (mpServers.isNotEmpty()) {
+            item {
+                MultiPointMatrixCard(
+                    t = t,
+                    targets = targets,
+                    points = mpPoints,
+                    cells = mpCells
+                )
+            }
+        }
+
         item { Spacer(Modifier.height(30.dp)) }
     }
 
@@ -378,6 +428,182 @@ fun UptimeScreen(t: Str) {
                 }
             }
         )
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Phase 4 · 4-B — Multi-point matrix (host × probe point)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** One probe point (a column): the phone or one of the user's servers. */
+private data class ProbeMatrixPoint(
+    val key: String,
+    val label: String,
+    val available: Boolean
+)
+
+/** One matrix cell. state: 1 = up, 0 = down, -1 = pending, -2 = point unreachable. */
+private data class ProbeMatrixCell(
+    val state: Int,
+    val latencyMs: Long
+)
+
+/**
+ * Syncs one server probe point: idempotently registers the phone's uptime
+ * targets on the agent, then reads its snapshot. Never throws — an
+ * unreachable agent simply yields an unavailable point (fleet-badge
+ * convention: no error noise).
+ */
+private suspend fun syncProbePoint(
+    api: ApiClient,
+    server: ServerConfig,
+    targets: List<UptimeTarget>
+): Pair<ProbeMatrixPoint, Map<Long, ProbeMatrixCell>> {
+    val cells = LinkedHashMap<Long, ProbeMatrixCell>()
+    val label = server.name.ifBlank { server.host }
+    return try {
+        api.probeTargetsSync(server, ProbeSpecs.targetsPayload(targets))
+        val snap = ProbeSnapshot.parse(api.probeStatus(server))
+        for (tg in targets) {
+            if (tg.isPaused) continue
+            val p = snap.point(ProbeSpecs.specName(tg))
+            cells[tg.id] = when {
+                p == null || !p.observed -> ProbeMatrixCell(-1, 0)
+                p.state == "up" -> ProbeMatrixCell(1, p.lastLatencyMs)
+                else -> ProbeMatrixCell(0, p.lastLatencyMs)
+            }
+        }
+        ProbeMatrixPoint(server.id.toString(), label, true) to cells
+    } catch (_: Exception) {
+        targets.filter { !it.isPaused }.forEach { cells[it.id] = ProbeMatrixCell(-2, 0) }
+        ProbeMatrixPoint(server.id.toString(), label, false) to cells
+    }
+}
+
+@Composable
+private fun MultiPointMatrixCard(
+    t: Str,
+    targets: List<UptimeTarget>,
+    points: List<ProbeMatrixPoint>,
+    cells: Map<Long, Map<String, ProbeMatrixCell>>
+) {
+    val active = targets.filter { !it.isPaused }
+    if (active.isEmpty() || points.isEmpty()) return
+
+    ModernCard(padding = 14.dp, cornerRadius = 22.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(
+                    icon = Icons.Rounded.Public,
+                    tint = Ds.accent,
+                    background = Ds.accentDim,
+                    size = 30.dp,
+                    iconSize = 16.dp
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        t.multiPointTitle,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Ds.textPrimary,
+                        maxLines = 1
+                    )
+                    Text(
+                        t.multiPointHint,
+                        fontSize = 10.sp,
+                        color = Ds.textTertiary,
+                        maxLines = 2
+                    )
+                }
+            }
+
+            // Fixed-width columns inside a horizontal scroller so any number
+            // of servers stays usable on small screens.
+            val scroll = rememberScrollState()
+            Row(Modifier.horizontalScroll(scroll)) {
+                // Header row
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(Modifier.width(110.dp))
+                    points.forEach { p ->
+                        Column(
+                            Modifier.width(68.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                p.label,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (p.available) Ds.textSecondary else Ds.textTertiary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!p.available) {
+                                Text(
+                                    t.pointUnreachable,
+                                    fontSize = 8.sp,
+                                    color = Ds.textTertiary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+                // One row per active target
+                active.forEach { target ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            target.name.ifBlank { target.target },
+                            Modifier.width(110.dp),
+                            fontSize = 11.5.sp,
+                            color = Ds.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        points.forEach { p ->
+                            val cell = cells[target.id]?.get(p.key) ?: ProbeMatrixCell(-1, 0)
+                            MatrixCellColumn(cell)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MatrixCellColumn(cell: ProbeMatrixCell) {
+    val color = when (cell.state) {
+        1 -> Ds.ok
+        0 -> Ds.danger
+        else -> Ds.textTertiary
+    }
+    Column(
+        Modifier.width(68.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(7.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
+            Text(
+                if (cell.state == 1 || cell.state == 0) "${cell.latencyMs}ms" else "…",
+                fontSize = 9.sp,
+                color = Ds.textTertiary,
+                maxLines = 1
+            )
+        }
     }
 }
 

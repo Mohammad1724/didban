@@ -43,6 +43,9 @@ type Config struct {
 	// Tunnel watchdog (Phase 4 · 4-A)
 	WatchdogEnabled     bool
 	WatchdogIntervalSec int
+	// Multi-point probing (Phase 4 · 4-B)
+	ProbeEnabled      bool
+	ProbeIntervalSec  int
 
 	// Alerts
 	TelegramToken  string
@@ -135,6 +138,16 @@ func main() {
 		fatal("invalid DIDBAN_WATCHDOG_INTERVAL_SEC=%d: must be 5..600", wdSec)
 	}
 	cfg.WatchdogIntervalSec = wdSec
+
+	// Multi-point probing: enabled by default; interval 10..3600s. A
+	// set-but-invalid value is a loud startup failure (same contract as the
+	// watchdog/thresholds).
+	cfg.ProbeEnabled = os.Getenv("DIDBAN_PROBE_ENABLED") != "0"
+	psSec, err := intEnvOr("DIDBAN_PROBE_INTERVAL_SEC", 60)
+	if err != nil || psSec < 10 || psSec > 3600 {
+		fatal("invalid DIDBAN_PROBE_INTERVAL_SEC=%d: must be 10..3600", psSec)
+	}
+	cfg.ProbeIntervalSec = psSec
 	printVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -188,13 +201,19 @@ func main() {
 		go wd.Run(ctx)
 	}
 
+	var pm *ProbeMonitor
+	if cfg.ProbeEnabled {
+		pm = NewProbeMonitor(cfg.DataDir, mon, time.Duration(cfg.ProbeIntervalSec)*time.Second)
+		go pm.Run(ctx)
+	}
+
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           newAPI(cfg, mon, tm, wd).routes(),
+		Handler:           newAPI(cfg, mon, tm, wd, pm).routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), cfg.WatchdogEnabled, cfg.WatchdogIntervalSec, tokenFirstShow(cfg.DataDir))
+	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), cfg.WatchdogEnabled, cfg.WatchdogIntervalSec, cfg.ProbeEnabled, cfg.ProbeIntervalSec, tokenFirstShow(cfg.DataDir))
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -254,7 +273,7 @@ func tokenPrefix(tok string) string {
 	return tok[:8] + "…"
 }
 
-func banner(cfg *Config, fingerprint string, alertsActive bool, watchdogEnabled bool, watchdogIntervalSec int, showFullToken bool) {
+func banner(cfg *Config, fingerprint string, alertsActive bool, watchdogEnabled bool, watchdogIntervalSec int, probeEnabled bool, probeIntervalSec int, showFullToken bool) {
 	scheme := "https"
 	host := firstLocalIP()
 	if cfg.PlainHTTP {
@@ -286,6 +305,9 @@ func banner(cfg *Config, fingerprint string, alertsActive bool, watchdogEnabled 
 	fmt.Printf("  Deploy mode:  %s\n", cfg.DeployMode)
 	if watchdogEnabled {
 		fmt.Printf("  Watchdog:     Enabled (tunnel check every %ds)\n", watchdogIntervalSec)
+	}
+	if probeEnabled {
+		fmt.Printf("  Probe:        Enabled (multi-point check every %ds)\n", probeIntervalSec)
 	} else {
 		fmt.Println("  Watchdog:     Disabled")
 	}
