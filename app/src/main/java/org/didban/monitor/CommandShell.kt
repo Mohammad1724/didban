@@ -595,6 +595,7 @@ private fun CommandRouteContent(
         CommandRoute.OVERVIEW -> CommandOverviewScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, { onNavigate(CommandRoute.INCIDENTS, null) }, { onNavigate(CommandRoute.FLEET, null) }, onManageServers, onRefresh)
         CommandRoute.INCIDENTS -> CommandIncidentsScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onRefresh)
         CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh)
+        CommandRoute.MANAGE_SERVERS -> CommandManageServersScreen(copy, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }) { onNavigate(CommandRoute.FLEET, null) }
         CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, { onNavigate(CommandRoute.FLEET, null) }, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) })
         CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) }
         CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onNavigate(CommandRoute.TUNNELS, selectedServer) }
@@ -666,13 +667,6 @@ private fun CommandLegacySurface(
         Box(Modifier.weight(1f)) {
             AeroTheme(mode = AeroThemeMode.fromId(themeMode), content = {
                 when (route) {
-                    CommandRoute.MANAGE_SERVERS -> ServersScreen(
-                        t = legacyStrings,
-                        isDarkMode = themeMode == "dark",
-                        onToggleTheme = { onThemeChange(if (themeMode == "dark") "light" else "dark") },
-                        onLanguage = onLanguageChange,
-                        onOpen = { server -> onNavigate(CommandRoute.SERVER_DOSSIER, server) }
-                    )
                     CommandRoute.SSH -> SshTerminalScreen(legacyStrings, selectedServer?.id)
                     CommandRoute.BATCH -> BatchExecScreen(legacyStrings)
                     CommandRoute.SFTP -> SftpScreen(legacyStrings)
@@ -682,13 +676,6 @@ private fun CommandLegacySurface(
                     CommandRoute.VAULT -> VaultScreen(legacyStrings)
                     CommandRoute.ALERTS -> AlertsHubScreen(legacyStrings)
                     CommandRoute.BACKUP -> BackupRestoreScreen(legacyStrings)
-                    CommandRoute.DOCKER, CommandRoute.PROCESSES -> {
-                        if (selectedServer != null) {
-                            AeroCockpitScreen(legacyStrings, selectedServer, themeMode == "dark", { }, { onNavigate(CommandRoute.SERVER_DOSSIER, selectedServer) })
-                        } else {
-                            CommandStateBlock(copy.selectServer, copy.noServerSelected, CommandHealthTone.INFO, copy.servers) { onNavigate(CommandRoute.FLEET, null) }
-                        }
-                    }
                     else -> CommandStateBlock(copy.stagedWorkspace, copy.legacyBridgeBody, CommandHealthTone.INFO, copy.back) { onNavigate(bridgeParent(route), null) }
                 }
             })
