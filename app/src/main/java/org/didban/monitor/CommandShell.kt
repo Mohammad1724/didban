@@ -603,6 +603,11 @@ private fun CommandRouteContent(
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
         CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) })
         CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
+        CommandRoute.VAULT -> CommandVaultScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
+        CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
+        CommandRoute.BACKUP -> CommandBackupScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
+        CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) })
+        CommandRoute.BATCH -> CommandBatchScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
         CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
         CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
