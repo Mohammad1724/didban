@@ -1926,6 +1926,10 @@ services:
                         "chisel" in cImage || "chisel" in cName -> TunnelCore.CHISEL
                         "frp" in cImage || "frp" in cName -> TunnelCore.FRP
                         "paqet" in cImage || "paqet" in cName -> TunnelCore.PAQET
+                        // Item 29: Narnia deploys as a container (image
+                        // stormotron/narnia) — its key arrives via the
+                        // allowlisted PASSWORD env, not the cmdline.
+                        "narnia" in cImage || "narnia" in cName -> TunnelCore.NARNIA
                         else -> null
                     }
 
@@ -1947,9 +1951,11 @@ services:
                                 iranPort = port,
                                 foreignPort = port,
                                 corePort = port,
-                                // M17: docker env vars are not exposed by the scanner,
-                                // so the token stays blank (unknown) — never a fake one.
-                                token = "",
+                                // M17/Item 29: recover the real token from the
+                                // agent's allowlisted env when the core uses one
+                                // (Narnia: PASSWORD); otherwise blank (unknown) —
+                                // never a fake one.
+                                token = TunnelSecrets.tokenFromEnv(detectedCore, container.env) ?: "",
                                 autoSync = false,
                                 isEnabled = true,
                                 lastStatus = 1,

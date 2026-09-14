@@ -153,4 +153,63 @@ class TunnelDiscoveryTest {
         TunnelEngine.generateCode(c)
         assertTrue("token must be minted into the model", c.token.length >= 24)
     }
+
+    // ── Item 29: container env token recovery ───────────────────────────────
+
+    @Test
+    fun `narnia container PASSWORD env yields the real token`() {
+        val env = mapOf("PASSWORD" to "RealNarniaKey123", "MTU" to "1400")
+        assertEquals("RealNarniaKey123", TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, env))
+    }
+
+    @Test
+    fun `env tokens are core-specific and sanity-checked`() {
+        val env = mapOf("PASSWORD" to "RealNarniaKey123")
+        // only Narnia reads PASSWORD — other cores never leak it
+        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.BACKPACK, env))
+        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.GOST, env))
+        // missing / blank / oversized
+        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, emptyMap()))
+        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, mapOf("PASSWORD" to "  ")))
+        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, mapOf("PASSWORD" to "a".repeat(300))))
+    }
+
+    @Test
+    fun `model parses allowlisted container env`() {
+        val o = JSONObject()
+        o.put("installed", true)
+        o.put(
+            "containers",
+            org.json.JSONArray().put(
+                JSONObject()
+                    .put("id", "abc123def456789")
+                    .put("name", "didban-tunnel-42")
+                    .put("image", "stormotron/narnia:0.0.3")
+                    .put("state", "running")
+                    .put("status", "Up 2 hours")
+                    .put("created", 1700000000L)
+                    .put("env", JSONObject().put("PASSWORD", "RealNarniaKey123"))
+            )
+        )
+        val s = JsonParse.docker(o)
+        assertEquals(1, s.containers.size)
+        assertEquals(mapOf("PASSWORD" to "RealNarniaKey123"), s.containers[0].env)
+
+        // no env field → empty map (older agents)
+        val o2 = JSONObject()
+        o2.put("installed", true)
+        o2.put(
+            "containers",
+            org.json.JSONArray().put(
+                JSONObject()
+                    .put("id", "x")
+                    .put("name", "x")
+                    .put("image", "gost")
+                    .put("state", "running")
+                    .put("status", "Up")
+                    .put("created", 1L)
+            )
+        )
+        assertTrue(JsonParse.docker(o2).containers[0].env.isEmpty())
+    }
 }

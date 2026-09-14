@@ -65,6 +65,19 @@ object TunnelSecrets {
      * a real secret. A null result keeps the tunnel "token unknown" — the
      * deploy gate blocks it until the user enters the actual token.
      */
+    /**
+     * Item 29: recover the real credential of a container-deployed tunnel
+     * from its env (the agent exposes ONLY allowlisted keys, so this map is
+     * already secret-safe). Narnia ships its key as PASSWORD — the same env
+     * contract as upstream Narnia.sh. Every other core returns null: their
+     * docker images take config files, not env tokens.
+     */
+    fun tokenFromEnv(core: TunnelCore, env: Map<String, String>): String? {
+        if (core != TunnelCore.NARNIA) return null
+        val token = env["PASSWORD"] ?: return null
+        return if (token.isNotBlank() && token.length <= 256) token else null
+    }
+
     fun extractTokenFromCmd(core: TunnelCore, cmd: String): String? {
         if (core != TunnelCore.CHISEL) return null
         val idx = cmd.indexOf("--auth")
