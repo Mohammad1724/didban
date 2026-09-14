@@ -251,14 +251,15 @@ fun CommandSecondaryButton(
 fun CommandTextButton(
     text: String,
     onClick: () -> Unit,
+    icon: ImageVector? = null,
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null
+    enabled: Boolean = true
 ) {
     Row(
         modifier = modifier
             .height(40.dp)
             .clip(RoundedCornerShape(6.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)

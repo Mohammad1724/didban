@@ -608,6 +608,10 @@ private fun CommandRouteContent(
         CommandRoute.BACKUP -> CommandBackupScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) })
         CommandRoute.BATCH -> CommandBatchScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
+        CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
+        CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
+        CommandRoute.PROXY -> CommandProxyScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
+        CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
         CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
         CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
