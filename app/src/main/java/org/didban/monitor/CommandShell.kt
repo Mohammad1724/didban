@@ -387,15 +387,6 @@ private fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (
     CommandWorkspace.PROTECT -> CommandRoute.PROTECT_HOME
 }
 
-private fun bridgeParent(route: CommandRoute): CommandRoute = when (route) {
-    CommandRoute.TUNNELS_EDITOR -> CommandRoute.TUNNELS
-    CommandRoute.UPTIME_EDITOR -> CommandRoute.UPTIME
-    CommandRoute.NETWORK_TOOLS_EDITOR -> CommandRoute.NETWORK_TOOLS
-    CommandRoute.DNS_EDITOR -> CommandRoute.DNS
-    CommandRoute.MANAGE_SERVERS -> CommandRoute.FLEET
-    else -> workspaceDefault(route.workspace)
-}
-
 @Composable
 private fun CommandRail(
     copy: CommandCopy,
@@ -621,64 +612,5 @@ private fun CommandRouteContent(
         CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
         CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
-        else -> CommandLegacySurface(
-            route = route,
-            copy = copy,
-            selectedServer = selectedServer,
-            themeMode = themeMode,
-            language = language,
-            onNavigate = onNavigate,
-            onManageServers = onManageServers,
-            onThemeChange = onThemeChange,
-            onLanguageChange = onLanguageChange
-        )
-    }
-}
-
-/**
- * Bridge موقت برای حفظ دسترسی به functionality واقعی در حین مهاجرت. این
- * Wrapper قرار نیست زبان بصری نهایی باشد و با تکمیل هر Workspace حذف می‌شود.
- */
-@Composable
-private fun CommandLegacySurface(
-    route: CommandRoute,
-    copy: CommandCopy,
-    selectedServer: ServerConfig?,
-    themeMode: String,
-    language: String,
-    onNavigate: (CommandRoute, ServerConfig?) -> Unit,
-    onManageServers: () -> Unit,
-    onThemeChange: (String) -> Unit,
-    onLanguageChange: (String) -> Unit
-) {
-    val legacyStrings = if (language == "fa") Locales.fa else Locales.en
-    Column(Modifier.fillMaxSize()) {
-        CommandSurface(modifier = Modifier.fillMaxWidth(), raised = true) {
-            Column(Modifier.padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CommandBackButton(copy.back) { onNavigate(bridgeParent(route), null) }
-                    Spacer(Modifier.width(CommandSpacing.sm))
-                    Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                }
-                Spacer(Modifier.height(CommandSpacing.xs))
-                Text(copy.legacyBridgeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-            }
-        }
-        Box(Modifier.weight(1f)) {
-            AeroTheme(mode = AeroThemeMode.fromId(themeMode), content = {
-                when (route) {
-                    CommandRoute.SSH -> SshTerminalScreen(legacyStrings, selectedServer?.id)
-                    CommandRoute.BATCH -> BatchExecScreen(legacyStrings)
-                    CommandRoute.SFTP -> SftpScreen(legacyStrings)
-                    CommandRoute.SINGLE_PORT -> SinglePortScreen(legacyStrings)
-                    CommandRoute.PROXY -> ProxyTesterScreen(legacyStrings)
-                    CommandRoute.DEVELOPER_LAB -> DevLabScreen(legacyStrings)
-                    CommandRoute.VAULT -> VaultScreen(legacyStrings)
-                    CommandRoute.ALERTS -> AlertsHubScreen(legacyStrings)
-                    CommandRoute.BACKUP -> BackupRestoreScreen(legacyStrings)
-                    else -> CommandStateBlock(copy.stagedWorkspace, copy.legacyBridgeBody, CommandHealthTone.INFO, copy.back) { onNavigate(bridgeParent(route), null) }
-                }
-            })
-        }
     }
 }
