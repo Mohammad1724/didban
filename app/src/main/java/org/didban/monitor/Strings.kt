@@ -103,6 +103,8 @@ interface Str {
     val probeTarget: String
     val probeType: String
     val probeSuccess: String
+    val retryProbe: String
+    val staleSuffix: String
     val nodes: String
     val portNumber: String
     val enterTarget: String
@@ -435,6 +437,8 @@ object FaStr : Str {
     override val probeTarget: String = "آدرس سرور یا دامنه مقصد"
     override val probeType: String = "نوع تست اتصال"
     override val probeSuccess: String = "نود در دسترس است"
+    override val retryProbe: String = "تلاش مجدد"
+    override val staleSuffix: String = "پیش"
     override val nodes: String = "نود جهانی"
     override val portNumber: String = "شماره پورت (مثلا 22 یا 443)"
     override val enterTarget: String = "آدرس IP یا دامنه مورد نظر را وارد کنید"
@@ -770,6 +774,8 @@ object EnStr : Str {
     override val probeTarget: String = "Target Host or Domain"
     override val probeType: String = "Check Type"
     override val probeSuccess: String = "nodes reachable"
+    override val retryProbe: String = "Retry"
+    override val staleSuffix: String = "ago"
     override val nodes: String = "nodes"
     override val portNumber: String = "Port (e.g. 22 or 443)"
     override val enterTarget: String = "Enter target host or IP"

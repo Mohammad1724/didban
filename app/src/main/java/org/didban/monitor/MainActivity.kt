@@ -368,7 +368,9 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                         .imePadding()
                 ) {
                     Box(Modifier.weight(1f)) {
-                        DashboardScreen(
+                        // v3 context layer: the server cockpit (3-C) — full
+                        // replacement of the legacy DashboardScreen.
+                        AeroCockpitScreen(
                             t = t,
                             server = openServer!!,
                             isDarkMode = isDarkMode,
