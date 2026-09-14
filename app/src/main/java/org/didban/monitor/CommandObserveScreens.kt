@@ -520,7 +520,7 @@ private fun CommandDossierAction(label: String, copy: CommandCopy, onClick: () -
 }
 
 @Composable
-fun CommandSettingsScreen(
+fun CommandSettingsLegacyScreen(
     copy: CommandCopy,
     themeMode: String,
     language: String,

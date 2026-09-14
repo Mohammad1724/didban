@@ -1,0 +1,193 @@
+package org.didban.monitor
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+
+private enum class SettingsConfirmAction {
+    RESET_VAULT,
+    CLEAR_TRUST
+}
+
+@Composable
+fun CommandSettingsScreen(
+    copy: CommandCopy,
+    themeMode: String,
+    language: String,
+    onThemeChange: (String) -> Unit,
+    onLanguageChange: (String) -> Unit
+) {
+    val context = LocalContext.current
+    var interval by remember { mutableStateOf((Prefs.getPollIntervalMs(context) / 1000L).toString()) }
+    var saveMessage by remember { mutableStateOf<String?>(null) }
+    var confirmAction by remember { mutableStateOf<SettingsConfirmAction?>(null) }
+    var trustEntries by remember { mutableStateOf(loadTrustEntries()) }
+    var vaultInitialized by remember { mutableStateOf(Prefs.isVaultInitialized(context)) }
+
+    fun saveInterval() {
+        val seconds = interval.toLongOrNull()?.coerceIn(5L, 3600L)
+        if (seconds == null) {
+            saveMessage = "Poll interval باید بین ۵ تا ۳۶۰۰ ثانیه باشد."
+        } else {
+            Prefs.setPollIntervalSec(context, seconds)
+            interval = seconds.toString()
+            saveMessage = "Poll interval ذخیره شد؛ از Poll بعدی اعمال می‌شود."
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)
+    ) {
+        item {
+            CommandSectionTitle(
+                title = copy.settings,
+                supporting = "کنترل رفتار، مشاهده‌پذیری و سطح اعتماد دستگاه",
+                modifier = Modifier.padding(top = CommandSpacing.sm)
+            )
+        }
+        item {
+            SettingsSection(title = "Appearance", detail = "تغییرات این بخش بلافاصله در Shell اعمال می‌شوند.") {
+                Text(copy.language, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                    CommandSecondaryButton(copy.persian, { onLanguageChange("fa") }, enabled = language != "fa", modifier = Modifier.weight(1f))
+                    CommandSecondaryButton(copy.english, { onLanguageChange("en") }, enabled = language != "en", modifier = Modifier.weight(1f))
+                }
+                Text(copy.theme, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                    CommandSecondaryButton(copy.light, { onThemeChange("light") }, enabled = themeMode != "light", modifier = Modifier.weight(1f))
+                    CommandSecondaryButton(copy.dark, { onThemeChange("dark") }, enabled = themeMode != "dark", modifier = Modifier.weight(1f))
+                    CommandSecondaryButton(copy.automatic, { onThemeChange("auto") }, enabled = themeMode != "auto", modifier = Modifier.weight(1f))
+                }
+            }
+        }
+        item {
+            SettingsSection(title = "Monitoring", detail = "فاصلهٔ درخواست‌های واقعی Agent و محدودیت‌های آن.") {
+                OutlinedTextField(
+                    value = interval,
+                    onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Poll interval (seconds)") }
+                )
+                CommandPrimaryButton(copy.save, ::saveInterval, icon = Icons.Rounded.Settings)
+                if (saveMessage != null) {
+                    Text(saveMessage ?: "", color = if (saveMessage!!.contains("ذخیره")) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
+            SettingsSection(title = "Security", detail = "این عملیات به داده‌های رمزنگاری‌شده یا trust anchorهای SSH دست می‌زنند.") {
+                CommandStatusMark(
+                    if (vaultInitialized) "Vault initialized" else "Vault not initialized",
+                    if (vaultInitialized) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN,
+                    detail = if (vaultInitialized) "Secretها بدون Master Password خوانده نمی‌شوند." else "برای ذخیرهٔ Secret ابتدا Vault را باز کنید."
+                )
+                CommandSecondaryButton("Reset Vault", { confirmAction = SettingsConfirmAction.RESET_VAULT }, icon = Icons.Rounded.Lock, enabled = vaultInitialized)
+                CommandRule()
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        Text("SSH Trust Store", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                        Text("${trustEntries.size} host key ثبت شده؛ fingerprintها Secret نیستند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    }
+                    CommandTextButton("پاک‌سازی", { confirmAction = SettingsConfirmAction.CLEAR_TRUST }, icon = Icons.Rounded.DeleteOutline, enabled = trustEntries.isNotEmpty())
+                }
+                if (trustEntries.isEmpty()) {
+                    Text("Trust Store خالی است.", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                } else {
+                    trustEntries.forEach { entry ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("${entry.host}:${entry.port}", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                Text(entry.fingerprint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            SettingsSection(title = "Diagnostics", detail = "اطلاعات runtime؛ هیچ وضعیت ساختگی در این بخش تولید نمی‌شود.") {
+                CommandStatusMark("Didban ${BuildConfig.VERSION_NAME}", CommandHealthTone.INFO, detail = "Host Key Store initialized: ${HostKeyTrustStore.initialized}")
+                Text("برای بررسی کامل connectivity از ابزارهای SSH، SFTP و Probe در Workbench استفاده کنید.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+            }
+        }
+        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+
+    if (confirmAction != null) {
+        val action = confirmAction
+        AlertDialog(
+            onDismissRequest = { confirmAction = null },
+            title = { Text(if (action == SettingsConfirmAction.RESET_VAULT) "Reset Vault؟" else "پاک‌سازی Trust Store؟", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (action == SettingsConfirmAction.RESET_VAULT) "این کار Master Password، canary و تمام Noteهای رمزنگاری‌شدهٔ Vault را حذف می‌کند و قابل بازگشت نیست."
+                    else "تمام SSH host keyهای ذخیره‌شده حذف می‌شوند؛ اتصال بعدی هر سرور دوباره نیازمند Trust است."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (action == SettingsConfirmAction.RESET_VAULT) {
+                        Prefs.resetVault(context)
+                        vaultInitialized = false
+                    } else {
+                        runCatching { HostKeyTrustStore.clearAll() }
+                        trustEntries = loadTrustEntries()
+                    }
+                    confirmAction = null
+                }) { Text(if (action == SettingsConfirmAction.RESET_VAULT) "حذف Vault" else "حذف Trustها", color = CommandColors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text("لغو") } }
+        )
+    }
+}
+
+private fun loadTrustEntries(): List<TrustedHostKey> =
+    runCatching { HostKeyTrustStore.entries() }.getOrDefault(emptyList())
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    detail: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    CommandSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+            Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+            Text(detail, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
+            content()
+        }
+    }
+}

@@ -8,6 +8,12 @@ import android.content.SharedPreferences
  * anchor (like git/ssh known_hosts), not a secret, so plain SharedPreferences
  * is the right home for it. Initialize once from Application.onCreate.
  */
+data class TrustedHostKey(
+    val host: String,
+    val port: Int,
+    val fingerprint: String
+)
+
 object HostKeyTrustStore : HostKeyStore {
 
     private const val PREFS_NAME = "didban_hostkeys"
@@ -40,5 +46,23 @@ object HostKeyTrustStore : HostKeyStore {
     override fun forget(host: String, port: Int) {
         requireInit()
         prefs.edit().remove(hostKeyIdentity(host, port)).apply()
+    }
+
+    /** Returns the public trust anchors currently stored on this device. */
+    fun entries(): List<TrustedHostKey> {
+        requireInit()
+        return prefs.all.mapNotNull { (key, value) ->
+            if (!key.startsWith("hostkey|") || value !is String) return@mapNotNull null
+            val parts = key.split('|')
+            val host = parts.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val port = parts.getOrNull(2)?.toIntOrNull() ?: return@mapNotNull null
+            TrustedHostKey(host, port, value)
+        }.sortedWith(compareBy({ it.host }, { it.port }))
+    }
+
+    /** Removes every stored SSH host-key trust anchor after explicit confirmation. */
+    fun clearAll() {
+        requireInit()
+        prefs.edit().clear().apply()
     }
 }
