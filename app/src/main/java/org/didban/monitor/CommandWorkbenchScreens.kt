@@ -244,7 +244,7 @@ fun CommandBatchScreen(
 }
 
 @Composable
-private fun CommandHostKeyDialog(prompt: HostKeyPrompt, onDecision: (Boolean) -> Unit) {
+fun CommandHostKeyDialog(prompt: HostKeyPrompt, onDecision: (Boolean) -> Unit) {
     AlertDialog(
         onDismissRequest = { onDecision(false) },
         title = { Text(if (prompt.keyChanged) "کلید SSH تغییر کرده است" else "اعتماد به کلید SSH جدید", fontWeight = FontWeight.Bold) },
