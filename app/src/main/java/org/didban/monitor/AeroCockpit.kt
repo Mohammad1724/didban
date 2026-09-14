@@ -574,49 +574,6 @@ private fun AeroSectionChip(label: String, active: Boolean, onClick: () -> Unit)
     }
 }
 
-/** v3 surface container: one surface + hairline (no shadow stacks). */
-private fun Modifier.v3Surface(radius: Dp = AeroRadii.table): Modifier =
-    this
-        .clip(RoundedCornerShape(radius))
-        .background(Ds.surface)
-        .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(radius))
-
-/** v3 surface for LISTS: applied to the LazyColumn itself so an unbounded
- *  list keeps one continuous surface + hairline while staying lazy. */
-private fun Modifier.v3ListSurface(): Modifier =
-    this
-        .clip(RoundedCornerShape(AeroRadii.table))
-        .background(Ds.surface)
-        .border(BorderStroke(1.dp, Ds.hairline), RoundedCornerShape(AeroRadii.table))
-
-/** Dense list header row (v3 language; pairs of label to ltr). */
-@Composable
-private fun v3ListHeaderRow(cells: List<Pair<String, Boolean>>) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(Ds.surfaceLow)
-            .padding(horizontal = 12.dp, vertical = 7.5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        cells.forEach { (label, ltr) ->
-            Text(
-                label,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = Ds.textTertiary,
-                modifier = Modifier.weight(1f),
-                textAlign = if (ltr) TextAlign.End else TextAlign.Start
-            )
-        }
-    }
-}
-
-/** Hairline row divider inside a v3 surface. */
-@Composable
-private fun v3RowDivider() {
-    Spacer(Modifier.fillMaxWidth().height(1.dp).background(Ds.hairline))
-}
 
 // ── Section 0 · Overview ────────────────────────────────────────────────────
 

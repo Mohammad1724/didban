@@ -104,6 +104,12 @@ interface Str {
     val probeType: String
     val probeSuccess: String
     val retryProbe: String
+    val paletteTitle: String
+    val paletteHint: String
+    val refreshNow: String
+    val radialCockpit: String
+    val radialTest: String
+    val radialRefresh: String
     val staleSuffix: String
     val nodes: String
     val portNumber: String
@@ -438,6 +444,12 @@ object FaStr : Str {
     override val probeType: String = "نوع تست اتصال"
     override val probeSuccess: String = "نود در دسترس است"
     override val retryProbe: String = "تلاش مجدد"
+    override val paletteTitle: String = "پالت فرمان"
+    override val paletteHint: String = "فرمان یا سرور را جستجو کنید…"
+    override val refreshNow: String = "پایش دوباره"
+    override val radialCockpit: String = "کاکپیت"
+    override val radialTest: String = "تست هشدار"
+    override val radialRefresh: String = "پایش دوباره"
     override val staleSuffix: String = "پیش"
     override val nodes: String = "نود جهانی"
     override val portNumber: String = "شماره پورت (مثلا 22 یا 443)"
@@ -775,6 +787,12 @@ object EnStr : Str {
     override val probeType: String = "Check Type"
     override val probeSuccess: String = "nodes reachable"
     override val retryProbe: String = "Retry"
+    override val paletteTitle: String = "Command Palette"
+    override val paletteHint: String = "Search a command or server…"
+    override val refreshNow: String = "Refresh now"
+    override val radialCockpit: String = "Cockpit"
+    override val radialTest: String = "Test Alert"
+    override val radialRefresh: String = "Refresh"
     override val staleSuffix: String = "ago"
     override val nodes: String = "nodes"
     override val portNumber: String = "Port (e.g. 22 or 443)"

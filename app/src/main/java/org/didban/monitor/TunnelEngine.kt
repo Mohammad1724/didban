@@ -44,7 +44,7 @@ object TunnelEngine {
     /**
      * Upserts [cfg] (with its materialized secret and sync status) into the
      * persisted tunnel list. Guarantees the secret survives
-     * reload-from-disk (e.g. TunnelScreen.refreshTunnels after a deploy).
+     * reload-from-disk (e.g. AeroTunnelFleetScreen.refreshTunnels after a deploy).
      */
     fun persistTunnel(ctx: android.content.Context, cfg: TunnelConfig) {
         try {

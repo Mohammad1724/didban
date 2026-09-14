@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -25,12 +26,21 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Moon
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Sunny
+import androidx.compose.material.icons.rounded.Tersearch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +65,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -94,15 +106,137 @@ fun AeroDeckHome(
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val reduceMotion = useReduceMotion()
+    val api = remember { ApiClient() }
 
     // Server/tunnel lists reload whenever the manage overlay closes (a server
-    // may have been added/edited/deleted inside it).
+    // may have been added/edited/deleted inside it). `tunnels` is also
+    // writable: palette/radial quick actions mutate it in place so the map,
+    // KPIs and the fleet page all stay live without a full shell tick.
     val servers = remember(reloadTick) { Prefs.loadServers(ctx) }
-    val tunnels = remember(reloadTick) { Prefs.loadTunnels(ctx) }
+    var tunnels by remember(reloadTick) { mutableStateOf(Prefs.loadTunnels(ctx)) }
     val states by Repo.states.collectAsState()
+
+    // v3 layer 4: command palette
+    var showPalette by remember { mutableStateOf(false) }
 
     val graph = remember(servers, tunnels, states) {
         buildMapGraph(servers, states, tunnels)
+    }
+
+    // ── Palette / radial actions on real state ──
+    fun testTunnelNow(tun: TunnelConfig) {
+        scope.launch {
+            try {
+                val res = TunnelEngine.testTunnel(tun)
+                val updated = tunnels.map {
+                    if (it.id == tun.id) it.copy(
+                        lastStatus = if (res.first) 1 else 0,
+                        lastLatencyMs = res.second,
+                        lastChecked = System.currentTimeMillis()
+                    ) else it
+                }
+                Prefs.saveTunnels(ctx, updated)
+                tunnels = updated
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun deployTunnelNow(tun: TunnelConfig) {
+        if (!tun.autoSync) return
+        scope.launch {
+            TunnelEngine.autoDeployTunnel(ctx, tun)
+            tunnels = Prefs.loadTunnels(ctx)
+        }
+    }
+
+    fun toggleTunnelNow(tun: TunnelConfig) {
+        val updated = tunnels.map {
+            if (it.id == tun.id) it.copy(isEnabled = !it.isEnabled) else it
+        }
+        Prefs.saveTunnels(ctx, updated)
+        tunnels = updated
+        scope.launch {
+            TunnelEngine.controlRemoteTunnel(ctx, tun, if (tun.isEnabled) "stop" else "start")
+        }
+    }
+
+    fun testServerAlert(server: ServerConfig) {
+        scope.launch {
+            try {
+                api.testTelegram(server)
+                Toast.makeText(ctx, t.telegramSent, Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "${t.telegramFailed}: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    fun refreshServerNow(server: ServerConfig) {
+        PollingCoordinator.requestNow(server.id)
+    }
+
+    val paletteCommands = remember(servers, tunnels, t) {
+        val list = mutableListOf<PaletteCommand>()
+        servers.forEach { s ->
+            list += PaletteCommand(
+                id = "cockpit-${s.id}",
+                label = t.radialCockpit,
+                hint = "${s.name.ifEmpty { s.host }} · ${s.host}:${s.port}",
+                icon = Icons.Rounded.Dashboard,
+                action = { onOpenServer(s) }
+            )
+        }
+        tunnels.forEach { tun ->
+            list += PaletteCommand(
+                id = "tun-test-${tun.id}",
+                label = t.radialTest,
+                hint = tun.name,
+                icon = Icons.Rounded.Speed,
+                action = { testTunnelNow(tun) }
+            )
+            if (tun.autoSync) {
+                list += PaletteCommand(
+                    id = "tun-deploy-${tun.id}",
+                    label = "Auto-Deploy",
+                    hint = tun.name,
+                    icon = Icons.Rounded.CloudSync,
+                    action = { deployTunnelNow(tun) }
+                )
+            }
+            list += PaletteCommand(
+                id = "tun-toggle-${tun.id}",
+                label = if (tun.isEnabled) t.stopShort else t.startShort,
+                hint = tun.name,
+                icon = if (tun.isEnabled) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                action = { toggleTunnelNow(tun) }
+            )
+        }
+        list += PaletteCommand(
+            id = "manage",
+            label = t.manageServers,
+            icon = Icons.Rounded.Dns,
+            action = { onManageServers() }
+        )
+        list += PaletteCommand(
+            id = "theme",
+            label = if (isDarkMode) "Light" else "Dark",
+            icon = if (isDarkMode) Icons.Rounded.Sunny else Icons.Rounded.Moon,
+            action = { onToggleTheme() }
+        )
+        list += PaletteCommand(
+            id = "lang",
+            label = t.langButton,
+            icon = Icons.Rounded.Public,
+            action = { onLanguage(if (t.langButton == "EN") "en" else "fa") }
+        )
+        list += PaletteCommand(
+            id = "refresh-all",
+            label = t.refreshNow,
+            hint = "${servers.size}",
+            icon = Icons.Rounded.Refresh,
+            action = { servers.forEach { PollingCoordinator.requestNow(it.id) } }
+        )
+        list
     }
 
     // H9: the deck page survives process death via the saveable state and is
@@ -140,9 +274,15 @@ fun AeroDeckHome(
                     onNodeTap = { node ->
                         servers.firstOrNull { it.id == node.serverId }?.let(onOpenServer)
                     },
+                    onNodeTestAlert = { node ->
+                        servers.firstOrNull { it.id == node.serverId }?.let { testServerAlert(it) }
+                    },
+                    onNodeRefresh = { node ->
+                        servers.firstOrNull { it.id == node.serverId }?.let { refreshServerNow(it) }
+                    },
                     onManageServers = onManageServers
                 )
-                1 -> TunnelScreen(t = t)
+                1 -> AeroTunnelFleetScreen(t = t, seedTunnels = tunnels)
                 2 -> UptimeScreen(t = t)
                 3 -> NetworkCloudScreen(t = t)
                 4 -> VaultToolsScreen(t = t)
@@ -161,7 +301,8 @@ fun AeroDeckHome(
                 kpis = graph.kpis,
                 onManage = onManageServers,
                 onToggleTheme = onToggleTheme,
-                onLanguage = { onLanguage(if (t.langButton == "EN") "en" else "fa") }
+                onLanguage = { onLanguage(if (t.langButton == "EN") "en" else "fa") },
+                onOpenPalette = { showPalette = true }
             )
         }
 
@@ -205,6 +346,15 @@ fun AeroDeckHome(
                 }
             }
         }
+
+        // ── v3 layer 4: command palette (topmost) ──
+        if (showPalette) {
+            AeroCommandPalette(
+                t = t,
+                commands = paletteCommands,
+                onDismiss = { showPalette = false }
+            )
+        }
     }
 }
 
@@ -217,7 +367,8 @@ private fun AeroHud(
     kpis: MapKpis,
     onManage: () -> Unit,
     onToggleTheme: () -> Unit,
-    onLanguage: () -> Unit
+    onLanguage: () -> Unit,
+    onOpenPalette: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -251,6 +402,7 @@ private fun AeroHud(
         )
         Spacer(Modifier.weight(1f))
         HudIcon(Icons.Rounded.Dns, t.manageServers, onManage)
+        HudIcon(Icons.Rounded.Tersearch, t.paletteTitle, onOpenPalette)
         HudIcon(
             if (isDarkMode) Icons.Rounded.Sunny else Icons.Rounded.Moon,
             if (isDarkMode) "Light" else "Dark",
@@ -293,8 +445,16 @@ private fun AeroMapPage(
     reduceMotion: Boolean,
     servers: List<ServerConfig>,
     onNodeTap: (MapNode) -> Unit,
+    onNodeTestAlert: (MapNode) -> Unit,
+    onNodeRefresh: (MapNode) -> Unit,
     onManageServers: () -> Unit
 ) {
+    // v3 layer 3: the radial quick-action menu for a long-pressed node
+    var radialNode by remember { mutableStateOf<MapNode?>(null) }
+    // Registered deeper than the deck's page handler, so while the radial is
+    // open, Back closes the radial first.
+    BackHandler(enabled = radialNode != null) { radialNode = null }
+
     if (graph.nodes.isEmpty()) {
         EmptyState(
             title = t.mapEmptyTitle,
@@ -322,7 +482,9 @@ private fun AeroMapPage(
             graph.nodes.forEachIndexed { index, node ->
                 val x = node.fx * wDp
                 val y = node.fy * hDp
-                // 44dp tap target centered on the node
+                // 44dp tap target centered on the node.
+                // Tap → cockpit (layer 2). Long-press → radial quick actions
+                // (layer 3).
                 Box(
                     modifier = Modifier
                         .padding(
@@ -330,7 +492,12 @@ private fun AeroMapPage(
                             top = ((y - 22).dp).coerceAtLeast(0.dp)
                         )
                         .size(44.dp)
-                        .clickable { onNodeTap(node) }
+                        .pointerInput(node.serverId) {
+                            detectTapGestures(
+                                onTap = { onNodeTap(node) },
+                                onLongPress = { radialNode = node }
+                            )
+                        }
                 )
                 // label + sub-label (clamped so edge nodes never produce
                 // negative padding)
@@ -350,7 +517,138 @@ private fun AeroMapPage(
                     MapNodeSubLabel(t = t, node = node)
                 }
             }
+
+            // ── v3 layer 3: radial quick actions for the long-pressed node ──
+            radialNode?.let { rn ->
+                val rx = rn.fx * wDp
+                val ry = rn.fy * hDp
+                // scrim: any tap outside the radial closes it
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .clickable { radialNode = null }
+                )
+                AeroRadialMenu(
+                    t = t,
+                    x = rx,
+                    y = ry,
+                    onCockpit = {
+                        radialNode = null
+                        onNodeTap(rn)
+                    },
+                    onTest = {
+                        radialNode = null
+                        onNodeTestAlert(rn)
+                    },
+                    onRefresh = {
+                        radialNode = null
+                        onNodeRefresh(rn)
+                    }
+                )
+            }
         }
+    }
+}
+
+// ── Radial quick-action menu (v3 layer 3) ───────────────────────────────────
+
+@Composable
+private fun AeroRadialMenu(
+    t: Str,
+    x: Float,
+    y: Float,
+    onCockpit: () -> Unit,
+    onTest: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    // Satellites sit 54dp above the node on either side; the primary
+    // (cockpit) action covers the node itself. Same coordinate convention
+    // as the node tap targets (clamped so edge nodes stay on screen).
+    val satDy = 54f
+
+    // left satellite: test alert
+    Column(
+        modifier = Modifier
+            .padding(
+                start = ((x - 54f - 22f).dp).coerceAtLeast(0.dp),
+                top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AeroRadialButton(
+            icon = Icons.Rounded.Send,
+            tone = Ds.accent,
+            size = 44.dp,
+            onClick = onTest
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(t.radialTest, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary, maxLines = 1)
+    }
+
+    // right satellite: refresh now
+    Column(
+        modifier = Modifier
+            .padding(
+                start = ((x + 54f - 22f).dp).coerceAtLeast(0.dp),
+                top = ((y - satDy - 22f).dp).coerceAtLeast(0.dp)
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AeroRadialButton(
+            icon = Icons.Rounded.Refresh,
+            tone = Ds.info,
+            size = 44.dp,
+            onClick = onRefresh
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(t.radialRefresh, fontSize = 8.sp, fontWeight = FontWeight.SemiBold, color = Ds.textTertiary, maxLines = 1)
+    }
+
+    // center: cockpit (primary destination)
+    Column(
+        modifier = Modifier
+            .padding(
+                start = ((x - 28f).dp).coerceAtLeast(0.dp),
+                top = ((y - 28f).dp).coerceAtLeast(0.dp)
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(Ds.accent)
+                .border(2.dp, Ds.accentDeep, CircleShape)
+                .clickable(onClick = onCockpit),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Rounded.Dashboard,
+                contentDescription = t.radialCockpit,
+                tint = Ds.onAccent,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AeroRadialButton(
+    icon: ImageVector,
+    tone: Color,
+    size: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(Ds.surface)
+            .border(1.dp, tone.copy(alpha = 0.5f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = tone, modifier = Modifier.size(18.dp))
     }
 }
 
