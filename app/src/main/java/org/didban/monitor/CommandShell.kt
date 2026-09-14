@@ -54,7 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
@@ -244,13 +244,14 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
 
     CommandTheme(themeMode = themeMode, language = language) {
         val view = LocalView.current
+        val canvasColor = CommandColors.canvas
         val darkBars = themeMode == "dark" || (themeMode == "auto" && androidx.compose.foundation.isSystemInDarkTheme())
         if (!view.isInEditMode) {
             SideEffect {
                 runCatching {
                     view.context.findActivity()?.window?.let { window ->
-                        window.statusBarColor = CommandColors.canvas.toArgb()
-                        window.navigationBarColor = CommandColors.canvas.toArgb()
+                        window.statusBarColor = canvasColor.toArgb()
+                        window.navigationBarColor = canvasColor.toArgb()
                         val controller = WindowCompat.getInsetsController(window, view)
                         controller.isAppearanceLightStatusBars = !darkBars
                         controller.isAppearanceLightNavigationBars = !darkBars
@@ -270,15 +271,16 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         }
 
         BoxWithConstraints(Modifier.fillMaxSize().background(CommandColors.canvas)) {
-            val wide = maxWidth >= 680.dp
+            val availableWidth = maxWidth
+            val wide = availableWidth >= 680.dp
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
                     CommandRail(
                         copy = copy,
                         route = route,
-                        expanded = maxWidth >= 920.dp,
+                        expanded = availableWidth >= 920.dp,
                         onNavigate = ::navigate,
-                        modifier = Modifier.width(if (maxWidth >= 920.dp) 224.dp else 86.dp)
+                        modifier = Modifier.width(if (availableWidth >= 920.dp) 224.dp else 86.dp)
                     )
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         CommandScopeBar(

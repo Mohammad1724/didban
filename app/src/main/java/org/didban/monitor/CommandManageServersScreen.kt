@@ -50,7 +50,7 @@ fun CommandManageServersScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    var records by remember { mutableStateOf(Prefs.loadServers(context)) }
+    var records by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(context)) }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
