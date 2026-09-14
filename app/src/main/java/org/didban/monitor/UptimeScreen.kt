@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -199,6 +200,27 @@ fun UptimeScreen(t: Str) {
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        scope.launch {
+                            targets.filter { tg -> !tg.isPaused }
+                                .forEach { tg -> UptimeEngine.checkNow(ctx, tg) }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Ds.surfaceElevated)
+                        .border(1.dp, Ds.hairlineStrong, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = t.refreshNow,
+                        tint = Ds.textSecondary,
+                        modifier = Modifier.size(17.dp)
+                    )
                 }
                 Spacer(Modifier.width(8.dp))
                 PrimaryButton(

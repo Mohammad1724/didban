@@ -18,6 +18,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -414,7 +415,14 @@ fun DidbanApp(pendingServerId: androidx.compose.runtime.MutableState<Long?>) {
                     // Drill-in overlay: the full legacy server manager
                     // (list + add/edit/delete wizards) — closed with Back.
                     if (showManageServers) {
-                        Box(Modifier.fillMaxSize()) {
+                        // Opaque background: the overlay must fully cover the
+                        // canvas (HUD + tab bar), or the two toolbars collide
+                        // and the page looks broken.
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .background(Ds.canvas)
+                        ) {
                             ServersScreen(
                                 t = t,
                                 isDarkMode = isDarkMode,

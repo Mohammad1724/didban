@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -101,6 +103,7 @@ import kotlinx.coroutines.launch
 fun AeroTunnelFleetScreen(
     t: Str,
     seedTunnels: List<TunnelConfig>,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val ctx = LocalContext.current
@@ -272,6 +275,22 @@ fun AeroTunnelFleetScreen(
                         color = Ds.textTertiary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Ds.surfaceElevated)
+                        .border(1.dp, Ds.hairlineStrong, RoundedCornerShape(12.dp))
+                ) {
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = t.refreshNow,
+                        tint = Ds.textSecondary,
+                        modifier = Modifier.size(17.dp)
                     )
                 }
                 Spacer(Modifier.width(8.dp))

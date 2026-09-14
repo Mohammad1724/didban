@@ -22,6 +22,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
@@ -316,7 +320,8 @@ fun AeroDeckHome(
                     onNodeRefresh = { node ->
                         servers.firstOrNull { it.id == node.serverId }?.let { refreshServerNow(it) }
                     },
-                    onManageServers = onManageServers
+                    onManageServers = onManageServers,
+                    onRefreshAll = { servers.forEach { s -> PollingCoordinator.requestNow(s.id) } }
                 )
                 else -> DeckPageBelowHud {
                     // The floating HUD overlays the top of the canvas; the
@@ -324,7 +329,11 @@ fun AeroDeckHome(
                     // (fleet title, uptime add-button, vault/tools/backup
                     // tabs) render behind the HUD and look "missing".
                     when (page) {
-                        1 -> AeroTunnelFleetScreen(t = t, seedTunnels = tunnels)
+                        1 -> AeroTunnelFleetScreen(
+                            t = t,
+                            seedTunnels = tunnels,
+                            onRefresh = { servers.forEach { s -> PollingCoordinator.requestNow(s.id) } }
+                        )
                         2 -> UptimeScreen(t = t)
                         3 -> NetworkCloudScreen(t = t)
                         else -> VaultToolsScreen(t = t)
@@ -376,19 +385,19 @@ fun AeroDeckHome(
                     Spacer(Modifier.height(7.dp))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                repeat(DECK_PAGES) { i ->
-                    Box(
-                        modifier = Modifier
-                            .width(if (pagerState.currentPage == i) 18.dp else 6.dp)
-                            .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(
-                                if (pagerState.currentPage == i) Ds.accent else Ds.hairlineStrong
-                            )
-                    )
+            // Labeled tabs replace the old unnamed dots: field testing showed
+            // users could not tell what the deck pages were or where a
+            // feature (e.g. backup) lived.
+            AeroDeckTabs(
+                t = t,
+                current = pagerState.currentPage,
+                onSelect = { p ->
+                    scope.launch {
+                        if (reduceMotion) pagerState.scrollToPage(p)
+                        else pagerState.animateScrollToPage(p)
+                    }
                 }
-            }
+            )
         }
 
         // ── v3 layer 4: command palette (topmost) ──
@@ -412,9 +421,70 @@ private fun DeckPageBelowHud(content: @Composable () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(top = 58.dp, bottom = 34.dp)
+            .padding(top = 58.dp, bottom = 84.dp)
     ) {
         content()
+    }
+}
+
+// ── Deck tab bar ────────────────────────────────────────────────────────────
+@Composable
+private fun AeroDeckTabs(
+    t: Str,
+    current: Int,
+    onSelect: (Int) -> Unit
+) {
+    val tabs = listOf(
+        Triple(0, Icons.Rounded.Hub, t.navMap),
+        Triple(1, Icons.Rounded.SwapHoriz, t.navTunnels),
+        Triple(2, Icons.Rounded.Timer, t.navUptime),
+        Triple(3, Icons.Rounded.Public, t.navNetwork),
+        Triple(4, Icons.Rounded.Security, t.navVault)
+    )
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(AeroRadii.hud),
+        color = Ds.surfaceElevated.copy(alpha = 0.94f),
+        border = BorderStroke(1.dp, Ds.hairlineStrong)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            tabs.forEach { (page, icon, label) ->
+                val active = current == page
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(AeroRadii.hud))
+                        .background(if (active) Ds.accentDim else Color.Transparent)
+                        .clickable { onSelect(page) }
+                        .padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = if (active) Ds.accent else Ds.textTertiary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = 8.5.sp,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.SemiBold,
+                        color = if (active) Ds.accent else Ds.textTertiary,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -507,7 +577,8 @@ private fun AeroMapPage(
     onNodeTap: (MapNode) -> Unit,
     onNodeTestAlert: (MapNode) -> Unit,
     onNodeRefresh: (MapNode) -> Unit,
-    onManageServers: () -> Unit
+    onManageServers: () -> Unit,
+    onRefreshAll: () -> Unit
 ) {
     // v3 layer 3: the radial quick-action menu for a long-pressed node
     var radialNode by remember { mutableStateOf<MapNode?>(null) }
@@ -529,7 +600,7 @@ private fun AeroMapPage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 64.dp, bottom = 40.dp) // keep the map clear of HUD & dots
+            .padding(top = 64.dp, bottom = 84.dp) // keep the map clear of HUD & tab bar
             // measured AFTER padding: this is exactly the canvas's size, so
             // node overlays (tap targets, labels) line up with the draw.
             .onSizeChanged { mapPx = it }
@@ -539,11 +610,48 @@ private fun AeroMapPage(
         // use the same absolute space in both locales (3-F: a `start`
         // padding on the fa/RTL base mirrored the whole map).
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        // Floating refresh: the map is the dashboard, so the primary data
+        // action (re-poll every server now) must be reachable here.
+        if (servers.isNotEmpty()) {
+            IconButton(
+                onClick = onRefreshAll,
+                modifier = Modifier
+                    .statusBarsPadding()
+                    .align(Alignment.TopEnd)
+                    .padding(top = 52.dp, end = 14.dp)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Ds.surfaceElevated.copy(alpha = 0.92f))
+                    .border(1.dp, Ds.hairlineStrong, RoundedCornerShape(12.dp))
+            ) {
+                Icon(
+                    Icons.Rounded.Refresh,
+                    contentDescription = t.refreshNow,
+                    tint = Ds.textSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
         AeroMapCanvas(graph = graph, reduceMotion = reduceMotion)
         if (mapPx != IntSize.Zero) {
             val density = LocalDensity.current.density
             val wDp = mapPx.width / density
             val hDp = mapPx.height / density
+            // Simple label-collision pass: labels are 140dp-wide columns at
+            // (x-70, y+18); when two nodes sit close together their labels
+            // overlap, so push colliding labels down by one row.
+            val labelYs = FloatArray(graph.nodes.size)
+            for (i in graph.nodes.indices) {
+                var ly = graph.nodes[i].fy * hDp + 18f
+                for (j in 0 until i) {
+                    val lx = (graph.nodes[i].fx * wDp - 70f).coerceAtLeast(0f)
+                    val lpx = (graph.nodes[j].fx * wDp - 70f).coerceAtLeast(0f)
+                    if (kotlin.math.abs(lx - lpx) < 140f && ly - labelYs[j] < 26f) {
+                        ly = labelYs[j] + 26f
+                    }
+                }
+                labelYs[i] = ly
+            }
             graph.nodes.forEachIndexed { index, node ->
                 val x = node.fx * wDp
                 val y = node.fy * hDp
@@ -571,7 +679,7 @@ private fun AeroMapPage(
                 // negative padding). Absolute canvas coordinate (LTR-locked).
                 Column(
                     modifier = Modifier
-                        .padding(start = ((x - 70).dp).coerceAtLeast(0.dp), top = (y + 18).dp)
+                        .padding(start = ((x - 70).dp).coerceAtLeast(0.dp), top = labelYs[index].dp)
                         .width(140.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

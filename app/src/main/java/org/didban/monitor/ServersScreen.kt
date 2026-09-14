@@ -139,6 +139,10 @@ fun ServersScreen(
 
     fun refresh() {
         servers = Prefs.loadServers(ctx)
+        // A real refresh: force an immediate re-poll of every server through
+        // the single PollingCoordinator (the old version only re-read the
+        // stored config, which never updated the telemetry the user sees).
+        servers.forEach { PollingCoordinator.requestNow(it.id) }
     }
 
     // CPU sparklines are appended on every Repo update (H7): the actual

@@ -128,6 +128,7 @@ interface Str {
     val testTelegram: String
     val telegramSent: String
     val telegramFailed: String
+    val navMap: String
     val navTunnels: String
     val tunnelsHub: String
     val guideTunnels: String
@@ -493,6 +494,7 @@ object FaStr : Str {
     override val telegramSent: String = "پیام تست با موفقیت به تلگرام ارسال شد"
     override val telegramFailed: String = "ارسال هشدار به تلگرام ناموفق بود"
     // Dual-Node Tunnels
+    override val navMap: String = "نقشه"
     override val navTunnels: String = "تانل‌ها"
     override val tunnelsHub: String = "مرکز تانل‌ها"
     override val guideTunnels: String = "مدیریت و برقراری تانل‌های معکوس، سوکت خام، پینگ ICMP و IP Spoofing (شامل BackPack 🎒، Paqet، Narnia، Spoof Tunnel، Backhaul، Rathole، GOST، Chisel، FRP و IPTables) بین سرور ایران و خارج همراه با استقرار خودکار ۱-کلیکه مانند پنل Smite."
@@ -858,6 +860,7 @@ object EnStr : Str {
     override val telegramSent: String = "Test alert sent to Telegram"
     override val telegramFailed: String = "Failed to send Telegram test"
     // Dual-Node Tunnels
+    override val navMap: String = "Map"
     override val navTunnels: String = "Tunnels"
     override val tunnelsHub: String = "Tunnel Fleet"
     override val guideTunnels: String = "Manage high-performance reverse, raw-socket, ICMP ping, and IP spoofing tunnels (BackPack 🎒, Paqet, Narnia, Spoof Tunnel, Backhaul, Rathole, GOST, Chisel, FRP, IPTables) with Smite-style zero-touch auto-sync."
