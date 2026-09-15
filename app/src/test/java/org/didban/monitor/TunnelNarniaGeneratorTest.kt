@@ -238,8 +238,14 @@ exit 0
             sudo.setExecutable(true)
             val f = File(fake, "install.sh")
             f.writeText(g.foreignInstallCommand.replace("/etc/didban", "${fake}/etc/didban"))
-            val pb = ProcessBuilder("bash", f.absolutePath).apply {
-                environment()["PATH"] = "${bin.absolutePath}:${System.getenv("PATH")}"
+            // The child PATH must contain ONLY the fake bin dir. Inheriting the
+            // host PATH made this test pass or fail depending on whether the
+            // machine happened to have docker installed: CI images do, so
+            // `command -v docker` succeeded and the "docker is required" branch
+            // was never reached. bash is started by absolute path because
+            // executable resolution uses the modified environment.
+            val pb = ProcessBuilder("/bin/bash", f.absolutePath).apply {
+                environment()["PATH"] = bin.absolutePath
             }.redirectErrorStream(true)
             val p = pb.start()
             val out = p.inputStream.bufferedReader().readText()
