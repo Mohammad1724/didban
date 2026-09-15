@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Didban · Visual Direction Preview</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --canvas: #07090e;
+      --surface: #0f131d;
+      --surface-2: #151c28;
+      --surface-3: #1b2534;
+      --hairline: #1a2433;
+      --hairline-strong: #2a3a52;
+      --ink: #f1f5f9;
+      --ink-2: #94a3b8;
+      --ink-3: #56657c;
+      --cyan: #00e5ff;
+      --cyan-soft: rgba(0, 229, 255, .11);
+      --violet: #a855f7;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --blue: #3b82f6;
+      --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, Vazirmatn, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #04060a; }
+    body { color: var(--ink); font-family: var(--sans); }
+    button { font: inherit; }
+    .preview-note {
+      position: sticky; top: 0; z-index: 20; display: flex; align-items: center;
+      justify-content: center; gap: 10px; min-height: 34px; padding: 7px 14px;
+      background: #0b111b; border-bottom: 1px solid var(--hairline); color: var(--ink-2);
+      font-size: 11px; letter-spacing: .01em;
+    }
+    .preview-note b { color: var(--cyan); font-weight: 700; }
+    .preview-note .tag { border: 1px solid rgba(0,229,255,.28); border-radius: 99px; padding: 3px 8px; color: var(--cyan); }
+    .app { min-height: calc(100vh - 34px); display: grid; grid-template-columns: 76px minmax(0, 1fr); background:
+      radial-gradient(circle at 82% -10%, rgba(0,229,255,.09), transparent 28rem),
+      radial-gradient(circle at 38% 112%, rgba(168,85,247,.06), transparent 30rem), var(--canvas); }
+    .rail { border-left: 1px solid var(--hairline); display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 10px; background: rgba(8,11,17,.72); }
+    .brand { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(0,229,255,.36); border-radius: 14px; color: var(--cyan); background: var(--cyan-soft); box-shadow: 0 0 28px rgba(0,229,255,.08); }
+    .brand svg { width: 24px; height: 24px; }
+    .rail-rule { width: 30px; height: 1px; background: var(--hairline-strong); margin: 4px 0; }
+    .rail-btn { width: 42px; height: 42px; position: relative; display: grid; place-items: center; color: var(--ink-3); background: transparent; border: 1px solid transparent; border-radius: 13px; cursor: pointer; transition: .2s; }
+    .rail-btn:hover, .rail-btn.active { color: var(--cyan); background: var(--cyan-soft); border-color: rgba(0,229,255,.2); }
+    .rail-btn svg { width: 19px; height: 19px; }
+    .rail-btn .dot { position: absolute; top: 8px; left: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+    .rail-bottom { margin-top: auto; }
+    .workspace { min-width: 0; padding: 24px clamp(18px, 4vw, 58px) 42px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; max-width: 1440px; margin: 0 auto 28px; }
+    .eyebrow { color: var(--cyan); font-size: 11px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+    h1, h2, p { margin: 0; }
+    h1 { margin-top: 7px; font-size: clamp(25px, 3vw, 38px); line-height: 1.15; letter-spacing: -.04em; }
+    .sub { margin-top: 8px; color: var(--ink-2); font-size: 13px; }
+    .top-actions { display: flex; align-items: center; gap: 10px; direction: ltr; }
+    .context { display: flex; align-items: center; gap: 9px; border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 9px 12px; background: rgba(15,19,29,.7); color: var(--ink-2); font-size: 12px; }
+    .context .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 12px var(--ok); }
+    .icon-action { width: 38px; height: 38px; border: 1px solid var(--hairline-strong); border-radius: 11px; background: var(--surface); color: var(--ink-2); display: grid; place-items: center; cursor: pointer; }
+    .icon-action:hover { color: var(--cyan); border-color: rgba(0,229,255,.45); }
+    .icon-action svg { width: 17px; height: 17px; }
+    .grid { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(310px, .75fr); gap: 16px; }
+    .panel { background: linear-gradient(145deg, rgba(21,28,40,.92), rgba(15,19,29,.92)); border: 1px solid var(--hairline); border-radius: 18px; box-shadow: 0 18px 55px rgba(0,0,0,.18); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 15px; border-bottom: 1px solid var(--hairline); }
+    .panel-title { font-size: 14px; font-weight: 700; }
+    .panel-meta { color: var(--ink-3); font: 10px var(--mono); direction: ltr; }
+    .health { min-height: 330px; position: relative; overflow: hidden; }
+    .health::after { content: ""; position: absolute; width: 420px; height: 420px; left: 5%; bottom: -290px; border-radius: 50%; border: 1px solid rgba(0,229,255,.11); box-shadow: 0 0 0 38px rgba(0,229,255,.025), 0 0 0 76px rgba(0,229,255,.016); pointer-events: none; }
+    .health-body { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(210px, .85fr); gap: 20px; padding: 23px 20px 20px; }
+    .score { display: flex; align-items: center; gap: 19px; }
+    .score-ring { width: 128px; height: 128px; flex: 0 0 128px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--cyan) 0 82%, #223044 82% 100%); position: relative; box-shadow: 0 0 30px rgba(0,229,255,.12); }
+    .score-ring::before { content: ""; position: absolute; inset: 10px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--hairline-strong); }
+    .score-value { position: relative; z-index: 1; text-align: center; }
+    .score-value strong { display: block; color: var(--cyan); font: 700 30px var(--mono); letter-spacing: -.08em; }
+    .score-value span { color: var(--ink-3); font-size: 10px; }
+    .score-copy h2 { font-size: 19px; margin-bottom: 8px; }
+    .score-copy p { color: var(--ink-2); font-size: 12px; line-height: 1.8; max-width: 260px; }
+    .status-line { display: flex; align-items: center; gap: 7px; margin-top: 13px; color: var(--ok); font-size: 11px; font-weight: 700; }
+    .status-line i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 11px currentColor; }
+    .node-orbit { min-height: 160px; border: 1px solid var(--hairline); border-radius: 15px; background: radial-gradient(circle at 50% 50%, rgba(0,229,255,.12), transparent 44%), #0a0e16; display: grid; place-items: center; position: relative; overflow: hidden; }
+    .node-orbit::before, .node-orbit::after { content: ""; position: absolute; border: 1px dashed rgba(0,229,255,.18); border-radius: 50%; }
+    .node-orbit::before { width: 118px; height: 118px; }
+    .node-orbit::after { width: 185px; height: 185px; }
+    .core { position: relative; z-index: 2; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; background: var(--cyan-soft); border: 1px solid rgba(0,229,255,.55); color: var(--cyan); box-shadow: 0 0 26px rgba(0,229,255,.22); }
+    .core svg { width: 23px; height: 23px; }
+    .orb { position: absolute; z-index: 3; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 15px var(--ok); }
+    .orb.a { top: 25px; right: 27%; } .orb.b { bottom: 30px; left: 24%; background: var(--warn); box-shadow: 0 0 15px var(--warn); } .orb.c { top: 45%; left: 14%; }
+    .orb-label { position: absolute; color: var(--ink-3); font: 9px var(--mono); direction: ltr; } .orb-label.a { top: 12px; right: 12px; } .orb-label.b { bottom: 13px; left: 11px; }
+    .metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--hairline); margin: 0 -20px -20px; }
+    .metric { padding: 16px 20px; border-left: 1px solid var(--hairline); } .metric:last-child { border-left: 0; }
+    .metric-label { color: var(--ink-3); font-size: 10px; } .metric-value { margin-top: 5px; font: 700 19px var(--mono); direction: ltr; letter-spacing: -.05em; } .metric-value.cyan { color: var(--cyan); } .metric-value.violet { color: var(--violet); } .metric-value.ok { color: var(--ok); } .metric-value.warn { color: var(--warn); }
+    .metric-trend { color: var(--ink-3); font: 10px var(--mono); direction: ltr; margin-top: 4px; }
+    .incidents { min-height: 330px; }
+    .incident-list { padding: 5px 20px 13px; }
+    .incident { display: grid; grid-template-columns: 9px minmax(0,1fr) auto; align-items: start; gap: 10px; padding: 15px 0; border-bottom: 1px solid var(--hairline); }
+    .incident:last-child { border-bottom: 0; }
+    .incident-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; background: var(--danger); box-shadow: 0 0 12px rgba(239,68,68,.7); }
+    .incident-dot.warn { background: var(--warn); box-shadow: 0 0 12px rgba(245,158,11,.55); }
+    .incident-title { font-size: 12px; font-weight: 700; } .incident-detail { margin-top: 5px; color: var(--ink-3); font-size: 10px; line-height: 1.5; }
+    .incident-time { color: var(--ink-3); font: 9px var(--mono); direction: ltr; white-space: nowrap; }
+    .section { grid-column: 1 / -1; }
+    .fleet { padding: 0 20px 20px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+    .server { padding: 14px; border: 1px solid var(--hairline); border-radius: 14px; background: rgba(10,13,20,.58); transition: .2s; cursor: pointer; }
+    .server:hover { border-color: rgba(0,229,255,.34); transform: translateY(-2px); }
+    .server-head { display: flex; justify-content: space-between; gap: 7px; align-items: center; }
+    .server-name { font: 700 12px var(--mono); direction: ltr; } .server-status { display: flex; align-items: center; gap: 5px; color: var(--ok); font-size: 9px; } .server-status i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .server-status.warn { color: var(--warn); }
+    .server-ip { color: var(--ink-3); font: 10px var(--mono); direction: ltr; margin-top: 8px; }
+    .bars { display: grid; gap: 8px; margin-top: 13px; }
+    .bar-row { display: grid; grid-template-columns: 30px 1fr 35px; align-items: center; gap: 8px; color: var(--ink-3); font: 9px var(--mono); direction: ltr; }
+    .track { height: 5px; border-radius: 10px; background: #202b3c; overflow: hidden; } .fill { height: 100%; border-radius: inherit; background: var(--cyan); } .fill.v { background: var(--violet); } .fill.w { background: var(--warn); }
+    .section-action { color: var(--cyan); background: none; border: 0; font-size: 11px; cursor: pointer; }
+    .footer-note { max-width: 1440px; margin: 18px auto 0; color: var(--ink-3); font-size: 10px; text-align: center; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .health-body { grid-template-columns: 1fr 260px; } .incidents { min-height: auto; } }
+    @media (max-width: 640px) {
+      .preview-note { font-size: 10px; }
+      .app { display: block; }
+      .rail { height: 66px; position: sticky; top: 34px; z-index: 15; flex-direction: row; justify-content: space-between; padding: 10px 14px; border-left: 0; border-bottom: 1px solid var(--hairline); }
+      .rail-rule, .rail-bottom { display: none; } .brand { width: 38px; height: 38px; border-radius: 12px; } .rail-btn { width: 36px; height: 36px; border-radius: 10px; }
+      .workspace { padding: 22px 14px 28px; } .topbar { align-items: flex-start; margin-bottom: 20px; } .top-actions { gap: 6px; } .context { padding: 8px; } .context span:last-child { display: none; }
+      .health-body { display: block; padding: 18px 15px 15px; } .score { gap: 13px; } .score-ring { width: 98px; height: 98px; flex-basis: 98px; } .score-ring::before { inset: 8px; } .score-value strong { font-size: 24px; } .node-orbit { margin-top: 18px; min-height: 145px; }
+      .metrics { margin: 18px -15px -15px; grid-template-columns: repeat(2, 1fr); } .metric { padding: 13px 15px; border-bottom: 1px solid var(--hairline); } .metric:nth-child(2) { border-left: 0; } .metric:nth-child(3) { border-bottom: 0; } .metric:nth-child(4) { border-left: 0; border-bottom: 0; }
+      .panel-head { padding: 16px 15px 13px; } .incident-list { padding-left: 15px; padding-right: 15px; } .fleet { padding: 0 15px 15px; grid-template-columns: 1fr; }
+      h1 { font-size: 26px; } .sub { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-note"><span class="tag">PREVIEW</span><b>دیدبان · Visual Direction</b><span>این صفحه فقط پیش‌نمایش بصری است؛ داده‌ها illustrative هستند و در محصول با دادهٔ واقعی جایگزین می‌شوند.</span></div>
+  <div class="app">
+    <aside class="rail" aria-label="Navigation preview">
+      <div class="brand" title="Didban"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 20 7v5c0 5-3.2 8-8 9-4.8-1-8-4-8-9V7l8-4Z"/><path d="m8 12 2.4 2.4L16 9"/></svg></div>
+      <div class="rail-rule"></div>
+      <button class="rail-btn active" aria-label="Overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 13h6V4H4v9Zm10 7h6v-9h-6v9ZM4 20h6v-3H4v3Zm10-12h6V4h-6v4Z"/></svg></button>
+      <button class="rail-btn" aria-label="Incidents"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18h16M5 15l4-4 3 2 6-7"/><circle cx="5" cy="15" r="1"/><circle cx="9" cy="11" r="1"/><circle cx="12" cy="13" r="1"/><circle cx="18" cy="6" r="1"/></svg></button>
+      <button class="rail-btn" aria-label="Fleet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3.5 19c.5-3.1 2.4-4.7 5.5-4.7s5 1.6 5.5 4.7M14 15.2c2.7-.6 5.1.7 6 3.8"/></svg></button>
+      <button class="rail-btn" aria-label="Operations"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="2" fill="var(--canvas)"/><circle cx="15" cy="12" r="2" fill="var(--canvas)"/><circle cx="11" cy="17" r="2" fill="var(--canvas)"/></svg></button>
+      <button class="rail-btn" aria-label="Diagnose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4M11 7v4l3 2"/></svg></button>
+      <div class="rail-bottom"><button class="rail-btn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></button></div>
+    </aside>
+    <main class="workspace">
+      <header class="topbar">
+        <div><div class="eyebrow">COMMAND CENTER · PREVIEW</div><h1>نمای کلی ناوگان</h1><p class="sub">یک نگاه برای فهمیدن اینکه چه چیزی سالم است، چه چیزی نیاز به توجه دارد و قدم بعدی چیست.</p></div>
+        <div class="top-actions"><div class="context"><i class="pulse"></i><span>همهٔ سرورها</span><span>·</span><span style="font-family:var(--mono);direction:ltr">12 nodes</span></div><button class="icon-action" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-14-5L4 8"/><path d="M4 4v4h4M4 13a8 8 0 0 0 14 5l2-2"/><path d="M20 20v-4h-4"/></svg></button></div>
+      </header>
+      <section class="grid">
+        <article class="panel health"><div class="panel-head"><div><div class="panel-title">سلامت کلی سیستم</div><div class="panel-meta">LAST SYNC · 00:12 AGO</div></div><div class="status-line" style="margin:0"><i></i> پایدار</div></div>
+          <div class="health-body"><div class="score"><div class="score-ring"><div class="score-value"><strong>۸۲</strong><span>از ۱۰۰</span></div></div><div class="score-copy"><h2>وضعیت خوب است</h2><p>یک سرور نیاز به توجه دارد. هیچ قطعی فعال یا افت heartbeat در ۳۰ دقیقهٔ اخیر دیده نشد.</p><div class="status-line"><i></i> ۱۱ سالم <span style="color:var(--ink-3);font-weight:400">·</span> <span style="color:var(--warn)">۱ توجه</span></div></div></div>
+            <div class="node-orbit"><div class="core"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 20 7v5c0 5-3.2 8-8 9-4.8-1-8-4-8-9V7l8-4Z"/><path d="m8 12 2.4 2.4L16 9"/></svg></div><span class="orb a"></span><span class="orb b"></span><span class="orb c"></span><span class="orb-label a">eu-01</span><span class="orb-label b">ir-01</span></div>
+            <div class="metrics"><div class="metric"><div class="metric-label">سرورهای آنلاین</div><div class="metric-value ok">۱۱ / ۱۲</div><div class="metric-trend">+1 today</div></div><div class="metric"><div class="metric-label">میانگین CPU</div><div class="metric-value cyan">۳۴٪</div><div class="metric-trend">↓ 4.2%</div></div><div class="metric"><div class="metric-label">میانگین RAM</div><div class="metric-value violet">۵۸٪</div><div class="metric-trend">stable</div></div><div class="metric"><div class="metric-label">Heartbeat SLA</div><div class="metric-value warn">۹۹.۸٪</div><div class="metric-trend">30 days</div></div></div>
+          </div>
+        </article>
+        <article class="panel incidents"><div class="panel-head"><div><div class="panel-title">نیازمند توجه</div><div class="panel-meta">OPEN SIGNALS · 02</div></div><button class="section-action">مشاهدهٔ همه ←</button></div><div class="incident-list"><div class="incident"><i class="incident-dot"></i><div><div class="incident-title">Memory pressure روی ir-01</div><div class="incident-detail">مصرف RAM از آستانهٔ ۸۰٪ عبور کرده · آخرین مشاهده ۳ دقیقه قبل</div></div><div class="incident-time">03m</div></div><div class="incident"><i class="incident-dot warn"></i><div><div class="incident-title">Latency بالای tunnel اروپا</div><div class="incident-detail">میانگین ۱۸۰ms در ۵ نمونهٔ اخیر · روند رو به بهبود</div></div><div class="incident-time">12m</div></div><div class="incident"><i class="incident-dot" style="background:var(--ok);box-shadow:0 0 12px rgba(16,185,129,.7)"></i><div><div class="incident-title">همهٔ سرویس‌های حیاتی فعال‌اند</div><div class="incident-detail">SSH · Agent · Docker · Systemd</div></div><div class="incident-time">now</div></div></div></article>
+        <article class="panel section"><div class="panel-head"><div><div class="panel-title">ناوگان</div><div class="panel-meta">LIVE TELEMETRY · 12 HOSTS</div></div><button class="section-action">باز کردن Fleet ←</button></div><div class="fleet"><div class="server"><div class="server-head"><span class="server-name">ir-01</span><span class="server-status"><i></i> سالم</span></div><div class="server-ip">185.42.112.8 · Tehran</div><div class="bars"><div class="bar-row"><span>CPU</span><div class="track"><div class="fill" style="width:34%"></div></div><span>34%</span></div><div class="bar-row"><span>RAM</span><div class="track"><div class="fill v" style="width:61%"></div></div><span>61%</span></div></div></div><div class="server"><div class="server-head"><span class="server-name">de-01</span><span class="server-status warn"><i></i> توجه</span></div><div class="server-ip">45.91.22.19 · Frankfurt</div><div class="bars"><div class="bar-row"><span>CPU</span><div class="track"><div class="fill w" style="width:74%"></div></div><span>74%</span></div><div class="bar-row"><span>RAM</span><div class="track"><div class="fill v" style="width:82%"></div></div><span>82%</span></div></div></div><div class="server"><div class="server-head"><span class="server-name">sg-01</span><span class="server-status"><i></i> سالم</span></div><div class="server-ip">103.6.44.10 · Singapore</div><div class="bars"><div class="bar-row"><span>CPU</span><div class="track"><div class="fill" style="width:21%"></div></div><span>21%</span></div><div class="bar-row"><span>RAM</span><div class="track"><div class="fill v" style="width:48%"></div></div><span>48%</span></div></div></div></div></article>
+      </section>
+      <div class="footer-note">Preview only · illustrative content · approval of visual direction comes before connecting real screens and data.</div>
+    </main>
+  </div>
+  <script>
+    document.querySelectorAll('.rail-btn, .server, .section-action, .icon-action').forEach(el => el.addEventListener('click', () => {
+      if (el.classList.contains('rail-btn')) { document.querySelectorAll('.rail-btn').forEach(x => x.classList.remove('active')); el.classList.add('active'); }
+    }));
+  </script>
+</body>
+</html>

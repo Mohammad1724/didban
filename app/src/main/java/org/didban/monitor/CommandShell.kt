@@ -3,7 +3,9 @@ package org.didban.monitor
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +21,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Code
@@ -59,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.toArgb
@@ -270,7 +275,16 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
             }
         }
 
-        BoxWithConstraints(Modifier.fillMaxSize().background(CommandColors.canvas)) {
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(CommandColors.infoSurface.copy(alpha = 0.16f), CommandColors.canvas),
+                        radius = 1100f
+                    )
+                )
+        ) {
             val availableWidth = maxWidth
             val wide = availableWidth >= 680.dp
             if (wide) {
@@ -400,53 +414,79 @@ private fun CommandRail(
     Column(
         modifier
             .fillMaxHeight()
-            .background(CommandColors.surface)
-            .padding(vertical = CommandSpacing.md),
-        verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
+            .background(CommandColors.surface.copy(alpha = 0.92f))
+            .border(1.dp, CommandColors.border)
+            .padding(horizontal = if (expanded) CommandSpacing.sm else CommandSpacing.xs, vertical = CommandSpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            "DIDBAN",
-            modifier = Modifier.padding(horizontal = if (expanded) CommandSpacing.md else CommandSpacing.sm),
-            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-            color = CommandColors.textPrimary,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(CommandSpacing.sm))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
+        ) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CommandColors.accent.copy(alpha = 0.10f))
+                    .border(1.dp, CommandColors.accent.copy(alpha = 0.42f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("D", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            if (expanded) {
+                Spacer(Modifier.width(CommandSpacing.sm))
+                Column {
+                    Text("DIDBAN", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("SENTINEL CONSOLE", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
+                }
+            }
+        }
+        Spacer(Modifier.height(CommandSpacing.md))
         CommandRule()
         Spacer(Modifier.height(CommandSpacing.sm))
         CommandWorkspace.values().forEach { workspace ->
             val active = route.workspace == workspace
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigate(workspaceDefault(workspace), null) }
-                    .background(if (active) CommandColors.infoSurface else Color.Transparent)
-                    .padding(horizontal = if (expanded) CommandSpacing.md else CommandSpacing.sm, vertical = CommandSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
-            ) {
-                Icon(workspace.icon(), contentDescription = workspace.label(copy), tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(21.dp))
-                if (expanded) {
-                    Spacer(Modifier.width(CommandSpacing.sm))
-                    Text(workspace.label(copy), color = if (active) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(11.dp))
+                        .clickable { onNavigate(workspaceDefault(workspace), null) }
+                        .background(if (active) CommandColors.infoSurface.copy(alpha = 0.78f) else Color.Transparent)
+                        .padding(horizontal = if (expanded) CommandSpacing.sm else CommandSpacing.xs, vertical = CommandSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
+                ) {
+                    Icon(workspace.icon(), contentDescription = workspace.label(copy), tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(20.dp))
+                    if (expanded) {
+                        Spacer(Modifier.width(CommandSpacing.sm))
+                        Text(workspace.label(copy), color = if (active) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-            }
-            if (active && expanded) {
-                routesFor(workspace).forEach { destination ->
-                    val selected = destination == route
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigate(destination, null) }
-                            .padding(start = CommandSpacing.xl, end = CommandSpacing.sm, top = 6.dp, bottom = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(destination.icon(), contentDescription = destination.commandLabel(copy), tint = if (selected) CommandColors.accent else CommandColors.textTertiary, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(CommandSpacing.xs))
-                        Text(destination.commandLabel(copy), color = if (selected) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (active && expanded) {
+                    routesFor(workspace).forEach { destination ->
+                        val selected = destination == route
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onNavigate(destination, null) }
+                                .background(if (selected) CommandColors.accent.copy(alpha = 0.08f) else Color.Transparent)
+                                .padding(start = CommandSpacing.lg, end = CommandSpacing.xs, top = 6.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(Modifier.size(if (selected) 5.dp else 4.dp).clip(CircleShape).background(if (selected) CommandColors.accent else CommandColors.textTertiary))
+                            Spacer(Modifier.width(CommandSpacing.xs))
+                            Text(destination.commandLabel(copy), color = if (selected) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
             }
+        }
+        Spacer(Modifier.weight(1f))
+        if (expanded) {
+            Text("LIVE STATE", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
         }
     }
 }
@@ -463,11 +503,23 @@ private fun CommandMobileHeader(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(CommandColors.surface)
+            .background(CommandColors.surface.copy(alpha = 0.96f))
+            .border(1.dp, CommandColors.border)
             .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
         CommandIconButton(Icons.Rounded.Menu, if (navigationOpen) copy.close else copy.observe, onToggleNavigation)
+        Box(
+            Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(CommandColors.accent.copy(alpha = 0.10f))
+                .border(1.dp, CommandColors.accent.copy(alpha = 0.38f), RoundedCornerShape(9.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("D", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(CommandSpacing.sm))
         Column(Modifier.weight(1f)) {
             Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -523,19 +575,23 @@ private fun CommandScopeBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(CommandColors.canvas)
             .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(copy.scopeLabel(route), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+            Text(copy.scopeLabel(route).uppercase(), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), maxLines = 1)
             Box {
                 Row(
                     Modifier
+                        .clip(RoundedCornerShape(11.dp))
                         .clickable { expanded = true }
-                        .padding(vertical = 4.dp),
+                        .background(CommandColors.surface.copy(alpha = 0.78f))
+                        .border(1.dp, CommandColors.borderStrong, RoundedCornerShape(11.dp))
+                        .padding(horizontal = CommandSpacing.sm, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(Modifier.size(7.dp).clip(CircleShape).background(if (selectedServer == null) CommandColors.accent else CommandColors.success))
+                    Spacer(Modifier.width(CommandSpacing.xs))
                     Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Spacer(Modifier.width(CommandSpacing.xs))
                     Text("⌄", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
@@ -554,8 +610,11 @@ private fun CommandScopeBar(
                 }
             }
         }
-        Text(copy.sync, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.width(CommandSpacing.xs))
+        CommandTelemetryPill(
+            text = "${servers.size} ${copy.servers}",
+            tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
+            modifier = Modifier.padding(end = CommandSpacing.xs)
+        )
         CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
     }
 }

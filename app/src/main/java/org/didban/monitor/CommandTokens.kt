@@ -47,51 +47,57 @@ data class CommandPalette(
     val dangerSurface: Color,
     val info: Color,
     val infoSurface: Color,
+    val violet: Color,
+    val track: Color,
     val focus: Color
 )
 
 val CommandLightPalette = CommandPalette(
-    canvas = Color(0xFFF3F0E9),
-    surface = Color(0xFFFFFDF8),
-    surfaceRaised = Color(0xFFF8F6F0),
-    border = Color(0xFFD8D2C7),
-    borderStrong = Color(0xFFAFA79A),
-    textPrimary = Color(0xFF1B2420),
-    textSecondary = Color(0xFF65716A),
-    textTertiary = Color(0xFF879089),
-    accent = Color(0xFFB45532),
+    canvas = Color(0xFFF8FAFC),
+    surface = Color(0xFFFFFFFF),
+    surfaceRaised = Color(0xFFF1F5F9),
+    border = Color(0xFFE2E8F0),
+    borderStrong = Color(0xFFCBD5E1),
+    textPrimary = Color(0xFF0F172A),
+    textSecondary = Color(0xFF475569),
+    textTertiary = Color(0xFF94A3B8),
+    accent = Color(0xFF0284C7),
     onAccent = Color(0xFFFFFFFF),
-    success = Color(0xFF197A5A),
-    successSurface = Color(0xFFE4F2EB),
-    warning = Color(0xFFA66A1F),
-    warningSurface = Color(0xFFF8EDD8),
-    danger = Color(0xFFB42318),
-    dangerSurface = Color(0xFFFBE7E5),
-    info = Color(0xFF315C83),
-    infoSurface = Color(0xFFE7EFF7),
-    focus = Color(0xFF315C83)
+    success = Color(0xFF059669),
+    successSurface = Color(0xFFE7F7F0),
+    warning = Color(0xFFD97706),
+    warningSurface = Color(0xFFFFF7E6),
+    danger = Color(0xFFDC2626),
+    dangerSurface = Color(0xFFFFECEC),
+    info = Color(0xFF2563EB),
+    infoSurface = Color(0xFFEFF6FF),
+    violet = Color(0xFF7C3AED),
+    track = Color(0xFFE2E8F0),
+    focus = Color(0xFF2563EB)
 )
 
 val CommandDarkPalette = CommandPalette(
-    canvas = Color(0xFF111715),
-    surface = Color(0xFF18211E),
-    surfaceRaised = Color(0xFF202B27),
-    border = Color(0xFF35433D),
-    borderStrong = Color(0xFF60736A),
-    textPrimary = Color(0xFFE8EEE9),
-    textSecondary = Color(0xFFA8B6AF),
-    textTertiary = Color(0xFF81928A),
-    accent = Color(0xFFD58A5B),
-    onAccent = Color(0xFF21150F),
-    success = Color(0xFF59C596),
-    successSurface = Color(0xFF17372B),
-    warning = Color(0xFFD0A047),
-    warningSurface = Color(0xFF3A2E19),
-    danger = Color(0xFFF17870),
-    dangerSurface = Color(0xFF3B201F),
-    info = Color(0xFF8CB7D9),
-    infoSurface = Color(0xFF1C3040),
-    focus = Color(0xFF8CB7D9)
+    canvas = Color(0xFF07090E),
+    surface = Color(0xFF0F131D),
+    surfaceRaised = Color(0xFF151C28),
+    border = Color(0xFF171F2C),
+    borderStrong = Color(0xFF26334A),
+    textPrimary = Color(0xFFF1F5F9),
+    textSecondary = Color(0xFF94A3B8),
+    textTertiary = Color(0xFF54627A),
+    accent = Color(0xFF00E5FF),
+    onAccent = Color(0xFF001318),
+    success = Color(0xFF10B981),
+    successSurface = Color(0xFF0C2926),
+    warning = Color(0xFFF59E0B),
+    warningSurface = Color(0xFF30230D),
+    danger = Color(0xFFEF4444),
+    dangerSurface = Color(0xFF32161D),
+    info = Color(0xFF3B82F6),
+    infoSurface = Color(0xFF101F3A),
+    violet = Color(0xFFA855F7),
+    track = Color(0xFF151C28),
+    focus = Color(0xFF00E5FF)
 )
 
 val LocalCommandPalette = staticCompositionLocalOf { CommandLightPalette }
@@ -115,6 +121,8 @@ object CommandColors {
     val dangerSurface: Color @Composable get() = LocalCommandPalette.current.dangerSurface
     val info: Color @Composable get() = LocalCommandPalette.current.info
     val infoSurface: Color @Composable get() = LocalCommandPalette.current.infoSurface
+    val violet: Color @Composable get() = LocalCommandPalette.current.violet
+    val track: Color @Composable get() = LocalCommandPalette.current.track
     val focus: Color @Composable get() = LocalCommandPalette.current.focus
 }
 
@@ -210,9 +218,9 @@ fun CommandTheme(
             colorScheme = palette.materialColors(dark),
             typography = commandTypography(language),
             shapes = Shapes(
-                small = RoundedCornerShape(6.dp),
-                medium = RoundedCornerShape(8.dp),
-                large = RoundedCornerShape(12.dp)
+                small = RoundedCornerShape(8.dp),
+                medium = RoundedCornerShape(12.dp),
+                large = RoundedCornerShape(16.dp)
             ),
             content = content
         )
@@ -314,7 +322,14 @@ data class CommandCopy(
     val mode: String,
     val addTarget: String,
     val sources: String,
-    val runProbe: String
+    val runProbe: String,
+    val online: String,
+    val averageCpu: String,
+    val averageMemory: String,
+    val telemetry: String,
+    val coverage: String,
+    val scoreOutOf: String,
+    val nodes: String
 ) {
     companion object {
         val fa = CommandCopy(
@@ -412,7 +427,14 @@ data class CommandCopy(
             mode = "Mode",
             addTarget = "افزودن هدف",
             sources = "منابع Probe",
-            runProbe = "اجرای Probe"
+            runProbe = "اجرای Probe",
+            online = "آنلاین",
+            averageCpu = "میانگین CPU",
+            averageMemory = "میانگین حافظه",
+            telemetry = "تله‌متری",
+            coverage = "پوشش داده",
+            scoreOutOf = "از ۱۰۰",
+            nodes = "گره"
         )
 
         val en = fa.copy(
@@ -505,7 +527,14 @@ data class CommandCopy(
             mode = "Mode",
             addTarget = "Add target",
             sources = "Probe sources",
-            runProbe = "Run probe"
+            runProbe = "Run probe",
+            online = "Online",
+            averageCpu = "Average CPU",
+            averageMemory = "Average memory",
+            telemetry = "Telemetry",
+            coverage = "Data coverage",
+            scoreOutOf = "OUT OF 100",
+            nodes = "nodes"
         )
 
         fun forLanguage(language: String): CommandCopy = if (language == "fa") fa else en

@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -25,7 +27,9 @@ import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
@@ -39,17 +43,25 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
 
 @Composable
 fun CommandPage(
@@ -59,7 +71,12 @@ fun CommandPage(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CommandColors.canvas)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(CommandColors.infoSurface.copy(alpha = 0.22f), CommandColors.canvas),
+                    radius = 900f
+                )
+            )
             .padding(horizontal = CommandSpacing.md),
         content = content
     )
@@ -79,17 +96,28 @@ fun CommandSectionTitle(
         verticalAlignment = Alignment.Bottom
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
-                color = CommandColors.textPrimary
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                Box(
+                    Modifier
+                        .width(3.dp)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(99.dp))
+                        .background(CommandColors.accent)
+                )
+                Text(
+                    text = title,
+                    style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+                    color = CommandColors.textPrimary
+                )
+            }
             if (supporting != null) {
                 Spacer(Modifier.height(CommandSpacing.xxs))
                 Text(
                     text = supporting,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = CommandColors.textSecondary
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
+                    color = CommandColors.textSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -119,8 +147,10 @@ fun CommandSurface(
     Surface(
         modifier = modifier,
         color = if (raised) CommandColors.surfaceRaised else CommandColors.surface,
-        shape = RoundedCornerShape(8.dp),
-        border = if (border) BorderStroke(1.dp, CommandColors.border) else null
+        shape = RoundedCornerShape(14.dp),
+        border = if (border) BorderStroke(1.dp, CommandColors.border) else null,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
     ) {
         Column(content = content)
     }
@@ -134,7 +164,6 @@ fun CommandStatusMark(
     detail: String? = null
 ) {
     val color = tone.color()
-    val background = tone.background()
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -142,8 +171,8 @@ fun CommandStatusMark(
     ) {
         Box(
             Modifier
-                .size(9.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .size(8.dp)
+                .clip(CircleShape)
                 .background(color)
         )
         Column {
@@ -204,8 +233,8 @@ fun CommandPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(6.dp),
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = CommandColors.accent,
             contentColor = CommandColors.onAccent,
@@ -232,8 +261,8 @@ fun CommandSecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(6.dp),
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (enabled) CommandColors.borderStrong else CommandColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = CommandColors.textPrimary,
@@ -259,7 +288,7 @@ fun CommandTextButton(
     Row(
         modifier = modifier
             .height(40.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -360,8 +389,9 @@ fun CommandEmptyState(
     ) {
         Box(
             Modifier
-                .size(44.dp)
-                .border(1.dp, CommandColors.borderStrong, RoundedCornerShape(8.dp)),
+                .size(52.dp)
+                .background(CommandColors.infoSurface, CircleShape)
+                .border(1.dp, CommandColors.borderStrong, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Rounded.Info, contentDescription = null, tint = CommandColors.textSecondary)
@@ -410,6 +440,199 @@ fun CommandMetricLine(
                 else -> CommandColors.textPrimary
             }
         )
+    }
+}
+
+
+@Composable
+fun CommandTelemetryPill(
+    text: String,
+    tone: CommandHealthTone = CommandHealthTone.INFO,
+    modifier: Modifier = Modifier
+) {
+    val color = tone.color()
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(99.dp))
+            .background(tone.background())
+            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(99.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(color))
+        Text(
+            text,
+            color = color,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+fun CommandMetricTile(
+    label: String,
+    value: String,
+    supporting: String,
+    tone: CommandHealthTone = CommandHealthTone.INFO,
+    modifier: Modifier = Modifier
+) {
+    val valueColor = when (tone) {
+        CommandHealthTone.HEALTHY -> CommandColors.success
+        CommandHealthTone.ATTENTION -> CommandColors.warning
+        CommandHealthTone.OFFLINE -> CommandColors.danger
+        CommandHealthTone.INFO -> CommandColors.accent
+        CommandHealthTone.UNKNOWN -> CommandColors.textTertiary
+    }
+    Column(
+        modifier = modifier
+            .background(CommandColors.surface, RoundedCornerShape(12.dp))
+            .border(1.dp, CommandColors.border, RoundedCornerShape(12.dp))
+            .padding(horizontal = 14.dp, vertical = 13.dp)
+    ) {
+        Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(5.dp))
+        Text(
+            value,
+            color = valueColor,
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge.copy(fontFamily = Telemetry, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(supporting, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(10.dp))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(valueColor.copy(alpha = 0.72f), RoundedCornerShape(99.dp)))
+    }
+}
+
+@Composable
+fun CommandRingGauge(
+    score: Int?,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    val progress = score?.coerceIn(0, 100)?.div(100f) ?: 0f
+    val ringColor = when {
+        score == null -> CommandColors.textTertiary
+        score < 50 -> CommandColors.danger
+        score < 80 -> CommandColors.warning
+        else -> CommandColors.accent
+    }
+    val trackColor = CommandColors.track
+    Box(modifier = modifier.size(142.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = 10.dp.toPx()
+            drawArc(
+                color = trackColor,
+                startAngle = -90f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(strokeWidth = stroke, cap = StrokeCap.Round)
+            )
+            if (score != null) {
+                drawArc(
+                    color = ringColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f * progress,
+                    useCenter = false,
+                    style = Stroke(strokeWidth = stroke, cap = StrokeCap.Round)
+                )
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                score?.toString() ?: "—",
+                color = ringColor,
+                style = androidx.compose.material3.MaterialTheme.typography.displayLarge.copy(fontFamily = Telemetry, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            )
+            Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+        }
+    }
+}
+
+@Composable
+fun CommandTelemetryOrbit(
+    tones: List<CommandHealthTone>,
+    modifier: Modifier = Modifier,
+    caption: String? = null
+) {
+    val nodeColors = tones.take(8).map { it.color() }
+    val orbitBorder = CommandColors.border
+    val orbitBorderStrong = CommandColors.borderStrong
+    val orbitCanvas = CommandColors.canvas
+    Box(
+        modifier = modifier
+            .height(184.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(CommandColors.infoSurface.copy(alpha = 0.55f), orbitCanvas),
+                    radius = 420f
+                )
+            )
+            .border(1.dp, CommandColors.border, RoundedCornerShape(14.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2f, size.height / 2f)
+            val radius = min(size.width, size.height) * 0.31f
+            val secondaryRadius = radius * 0.62f
+            drawCircle(orbitBorderStrong.copy(alpha = 0.62f), radius, center, style = Stroke(1.dp.toPx()))
+            drawCircle(orbitBorder.copy(alpha = 0.9f), secondaryRadius, center, style = Stroke(1.dp.toPx()))
+            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), strokeWidth = 1.dp.toPx())
+            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius), strokeWidth = 1.dp.toPx())
+            nodeColors.forEachIndexed { index, color ->
+                val angle = (-Math.PI / 2.0) + (Math.PI * 2.0 * index / maxOf(nodeColors.size, 1))
+                val point = Offset(
+                    center.x + cos(angle).toFloat() * radius,
+                    center.y + sin(angle).toFloat() * radius
+                )
+                drawCircle(color.copy(alpha = 0.2f), 10.dp.toPx(), point)
+                drawCircle(color, 4.dp.toPx(), point)
+            }
+        }
+        Box(
+            Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(CommandColors.accent.copy(alpha = 0.10f))
+                .border(1.dp, CommandColors.accent.copy(alpha = 0.48f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(23.dp))
+        }
+        Text(
+            caption ?: if (tones.isEmpty()) "NO TELEMETRY" else "${tones.size} NODES",
+            color = CommandColors.textTertiary,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
+            modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)
+        )
+    }
+}
+
+@Composable
+fun CommandTelemetryBar(
+    label: String,
+    value: Float?,
+    tone: CommandHealthTone = CommandHealthTone.INFO,
+    modifier: Modifier = Modifier
+) {
+    val color = tone.color()
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
+    ) {
+        Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(31.dp))
+        Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(99.dp)).background(CommandColors.track)) {
+            if (value != null) {
+                Box(Modifier.fillMaxWidth(value.coerceIn(0f, 100f) / 100f).fillMaxHeight().background(color, RoundedCornerShape(99.dp)))
+            }
+        }
+        Text(value?.let(Fmt::pct) ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(38.dp), textAlign = TextAlign.End)
     }
 }
 
