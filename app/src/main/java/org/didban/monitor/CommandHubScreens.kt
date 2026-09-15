@@ -1,7 +1,10 @@
 package org.didban.monitor
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -84,13 +87,22 @@ private fun CommandToolIndex(
         verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)
     ) {
         item {
-            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(28.dp))
+            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(48.dp)
+                        .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .border(1.dp, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(24.dp))
+                }
                 Spacer(Modifier.width(CommandSpacing.sm))
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
                     Text(body, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                 }
+                CommandTelemetryPill(copy.openExistingTool, CommandHealthTone.INFO)
             }
         }
         groups.forEach { (groupTitle, routes) ->
