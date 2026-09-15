@@ -529,7 +529,7 @@ fun CommandRingGauge(
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
-                style = Stroke(strokeWidth = stroke, cap = StrokeCap.Round)
+                style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
             if (score != null) {
                 drawArc(
@@ -537,7 +537,7 @@ fun CommandRingGauge(
                     startAngle = -90f,
                     sweepAngle = 360f * progress,
                     useCenter = false,
-                    style = Stroke(strokeWidth = stroke, cap = StrokeCap.Round)
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
                 )
             }
         }
