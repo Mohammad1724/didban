@@ -477,9 +477,10 @@ fun CommandMetricTile(
     value: String,
     supporting: String,
     tone: CommandHealthTone = CommandHealthTone.INFO,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    valueColorOverride: Color? = null
 ) {
-    val valueColor = when (tone) {
+    val valueColor = valueColorOverride ?: when (tone) {
         CommandHealthTone.HEALTHY -> CommandColors.success
         CommandHealthTone.ATTENTION -> CommandColors.warning
         CommandHealthTone.OFFLINE -> CommandColors.danger
@@ -618,9 +619,10 @@ fun CommandTelemetryBar(
     label: String,
     value: Float?,
     tone: CommandHealthTone = CommandHealthTone.INFO,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    colorOverride: Color? = null
 ) {
-    val color = tone.color()
+    val color = colorOverride ?: tone.color()
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,

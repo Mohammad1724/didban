@@ -215,7 +215,7 @@ fun CommandOverviewScreen(
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                                     CommandMetricTile(copy.online, "$healthyCount / ${views.size}", copy.healthy, CommandHealthTone.HEALTHY, Modifier.weight(1f))
                                     CommandMetricTile(copy.averageCpu, averageCpu?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                    CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
+                                    CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
                                     CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                 }
                             } else {
@@ -225,7 +225,7 @@ fun CommandOverviewScreen(
                                         CommandMetricTile(copy.averageCpu, averageCpu?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                        CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
+                                        CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
                                         CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                     }
                                 }
@@ -358,7 +358,7 @@ private fun CommandServerBentoCard(view: CommandServerView, copy: CommandCopy, o
         Spacer(Modifier.height(CommandSpacing.sm))
         CommandTelemetryBar(copy.cpu, metrics?.cpuUsage, if (metrics != null && metrics.cpuUsage >= view.server.cpuAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO)
         Spacer(Modifier.height(CommandSpacing.xs))
-        CommandTelemetryBar(copy.memory, metrics?.memPct, if (metrics != null && metrics.memPct >= view.server.memAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO)
+        CommandTelemetryBar(copy.memory, metrics?.memPct, if (metrics != null && metrics.memPct >= view.server.memAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, colorOverride = if (metrics != null && metrics.memPct >= view.server.memAlert) null else CommandColors.violet)
     }
 }
 
@@ -662,7 +662,7 @@ fun CommandServerDossierScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandMetricTile(copy.cpu, Fmt.pct(metrics.cpuUsage), "threshold ${server.cpuAlert}%", if (metrics.cpuUsage >= server.cpuAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, Modifier.weight(1f))
-                        CommandMetricTile(copy.memory, Fmt.pct(metrics.memPct), "threshold ${server.memAlert}%", if (metrics.memPct >= server.memAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, Modifier.weight(1f))
+                        CommandMetricTile(copy.memory, Fmt.pct(metrics.memPct), "threshold ${server.memAlert}%", if (metrics.memPct >= server.memAlert) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, Modifier.weight(1f), if (metrics.memPct >= server.memAlert) null else CommandColors.violet)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandMetricTile(copy.load, metrics.load1.toString(), "${metrics.cores} cores", CommandHealthTone.INFO, Modifier.weight(1f))
