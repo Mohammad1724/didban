@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -44,28 +46,51 @@ private data class CommandProbePoint(
     val source: String
 )
 
+/**
+ * Maps an agent's /api/probe payload onto the shell's own row model.
+ *
+ * Parsing is delegated to [ProbeSnapshot.parse] — the fault-tolerant parser
+ * this screen used to duplicate inline, which also threw away the agent's
+ * per-target uptime history.
+ */
+/**
+ * One uptime monitor as seen from every vantage point at once.
+ *
+ * This is the point of multi-point probing: a target that is down from the
+ * phone but up from three servers is the phone's network, not the target.
+ */
+private data class CommandMatrixRow(
+    val targetId: Long,
+    val name: String,
+    val kind: String,
+    val phoneStatus: Int,                   // -1 pending, 1 up, 0 down
+    val servers: List<Pair<String, String>> // server name -> "" | "up" | "down"
+) {
+    /** True when the phone says down but at least one server says up. */
+    val divergent: Boolean
+        get() = phoneStatus == 0 && servers.any { it.second == "up" }
+}
+
+private fun matrixTone(state: String): CommandHealthTone = when (state) {
+    "up" -> CommandHealthTone.HEALTHY
+    "down" -> CommandHealthTone.OFFLINE
+    else -> CommandHealthTone.UNKNOWN
+}
+
 private fun parseProbePoints(payload: JSONObject): List<CommandProbePoint> {
-    val source = payload.optString("hostname", "Agent")
-    val points = payload.optJSONArray("points") ?: JSONArray()
-    return buildList {
-        for (index in 0 until points.length()) {
-            val point = points.optJSONObject(index) ?: continue
-            val target = point.optJSONObject("target") ?: JSONObject()
-            val last = point.optJSONObject("last") ?: JSONObject()
-            add(
-                CommandProbePoint(
-                    name = target.optString("name"),
-                    mode = target.optString("mode"),
-                    host = target.optString("host"),
-                    port = target.optInt("port"),
-                    state = point.optString("state"),
-                    observed = point.optBoolean("observed", false),
-                    latencyMs = last.optLong("latency_ms", -1L),
-                    detail = last.optString("detail"),
-                    source = source
-                )
-            )
-        }
+    val snapshot = ProbeSnapshot.parse(payload)
+    return snapshot.points.map { point ->
+        CommandProbePoint(
+            name = point.name,
+            mode = point.mode,
+            host = point.host,
+            port = point.port,
+            state = point.state,
+            observed = point.observed,
+            latencyMs = point.lastLatencyMs,
+            detail = point.lastDetail,
+            source = snapshot.hostname.ifBlank { "Agent" }
+        )
     }
 }
 
@@ -147,6 +172,60 @@ fun CommandRadarScreen(
         }
     }
 
+    // ── Coverage matrix (phase 4-B, restored) ─────────────────────────────
+    // Every uptime monitor is registered on every agent, then read back, so
+    // one row shows the same target from the phone and from each server.
+    val context = LocalContext.current
+    var matrixRows by remember { mutableStateOf<List<CommandMatrixRow>>(emptyList()) }
+    var matrixBusy by remember { mutableStateOf(false) }
+    var matrixNotice by remember { mutableStateOf<String?>(null) }
+
+    fun syncAllMonitors() {
+        if (matrixBusy) return
+        UptimeEngine.ensureLoaded(context)
+        val chosen = UptimeEngine.liveTargets.value.filter { !it.isPaused }.take(50)
+        if (chosen.isEmpty()) {
+            matrixNotice = copy.radarNoTargetsBody
+            return
+        }
+        val fleet = Prefs.loadServers(context)
+        if (fleet.isEmpty()) {
+            matrixNotice = copy.noServersBody
+            return
+        }
+        // The same de-duplicated names are used to write and to read back, so
+        // two monitors sharing a display name can no longer make the agent
+        // reject the whole batch (which used to blank every server column).
+        val names = ProbeSpecs.uniqueNames(chosen)
+        val payload = ProbeSpecs.targetsPayload(chosen)
+        matrixBusy = true
+        matrixNotice = null
+        scope.launch {
+            val probed = fleet.map { node ->
+                async {
+                    val client = ApiClient()
+                    runCatching { client.probeTargetsSync(node, payload) }
+                    val snapshot = runCatching { ProbeSnapshot.parse(client.probeStatus(node)) }.getOrNull()
+                    node.name to snapshot
+                }
+            }.awaitAll()
+            matrixRows = chosen.map { target ->
+                val key = names[target.id].orEmpty()
+                CommandMatrixRow(
+                    targetId = target.id,
+                    name = target.name.ifBlank { target.target },
+                    kind = target.type,
+                    phoneStatus = target.lastStatus,
+                    servers = probed.map { (nodeName, snapshot) ->
+                        nodeName to (snapshot?.point(key)?.state ?: "")
+                    }
+                )
+            }
+            matrixBusy = false
+            matrixNotice = copy.radarSynced.replace("%d", chosen.size.toString())
+        }
+    }
+
     LaunchedEffect(server?.id) { load() }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
@@ -200,6 +279,62 @@ fun CommandRadarScreen(
                             Text("${point.mode} ${point.host}:${point.port}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                             if (point.observed) Text("${point.latencyMs} ms · ${point.detail}", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                         }
+                    }
+                }
+            }
+        }
+
+        // ── Coverage matrix ────────────────────────────────────────────────
+        item {
+            CommandSectionTitle(
+                copy.coverage,
+                if (matrixRows.isEmpty()) null else "${matrixRows.size}",
+                if (matrixBusy) null else copy.radarSyncAll,
+                if (matrixBusy) null else ({ syncAllMonitors() }),
+                Modifier.fillMaxWidth()
+            )
+        }
+        item {
+            Text(
+                copy.radarSyncAllBody,
+                color = CommandColors.textTertiary,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+            )
+        }
+        if (matrixNotice != null) {
+            item { CommandStateBlock(copy.operationDone, matrixNotice ?: "", CommandHealthTone.INFO) }
+        }
+        if (matrixBusy) {
+            item { CommandStateBlock(copy.sync, copy.waitingForData, CommandHealthTone.UNKNOWN) }
+        }
+        items(matrixRows, key = { it.targetId }) { row ->
+            CommandSurface(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CommandStatusMark(
+                            row.name,
+                            matrixTone(if (row.phoneStatus == 1) "up" else if (row.phoneStatus == 0) "down" else ""),
+                            Modifier.weight(1f),
+                            "${copy.vantagePhone} · ${row.kind}"
+                        )
+                        if (row.divergent) {
+                            CommandTelemetryPill(copy.attention, CommandHealthTone.ATTENTION)
+                        }
+                    }
+                    CommandRule()
+                    row.servers.forEach { (nodeName, state) ->
+                        CommandMetricLine(
+                            nodeName,
+                            state.ifBlank { copy.unknownState },
+                            matrixTone(state)
+                        )
+                    }
+                    if (row.divergent) {
+                        Text(
+                            copy.noAttentionBody,
+                            color = CommandColors.warning,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
             }

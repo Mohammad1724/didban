@@ -39,6 +39,8 @@ import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Terminal
@@ -105,6 +107,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     SERVICES("services", CommandWorkspace.OPERATE),
 
     RADAR("radar", CommandWorkspace.DIAGNOSE),
+    BANDWIDTH("bandwidth", CommandWorkspace.DIAGNOSE),
     UPTIME("uptime", CommandWorkspace.DIAGNOSE),
     UPTIME_EDITOR("uptime-editor", CommandWorkspace.DIAGNOSE),
     NETWORK_TOOLS("network-tools", CommandWorkspace.DIAGNOSE),
@@ -122,6 +125,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
 
     PROTECT_HOME("protect-home", CommandWorkspace.PROTECT),
     VAULT("vault", CommandWorkspace.PROTECT),
+    SECURITY("security", CommandWorkspace.PROTECT),
     ALERTS("alerts", CommandWorkspace.PROTECT),
     BACKUP("backup", CommandWorkspace.PROTECT),
     SETTINGS("settings", CommandWorkspace.PROTECT);
@@ -160,6 +164,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.PROCESSES -> copy.processes
     CommandRoute.SERVICES -> copy.services
     CommandRoute.RADAR -> copy.radar
+    CommandRoute.BANDWIDTH -> copy.bandwidth
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> copy.uptime
     CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> copy.networkTools
     CommandRoute.DNS, CommandRoute.DNS_EDITOR -> copy.dns
@@ -172,6 +177,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.DEVELOPER_LAB -> copy.developerLab
     CommandRoute.PROTECT_HOME -> copy.protect
     CommandRoute.VAULT -> copy.vault
+    CommandRoute.SECURITY -> copy.security
     CommandRoute.ALERTS -> copy.alerts
     CommandRoute.BACKUP -> copy.backup
     CommandRoute.SETTINGS -> copy.settings
@@ -188,6 +194,7 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.PROCESSES -> Icons.Rounded.ListAlt
     CommandRoute.SERVICES -> Icons.Rounded.Tune
     CommandRoute.RADAR -> Icons.Rounded.Public
+    CommandRoute.BANDWIDTH -> Icons.Rounded.Speed
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> Icons.Rounded.MonitorHeart
     CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> Icons.Rounded.NetworkCheck
     CommandRoute.DNS, CommandRoute.DNS_EDITOR -> Icons.Rounded.Dns
@@ -200,6 +207,7 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.DEVELOPER_LAB -> Icons.Rounded.Code
     CommandRoute.PROTECT_HOME -> Icons.Rounded.Security
     CommandRoute.VAULT -> Icons.Rounded.Security
+    CommandRoute.SECURITY -> Icons.Rounded.Shield
     CommandRoute.ALERTS -> Icons.Rounded.NotificationsNone
     CommandRoute.BACKUP -> Icons.Rounded.Storage
     CommandRoute.SETTINGS -> Icons.Rounded.Settings
@@ -655,6 +663,7 @@ private fun CommandRouteContent(
         CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
+        CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
         CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onNavigate(CommandRoute.UPTIME, null) }
         CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) })
@@ -662,6 +671,7 @@ private fun CommandRouteContent(
         CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
         CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onNavigate(CommandRoute.DNS, null) }
         CommandRoute.VAULT -> CommandVaultScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
+        CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.BACKUP -> CommandBackupScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
         CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) })

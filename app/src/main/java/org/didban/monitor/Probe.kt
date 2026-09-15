@@ -107,6 +107,10 @@ internal fun parseRfc3339(s: String): Long {
  *  - SSL: reachability only (cert expiry stays phone-side), mode=tcp, port ?: 443
  */
 object ProbeSpecs {
+    /** Agent-side hard limits (see agent/probe.go: name length and batch cap). */
+    private const val MAX_NAME_LEN = 64
+    private const val MAX_SPECS = 50
+
     /** The agent-side key for a target: its name, or the raw target when unnamed. */
     fun specName(t: UptimeTarget): String = t.name.ifBlank { t.target.trim() }
 
@@ -151,10 +155,54 @@ object ProbeSpecs {
 
     /** The full target-set payload for PUT/POST /api/probe/targets. */
     fun targetsPayload(targets: List<UptimeTarget>): JSONObject {
+        val chosen = targets.filter { !it.isPaused }.take(MAX_SPECS)
+        val names = uniqueNames(chosen)
         val arr = org.json.JSONArray()
-        targets.filter { !it.isPaused }
-            .take(50)
-            .forEach { forTarget(it)?.let { s -> arr.put(s) } }
+        chosen.forEach { t ->
+            val spec = forTarget(t) ?: return@forEach
+            // The agent keys probe points by name, so the name it stores must
+            // be the de-duplicated one, not the raw display name.
+            spec.put("name", names.getValue(t.id))
+            arr.put(spec)
+        }
         return JSONObject().put("targets", arr)
+    }
+
+    /**
+     * Collision-free agent-side keys for a target set, keyed by target id.
+     *
+     * The agent rejects the *entire* batch when two specs share a name
+     * ("duplicate target name") or when a name exceeds 64 characters
+     * ("name too long"), and it reports that as a plain 400. Because the
+     * matrix UI used to send raw display names, one pair of same-named
+     * monitors silently disabled multi-point probing on every server at once.
+     * Names are therefore truncated and de-duplicated here, and callers read
+     * results back through the same map so the two sides cannot disagree.
+     */
+    fun uniqueNames(targets: List<UptimeTarget>): Map<Long, String> {
+        val out = LinkedHashMap<Long, String>()
+        val used = HashSet<String>()
+        for (t in targets) {
+            if (out.containsKey(t.id)) continue // same id twice: first wins
+            val base = specName(t).ifBlank { "target-${t.id}" }
+            var name = truncateName(base, "")
+            if (!used.add(name)) {
+                var n = 2
+                while (true) {
+                    val suffix = if (n == 2) "-${t.id}" else "-${t.id}-$n"
+                    name = truncateName(base, suffix)
+                    if (used.add(name)) break
+                    n++
+                }
+            }
+            out[t.id] = name
+        }
+        return out
+    }
+
+    /** Shortens [base] so that base + suffix fits the agent's 64-char limit. */
+    private fun truncateName(base: String, suffix: String): String {
+        val room = (MAX_NAME_LEN - suffix.length).coerceAtLeast(1)
+        return base.take(room) + suffix
     }
 }
