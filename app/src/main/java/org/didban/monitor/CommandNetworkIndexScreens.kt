@@ -38,13 +38,13 @@ fun CommandNetworkIndexScreen(
     val fa = copy == CommandCopy.fa
     CommandNetworkIndex(
         title = copy.networkTools,
-        subtitle = if (fa) "هر ابزار با سؤال تشخیصی خودش شروع می‌شود." else "Start with the diagnostic question, not a tool list.",
+        subtitle = if (fa) copy.netIndexBody else "Start with the diagnostic question, not a tool list.",
         rows = listOf(
-            Triple(if (fa) "آیا مقصد از این Server قابل دسترسی است؟" else "Is the target reachable from this server?", if (fa) "TCP، HTTP، SSL و Check-Host" else "TCP, HTTP, SSL and Check-Host", onOpenRadar) to Icons.Rounded.Public,
-            Triple(if (fa) "آیا مشکل در لایهٔ شبکه است؟" else "Is the problem in the network layer?", if (fa) "DPI، Port Scanner و TCP Ping" else "DPI, port scanner and TCP ping", onOpenSuite) to Icons.Rounded.NetworkCheck,
-            Triple(if (fa) "گواهی و هویت TLS درست است؟" else "Is the TLS identity valid?", if (fa) "Subject، Chain، SAN و Fingerprint" else "Subject, chain, SAN and fingerprint", onOpenSuite) to Icons.Rounded.Security,
-            Triple(if (fa) "DNS چه پاسخی می‌دهد؟" else "What does DNS return?", if (fa) "Recordها و Cloudflare" else "Records and Cloudflare", onOpenDns) to Icons.Rounded.Dns,
-            Triple(if (fa) "کیفیت اتصال چقدر است؟" else "What is the connection quality?", if (fa) "Latency، Loss، Jitter و Bandwidth" else "Latency, loss, jitter and bandwidth", onOpenSuite) to Icons.Rounded.Speed
+            Triple(if (fa) copy.netQReachable else "Is the target reachable from this server?", if (fa) copy.netQReachableTools else "TCP, HTTP, SSL and Check-Host", onOpenRadar) to Icons.Rounded.Public,
+            Triple(if (fa) copy.netQNetworkLayer else "Is the problem in the network layer?", if (fa) copy.netQNetworkLayerTools else "DPI, port scanner and TCP ping", onOpenSuite) to Icons.Rounded.NetworkCheck,
+            Triple(if (fa) copy.netQTls else "Is the TLS identity valid?", if (fa) copy.netQTlsTools else "Subject, chain, SAN and fingerprint", onOpenSuite) to Icons.Rounded.Security,
+            Triple(if (fa) copy.netQDns else "What does DNS return?", if (fa) copy.netQDnsTools else "Records and Cloudflare", onOpenDns) to Icons.Rounded.Dns,
+            Triple(if (fa) copy.netQQuality else "What is the connection quality?", if (fa) copy.netQQualityTools else "Latency, loss, jitter and bandwidth", onOpenSuite) to Icons.Rounded.Speed
         ),
         copy = copy
     )
@@ -59,10 +59,10 @@ fun CommandDnsIndexScreen(
     val fa = copy == CommandCopy.fa
     CommandNetworkIndex(
         title = copy.dns,
-        subtitle = if (fa) "تشخیص پاسخ DNS از مدیریت Record جداست." else "DNS diagnosis is separate from record management.",
+        subtitle = if (fa) copy.dnsIndexBody else "DNS diagnosis is separate from record management.",
         rows = listOf(
-            Triple(if (fa) "مدیریت Zone و Record" else "Manage zones and records", if (fa) "ساخت، ویرایش و حذف Recordهای واقعی Cloudflare" else "Create, edit and delete real Cloudflare records", onOpenCloudflare) to Icons.Rounded.Dns,
-            Triple(if (fa) "بررسی پاسخ DNS" else "Inspect DNS resolution", if (fa) "Resolve، Reverse DNS و Recordهای عمومی" else "Resolve, reverse DNS and public records", onOpenNetwork) to Icons.Rounded.NetworkCheck
+            Triple(if (fa) copy.dnsZoneRecords else "Manage zones and records", if (fa) copy.dnsZoneRecordsBody else "Create, edit and delete real Cloudflare records", onOpenCloudflare) to Icons.Rounded.Dns,
+            Triple(if (fa) copy.dnsInspect else "Inspect DNS resolution", if (fa) copy.dnsInspectBody else "Resolve, reverse DNS and public records", onOpenNetwork) to Icons.Rounded.NetworkCheck
         ),
         copy = copy
     )

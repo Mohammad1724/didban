@@ -144,7 +144,7 @@ fun CommandSshScreen(
                     Column(Modifier.padding(CommandSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("Evidence", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                            CommandTextButton("کپی", { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy)
+                            CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy)
                         }
                         Spacer(Modifier.height(CommandSpacing.sm))
                         Text(output.ifBlank { copy.waitingForData }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 30, overflow = TextOverflow.Ellipsis)
@@ -156,7 +156,7 @@ fun CommandSshScreen(
     }
 
     if (prompt != null) {
-        CommandHostKeyDialog(prompt!!, onDecision = { approved ->
+        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })
@@ -214,24 +214,24 @@ fun CommandBatchScreen(
                         Row(Modifier.fillMaxWidth().clickable {
                             if (server.id in selectedIds) selectedIds.remove(server.id) else selectedIds.add(server.id)
                         }.padding(vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                            CommandStatusMark(if (server.id in selectedIds) "انتخاب‌شده" else "انتخاب‌نشده", if (server.id in selectedIds) CommandHealthTone.INFO else CommandHealthTone.UNKNOWN, Modifier.weight(1f), server.name)
+                            CommandStatusMark(if (server.id in selectedIds) copy.selected else copy.notSelected, if (server.id in selectedIds) CommandHealthTone.INFO else CommandHealthTone.UNKNOWN, Modifier.weight(1f), server.name)
                             Text(server.host, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                         }
                     }
-                    OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("SSH Password مشترک") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.batchSharedPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 2, label = { Text("Command") })
                     CommandPrimaryButton(if (running) copy.waitingForData else copy.run, ::runBatch, enabled = !running, icon = Icons.Rounded.Bolt)
                 }
             }
         }
         if (results.isNotEmpty()) {
-            item { CommandSectionTitle("Result Matrix", "${results.count { it.result.isSuccess }} موفق · ${results.count { !it.result.isSuccess }} ناموفق") }
+            item { CommandSectionTitle("Result Matrix", copy.batchSummary.replace("%1", results.count { it.result.isSuccess }.toString()).replace("%2", results.count { !it.result.isSuccess }.toString())) }
             items(results, key = { it.serverId }) { item ->
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md)) {
-                        CommandStatusMark(if (item.result.isSuccess) "موفق" else "ناموفق", if (item.result.isSuccess) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = "${item.serverName} · ${item.host}")
+                        CommandStatusMark(if (item.result.isSuccess) copy.succeeded else copy.failed, if (item.result.isSuccess) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = "${item.serverName} · ${item.host}")
                         Spacer(Modifier.height(CommandSpacing.sm))
-                        Text(item.result.stdout.ifBlank { item.result.stderr }.ifBlank { "بدون خروجی" }, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 8, overflow = TextOverflow.Ellipsis)
+                        Text(item.result.stdout.ifBlank { item.result.stderr }.ifBlank { copy.noOutput }, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 8, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -239,7 +239,7 @@ fun CommandBatchScreen(
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
     if (prompt != null) {
-        CommandHostKeyDialog(prompt!!, onDecision = { approved ->
+        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })
@@ -247,18 +247,18 @@ fun CommandBatchScreen(
 }
 
 @Composable
-fun CommandHostKeyDialog(prompt: HostKeyPrompt, onDecision: (Boolean) -> Unit) {
+fun CommandHostKeyDialog(copy: CommandCopy, prompt: HostKeyPrompt, onDecision: (Boolean) -> Unit) {
     AlertDialog(
         onDismissRequest = { onDecision(false) },
-        title = { Text(if (prompt.keyChanged) "کلید SSH تغییر کرده است" else "اعتماد به کلید SSH جدید", fontWeight = FontWeight.Bold) },
+        title = { Text(if (prompt.keyChanged) copy.hostKeyChanged else copy.hostKeyNew, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                 Text("${prompt.host}:${prompt.port}", style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                Text(if (prompt.keyChanged) "کلید فعلی با Trust Store یکسان نیست. فقط در صورت تأیید مستقل، اعتماد را بازنشانی کنید." else "این اولین اتصال است. Fingerprint زیر ذخیره خواهد شد.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
+                Text(if (prompt.keyChanged) copy.hostKeyChangedBody else copy.hostKeyFirstBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                 Text(prompt.fingerprint, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), color = if (prompt.keyChanged) CommandColors.danger else CommandColors.textPrimary)
             }
         },
-        confirmButton = { TextButton(onClick = { onDecision(true) }) { Text(if (prompt.keyChanged) "بازنشانی اعتماد" else "اعتماد و اتصال") } },
-        dismissButton = { TextButton(onClick = { onDecision(false) }) { Text("لغو") } }
+        confirmButton = { TextButton(onClick = { onDecision(true) }) { Text(if (prompt.keyChanged) copy.resetTrust else copy.trustAndConnect) } },
+        dismissButton = { TextButton(onClick = { onDecision(false) }) { Text(copy.cancel) } }
     )
 }

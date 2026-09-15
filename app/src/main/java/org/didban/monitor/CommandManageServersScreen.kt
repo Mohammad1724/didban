@@ -109,10 +109,10 @@ fun CommandManageServersScreen(
     )
 
     fun validate(server: ServerConfig): String? = when {
-        server.name.isBlank() -> "نام اتصال اجباری است."
-        !TunnelFieldValidation.isHost(server.host) -> "Host باید hostname یا IPv4 معتبر باشد."
-        server.token.isBlank() -> "Agent token اجباری است."
-        server.useTls && server.fingerprint.isNotBlank() && runCatching { CertFingerprint.normalizeFingerprint(server.fingerprint) }.getOrNull().isNullOrBlank() -> "Fingerprint TLS معتبر نیست."
+        server.name.isBlank() -> copy.srvNameRequired
+        !TunnelFieldValidation.isHost(server.host) -> copy.srvHostInvalid
+        server.token.isBlank() -> copy.srvTokenRequired
+        server.useTls && server.fingerprint.isNotBlank() && runCatching { CertFingerprint.normalizeFingerprint(server.fingerprint) }.getOrNull().isNullOrBlank() -> copy.srvFingerprintInvalid
         else -> null
     }
 
@@ -130,7 +130,7 @@ fun CommandManageServersScreen(
         selectedId = server.id
         Prefs.saveServers(context, next)
         PollingCoordinator.requestNow(server.id)
-        message = "اتصال ذخیره شد؛ Polling واقعی برای آن درخواست شد."
+        message = copy.srvSavedPolled
         error = null
     }
 
@@ -142,7 +142,7 @@ fun CommandManageServersScreen(
         }
         busy = true
         error = null
-        message = "در حال اتصال به Agent واقعی..."
+        message = copy.srvConnecting
         scope.launch {
             val api = ApiClient()
             runCatching { api.metrics(server) }
@@ -151,9 +151,9 @@ fun CommandManageServersScreen(
                     api.lastSeenFingerprint?.let { seen ->
                         if (useTls && fingerprint.isBlank()) fingerprint = seen
                     }
-                    message = "Agent پاسخ داد؛ fingerprint فقط به‌صورت پیشنهادی در فرم قرار گرفت و تا Save pin نمی‌شود."
+                    message = copy.srvFingerprintSuggested
                 }
-                .onFailure { error = it.message ?: "اتصال به Agent ناموفق بود." }
+                .onFailure { error = it.message ?: copy.srvConnectFailed }
             busy = false
         }
     }
@@ -231,7 +231,7 @@ fun CommandManageServersScreen(
                     Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Saved actions", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            Text("از اینجا پروندهٔ واقعی سرور باز می‌شود؛ حذف فقط local connection را حذف می‌کند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                            Text(copy.srvDossierHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
                         CommandTextButton("Open dossier", { onOpenServer(selected) }, icon = Icons.Rounded.Security)
                         CommandTextButton("Delete", { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline)
@@ -246,18 +246,18 @@ fun CommandManageServersScreen(
         val server = deleteServer!!
         AlertDialog(
             onDismissRequest = { deleteServer = null },
-            title = { Text("Delete connection؟", fontWeight = FontWeight.Bold) },
-            text = { Text("اتصال ${server.name} از Prefs حذف می‌شود؛ چیزی روی خود سرور حذف نخواهد شد.") },
+            title = { Text(copy.srvDeleteTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(copy.srvDeleteBody.replace("%1", server.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     records = records.filterNot { it.id == server.id }
                     Prefs.saveServers(context, records)
                     deleteServer = null
                     reset()
-                    message = "اتصال local حذف شد."
-                }) { Text("حذف", color = CommandColors.danger) }
+                    message = copy.srvLocalDeleted
+                }) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteServer = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { deleteServer = null }) { Text(copy.cancel) } }
         )
     }
 }

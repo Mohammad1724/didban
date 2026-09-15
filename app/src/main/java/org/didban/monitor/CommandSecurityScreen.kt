@@ -349,7 +349,7 @@ fun CommandSecurityScreen(
     }
 
     if (prompt != null) {
-        CommandHostKeyDialog(prompt!!, onDecision = { approved ->
+        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })

@@ -103,23 +103,23 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
     fun save() {
         val item = buildTarget()
         if (item.target.isBlank()) {
-            error = "Target نمی‌تواند خالی باشد."
+            error = copy.upTargetRequired
             return
         }
         if (item.type == "KEYWORD" && item.keyword.isBlank()) {
-            error = "برای KEYWORD باید keyword واقعی وارد شود."
+            error = copy.upKeywordRequired
             return
         }
         UptimeEngine.upsert(context, item)
         selectedId = item.id
-        message = "Monitor ذخیره شد؛ check بعدی توسط UptimeEngine انجام می‌شود."
+        message = copy.upSaved
         error = null
     }
 
     fun test() {
         val item = buildTarget()
         if (item.target.isBlank()) {
-            error = "ابتدا target را وارد کنید."
+            error = copy.upTargetFirst
             return
         }
         UptimeEngine.upsert(context, item)
@@ -128,8 +128,8 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         scope.launch {
             runCatching { UptimeEngine.checkNow(context, item) }
-                .onSuccess { message = "Check واقعی انجام شد: ${if (item.lastStatus == 1) "UP" else "DOWN"} · ${item.lastLatencyMs} ms" }
-                .onFailure { error = it.message ?: "Check ناموفق بود." }
+                .onSuccess { message = copy.upCheckDone.replace("%1", if (item.lastStatus == 1) "UP" else "DOWN").replace("%2", item.lastLatencyMs.toString()) }
+                .onFailure { error = it.message ?: copy.upCheckFailed }
             busy = false
         }
     }
@@ -151,7 +151,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                         CommandTextButton("New", ::reset, icon = Icons.Rounded.Refresh)
                     }
                     if (targets.isEmpty()) {
-                        Text("هنوز Monitor واقعی ذخیره نشده است.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.upNoMonitorYet, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     } else {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             targets.forEach { item ->
@@ -181,7 +181,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                         OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text("Interval seconds") })
                         OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text("Keyword, only for KEYWORD") })
                     }
-                    Text("URL/HTTP و SSL از engine واقعی استفاده می‌کنند؛ target نمونه یا synthetic result ساخته نمی‌شود.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(copy.upEditorBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -220,17 +220,17 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         val item = deleteTarget!!
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete monitor؟", fontWeight = FontWeight.Bold) },
-            text = { Text("${item.name} و heartbeat/incidentهای محلی آن حذف می‌شوند.") },
+            title = { Text(copy.upDeleteTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(copy.upDeleteBody.replace("%1", item.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     UptimeEngine.remove(context, item.id)
                     deleteTarget = null
                     reset()
-                    message = "Monitor حذف شد."
-                }) { Text("حذف", color = CommandColors.danger) }
+                    message = copy.upDeleted
+                }) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(copy.cancel) } }
         )
     }
 }
