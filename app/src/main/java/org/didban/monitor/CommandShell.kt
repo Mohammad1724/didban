@@ -46,6 +46,8 @@ import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.TravelExplore
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Terminal
@@ -114,6 +116,8 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
 
     RADAR("radar", CommandWorkspace.DIAGNOSE),
     BANDWIDTH("bandwidth", CommandWorkspace.DIAGNOSE),
+    CF_SCANNER("cf-scanner", CommandWorkspace.DIAGNOSE),
+    REALITY_SNI("reality-sni", CommandWorkspace.DIAGNOSE),
     UPTIME("uptime", CommandWorkspace.DIAGNOSE),
     UPTIME_EDITOR("uptime-editor", CommandWorkspace.DIAGNOSE),
     NETWORK_TOOLS("network-tools", CommandWorkspace.DIAGNOSE),
@@ -171,6 +175,8 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.SERVICES -> copy.services
     CommandRoute.RADAR -> copy.radar
     CommandRoute.BANDWIDTH -> copy.bandwidth
+    CommandRoute.CF_SCANNER -> copy.cfScanner
+    CommandRoute.REALITY_SNI -> copy.realitySni
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> copy.uptime
     CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> copy.networkTools
     CommandRoute.DNS, CommandRoute.DNS_EDITOR -> copy.dns
@@ -201,6 +207,8 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.SERVICES -> Icons.Rounded.Tune
     CommandRoute.RADAR -> Icons.Rounded.Public
     CommandRoute.BANDWIDTH -> Icons.Rounded.Speed
+    CommandRoute.CF_SCANNER -> Icons.Rounded.TravelExplore
+    CommandRoute.REALITY_SNI -> Icons.Rounded.VerifiedUser
     CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR -> Icons.Rounded.MonitorHeart
     CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR -> Icons.Rounded.NetworkCheck
     CommandRoute.DNS, CommandRoute.DNS_EDITOR -> Icons.Rounded.Dns
@@ -756,9 +764,11 @@ private fun CommandRouteContent(
         CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
         CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
         CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
+        CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
+        CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
         CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onNavigate(CommandRoute.UPTIME, null) }
-        CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) })
+        CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
         CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) }
         CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
         CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onNavigate(CommandRoute.DNS, null) }

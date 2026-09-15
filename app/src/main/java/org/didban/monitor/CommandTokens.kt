@@ -334,6 +334,79 @@ interface CommandCopy {
     val scoreOutOf: String
     val nodes: String
     val pressAgainToExit: String
+    val netQCfEdge: String
+    val netQCfEdgeTools: String
+    val netQRealityDonor: String
+    val netQRealityDonorTools: String
+    val cfScanner: String
+    val cfScannerBody: String
+    val cfSource: String
+    val cfRandom: String
+    val cfCustomList: String
+    val cfCustomListHint: String
+    val cfSettings: String
+    val cfSettingsHint: String
+    val cfCount: String
+    val cfTries: String
+    val cfTimeout: String
+    val cfConcurrency: String
+    val cfSniOverride: String
+    val cfStart: String
+    val cfStop: String
+    val cfStopped: String
+    val cfProgress: String
+    val cfResults: String
+    val cfCopyBest: String
+    val cfCopied: String
+    val cfNoResults: String
+    val cfNoResultsBody: String
+    val cfNoAddresses: String
+    val cfLoss: String
+    val cfColo: String
+    val cfTlsOk: String
+    val realitySni: String
+    val realityBody: String
+    val realityDomain: String
+    val realityCheck: String
+    val realityCheckAll: String
+    val realityDiscouraged: String
+    val realityResults: String
+    val realityProgress: String
+    val realityScore: String
+    val realityGood: String
+    val realityUsable: String
+    val realityRisky: String
+    val realityReject: String
+    val realityBlockers: String
+    val realityWarnings: String
+    val realityNotes: String
+    val realityBadTarget: String
+    val realityResolved: String
+    val realityTiming: String
+    val realityDns: String
+    val realityTcp: String
+    val realityTls: String
+    val realityTotal: String
+    val realityTlsDetails: String
+    val realityTlsVersion: String
+    val realityAlpn: String
+    val realityCipher: String
+    val realityNotNegotiated: String
+    val realityCert: String
+    val realityCertValid: String
+    val realitySniInSan: String
+    val realityCertIssuer: String
+    val realityCertDays: String
+    val realityCertKey: String
+    val realityCertChain: String
+    val realityHttp: String
+    val realityHttpStatus: String
+    val realityRedirectTo: String
+    val realityCdn: String
+    val realityCloudflare: String
+    val realityServerHeader: String
+    val realityYes: String
+    val realityNo: String
     val metricUptime: String
     val metricLoad: String
     val metricDisks: String
@@ -777,6 +850,79 @@ internal object CommandCopyFa : CommandCopy {
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
+    override val netQCfEdge = "کدام لبهٔ کلودفلر از اینجا تمیز است؟"
+    override val netQCfEdgeTools = "اسکنر IP تمیز"
+    override val netQRealityDonor = "این دامنه دونر REALITY می‌شود؟"
+    override val netQRealityDonorTools = "TLS 1.3، h2، SAN، redirect، CDN"
+    override val cfScanner = "اسکنر IP تمیز کلودفلر"
+    override val cfScannerBody = "کدام لبهٔ کلودفلر از شبکهٔ شما واقعاً TLS را کامل می‌کند و به /cdn-cgi/trace پاسخ می‌دهد."
+    override val cfSource = "منبع آدرس‌ها"
+    override val cfRandom = "تصادفی از بازه‌های کلودفلر"
+    override val cfCustomList = "فهرست دلخواه"
+    override val cfCustomListHint = "هر خط یک IP یا CIDR؛ # برای توضیح"
+    override val cfSettings = "تنظیمات اسکن"
+    override val cfSettingsHint = "مقادیر از پیش محدود شده‌اند تا اسکن به خود دستگاه یا شبکهٔ شما آسیب نزند."
+    override val cfCount = "تعداد آدرس"
+    override val cfTries = "تلاش هر آدرس"
+    override val cfTimeout = "مهلت (ms)"
+    override val cfConcurrency = "همزمانی"
+    override val cfSniOverride = "SNI دلخواه"
+    override val cfStart = "شروع اسکن"
+    override val cfStop = "توقف اسکن"
+    override val cfStopped = "اسکن متوقف شد"
+    override val cfProgress = "%1 از %2 بررسی شد · %3 سالم"
+    override val cfResults = "IPهای تمیز"
+    override val cfCopyBest = "کپی ۲۰ مورد برتر"
+    override val cfCopied = "%1 آدرس کپی شد"
+    override val cfNoResults = "هیچ IP تمیزی پیدا نشد"
+    override val cfNoResultsBody = "هیچ لبه‌ای از این شبکه handshake را کامل نکرد. تعداد آدرس یا مهلت را بیشتر کنید، یا یک فهرست دلخواه بدهید."
+    override val cfNoAddresses = "هیچ آدرسی برای بررسی نیست"
+    override val cfLoss = "افت"
+    override val cfColo = "دیتاسنتر"
+    override val cfTlsOk = "TLS کامل شد"
+    override val realitySni = "اسکنر SNI برای REALITY"
+    override val realityBody = "آیا این دامنه دونر معتبری برای dest/serverNames در REALITY هست یا نه، و چرا."
+    override val realityDomain = "دامنهٔ دونر"
+    override val realityCheck = "بررسی دونر"
+    override val realityCheckAll = "بررسی همهٔ پیشنهادی‌ها"
+    override val realityDiscouraged = "دونرهای نامناسب"
+    override val realityResults = "نتایج"
+    override val realityProgress = "%1 از %2 بررسی شد · %3 قابل استفاده"
+    override val realityScore = "امتیاز"
+    override val realityGood = "مناسب"
+    override val realityUsable = "قابل استفاده"
+    override val realityRisky = "پرریسک"
+    override val realityReject = "رد"
+    override val realityBlockers = "مانع‌ها"
+    override val realityWarnings = "هشدارها"
+    override val realityNotes = "یادداشت‌ها"
+    override val realityBadTarget = "دامنه معتبر نیست؛ یک IP نمی‌تواند SNI باشد"
+    override val realityResolved = "آدرس مقصد"
+    override val realityTiming = "زمان‌بندی"
+    override val realityDns = "DNS"
+    override val realityTcp = "TCP"
+    override val realityTls = "TLS"
+    override val realityTotal = "کل"
+    override val realityTlsDetails = "جزئیات TLS"
+    override val realityTlsVersion = "نسخه"
+    override val realityAlpn = "ALPN"
+    override val realityCipher = "مجموعهٔ رمزنگار"
+    override val realityNotNegotiated = "مذاکره نشد"
+    override val realityCert = "گواهی"
+    override val realityCertValid = "اعتبارسنجی"
+    override val realitySniInSan = "SNI در SAN"
+    override val realityCertIssuer = "صادرکننده"
+    override val realityCertDays = "روزهای باقی‌مانده"
+    override val realityCertKey = "نوع کلید"
+    override val realityCertChain = "طول زنجیره"
+    override val realityHttp = "پاسخ HTTP"
+    override val realityHttpStatus = "کد وضعیت"
+    override val realityRedirectTo = "redirect به"
+    override val realityCdn = "پشت CDN"
+    override val realityCloudflare = "کلودفلر"
+    override val realityServerHeader = "هدر Server"
+    override val realityYes = "بله"
+    override val realityNo = "خیر"
     override val metricUptime = "آپ‌تایم"
     override val metricLoad = "بار"
     override val metricDisks = "دیسک"
@@ -1213,6 +1359,79 @@ internal object CommandCopyEn : CommandCopy {
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
     override val pressAgainToExit = "Press back again to exit"
+    override val netQCfEdge = "Which Cloudflare edge is clean from here?"
+    override val netQCfEdgeTools = "Clean-IP scanner"
+    override val netQRealityDonor = "Can this domain be a REALITY donor?"
+    override val netQRealityDonorTools = "TLS 1.3, h2, SANs, redirect, CDN"
+    override val cfScanner = "Cloudflare clean-IP scanner"
+    override val cfScannerBody = "Which Cloudflare edges actually complete TLS and answer /cdn-cgi/trace from your network."
+    override val cfSource = "Address source"
+    override val cfRandom = "Random from Cloudflare ranges"
+    override val cfCustomList = "Custom list"
+    override val cfCustomListHint = "One IP or CIDR per line; # for a comment"
+    override val cfSettings = "Scan settings"
+    override val cfSettingsHint = "Values are clamped up front so a scan cannot harm your own device or network."
+    override val cfCount = "Addresses"
+    override val cfTries = "Tries"
+    override val cfTimeout = "Timeout (ms)"
+    override val cfConcurrency = "Concurrency"
+    override val cfSniOverride = "SNI override"
+    override val cfStart = "Start scan"
+    override val cfStop = "Stop scan"
+    override val cfStopped = "Scan stopped"
+    override val cfProgress = "%1 of %2 probed · %3 clean"
+    override val cfResults = "Clean IPs"
+    override val cfCopyBest = "Copy top 20"
+    override val cfCopied = "%1 addresses copied"
+    override val cfNoResults = "No clean IP found"
+    override val cfNoResultsBody = "No edge completed a handshake from this network. Try more addresses, a longer timeout, or a custom list."
+    override val cfNoAddresses = "No addresses to probe"
+    override val cfLoss = "Loss"
+    override val cfColo = "Colo"
+    override val cfTlsOk = "TLS completed"
+    override val realitySni = "REALITY SNI scanner"
+    override val realityBody = "Whether a domain is a valid REALITY dest/serverNames donor, and why."
+    override val realityDomain = "Donor domain"
+    override val realityCheck = "Check donor"
+    override val realityCheckAll = "Check all suggested"
+    override val realityDiscouraged = "Donors to avoid"
+    override val realityResults = "Results"
+    override val realityProgress = "%1 of %2 checked · %3 usable"
+    override val realityScore = "Score"
+    override val realityGood = "Good"
+    override val realityUsable = "Usable"
+    override val realityRisky = "Risky"
+    override val realityReject = "Reject"
+    override val realityBlockers = "Blockers"
+    override val realityWarnings = "Warnings"
+    override val realityNotes = "Notes"
+    override val realityBadTarget = "Not a valid donor domain; an IP cannot be an SNI"
+    override val realityResolved = "Resolved to"
+    override val realityTiming = "Timing"
+    override val realityDns = "DNS"
+    override val realityTcp = "TCP"
+    override val realityTls = "TLS"
+    override val realityTotal = "Total"
+    override val realityTlsDetails = "TLS details"
+    override val realityTlsVersion = "Version"
+    override val realityAlpn = "ALPN"
+    override val realityCipher = "Cipher suite"
+    override val realityNotNegotiated = "Not negotiated"
+    override val realityCert = "Certificate"
+    override val realityCertValid = "Validates"
+    override val realitySniInSan = "SNI in SANs"
+    override val realityCertIssuer = "Issuer"
+    override val realityCertDays = "Days remaining"
+    override val realityCertKey = "Key type"
+    override val realityCertChain = "Chain length"
+    override val realityHttp = "HTTP response"
+    override val realityHttpStatus = "Status"
+    override val realityRedirectTo = "Redirects to"
+    override val realityCdn = "Behind a CDN"
+    override val realityCloudflare = "Cloudflare"
+    override val realityServerHeader = "Server header"
+    override val realityYes = "Yes"
+    override val realityNo = "No"
     override val metricUptime = "Uptime"
     override val metricLoad = "Load"
     override val metricDisks = "disks"

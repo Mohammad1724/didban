@@ -362,7 +362,7 @@ object CfTransport {
         ssl.useClientMode = true
         val params = ssl.sslParameters
         if (sni.isNotBlank()) params.serverNames = listOf(SNIHostName(sni))
-        if (alpn.isNotEmpty()) params.applicationProtocols = alpn.toTypedArray()
+        if (alpn.isNotEmpty()) TlsCapability.applyAlpn(params, alpn.toTypedArray())
         ssl.sslParameters = params
         ssl.startHandshake()
         return ssl
@@ -423,7 +423,7 @@ object CloudflareIpScanner {
         candidates: List<CfCandidate>,
         config: CfScanConfig,
         onProgress: (CfScanProgress) -> Unit = {}
-    ): List<CfProbeResult> = coroutineScope {
+    ): List<CfProbeResult> {
         val cfg = CfScanConfig.sanitize(config)
         val gate = Semaphore(cfg.concurrency)
         val results = java.util.Collections.synchronizedList(mutableListOf<CfProbeResult>())
@@ -432,29 +432,33 @@ object CloudflareIpScanner {
         var best: CfProbeResult? = null
         val bestLock = Any()
 
-        for (c in candidates) {
-            coroutineContext.ensureActive()
-            launch {
-                gate.withPermit {
-                    val r = probe(c.ip, c.port, cfg)
-                    results.add(r)
-                    val d = done.incrementAndGet()
-                    if (r.healthy) {
-                        found.incrementAndGet()
-                        synchronized(bestLock) {
-                            if (best == null || CfRanker.score(r) < CfRanker.score(best!!)) best = r
+        // coroutineScope only joins its children once the block returns, so the
+        // results must be read *after* it — returning them from inside the block
+        // hands back an empty list, because the children have not run yet.
+        coroutineScope {
+            for (c in candidates) {
+                coroutineContext.ensureActive()
+                launch {
+                    gate.withPermit {
+                        val r = probe(c.ip, c.port, cfg)
+                        results.add(r)
+                        val d = done.incrementAndGet()
+                        if (r.healthy) {
+                            found.incrementAndGet()
+                            synchronized(bestLock) {
+                                if (best == null || CfRanker.score(r) < CfRanker.score(best!!)) best = r
+                            }
                         }
-                    }
-                    if (d % 8 == 0 || d == candidates.size) {
-                        synchronized(bestLock) {
-                            onProgress(CfScanProgress(candidates.size, d, found.get(), best))
+                        if (d % 8 == 0 || d == candidates.size) {
+                            synchronized(bestLock) {
+                                onProgress(CfScanProgress(candidates.size, d, found.get(), best))
+                            }
                         }
                     }
                 }
             }
         }
-        // coroutineScope joins all children before returning
-        results.toList()
+        return results.toList()
     }
 
     /** Builds the candidate list for a config (random plan, or an explicit list). */

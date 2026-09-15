@@ -21,6 +21,8 @@ import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,7 +35,9 @@ fun CommandNetworkIndexScreen(
     copy: CommandCopy,
     onOpenSuite: () -> Unit,
     onOpenRadar: () -> Unit,
-    onOpenDns: () -> Unit
+    onOpenDns: () -> Unit,
+    onOpenCfScanner: () -> Unit,
+    onOpenRealitySni: () -> Unit
 ) {
     CommandNetworkIndex(
         title = copy.networkTools,
@@ -43,7 +47,9 @@ fun CommandNetworkIndexScreen(
             Triple(copy.netQNetworkLayer, copy.netQNetworkLayerTools, onOpenSuite) to Icons.Rounded.NetworkCheck,
             Triple(copy.netQTls, copy.netQTlsTools, onOpenSuite) to Icons.Rounded.Security,
             Triple(copy.netQDns, copy.netQDnsTools, onOpenDns) to Icons.Rounded.Dns,
-            Triple(copy.netQQuality, copy.netQQualityTools, onOpenSuite) to Icons.Rounded.Speed
+            Triple(copy.netQQuality, copy.netQQualityTools, onOpenSuite) to Icons.Rounded.Speed,
+            Triple(copy.netQCfEdge, copy.netQCfEdgeTools, onOpenCfScanner) to Icons.Rounded.TravelExplore,
+            Triple(copy.netQRealityDonor, copy.netQRealityDonorTools, onOpenRealitySni) to Icons.Rounded.VerifiedUser
         ),
         copy = copy
     )

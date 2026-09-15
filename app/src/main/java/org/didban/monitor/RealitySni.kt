@@ -178,6 +178,9 @@ object RealityCriteria {
         }
         if (r.behindCdn && !r.behindCloudflare) warnings.add("Appears to sit behind a CDN (${r.serverHeader.ifEmpty { "header fingerprint" }}) — donor latency and fingerprints will not be stable")
         if (r.certExpiringSoon) warnings.add("Certificate expires in ${r.certDaysRemaining} days; the donor will need replacing")
+        if (r.httpStatus in 400..499) {
+            notes.add("HEAD returned HTTP ${r.httpStatus}; many sites refuse HEAD or data-centre IPs, and REALITY only borrows the TLS layer, so this is not a defect")
+        }
         if (r.totalMs > 900) warnings.add("Handshake took ${r.totalMs} ms from this device — REALITY pays this on every connection")
 
         // ── informational ──────────────────────────────────────────────────
@@ -274,7 +277,17 @@ object RealitySniScanner {
         return host to port
     }
 
-    suspend fun probe(sni: String, port: Int = 443, timeoutMs: Int = 8000): RealityProbeResult =
+    /**
+     * @param alpnCapable overrides the platform capability probe. ALPN and
+     * TLS 1.3 both need API 29; injecting this keeps [probe] runnable in a
+     * plain JVM test, where reading android.os.Build throws.
+     */
+    suspend fun probe(
+        sni: String,
+        port: Int = 443,
+        timeoutMs: Int = 8000,
+        alpnCapable: Boolean = TlsCapability.alpn
+    ): RealityProbeResult =
         withContext(Dispatchers.IO) {
             val started = System.nanoTime()
             var dnsMs = -1L
@@ -310,26 +323,20 @@ object RealitySniScanner {
                 tls = factory.socketFactory.createSocket(plain, sni, port, true) as SSLSocket
                 tls.soTimeout = timeoutMs
                 tls.useClientMode = true
-                // ALPN and TLS 1.3 both landed in the platform TLS stack at
-                // API 29. Asking for them on an older device throws
-                // NoSuchMethodError, so capability is checked, not assumed.
-                val alpnCapable = android.os.Build.VERSION.SDK_INT >= 29
-                val tls13Capable = alpnCapable
+                val tls13Capable = TlsCapability.tls13
                 val params: SSLParameters = tls.sslParameters
                 params.serverNames = listOf(SNIHostName(sni))
-                if (alpnCapable) params.applicationProtocols = arrayOf("h2", "http/1.1")
+                val alpnApplied = alpnCapable &&
+                    TlsCapability.applyAlpn(params, arrayOf("h2", "http/1.1"))
                 // REALITY needs 1.3; ask for it explicitly so a donor that only
                 // offers 1.2 is reported honestly instead of silently downgraded.
                 params.protocols = if (tls13Capable) arrayOf("TLSv1.3", "TLSv1.2")
                     else tls.supportedProtocols
                 tls.sslParameters = params
-                var certError = ""
-                try {
-                    tls.startHandshake()
-                } catch (e: javax.net.ssl.SSLException) {
-                    certError = e.message ?: e.javaClass.simpleName
-                    throw e
-                }
+                // A handshake failure is reported by the outer catch, which
+                // fills certError/certValid from the exception itself.
+                val certError = ""
+                tls.startHandshake()
                 tlsMs = (System.nanoTime() - t2) / 1_000_000
                 chainHolder[0] = tls.session?.peerCertificates
                     ?.filterIsInstance<X509Certificate>()?.toTypedArray()
@@ -340,13 +347,14 @@ object RealitySniScanner {
                 val sans = leaf?.subjectAlternativeNames
                     ?.mapNotNull { if (it.size >= 2 && it[1] is String) it[1] as String else null }
                     .orEmpty()
-                val alpn = if (alpnCapable) {
-                    runCatching { tls.applicationProtocol }.getOrNull().orEmpty()
-                } else {
-                    ""
-                }
+                val alpn = if (alpnApplied) TlsCapability.negotiatedAlpn(tls) else ""
 
-                val http = headRequest(tls, sni, timeoutMs)
+                // The redirect check runs on its own connection advertising
+                // HTTP/1.1 only. Reusing `tls` was wrong: once ALPN negotiates
+                // h2 the server expects binary framing, so a plain-text HEAD is
+                // answered with a close and every h2 donor looked like it had
+                // no redirect information at all.
+                val http = httpCheck(addrs[0], sni, port, timeoutMs, alpnCapable)
 
                 RealityProbeResult(
                     sni = sni, port = port, resolvedIp = ip,
@@ -371,7 +379,7 @@ object RealitySniScanner {
                         (RealityCriteria.isCdnServerHeader(http.server) && http.server.contains("cloudflare", true)),
                     behindCdn = RealityCriteria.isCdnServerHeader(http.server) || http.cdnHeader,
                     platformTls13Capable = tls13Capable,
-                    platformAlpnCapable = alpnCapable,
+                    platformAlpnCapable = alpnApplied,
                 )
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 throw ce
@@ -396,6 +404,46 @@ object RealitySniScanner {
 
     /** A short HEAD is enough to see a redirect without downloading a page. */
     private data class Head(val status: Int, val location: String, val server: String, val cdnHeader: Boolean)
+
+    /**
+     * Opens a separate HTTP/1.1-only TLS connection and issues a HEAD.
+     * Failure here is not fatal: a donor that refuses HEAD is still usable,
+     * TLS properties are what decide.
+     */
+    private fun httpCheck(
+        addr: InetAddress,
+        sni: String,
+        port: Int,
+        timeoutMs: Int,
+        alpnCapable: Boolean
+    ): Head {
+        var plain: Socket? = null
+        var tls: SSLSocket? = null
+        return try {
+            plain = Socket()
+            plain.tcpNoDelay = true
+            runCatching { plain.setSoLinger(true, 0) }
+            plain.connect(InetSocketAddress(addr, port), timeoutMs)
+            val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            tmf.init(null as java.security.KeyStore?)
+            val ctx = SSLContext.getInstance("TLS")
+            ctx.init(null, tmf.trustManagers, java.security.SecureRandom())
+            tls = ctx.socketFactory.createSocket(plain, sni, port, true) as SSLSocket
+            tls.soTimeout = timeoutMs
+            tls.useClientMode = true
+            val params: SSLParameters = tls.sslParameters
+            params.serverNames = listOf(SNIHostName(sni))
+            if (alpnCapable) TlsCapability.applyAlpn(params, arrayOf("http/1.1"))
+            tls.sslParameters = params
+            tls.startHandshake()
+            headRequest(tls, sni, timeoutMs)
+        } catch (_: Throwable) {
+            Head(0, "", "", false)
+        } finally {
+            runCatching { tls?.close() }
+            runCatching { plain?.close() }
+        }
+    }
 
     private fun headRequest(socket: Socket, host: String, timeoutMs: Int): Head {
         return try {
@@ -446,5 +494,61 @@ object RealitySniScanner {
         is javax.net.ssl.SSLHandshakeException -> "TLS handshake rejected: ${e.message ?: ""}"
         is javax.net.ssl.SSLException -> "TLS error: ${e.message ?: ""}"
         else -> e.message ?: e.javaClass.simpleName
+    }
+}
+
+/**
+ * ALPN and TLS 1.3 availability, discovered at runtime instead of assumed.
+ *
+ * `SSLParameters.setApplicationProtocols` and `SSLSocket.getApplicationProtocol`
+ * are API 29 while minSdk is 26, so calling them directly is both a lint error
+ * and a NoSuchMethodError on older devices. They are reached reflectively and
+ * every failure is reported as "could not verify" rather than as a defect of
+ * the remote side — an old phone must not be able to condemn a good donor.
+ */
+internal object TlsCapability {
+
+    /** True when this platform's TLS stack can negotiate TLS 1.3 at all. */
+    val tls13: Boolean by lazy {
+        try {
+            // getSupportedProtocols lives on SSLSocket, not on the factory, so
+            // an unconnected socket is created purely to ask it.
+            val probe = SSLContext.getInstance("TLS").socketFactory.createSocket() as SSLSocket
+            try {
+                probe.supportedProtocols.any { it == "TLSv1.3" }
+            } finally {
+                runCatching { probe.close() }
+            }
+        } catch (t: Throwable) {
+            false
+        }
+    }
+
+    /** True when ALPN can be advertised on this platform. */
+    val alpn: Boolean by lazy { probeAlpn() }
+
+    private fun probeAlpn(): Boolean = try {
+        SSLParameters::class.java.getMethod("setApplicationProtocols", Array<String>::class.java)
+        SSLSocket::class.java.getMethod("getApplicationProtocol")
+        true
+    } catch (t: Throwable) {
+        false
+    }
+
+    /** Advertises [protocols]; returns false when the platform cannot. */
+    fun applyAlpn(params: SSLParameters, protocols: Array<String>): Boolean = try {
+        val m = SSLParameters::class.java.getMethod("setApplicationProtocols", Array<String>::class.java)
+        m.invoke(params, protocols)
+        true
+    } catch (t: Throwable) {
+        false
+    }
+
+    /** Reads the negotiated protocol, or "" when unavailable. */
+    fun negotiatedAlpn(socket: SSLSocket): String = try {
+        val m = SSLSocket::class.java.getMethod("getApplicationProtocol")
+        (m.invoke(socket) as? String).orEmpty()
+    } catch (t: Throwable) {
+        ""
     }
 }
