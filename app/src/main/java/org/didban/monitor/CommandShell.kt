@@ -7,6 +7,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -30,7 +35,7 @@ import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Hub
-import androidx.compose.material.icons.rounded.ListAlt
+import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.NetworkCheck
@@ -61,6 +66,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
@@ -191,7 +197,7 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.MANAGE_SERVERS -> Icons.Rounded.Settings
     CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR -> Icons.Rounded.Hub
     CommandRoute.DOCKER -> Icons.Rounded.Widgets
-    CommandRoute.PROCESSES -> Icons.Rounded.ListAlt
+    CommandRoute.PROCESSES -> Icons.AutoMirrored.Rounded.ListAlt
     CommandRoute.SERVICES -> Icons.Rounded.Tune
     CommandRoute.RADAR -> Icons.Rounded.Public
     CommandRoute.BANDWIDTH -> Icons.Rounded.Speed
@@ -231,6 +237,12 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
     var selectedServerId by rememberSaveable { mutableStateOf<Long?>(null) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var mobileNavigationOpen by rememberSaveable { mutableStateOf(false) }
+
+    // Deliberately plain `remember`: the exit hint is transient, so it should
+    // not survive a configuration change (a stale "press again" pill after a
+    // rotation would be a lie about the guard's state).
+    var exitHintVisible by remember { mutableStateOf(false) }
+    var lastBackPressAt by remember { mutableStateOf(0L) }
 
     val copy = remember(language) { CommandCopy.forLanguage(language) }
     val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
@@ -273,13 +285,38 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
             }
         }
 
-        BackHandler(enabled = route != CommandRoute.OVERVIEW || mobileNavigationOpen) {
-            when {
-                mobileNavigationOpen -> mobileNavigationOpen = false
-                route == CommandRoute.SERVER_DOSSIER -> navigate(CommandRoute.FLEET)
-                route.workspace != CommandWorkspace.OBSERVE -> navigate(workspaceDefault(route.workspace))
-                route == CommandRoute.INCIDENTS -> navigate(CommandRoute.OVERVIEW)
-                else -> Unit
+        // Back must always do something. The previous version had two holes:
+        // it was disabled at OVERVIEW, so a single accidental tap left the app
+        // with no confirmation; and on the five workspace home routes
+        // (FLEET, TUNNELS, RADAR, WORKBENCH_HOME, PROTECT_HOME) it navigated
+        // to their own workspace default, which is a no-op, so the press was
+        // consumed and swallowed — Back appeared broken there.
+        BackHandler {
+            when (val action = commandBackAction(route, mobileNavigationOpen)) {
+                CommandBackAction.CloseNavigation -> {
+                    mobileNavigationOpen = false
+                    exitHintVisible = false
+                }
+                is CommandBackAction.Navigate -> {
+                    navigate(action.to)
+                    exitHintVisible = false
+                }
+                CommandBackAction.ExitGuard -> {
+                    val now = System.currentTimeMillis()
+                    if (now - lastBackPressAt < EXIT_GUARD_WINDOW_MS) {
+                        context.findActivity()?.finish()
+                    } else {
+                        lastBackPressAt = now
+                        exitHintVisible = true
+                    }
+                }
+            }
+        }
+
+        LaunchedEffect(exitHintVisible) {
+            if (exitHintVisible) {
+                delay(EXIT_GUARD_WINDOW_MS)
+                exitHintVisible = false
             }
         }
 
@@ -398,11 +435,66 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                     )
                 }
             }
+
+            AnimatedVisibility(
+                visible = exitHintVisible,
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut() + slideOutVertically { it / 2 },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = CommandSpacing.xl)
+            ) {
+                CommandSurface(raised = true) {
+                    Text(
+                        copy.pressAgainToExit,
+                        modifier = Modifier.padding(
+                            horizontal = CommandSpacing.lg,
+                            vertical = CommandSpacing.sm
+                        ),
+                        color = CommandColors.textPrimary,
+                        style = androidx.compose.material3.MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
         }
     }
 }
 
-private fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (workspace) {
+
+/** How long a first Back press stays armed before it is forgotten again. */
+private const val EXIT_GUARD_WINDOW_MS = 2000L
+
+/**
+ * What a Back press does at a given route.
+ *
+ * Kept as a pure function outside the composable so every route can be
+ * asserted in a plain JVM test — the previous inline `when` silently
+ * swallowed the press on the five workspace home routes, and no test could
+ * see it because the logic only existed inside a @Composable.
+ *
+ * The order matters:
+ * 1. an open mobile navigation drawer absorbs the press;
+ * 2. the server dossier steps back to the fleet;
+ * 3. any other non-default route steps back to its workspace home;
+ * 4. a workspace home steps back to the overview;
+ * 5. only the overview arms the exit guard.
+ */
+internal fun commandBackAction(route: CommandRoute, navigationOpen: Boolean): CommandBackAction = when {
+    navigationOpen -> CommandBackAction.CloseNavigation
+    route == CommandRoute.SERVER_DOSSIER -> CommandBackAction.Navigate(CommandRoute.FLEET)
+    route != workspaceDefault(route.workspace) -> CommandBackAction.Navigate(workspaceDefault(route.workspace))
+    route != CommandRoute.OVERVIEW -> CommandBackAction.Navigate(CommandRoute.OVERVIEW)
+    else -> CommandBackAction.ExitGuard
+}
+
+/** Result of [commandBackAction]. */
+internal sealed interface CommandBackAction {
+    data object CloseNavigation : CommandBackAction
+    data class Navigate(val to: CommandRoute) : CommandBackAction
+    data object ExitGuard : CommandBackAction
+}
+
+internal fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (workspace) {
     CommandWorkspace.OBSERVE -> CommandRoute.OVERVIEW
     CommandWorkspace.FLEET -> CommandRoute.FLEET
     CommandWorkspace.OPERATE -> CommandRoute.TUNNELS

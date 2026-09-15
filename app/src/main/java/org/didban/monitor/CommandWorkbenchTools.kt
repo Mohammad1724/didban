@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -305,7 +306,9 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val servers = remember { Prefs.loadServers(context) }
-    var selectedId by remember(initialServer?.id) { mutableStateOf(initialServer?.id ?: servers.firstOrNull()?.id) }
+    var selectedId by rememberSaveable(initialServer?.id) {
+        mutableStateOf(initialServer?.id ?: servers.firstOrNull()?.id)
+    }
     val server = selectedId?.let { id -> servers.firstOrNull { it.id == id } }
     var user by remember { mutableStateOf("root") }
     var port by remember { mutableStateOf("22") }

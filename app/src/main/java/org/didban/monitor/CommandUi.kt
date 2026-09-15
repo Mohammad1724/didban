@@ -22,8 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ErrorOutline
@@ -638,7 +638,7 @@ fun CommandTelemetryBar(
 
 @Composable
 fun CommandBackButton(text: String, onClick: () -> Unit) {
-    CommandTextButton(text = text, onClick = onClick, icon = if (LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl) Icons.Rounded.ArrowForward else Icons.Rounded.ArrowBack)
+    CommandTextButton(text = text, onClick = onClick, icon = if (LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl) Icons.AutoMirrored.Rounded.ArrowForward else Icons.AutoMirrored.Rounded.ArrowBack)
 }
 
 @Composable

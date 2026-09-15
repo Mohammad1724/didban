@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Security
@@ -127,7 +127,7 @@ private fun CommandToolIndex(
                                     Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
                                     Text(copy.openExistingTool, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                                 }
-                                Icon(Icons.Rounded.ArrowForward, contentDescription = copy.openServer, tint = CommandColors.textTertiary, modifier = Modifier.size(20.dp))
+                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = copy.openServer, tint = CommandColors.textTertiary, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
