@@ -56,13 +56,32 @@ class CommandCopyCoverageTest {
     }
 
     @Test
+    fun `every key is actually used by a screen`() {
+        // The migration is mechanical, so a key can be added and never wired
+        // up — or a screen can stop using one. Either way the table should not
+        // carry strings nothing renders.
+        assumeTrue("source tree not reachable from the test working directory", sourceDir != null)
+        val used = sourceDir!!.listFiles { f -> f.name.startsWith("Command") && f.name.endsWith(".kt") }
+            ?.filter { it.name != "CommandTokens.kt" }
+            ?.joinToString("") { it.readText() }
+            .orEmpty()
+        // Read the key list off the interface's getters: the implementing
+        // objects also carry synthetic fields (INSTANCE, Compose's $stable).
+        val declared = CommandCopy::class.java.methods
+            .filter { it.parameterCount == 0 && it.returnType == String::class.java && it.name.startsWith("get") }
+            .map { it.name.removePrefix("get").replaceFirstChar(Char::lowercaseChar) }
+        val dead = declared.filter { ".$it" !in used }
+        assertEquals("CommandCopy keys nothing references: $dead", emptyList<String>(), dead)
+    }
+
+    @Test
     fun `both language tables cover every key`() {
         // A missing override is a compile error now that CommandCopy is an
         // interface, but the tables are also asserted equal in size so that a
         // future refactor back to a copy()-derived form is caught here.
-        val faKeys = CommandCopyFa::class.java.declaredFields.map { it.name }
-        val enKeys = CommandCopyEn::class.java.declaredFields.map { it.name }
-        assertTrue("Persian table looks empty", faKeys.size >= 300)
+        val faKeys = CommandCopyFa::class.java.methods.filter { it.name.startsWith("get") }.map { it.name }
+        val enKeys = CommandCopyEn::class.java.methods.filter { it.name.startsWith("get") }.map { it.name }
+        assertTrue("Persian table looks empty", faKeys.size >= 400)
         assertEquals("fa and en tables diverged", faKeys.sorted(), enKeys.sorted())
     }
 }

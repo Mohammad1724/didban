@@ -99,7 +99,7 @@ fun CommandSettingsScreen(
                     onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Poll interval (seconds)") }
+                    label = { Text(copy.setPollIntervalSec) }
                 )
                 CommandPrimaryButton(copy.save, ::saveInterval, icon = Icons.Rounded.Settings)
                 if (saveMessage != null) {
@@ -114,7 +114,7 @@ fun CommandSettingsScreen(
                     if (vaultInitialized) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN,
                     detail = if (vaultInitialized) copy.setVaultReady else copy.setVaultLockedHint
                 )
-                CommandSecondaryButton("Reset Vault", { confirmAction = SettingsConfirmAction.RESET_VAULT }, icon = Icons.Rounded.Lock, enabled = vaultInitialized)
+                CommandSecondaryButton(copy.setResetVault, { confirmAction = SettingsConfirmAction.RESET_VAULT }, icon = Icons.Rounded.Lock, enabled = vaultInitialized)
                 CommandRule()
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
@@ -139,7 +139,7 @@ fun CommandSettingsScreen(
         }
         item {
             SettingsSection(title = "Diagnostics", detail = copy.setRuntimeBody) {
-                CommandStatusMark("Didban ${BuildConfig.VERSION_NAME}", CommandHealthTone.INFO, detail = "Host Key Store initialized: ${HostKeyTrustStore.initialized}")
+                CommandStatusMark("Didban ${BuildConfig.VERSION_NAME}", CommandHealthTone.INFO, detail = copy.setHostKeyStoreInit.replace("%1", HostKeyTrustStore.initialized.toString()))
                 Text(copy.setConnectivityBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             }
         }

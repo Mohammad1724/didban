@@ -140,14 +140,14 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.uptime, if (selectedId == null) "new monitor" else "editing #$selectedId", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.uptime, if (selectedId == null) copy.upNewMonitor else "editing #$selectedId", modifier = Modifier.weight(1f))
             }
         }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Saved monitors", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(copy.upSavedMonitors, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         CommandTextButton("New", ::reset, icon = Icons.Rounded.Refresh)
                     }
                     if (targets.isEmpty()) {
@@ -165,21 +165,21 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Monitor contract", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.upMonitorContract, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Name") })
-                    Text("Probe type", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+                    Text(copy.upProbeType, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                         listOf("HTTP", "HTTPS", "TCP", "PING", "KEYWORD", "SSL").forEach { candidate ->
                             CommandSecondaryButton(candidate, { type = candidate }, enabled = type != candidate)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text("Target / URL / host") })
+                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upTargetUrlHost) })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text("Interval seconds") })
-                        OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text("Keyword, only for KEYWORD") })
+                        OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upIntervalSeconds) })
+                        OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.upKeywordHint) })
                     }
                     Text(copy.upEditorBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
@@ -188,7 +188,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                 CommandPrimaryButton("Save", ::save, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
-                CommandSecondaryButton("Test now", ::test, Modifier.weight(1f), Icons.Rounded.PlayArrow, enabled = !busy)
+                CommandSecondaryButton(copy.upTestNow, ::test, Modifier.weight(1f), Icons.Rounded.PlayArrow, enabled = !busy)
             }
         }
         if (selected != null) {
@@ -205,7 +205,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                             CommandTextButton("Delete", { deleteTarget = selected }, icon = Icons.Rounded.DeleteOutline)
                         }
                         if (selected.incidents.isNotEmpty()) {
-                            Text("${selected.incidents.size} incident record(s)", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                            Text(copy.upIncidentCount.replace("%1", selected.incidents.size.toString()), color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

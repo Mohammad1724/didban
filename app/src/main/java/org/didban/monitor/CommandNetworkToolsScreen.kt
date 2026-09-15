@@ -99,11 +99,11 @@ fun CommandNetworkToolsScreen(
                     NetworkDiagnosticMode.GEO_DNS -> {
                         val info = IpInfoService.lookup(clean)
                         summary = "${info.flag} ${info.country} · ${info.ip}"
-                        detail = "Domain: ${info.domainName.ifBlank { "—" }}\nReverse DNS: ${info.reverseDns.ifBlank { "—" }}\nISP: ${info.isp.ifBlank { "—" }}\nASN: ${info.asn.ifBlank { "—" }}\nRegion: ${info.region} / ${info.city}\nDNS records: ${info.dnsRecords.size}"
+                        detail = "${copy.netDomainLabel}: ${info.domainName.ifBlank { "—" }}\n${copy.netReverseDnsLabel}: ${info.reverseDns.ifBlank { "—" }}\n${copy.netIspLabel}: ${info.isp.ifBlank { "—" }}\n${copy.netAsnLabel}: ${info.asn.ifBlank { "—" }}\n${copy.netRegionLabel}: ${info.region} / ${info.city}\n${copy.netDnsRecordsLabel}: ${info.dnsRecords.size}"
                     }
                 }
             } catch (e: Exception) {
-                error = e.message ?: "Network diagnostic failed"
+                error = e.message ?: copy.netDiagFailed
             } finally {
                 loading = false
             }
@@ -114,7 +114,7 @@ fun CommandNetworkToolsScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.networkTools, initialServer?.name ?: "local probe", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.networkTools, initialServer?.name ?: copy.netLocalProbe, modifier = Modifier.weight(1f))
             }
         }
         item {
@@ -127,9 +127,9 @@ fun CommandNetworkToolsScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Probe input", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.netProbeInput, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text("Host / domain") })
+                        OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.netHostDomain) })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
                     Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -152,7 +152,7 @@ fun CommandNetworkToolsScreen(
             }
         }
         if (portResults.isNotEmpty()) {
-            item { CommandSectionTitle("Open ports", "${portResults.size} real responses") }
+            item { CommandSectionTitle(copy.netOpenPorts, copy.netRealResponses.replace("%1", portResults.size.toString())) }
             items(portResults, key = { it.port }) { result ->
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {

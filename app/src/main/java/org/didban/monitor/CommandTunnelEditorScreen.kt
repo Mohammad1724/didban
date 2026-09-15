@@ -272,14 +272,14 @@ fun CommandTunnelEditorScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.tunnels, if (selectedId == null) "new configuration" else "editing #$selectedId", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.tunnels, if (selectedId == null) copy.tunNewConfiguration else copy.tunEditingId.replace("%1", selectedId.toString()), modifier = Modifier.weight(1f))
             }
         }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Saved tunnels", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(copy.tunSavedTunnels, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         CommandTextButton("New", ::resetForm, icon = Icons.Rounded.Tune)
                     }
                     if (records.isEmpty()) {
@@ -297,8 +297,8 @@ fun CommandTunnelEditorScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Identity and engine", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Tunnel name") })
+                    Text(copy.tunIdentityEngine, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunName) })
                     Text("Core", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                         TunnelCore.values().forEach { core ->
@@ -319,19 +319,19 @@ fun CommandTunnelEditorScreen(
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text("Endpoints", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(iranHost, { iranHost = it }, Modifier.weight(1f), singleLine = true, label = { Text("Iran host") })
+                        OutlinedTextField(iranHost, { iranHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunIranHost) })
                         OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.weight(1f), singleLine = true, label = { Text("Foreign host") })
+                        OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunForeignHost) })
                         OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text("Core port") })
-                        OutlinedTextField(token, { token = it }, Modifier.weight(2f), singleLine = true, label = { Text("Real token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                        OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunCorePort) })
+                        OutlinedTextField(token, { token = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.tunRealToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandSecondaryButton("Generate secure token", { token = TunnelEngine.generateRandomToken(24) }, icon = Icons.Rounded.Tune)
+                        CommandSecondaryButton(copy.tunGenerateToken, { token = TunnelEngine.generateRandomToken(24) }, icon = Icons.Rounded.Tune)
                         Text(if (token.isBlank()) copy.tunTokenEmpty else copy.tunTokenSet, color = if (token.isBlank()) CommandColors.warning else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                     if (discovered) Text(copy.tunDiscoveryBody, color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -341,18 +341,18 @@ fun CommandTunnelEditorScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Advanced parameters", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.tunAdvancedParams, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(preset, { preset = it }, Modifier.weight(1f), singleLine = true, label = { Text("Preset") })
-                        OutlinedTextField(kcpMode, { kcpMode = it }, Modifier.weight(1f), singleLine = true, label = { Text("KCP mode") })
+                        OutlinedTextField(kcpMode, { kcpMode = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunKcpMode) })
                         OutlinedTextField(encryption, { encryption = it }, Modifier.weight(1f), singleLine = true, label = { Text("Encryption") })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(wsPath, { wsPath = it }, Modifier.weight(1f), singleLine = true, label = { Text("WS path") })
-                        OutlinedTextField(wsHost, { wsHost = it }, Modifier.weight(1f), singleLine = true, label = { Text("WS host") })
+                        OutlinedTextField(wsPath, { wsPath = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsPath) })
+                        OutlinedTextField(wsHost, { wsHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsHost) })
                         OutlinedTextField(mtu, { mtu = it.filter(Char::isDigit).take(4) }, Modifier.width(100.dp), singleLine = true, label = { Text("MTU") })
                     }
-                    OutlinedTextField(multiPorts, { multiPorts = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Multi-port mappings, e.g. 443:8443, 80:8080") })
+                    OutlinedTextField(multiPorts, { multiPorts = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunMultiPortHint) })
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.lg), modifier = Modifier.fillMaxWidth()) {
                         CommandBooleanSetting("Accept UDP", acceptUdp) { acceptUdp = it }
                         CommandBooleanSetting("Proxy protocol", proxyProtocol) { proxyProtocol = it }
@@ -360,12 +360,12 @@ fun CommandTunnelEditorScreen(
                         CommandBooleanSetting("Enabled", enabled) { enabled = it }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(spoofSrcIp, { spoofSrcIp = it }, Modifier.weight(1f), singleLine = true, label = { Text("Spoof source IP") })
-                        OutlinedTextField(spoofPeerIp, { spoofPeerIp = it }, Modifier.weight(1f), singleLine = true, label = { Text("Spoof peer IP") })
+                        OutlinedTextField(spoofSrcIp, { spoofSrcIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofSource) })
+                        OutlinedTextField(spoofPeerIp, { spoofPeerIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofPeer) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(virtualIpIran, { virtualIpIran = it }, Modifier.weight(1f), singleLine = true, label = { Text("Virtual Iran IP") })
-                        OutlinedTextField(virtualIpForeign, { virtualIpForeign = it }, Modifier.weight(1f), singleLine = true, label = { Text("Virtual foreign IP") })
+                        OutlinedTextField(virtualIpIran, { virtualIpIran = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualIranIp) })
+                        OutlinedTextField(virtualIpForeign, { virtualIpForeign = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualForeignIp) })
                     }
                 }
             }
@@ -380,7 +380,7 @@ fun CommandTunnelEditorScreen(
             item {
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Text("Remote operations", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(copy.tunRemoteOps, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Text(copy.tunActionsBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             CommandPrimaryButton("Deploy", { confirmAction = TunnelConfirmAction.DEPLOY }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
@@ -400,7 +400,7 @@ fun CommandTunnelEditorScreen(
             item {
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Text("Generated evidence", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(copy.tunGeneratedEvidence, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             listOf("Iran config", "Foreign config", "Iran install", "Foreign install", "Docker Iran", "Docker Foreign").forEach { key ->
                                 CommandSecondaryButton(key, { artifact = key }, enabled = artifact != key)

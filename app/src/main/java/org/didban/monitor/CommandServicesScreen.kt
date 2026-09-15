@@ -164,17 +164,17 @@ fun CommandServicesScreen(
                         }
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("SSH Password") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            OutlinedTextField(query, { query = it }, Modifier.weight(1f), singleLine = true, label = { Text("Filter services") })
-                            CommandPrimaryButton(if (loading) (operation ?: copy.waitingForData) else "Load services", ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
+                            OutlinedTextField(query, { query = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.svcFilter) })
+                            CommandPrimaryButton(if (loading) (operation ?: copy.waitingForData) else copy.svcLoad, ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
                         }
                     }
                 }
             }
             if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
             if (services.isEmpty() && !loading && error == null) {
-                item { CommandStateBlock("No live service data", "Load services to query systemd on ${server?.host ?: "the selected server"}. No service is fabricated locally.", CommandHealthTone.UNKNOWN) }
+                item { CommandStateBlock(copy.svcNoLiveData, copy.svcLoadHint.replace("%1", server?.host ?: copy.svcSelectedServer), CommandHealthTone.UNKNOWN) }
             } else {
-                item { CommandStatusMark("${visibleServices.size} / ${services.size} services", CommandHealthTone.INFO, detail = "Only units returned by systemd are shown.") }
+                item { CommandStatusMark("${visibleServices.size} / ${services.size} services", CommandHealthTone.INFO, detail = copy.svcOnlySystemdUnits) }
                 items(visibleServices, key = { it.unit }) { service ->
                     val tone = when {
                         service.active == "failed" || service.sub == "failed" -> CommandHealthTone.OFFLINE
@@ -204,7 +204,7 @@ fun CommandServicesScreen(
                         Column(Modifier.padding(CommandSpacing.md)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("Evidence", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                                Text("raw SSH result", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+                                Text(copy.svcRawSsh, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                             }
                             Spacer(Modifier.height(CommandSpacing.sm))
                             Text(evidence, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 40, overflow = TextOverflow.Ellipsis)

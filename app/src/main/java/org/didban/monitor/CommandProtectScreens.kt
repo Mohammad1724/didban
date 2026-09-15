@@ -118,7 +118,7 @@ fun CommandVaultScreen(
                             onValueChange = { password = it },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            label = { Text("Master Password") },
+                            label = { Text(copy.vaultMasterPassword) },
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                         )
                         Spacer(Modifier.height(CommandSpacing.sm))
@@ -220,7 +220,7 @@ fun CommandBackupScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.backup, "Preview → Restore", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.backup, copy.backupPreviewRestore, modifier = Modifier.weight(1f))
             }
         }
         item {
@@ -262,7 +262,7 @@ fun CommandBackupScreen(
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.backupVerifyRestore, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(raw, { raw = it; preview = null; result = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
-                    OutlinedTextField(restorePassword, { restorePassword = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Password Backup") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(restorePassword, { restorePassword = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.backupPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton("Merge", { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
                         CommandSecondaryButton("Overwrite", { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
@@ -272,7 +272,7 @@ fun CommandBackupScreen(
                         val p = preview!!
                         CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
-                        CommandPrimaryButton("Restore ${if (mode == RestoreMode.Merge) "Merge" else "Overwrite"}", {
+                        CommandPrimaryButton(copy.backupRestoreAction.replace("%1", if (mode == RestoreMode.Merge) copy.backupModeMerge else copy.backupModeOverwrite), {
                             val restored = BackupEngine.restoreBackup(context, raw, restorePassword.takeIf { it.isNotBlank() }, mode)
                             result = restored.message
                         }, enabled = p.isValid)
@@ -326,10 +326,10 @@ fun CommandAlertsScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text("Telegram", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(telegramToken, { telegramToken = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Bot Token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                    OutlinedTextField(telegramChat, { telegramChat = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Chat ID") })
+                    OutlinedTextField(telegramToken, { telegramToken = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.alertsBotToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(telegramChat, { telegramChat = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.alertsChatId) })
                     CommandToggleRow(copy.alertsEnableTelegram, telegramEnabled) { telegramEnabled = it }
-                    CommandSecondaryButton("Test Telegram", {
+                    CommandSecondaryButton(copy.alertsTestTelegram, {
                         testing = true
                         scope.launch {
                             val response = AlertEngine.testTelegram(telegramToken, telegramChat)
@@ -343,10 +343,10 @@ fun CommandAlertsScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Discord Webhook", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(discordUrl, { discordUrl = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Webhook URL") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    Text(copy.alertsDiscordWebhook, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    OutlinedTextField(discordUrl, { discordUrl = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.alertsWebhookUrl) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     CommandToggleRow(copy.alertsEnableDiscord, discordEnabled) { discordEnabled = it }
-                    CommandSecondaryButton("Test Discord", {
+                    CommandSecondaryButton(copy.alertsTestDiscord, {
                         testing = true
                         scope.launch {
                             val response = AlertEngine.testDiscord(discordUrl)

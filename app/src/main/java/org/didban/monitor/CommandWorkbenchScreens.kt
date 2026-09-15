@@ -209,7 +209,7 @@ fun CommandBatchScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Fleet Scope", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.wbFleetScope, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     servers.forEach { server ->
                         Row(Modifier.fillMaxWidth().clickable {
                             if (server.id in selectedIds) selectedIds.remove(server.id) else selectedIds.add(server.id)
@@ -225,7 +225,7 @@ fun CommandBatchScreen(
             }
         }
         if (results.isNotEmpty()) {
-            item { CommandSectionTitle("Result Matrix", copy.batchSummary.replace("%1", results.count { it.result.isSuccess }.toString()).replace("%2", results.count { !it.result.isSuccess }.toString())) }
+            item { CommandSectionTitle(copy.wbResultMatrix, copy.batchSummary.replace("%1", results.count { it.result.isSuccess }.toString()).replace("%2", results.count { !it.result.isSuccess }.toString())) }
             items(results, key = { it.serverId }) { item ->
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md)) {

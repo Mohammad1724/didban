@@ -152,21 +152,21 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.dns, "Cloudflare records · DNS diagnosis", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.dns, copy.dnsRecordsSubtitle, modifier = Modifier.weight(1f))
             }
         }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Cloudflare connection", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("API token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    Text(copy.dnsConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsApiToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandPrimaryButton("Save token", {
+                        CommandPrimaryButton(copy.dnsSaveToken, {
                             apiToken = tokenDraft.trim()
                             Prefs.setCfToken(context, tokenDraft)
                             message = copy.dnsTokenSaved
                         }, icon = Icons.Rounded.Save)
-                        CommandSecondaryButton(if (busy) copy.waitingForData else "Load zones", ::loadZones, enabled = !busy, icon = Icons.Rounded.Refresh)
+                        CommandSecondaryButton(if (busy) copy.waitingForData else copy.dnsLoadZones, ::loadZones, enabled = !busy, icon = Icons.Rounded.Refresh)
                     }
                     Text(copy.dnsTokenBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
@@ -207,7 +207,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
             item {
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Text(if (selectedRecord == null) "Create record" else "Edit record", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(if (selectedRecord == null) copy.dnsCreateRecord else copy.dnsEditRecord, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             listOf("A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA").forEach { candidate -> CommandSecondaryButton(candidate, { recordType = candidate }, enabled = recordType != candidate) }
                         }
@@ -220,7 +220,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                                 Text("Proxied", color = CommandColors.textSecondary)
                             }
                         }
-                        CommandPrimaryButton(if (busy) copy.waitingForData else "Save Cloudflare record", ::saveRecord, enabled = !busy, icon = Icons.Rounded.Save)
+                        CommandPrimaryButton(if (busy) copy.waitingForData else copy.dnsSaveRecord, ::saveRecord, enabled = !busy, icon = Icons.Rounded.Save)
                     }
                 }
             }
@@ -228,13 +228,13 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("DNS diagnosis", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.dnsDiagnosis, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(lookup, { lookup = it }, Modifier.weight(1f), singleLine = true, label = { Text("Domain or IP") })
+                        OutlinedTextField(lookup, { lookup = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.dnsDomainOrIp) })
                         CommandPrimaryButton("Lookup", ::runLookup, enabled = !busy, icon = Icons.Rounded.Dns)
                     }
                     lookupResult?.let { result ->
-                        CommandStatusMark("${result.flag} ${result.country} · ${result.ip}", CommandHealthTone.INFO, detail = "${result.reverseDns.ifBlank { "No PTR" }} · ${result.isp.ifBlank { "No ISP" }}")
+                        CommandStatusMark("${result.flag} ${result.country} · ${result.ip}", CommandHealthTone.INFO, detail = "${result.reverseDns.ifBlank { copy.dnsNoPtr }} · ${result.isp.ifBlank { "No ISP" }}")
                         if (result.dnsRecords.isEmpty()) Text(copy.dnsNoPublicAnswer, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         result.dnsRecords.take(30).forEach { record ->
                             Text("${record.type} ${record.name} → ${record.data} · TTL ${record.ttl}", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)

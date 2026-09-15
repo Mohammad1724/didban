@@ -104,7 +104,7 @@ fun CommandTunnelsScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
-                    Text("Tunnel configuration", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.tunConfiguration, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Spacer(Modifier.height(CommandSpacing.xs))
                     Text(copy.tunnelsBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     Spacer(Modifier.height(CommandSpacing.sm))

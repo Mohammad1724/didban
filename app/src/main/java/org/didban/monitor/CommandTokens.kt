@@ -268,7 +268,6 @@ interface CommandCopy {
     val settings: String
     val allSystems: String
     val sync: String
-    val refreshing: String
     val refresh: String
     val addServer: String
     val addTunnel: String
@@ -281,8 +280,6 @@ interface CommandCopy {
     val noServersBody: String
     val openServer: String
     val activeAttention: String
-    val recentActivity: String
-    val affectedServers: String
     val noAttention: String
     val noAttentionBody: String
     val unknownState: String
@@ -291,7 +288,6 @@ interface CommandCopy {
     val latency: String
     val cpu: String
     val memory: String
-    val uptimeValue: String
     val load: String
     val incidentsFromLiveState: String
     val noIncidentsTitle: String
@@ -300,13 +296,11 @@ interface CommandCopy {
     val back: String
     val close: String
     val openExistingTool: String
-    val stagedWorkspace: String
     val language: String
     val theme: String
     val light: String
     val dark: String
     val automatic: String
-    val pollInterval: String
     val save: String
     val saved: String
     val english: String
@@ -340,6 +334,123 @@ interface CommandCopy {
     val scoreOutOf: String
     val nodes: String
     val pressAgainToExit: String
+    val netRegionLabel: String
+    val netDnsRecordsLabel: String
+    val svcLoadHint: String
+    val svcSelectedServer: String
+    val backupRestoreAction: String
+    val backupModeMerge: String
+    val backupModeOverwrite: String
+    val netDomainLabel: String
+    val netReverseDnsLabel: String
+    val netIspLabel: String
+    val netAsnLabel: String
+    val netDiagFailed: String
+    val dnsNoPtr: String
+    val tunEditingId: String
+    val upMonitorConfiguration: String
+    val tunConfiguration: String
+    val dnsRecordsSubtitle: String
+    val dnsConnection: String
+    val dnsApiToken: String
+    val dnsSaveToken: String
+    val dnsLoadZones: String
+    val dnsCreateRecord: String
+    val dnsEditRecord: String
+    val dnsSaveRecord: String
+    val dnsDiagnosis: String
+    val dnsDomainOrIp: String
+    val netLocalProbe: String
+    val netProbeInput: String
+    val netHostDomain: String
+    val netOpenPorts: String
+    val vaultMasterPassword: String
+    val backupPreviewRestore: String
+    val backupPassword: String
+    val alertsBotToken: String
+    val alertsChatId: String
+    val alertsTestTelegram: String
+    val alertsDiscordWebhook: String
+    val alertsWebhookUrl: String
+    val alertsTestDiscord: String
+    val svcFilter: String
+    val svcLoad: String
+    val svcNoLiveData: String
+    val svcOnlySystemdUnits: String
+    val svcRawSsh: String
+    val setPollIntervalSec: String
+    val setResetVault: String
+    val shellSentinelConsole: String
+    val shellLiveState: String
+    val upNewMonitor: String
+    val upSavedMonitors: String
+    val upMonitorContract: String
+    val upProbeType: String
+    val upTargetUrlHost: String
+    val upIntervalSeconds: String
+    val upKeywordHint: String
+    val upTestNow: String
+    val wbFleetScope: String
+    val wbResultMatrix: String
+    val netRealResponses: String
+    val upIncidentCount: String
+    val setHostKeyStoreInit: String
+    val wtLocalTools: String
+    val wtInputTransform: String
+    val wtInvalidInput: String
+    val wtArtifactGenerator: String
+    val wtRoutingContract: String
+    val wtBindPort: String
+    val wtInspectSec: String
+    val wtPanelSni: String
+    val wtSubscriptionSni: String
+    val wtRealitySni: String
+    val wtFallbackPort: String
+    val wtGeneratedArtifact: String
+    val wtSingleConfig: String
+    val wtParseProbe: String
+    val wtCopyNormalized: String
+    val wtSubscriptionUrl: String
+    val wtFetchSubscription: String
+    val wtRemotePath: String
+    val wtRemoteEntries: String
+    val wtTextEditorMax: String
+    val wtSaveRemoteFile: String
+    val tunNewConfiguration: String
+    val tunSavedTunnels: String
+    val tunIdentityEngine: String
+    val tunName: String
+    val tunIranHost: String
+    val tunForeignHost: String
+    val tunCorePort: String
+    val tunRealToken: String
+    val tunGenerateToken: String
+    val tunAdvancedParams: String
+    val tunKcpMode: String
+    val tunWsPath: String
+    val tunWsHost: String
+    val tunMultiPortHint: String
+    val tunSpoofSource: String
+    val tunSpoofPeer: String
+    val tunVirtualIranIp: String
+    val tunVirtualForeignIp: String
+    val tunRemoteOps: String
+    val tunGeneratedEvidence: String
+    val srvNewConnection: String
+    val srvEditConnection: String
+    val srvAgentHost: String
+    val srvAgentToken: String
+    val srvUseTls: String
+    val srvFingerprintPinning: String
+    val srvTlsFingerprint: String
+    val srvCpuAlert: String
+    val srvMemAlert: String
+    val srvTestAgent: String
+    val srvConnectionResult: String
+    val srvAgentOnline: String
+    val srvSavedActions: String
+    val srvOpenDossier: String
+    val srvSavedCount: String
     val dnsNoToken: String
     val dnsZonesLoadFailed: String
     val dnsRecordsLoadFailed: String
@@ -592,7 +703,6 @@ internal object CommandCopyFa : CommandCopy {
     override val settings = "تنظیمات"
     override val allSystems = "همهٔ سامانه‌ها"
     override val sync = "همگام‌سازی"
-    override val refreshing = "در حال تازه‌سازی"
     override val refresh = "تازه‌سازی"
     override val addServer = "افزودن سرور"
     override val addTunnel = "افزودن تونل"
@@ -605,8 +715,6 @@ internal object CommandCopyFa : CommandCopy {
     override val noServersBody = "برای شروع، یک Agent واقعی را به ناوگان اضافه کنید. دادهٔ نمونه نمایش داده نمی‌شود."
     override val openServer = "باز کردن پرونده"
     override val activeAttention = "صف انتظار عملیات"
-    override val recentActivity = "وضعیت‌های اخیر"
-    override val affectedServers = "سرورهای درگیر"
     override val noAttention = "مورد فوری وجود ندارد"
     override val noAttentionBody = "در دادهٔ فعلی، وضعیت نیازمند توجهی از Agentها دریافت نشده است."
     override val unknownState = "نامشخص"
@@ -615,7 +723,6 @@ internal object CommandCopyFa : CommandCopy {
     override val latency = "تأخیر"
     override val cpu = "CPU"
     override val memory = "حافظه"
-    override val uptimeValue = "Uptime"
     override val load = "Load"
     override val incidentsFromLiveState = "این فهرست از وضعیت زنده و Thresholdهای فعلی ساخته شده است؛ تاریخچهٔ کامل رخداد در مرحلهٔ Incident History اضافه می‌شود."
     override val noIncidentsTitle = "رخداد فعالی ثبت نشده است"
@@ -624,13 +731,11 @@ internal object CommandCopyFa : CommandCopy {
     override val back = "بازگشت"
     override val close = "بستن"
     override val openExistingTool = "باز کردن قابلیت موجود"
-    override val stagedWorkspace = "این Workspace در مرحلهٔ بعدی منتقل می‌شود."
     override val language = "زبان"
     override val theme = "تم"
     override val light = "روشن"
     override val dark = "تیره"
     override val automatic = "خودکار"
-    override val pollInterval = "فاصلهٔ پایش، ثانیه"
     override val save = "ذخیره"
     override val saved = "ذخیره شد"
     override val english = "English"
@@ -664,6 +769,123 @@ internal object CommandCopyFa : CommandCopy {
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
+    override val netRegionLabel = "منطقه"
+    override val netDnsRecordsLabel = "رکوردهای DNS"
+    override val svcLoadHint = "سرویس‌ها را بارگذاری کنید تا systemd روی %1 پرس‌وجو شود. هیچ سرویسی به‌صورت محلی ساخته نمی‌شود."
+    override val svcSelectedServer = "سرور انتخاب‌شده"
+    override val backupRestoreAction = "بازیابی %1"
+    override val backupModeMerge = "ادغام"
+    override val backupModeOverwrite = "بازنویسی"
+    override val netDomainLabel = "دامنه"
+    override val netReverseDnsLabel = "Reverse DNS"
+    override val netIspLabel = "ISP"
+    override val netAsnLabel = "ASN"
+    override val netDiagFailed = "تشخیص شبکه ناموفق بود"
+    override val dnsNoPtr = "بدون PTR"
+    override val tunEditingId = "ویرایش #%1"
+    override val upMonitorConfiguration = "تنظیمات پایش"
+    override val tunConfiguration = "تنظیمات تونل"
+    override val dnsRecordsSubtitle = "رکوردهای Cloudflare · تشخیص DNS"
+    override val dnsConnection = "اتصال Cloudflare"
+    override val dnsApiToken = "توکن API"
+    override val dnsSaveToken = "ذخیرهٔ توکن"
+    override val dnsLoadZones = "بارگذاری Zoneها"
+    override val dnsCreateRecord = "ساخت رکورد"
+    override val dnsEditRecord = "ویرایش رکورد"
+    override val dnsSaveRecord = "ذخیرهٔ رکورد Cloudflare"
+    override val dnsDiagnosis = "تشخیص DNS"
+    override val dnsDomainOrIp = "دامنه یا IP"
+    override val netLocalProbe = "probe محلی"
+    override val netProbeInput = "ورودی probe"
+    override val netHostDomain = "میزبان / دامنه"
+    override val netOpenPorts = "پورت‌های باز"
+    override val vaultMasterPassword = "رمز Master"
+    override val backupPreviewRestore = "پیش‌نمایش → بازیابی"
+    override val backupPassword = "رمز پشتیبان"
+    override val alertsBotToken = "توکن ربات"
+    override val alertsChatId = "شناسهٔ چت"
+    override val alertsTestTelegram = "آزمون Telegram"
+    override val alertsDiscordWebhook = "وب‌هوک Discord"
+    override val alertsWebhookUrl = "نشانی وب‌هوک"
+    override val alertsTestDiscord = "آزمون Discord"
+    override val svcFilter = "فیلتر سرویس‌ها"
+    override val svcLoad = "بارگذاری سرویس‌ها"
+    override val svcNoLiveData = "دادهٔ زنده‌ای از سرویس‌ها نیست"
+    override val svcOnlySystemdUnits = "فقط unitهایی که systemd برمی‌گرداند نمایش داده می‌شوند."
+    override val svcRawSsh = "نتیجهٔ خام SSH"
+    override val setPollIntervalSec = "فاصلهٔ polling (ثانیه)"
+    override val setResetVault = "بازنشانی Vault"
+    override val shellSentinelConsole = "کنسول دیدبانی"
+    override val shellLiveState = "وضعیت زنده"
+    override val upNewMonitor = "پایش جدید"
+    override val upSavedMonitors = "پایش‌های ذخیره‌شده"
+    override val upMonitorContract = "قرارداد پایش"
+    override val upProbeType = "نوع probe"
+    override val upTargetUrlHost = "هدف / نشانی / میزبان"
+    override val upIntervalSeconds = "فاصله (ثانیه)"
+    override val upKeywordHint = "کلیدواژه، فقط برای KEYWORD"
+    override val upTestNow = "آزمون فوری"
+    override val wbFleetScope = "محدودهٔ ناوگان"
+    override val wbResultMatrix = "ماتریس نتایج"
+    override val netRealResponses = "%1 پاسخ واقعی"
+    override val upIncidentCount = "%1 رکورد رخداد"
+    override val setHostKeyStoreInit = "Trust Store کلید میزبان مقداردهی‌شده: %1"
+    override val wtLocalTools = "ابزارهای محلی"
+    override val wtInputTransform = "ورودی / تبدیل"
+    override val wtInvalidInput = "ورودی نامعتبر"
+    override val wtArtifactGenerator = "تولیدکنندهٔ artifact"
+    override val wtRoutingContract = "قرارداد مسیریابی"
+    override val wtBindPort = "پورت bind"
+    override val wtInspectSec = "ثانیهٔ بازرسی"
+    override val wtPanelSni = "SNI پنل"
+    override val wtSubscriptionSni = "SNI اشتراک"
+    override val wtRealitySni = "SNI REALITY"
+    override val wtFallbackPort = "پورت محلی fallback"
+    override val wtGeneratedArtifact = "artifact تولیدشده"
+    override val wtSingleConfig = "تنظیمات تکی"
+    override val wtParseProbe = "پارس و probe"
+    override val wtCopyNormalized = "کپی منبع نرمال‌شده"
+    override val wtSubscriptionUrl = "نشانی اشتراک"
+    override val wtFetchSubscription = "دریافت اشتراک"
+    override val wtRemotePath = "مسیر راه دور"
+    override val wtRemoteEntries = "ورودی‌های راه دور"
+    override val wtTextEditorMax = "ویرایشگر متن · حداکثر ۴ مگابایت"
+    override val wtSaveRemoteFile = "ذخیرهٔ فایل راه دور"
+    override val tunNewConfiguration = "تنظیمات جدید"
+    override val tunSavedTunnels = "تونل‌های ذخیره‌شده"
+    override val tunIdentityEngine = "هویت و موتور"
+    override val tunName = "نام تونل"
+    override val tunIranHost = "میزبان ایران"
+    override val tunForeignHost = "میزبان خارج"
+    override val tunCorePort = "پورت هسته"
+    override val tunRealToken = "توکن واقعی"
+    override val tunGenerateToken = "ساخت توکن امن"
+    override val tunAdvancedParams = "پارامترهای پیشرفته"
+    override val tunKcpMode = "حالت KCP"
+    override val tunWsPath = "مسیر WS"
+    override val tunWsHost = "میزبان WS"
+    override val tunMultiPortHint = "نگاشت چندپورتی، مثلاً 443:8443, 80:8080"
+    override val tunSpoofSource = "جعل IP مبدأ"
+    override val tunSpoofPeer = "جعل IP طرف مقابل"
+    override val tunVirtualIranIp = "IP مجازی ایران"
+    override val tunVirtualForeignIp = "IP مجازی خارج"
+    override val tunRemoteOps = "عملیات راه دور"
+    override val tunGeneratedEvidence = "شواهد تولیدشده"
+    override val srvNewConnection = "اتصال جدید"
+    override val srvEditConnection = "ویرایش اتصال"
+    override val srvAgentHost = "آدرس ایجنت"
+    override val srvAgentToken = "توکن ایجنت"
+    override val srvUseTls = "استفاده از TLS"
+    override val srvFingerprintPinning = "پین‌کردن fingerprint"
+    override val srvTlsFingerprint = "fingerprint SHA-256 از TLS (اختیاری، TOFU)"
+    override val srvCpuAlert = "آستانهٔ هشدار CPU (%)"
+    override val srvMemAlert = "آستانهٔ هشدار حافظه (%)"
+    override val srvTestAgent = "آزمون ایجنت"
+    override val srvConnectionResult = "نتیجهٔ اتصال"
+    override val srvAgentOnline = "ایجنت آنلاین است"
+    override val srvSavedActions = "عملیات‌های ذخیره‌شده"
+    override val srvOpenDossier = "بازکردن پرونده"
+    override val srvSavedCount = "%1 اتصال ذخیره‌شده"
     override val dnsNoToken = "Cloudflare API token وارد نشده است."
     override val dnsZonesLoadFailed = "Zoneها بارگذاری نشدند."
     override val dnsRecordsLoadFailed = "Recordها بارگذاری نشدند."
@@ -909,7 +1131,6 @@ internal object CommandCopyEn : CommandCopy {
     override val settings = "Settings"
     override val allSystems = "All systems"
     override val sync = "Sync"
-    override val refreshing = "Refreshing"
     override val refresh = "Refresh"
     override val addServer = "Add server"
     override val addTunnel = "Add tunnel"
@@ -922,8 +1143,6 @@ internal object CommandCopyEn : CommandCopy {
     override val noServersBody = "Connect a real Agent to begin. Sample data is never shown."
     override val openServer = "Open dossier"
     override val activeAttention = "Operations queue"
-    override val recentActivity = "Recent state"
-    override val affectedServers = "Affected servers"
     override val noAttention = "Nothing needs attention"
     override val noAttentionBody = "No abnormal state has been reported by the current Agents."
     override val unknownState = "Unknown"
@@ -932,7 +1151,6 @@ internal object CommandCopyEn : CommandCopy {
     override val latency = "Latency"
     override val cpu = "CPU"
     override val memory = "Memory"
-    override val uptimeValue = "Uptime"
     override val load = "Load"
     override val incidentsFromLiveState = "This list is derived from live state and current thresholds; full incident history will be added in the Incident History stage."
     override val noIncidentsTitle = "No active incident"
@@ -941,13 +1159,11 @@ internal object CommandCopyEn : CommandCopy {
     override val back = "Back"
     override val close = "Close"
     override val openExistingTool = "Open existing capability"
-    override val stagedWorkspace = "This workspace will be migrated in the next stage."
     override val language = "Language"
     override val theme = "Theme"
     override val light = "Light"
     override val dark = "Dark"
     override val automatic = "Automatic"
-    override val pollInterval = "Poll interval, seconds"
     override val save = "Save"
     override val saved = "Saved"
     override val english = "English"
@@ -981,6 +1197,123 @@ internal object CommandCopyEn : CommandCopy {
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
     override val pressAgainToExit = "Press back again to exit"
+    override val netRegionLabel = "Region"
+    override val netDnsRecordsLabel = "DNS records"
+    override val svcLoadHint = "Load services to query systemd on %1. No service is fabricated locally."
+    override val svcSelectedServer = "the selected server"
+    override val backupRestoreAction = "Restore %1"
+    override val backupModeMerge = "Merge"
+    override val backupModeOverwrite = "Overwrite"
+    override val netDomainLabel = "Domain"
+    override val netReverseDnsLabel = "Reverse DNS"
+    override val netIspLabel = "ISP"
+    override val netAsnLabel = "ASN"
+    override val netDiagFailed = "Network diagnostic failed"
+    override val dnsNoPtr = "No PTR"
+    override val tunEditingId = "editing #%1"
+    override val upMonitorConfiguration = "Monitor configuration"
+    override val tunConfiguration = "Tunnel configuration"
+    override val dnsRecordsSubtitle = "Cloudflare records · DNS diagnosis"
+    override val dnsConnection = "Cloudflare connection"
+    override val dnsApiToken = "API token"
+    override val dnsSaveToken = "Save token"
+    override val dnsLoadZones = "Load zones"
+    override val dnsCreateRecord = "Create record"
+    override val dnsEditRecord = "Edit record"
+    override val dnsSaveRecord = "Save Cloudflare record"
+    override val dnsDiagnosis = "DNS diagnosis"
+    override val dnsDomainOrIp = "Domain or IP"
+    override val netLocalProbe = "local probe"
+    override val netProbeInput = "Probe input"
+    override val netHostDomain = "Host / domain"
+    override val netOpenPorts = "Open ports"
+    override val vaultMasterPassword = "Master Password"
+    override val backupPreviewRestore = "Preview → Restore"
+    override val backupPassword = "Password Backup"
+    override val alertsBotToken = "Bot Token"
+    override val alertsChatId = "Chat ID"
+    override val alertsTestTelegram = "Test Telegram"
+    override val alertsDiscordWebhook = "Discord Webhook"
+    override val alertsWebhookUrl = "Webhook URL"
+    override val alertsTestDiscord = "Test Discord"
+    override val svcFilter = "Filter services"
+    override val svcLoad = "Load services"
+    override val svcNoLiveData = "No live service data"
+    override val svcOnlySystemdUnits = "Only units returned by systemd are shown."
+    override val svcRawSsh = "raw SSH result"
+    override val setPollIntervalSec = "Poll interval (seconds)"
+    override val setResetVault = "Reset Vault"
+    override val shellSentinelConsole = "SENTINEL CONSOLE"
+    override val shellLiveState = "LIVE STATE"
+    override val upNewMonitor = "new monitor"
+    override val upSavedMonitors = "Saved monitors"
+    override val upMonitorContract = "Monitor contract"
+    override val upProbeType = "Probe type"
+    override val upTargetUrlHost = "Target / URL / host"
+    override val upIntervalSeconds = "Interval seconds"
+    override val upKeywordHint = "Keyword, only for KEYWORD"
+    override val upTestNow = "Test now"
+    override val wbFleetScope = "Fleet Scope"
+    override val wbResultMatrix = "Result Matrix"
+    override val netRealResponses = "%1 real responses"
+    override val upIncidentCount = "%1 incident record(s)"
+    override val setHostKeyStoreInit = "Host Key Store initialized: %1"
+    override val wtLocalTools = "local tools"
+    override val wtInputTransform = "Input / transform"
+    override val wtInvalidInput = "Invalid input"
+    override val wtArtifactGenerator = "artifact generator"
+    override val wtRoutingContract = "Routing contract"
+    override val wtBindPort = "Bind port"
+    override val wtInspectSec = "Inspect sec"
+    override val wtPanelSni = "Panel SNI"
+    override val wtSubscriptionSni = "Subscription SNI"
+    override val wtRealitySni = "REALITY SNI"
+    override val wtFallbackPort = "Fallback local port"
+    override val wtGeneratedArtifact = "Generated artifact"
+    override val wtSingleConfig = "Single config"
+    override val wtParseProbe = "Parse and probe"
+    override val wtCopyNormalized = "Copy normalized source"
+    override val wtSubscriptionUrl = "Subscription URL"
+    override val wtFetchSubscription = "Fetch subscription"
+    override val wtRemotePath = "Remote path"
+    override val wtRemoteEntries = "Remote entries"
+    override val wtTextEditorMax = "Text editor · max 4 MB"
+    override val wtSaveRemoteFile = "Save remote file"
+    override val tunNewConfiguration = "new configuration"
+    override val tunSavedTunnels = "Saved tunnels"
+    override val tunIdentityEngine = "Identity and engine"
+    override val tunName = "Tunnel name"
+    override val tunIranHost = "Iran host"
+    override val tunForeignHost = "Foreign host"
+    override val tunCorePort = "Core port"
+    override val tunRealToken = "Real token"
+    override val tunGenerateToken = "Generate secure token"
+    override val tunAdvancedParams = "Advanced parameters"
+    override val tunKcpMode = "KCP mode"
+    override val tunWsPath = "WS path"
+    override val tunWsHost = "WS host"
+    override val tunMultiPortHint = "Multi-port mappings, e.g. 443:8443, 80:8080"
+    override val tunSpoofSource = "Spoof source IP"
+    override val tunSpoofPeer = "Spoof peer IP"
+    override val tunVirtualIranIp = "Virtual Iran IP"
+    override val tunVirtualForeignIp = "Virtual foreign IP"
+    override val tunRemoteOps = "Remote operations"
+    override val tunGeneratedEvidence = "Generated evidence"
+    override val srvNewConnection = "New connection"
+    override val srvEditConnection = "Edit connection"
+    override val srvAgentHost = "Agent host"
+    override val srvAgentToken = "Agent token"
+    override val srvUseTls = "Use TLS"
+    override val srvFingerprintPinning = "Fingerprint pinning"
+    override val srvTlsFingerprint = "TLS SHA-256 fingerprint (optional TOFU)"
+    override val srvCpuAlert = "CPU alert %"
+    override val srvMemAlert = "Memory alert %"
+    override val srvTestAgent = "Test Agent"
+    override val srvConnectionResult = "Connection result"
+    override val srvAgentOnline = "Agent online"
+    override val srvSavedActions = "Saved actions"
+    override val srvOpenDossier = "Open dossier"
+    override val srvSavedCount = "%1 saved connections"
     override val dnsNoToken = "No Cloudflare API token entered."
     override val dnsZonesLoadFailed = "Zones failed to load."
     override val dnsRecordsLoadFailed = "Records failed to load."

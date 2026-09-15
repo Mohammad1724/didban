@@ -538,7 +538,7 @@ private fun CommandRail(
                 Spacer(Modifier.width(CommandSpacing.sm))
                 Column {
                     Text("DIDBAN", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("SENTINEL CONSOLE", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
+                    Text(copy.shellSentinelConsole, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
                 }
             }
         }
@@ -586,7 +586,7 @@ private fun CommandRail(
         }
         Spacer(Modifier.weight(1f))
         if (expanded) {
-            Text("LIVE STATE", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
+            Text(copy.shellLiveState, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
         }
     }
 }

@@ -162,7 +162,7 @@ fun CommandManageServersScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.manageServers, "${records.size} saved connections", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.manageServers, copy.srvSavedCount.replace("%1", records.size.toString()), modifier = Modifier.weight(1f))
             }
         }
         item {
@@ -185,40 +185,40 @@ fun CommandManageServersScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text(if (selectedId == null) "New connection" else "Edit connection", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(if (selectedId == null) copy.srvNewConnection else copy.srvEditConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(name, { name = it }, Modifier.weight(1f), singleLine = true, label = { Text("Name") })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
-                    OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Agent host") })
-                    OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Agent token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
+                    OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Switch(useTls, { useTls = it })
-                        Text("Use TLS", color = CommandColors.textSecondary, modifier = Modifier.weight(1f))
-                        Text("Fingerprint pinning", color = CommandColors.textSecondary)
+                        Text(copy.srvUseTls, color = CommandColors.textSecondary, modifier = Modifier.weight(1f))
+                        Text(copy.srvFingerprintPinning, color = CommandColors.textSecondary)
                     }
                     if (useTls) {
-                        OutlinedTextField(fingerprint, { fingerprint = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("TLS SHA-256 fingerprint (optional TOFU)") }, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                        OutlinedTextField(fingerprint, { fingerprint = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvTlsFingerprint) }, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(cpuAlert, { cpuAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text("CPU alert %") })
-                        OutlinedTextField(memAlert, { memAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text("Memory alert %") })
+                        OutlinedTextField(cpuAlert, { cpuAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.srvCpuAlert) })
+                        OutlinedTextField(memAlert, { memAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.srvMemAlert) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandPrimaryButton("Save", ::save, icon = Icons.Rounded.Save, enabled = !busy)
-                        CommandSecondaryButton("Test Agent", { test(buildServer()) }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
+                        CommandSecondaryButton(copy.srvTestAgent, { test(buildServer()) }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
                     }
                 }
             }
         }
         if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
-        if (message != null) item { CommandStateBlock("Connection result", message ?: "", CommandHealthTone.INFO) }
+        if (message != null) item { CommandStateBlock(copy.srvConnectionResult, message ?: "", CommandHealthTone.INFO) }
         if (testResult != null) {
             item {
                 val metrics = testResult!!
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandStatusMark("Agent online", CommandHealthTone.HEALTHY, detail = "${metrics.hostname} · CPU ${Fmt.pct(metrics.cpuUsage)} · RAM ${Fmt.pct(metrics.memPct)}")
+                        CommandStatusMark(copy.srvAgentOnline, CommandHealthTone.HEALTHY, detail = "${metrics.hostname} · CPU ${Fmt.pct(metrics.cpuUsage)} · RAM ${Fmt.pct(metrics.memPct)}")
                         Text("Uptime ${metrics.uptime}s · Load ${metrics.load1} · ${metrics.disks.size} disks · ${metrics.nets.size} interfaces", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                     }
                 }
@@ -230,10 +230,10 @@ fun CommandManageServersScreen(
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Saved actions", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                            Text(copy.srvSavedActions, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                             Text(copy.srvDossierHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
-                        CommandTextButton("Open dossier", { onOpenServer(selected) }, icon = Icons.Rounded.Security)
+                        CommandTextButton(copy.srvOpenDossier, { onOpenServer(selected) }, icon = Icons.Rounded.Security)
                         CommandTextButton("Delete", { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline)
                     }
                 }
