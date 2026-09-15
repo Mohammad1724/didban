@@ -45,7 +45,8 @@ fun CommandNetworkIndexScreen(
             Triple(if (fa) "گواهی و هویت TLS درست است؟" else "Is the TLS identity valid?", if (fa) "Subject، Chain، SAN و Fingerprint" else "Subject, chain, SAN and fingerprint", onOpenSuite) to Icons.Rounded.Security,
             Triple(if (fa) "DNS چه پاسخی می‌دهد؟" else "What does DNS return?", if (fa) "Recordها و Cloudflare" else "Records and Cloudflare", onOpenDns) to Icons.Rounded.Dns,
             Triple(if (fa) "کیفیت اتصال چقدر است؟" else "What is the connection quality?", if (fa) "Latency، Loss، Jitter و Bandwidth" else "Latency, loss, jitter and bandwidth", onOpenSuite) to Icons.Rounded.Speed
-        )
+        ),
+        copy = copy
     )
 }
 
@@ -62,7 +63,8 @@ fun CommandDnsIndexScreen(
         rows = listOf(
             Triple(if (fa) "مدیریت Zone و Record" else "Manage zones and records", if (fa) "ساخت، ویرایش و حذف Recordهای واقعی Cloudflare" else "Create, edit and delete real Cloudflare records", onOpenCloudflare) to Icons.Rounded.Dns,
             Triple(if (fa) "بررسی پاسخ DNS" else "Inspect DNS resolution", if (fa) "Resolve، Reverse DNS و Recordهای عمومی" else "Resolve, reverse DNS and public records", onOpenNetwork) to Icons.Rounded.NetworkCheck
-        )
+        ),
+        copy = copy
     )
 }
 
@@ -70,7 +72,8 @@ fun CommandDnsIndexScreen(
 private fun CommandNetworkIndex(
     title: String,
     subtitle: String,
-    rows: List<Pair<Triple<String, String, () -> Unit>, androidx.compose.ui.graphics.vector.ImageVector>>
+    rows: List<Pair<Triple<String, String, () -> Unit>, androidx.compose.ui.graphics.vector.ImageVector>>,
+    copy: CommandCopy
 ) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
