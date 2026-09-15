@@ -18,18 +18,24 @@ class CommandCopyTest {
     private val fa = CommandCopy.fa
     private val en = CommandCopy.en
 
-    /** Every declared property of the data class, by name. */
+    /**
+     * Every key of the table, by name.
+     *
+     * Read through the interface's getters rather than the implementing
+     * object's fields, so the test does not depend on how the table is stored.
+     */
     private val keys: List<String> =
-        CommandCopy::class.java.declaredFields
-            .filter { it.type == String::class.java }
+        CommandCopy::class.java.methods
+            .filter { it.parameterCount == 0 && it.returnType == String::class.java }
             .map { it.name }
+            // Kotlin exposes `val foo` to Java reflection as `getFoo()`
+            .filter { it.startsWith("get") && it != "getClass" }
+            .map { it.removePrefix("get").replaceFirstChar(Char::lowercaseChar) }
             .sorted()
 
-    private fun value(copy: CommandCopy, key: String): String {
-        val f = CommandCopy::class.java.getDeclaredField(key)
-        f.isAccessible = true
-        return f.get(copy) as String
-    }
+    private fun value(copy: CommandCopy, key: String): String =
+        CommandCopy::class.java.getMethod("get" + key.replaceFirstChar(Char::uppercaseChar))
+            .invoke(copy) as String
 
     private val persian = Regex("[\u0600-\u06FF]")
 
@@ -37,6 +43,15 @@ class CommandCopyTest {
     private fun placeholders(s: String): List<String> =
         Regex("%\\d*[sd]?").findAll(s).map { it.value }.toList()
 
+    /**
+     * Regression guard for the JVM's 255-parameter method limit.
+     *
+     * CommandCopy used to be a data class; at 256 properties its generated
+     * constructor exceeded the limit, which Kotlin compiled without complaint
+     * and the JVM then rejected at class load with ClassFormatError. Merely
+     * loading the interface and both objects proves the table is still
+     * representable, and the assertion below keeps the size honest.
+     */
     @Test
     fun `the copy table is not empty and both languages resolve`() {
         assertTrue("expected a substantial copy table, got ${keys.size}", keys.size >= 150)

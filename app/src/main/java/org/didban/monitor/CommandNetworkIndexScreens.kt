@@ -35,16 +35,15 @@ fun CommandNetworkIndexScreen(
     onOpenRadar: () -> Unit,
     onOpenDns: () -> Unit
 ) {
-    val fa = copy == CommandCopy.fa
     CommandNetworkIndex(
         title = copy.networkTools,
-        subtitle = if (fa) copy.netIndexBody else "Start with the diagnostic question, not a tool list.",
+        subtitle = copy.netIndexBody,
         rows = listOf(
-            Triple(if (fa) copy.netQReachable else "Is the target reachable from this server?", if (fa) copy.netQReachableTools else "TCP, HTTP, SSL and Check-Host", onOpenRadar) to Icons.Rounded.Public,
-            Triple(if (fa) copy.netQNetworkLayer else "Is the problem in the network layer?", if (fa) copy.netQNetworkLayerTools else "DPI, port scanner and TCP ping", onOpenSuite) to Icons.Rounded.NetworkCheck,
-            Triple(if (fa) copy.netQTls else "Is the TLS identity valid?", if (fa) copy.netQTlsTools else "Subject, chain, SAN and fingerprint", onOpenSuite) to Icons.Rounded.Security,
-            Triple(if (fa) copy.netQDns else "What does DNS return?", if (fa) copy.netQDnsTools else "Records and Cloudflare", onOpenDns) to Icons.Rounded.Dns,
-            Triple(if (fa) copy.netQQuality else "What is the connection quality?", if (fa) copy.netQQualityTools else "Latency, loss, jitter and bandwidth", onOpenSuite) to Icons.Rounded.Speed
+            Triple(copy.netQReachable, copy.netQReachableTools, onOpenRadar) to Icons.Rounded.Public,
+            Triple(copy.netQNetworkLayer, copy.netQNetworkLayerTools, onOpenSuite) to Icons.Rounded.NetworkCheck,
+            Triple(copy.netQTls, copy.netQTlsTools, onOpenSuite) to Icons.Rounded.Security,
+            Triple(copy.netQDns, copy.netQDnsTools, onOpenDns) to Icons.Rounded.Dns,
+            Triple(copy.netQQuality, copy.netQQualityTools, onOpenSuite) to Icons.Rounded.Speed
         ),
         copy = copy
     )
@@ -56,13 +55,12 @@ fun CommandDnsIndexScreen(
     onOpenCloudflare: () -> Unit,
     onOpenNetwork: () -> Unit
 ) {
-    val fa = copy == CommandCopy.fa
     CommandNetworkIndex(
         title = copy.dns,
-        subtitle = if (fa) copy.dnsIndexBody else "DNS diagnosis is separate from record management.",
+        subtitle = copy.dnsIndexBody,
         rows = listOf(
-            Triple(if (fa) copy.dnsZoneRecords else "Manage zones and records", if (fa) copy.dnsZoneRecordsBody else "Create, edit and delete real Cloudflare records", onOpenCloudflare) to Icons.Rounded.Dns,
-            Triple(if (fa) copy.dnsInspect else "Inspect DNS resolution", if (fa) copy.dnsInspectBody else "Resolve, reverse DNS and public records", onOpenNetwork) to Icons.Rounded.NetworkCheck
+            Triple(copy.dnsZoneRecords, copy.dnsZoneRecordsBody, onOpenCloudflare) to Icons.Rounded.Dns,
+            Triple(copy.dnsInspect, copy.dnsInspectBody, onOpenNetwork) to Icons.Rounded.NetworkCheck
         ),
         copy = copy
     )

@@ -69,19 +69,19 @@ fun CommandVaultScreen(
                 Prefs.setupMasterPassword(context, password)
                 emptyList()
             } else {
-                check(Prefs.verifyMasterPassword(context, password)) { "رمز Master نادرست است." }
+                check(Prefs.verifyMasterPassword(context, password)) { copy.vaultBadMaster }
                 Prefs.loadVaultNotes(context, password)
             }
         }.onSuccess {
             notes = it
             unlocked = true
             error = null
-        }.onFailure { error = it.message ?: "بازکردن Vault ناموفق بود." }
+        }.onFailure { error = it.message ?: copy.vaultUnlockFailed }
     }
 
     fun saveNotes() {
         runCatching { Prefs.saveVaultNotes(context, notes, password) }
-            .onFailure { error = it.message ?: "ذخیرهٔ Vault ناموفق بود." }
+            .onFailure { error = it.message ?: copy.vaultSaveFailed }
     }
 
     fun lock() {
@@ -96,7 +96,7 @@ fun CommandVaultScreen(
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
                 CommandSectionTitle(copy.vault, "AES-256-GCM · PBKDF2", modifier = Modifier.weight(1f))
-                if (unlocked) CommandTextButton("قفل", ::lock, Icons.Rounded.Lock)
+                if (unlocked) CommandTextButton(copy.lock, ::lock, Icons.Rounded.Lock)
             }
         }
         item {
@@ -104,12 +104,12 @@ fun CommandVaultScreen(
                 Column(Modifier.padding(CommandSpacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CommandStatusMark(
-                            if (unlocked) "Vault باز است" else "Vault قفل است",
+                            if (unlocked) copy.vaultOpen else copy.vaultLocked,
                             if (unlocked) CommandHealthTone.HEALTHY else CommandHealthTone.ATTENTION,
                             Modifier.weight(1f),
-                            if (unlocked) "Secretها فقط در Session فعلی قابل مشاهده‌اند." else "هیچ Secretی در حالت قفل نمایش داده نمی‌شود."
+                            if (unlocked) copy.vaultOpenBody else copy.vaultLockedBody
                         )
-                        if (unlocked) CommandTextButton("قفل فوری", ::lock, Icons.Rounded.Lock)
+                        if (unlocked) CommandTextButton(copy.vaultLockNow, ::lock, Icons.Rounded.Lock)
                     }
                     if (!unlocked) {
                         Spacer(Modifier.height(CommandSpacing.md))
@@ -122,7 +122,7 @@ fun CommandVaultScreen(
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                         )
                         Spacer(Modifier.height(CommandSpacing.sm))
-                        CommandPrimaryButton("بازکردن Vault", ::unlock, icon = Icons.Rounded.LockOpen)
+                        CommandPrimaryButton(copy.vaultUnlock, ::unlock, icon = Icons.Rounded.LockOpen)
                     }
                     if (error != null) {
                         Spacer(Modifier.height(CommandSpacing.sm))
@@ -134,14 +134,14 @@ fun CommandVaultScreen(
         if (unlocked) {
             item {
                 CommandSectionTitle(
-                    title = "Secretهای ذخیره‌شده",
+                    title = copy.vaultSecrets,
                     supporting = "${notes.size}",
-                    actionLabel = "افزودن Secret",
+                    actionLabel = copy.vaultAddSecret,
                     onAction = { showAdd = true }
                 )
             }
             if (notes.isEmpty()) {
-                item { CommandEmptyState("Vault خالی است", "Secret واقعی خود را فقط پس از Unlock اضافه کنید.", "افزودن Secret", { showAdd = true }) }
+                item { CommandEmptyState(copy.vaultEmpty, copy.vaultEmptyBody, copy.vaultAddSecret, { showAdd = true }) }
             } else {
                 items(notes, key = { it.id }) { note ->
                     val revealed = revealedId == note.id
@@ -152,11 +152,11 @@ fun CommandVaultScreen(
                                     Text(note.title, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                                     Text(note.tags.ifBlank { "SECRET" }, color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                                 }
-                                CommandIconButton(if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, if (revealed) "پنهان‌کردن" else "نمایش موقت", { revealedId = if (revealed) null else note.id })
-                                CommandIconButton(Icons.Rounded.ContentCopy, "کپی Secret", {
+                                CommandIconButton(if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, if (revealed) copy.hide else copy.revealTemporarily, { revealedId = if (revealed) null else note.id })
+                                CommandIconButton(Icons.Rounded.ContentCopy, copy.copySecret, {
                                     clipboard.setText(AnnotatedString(note.content))
                                 })
-                                CommandIconButton(Icons.Rounded.DeleteOutline, "حذف Secret", {
+                                CommandIconButton(Icons.Rounded.DeleteOutline, copy.deleteSecret, {
                                     notes = notes.filterNot { it.id == note.id }
                                     saveNotes()
                                 })
@@ -180,12 +180,12 @@ fun CommandVaultScreen(
     if (showAdd) {
         AlertDialog(
             onDismissRequest = { showAdd = false },
-            title = { Text("افزودن Secret") },
+            title = { Text(copy.vaultAddSecret) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    OutlinedTextField(title, { title = it }, label = { Text("عنوان") }, singleLine = true)
+                    OutlinedTextField(title, { title = it }, label = { Text(copy.secretTitle) }, singleLine = true)
                     OutlinedTextField(tags, { tags = it }, label = { Text("Tag") }, singleLine = true)
-                    OutlinedTextField(content, { content = it }, label = { Text("محتوای حساس") }, minLines = 4)
+                    OutlinedTextField(content, { content = it }, label = { Text(copy.secretContent) }, minLines = 4)
                 }
             },
             confirmButton = {
@@ -226,19 +226,19 @@ fun CommandBackupScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("ساخت Backup", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Text("Backup بدون Password قابل خواندن است؛ برای دادهٔ واقعی از رمز استفاده کنید.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
+                    Text(copy.backupCreate, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.backupBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     OutlinedTextField(
                         createPassword,
                         { createPassword = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Password اختیاری") },
+                        label = { Text(copy.backupPasswordOptional) },
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                     )
-                    CommandPrimaryButton("ساخت Backup رمزنگاری‌شده", {
+                    CommandPrimaryButton(copy.backupCreateEncrypted, {
                         raw = BackupEngine.createBackup(context, createPassword.takeIf { it.isNotBlank() })
-                        result = "Backup ساخته شد. مقدار آن را خارج از دستگاه امن نگه دارید."
+                        result = copy.backupCreated
                     }, icon = Icons.Rounded.Security)
                 }
             }
@@ -248,8 +248,8 @@ fun CommandBackupScreen(
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("خروجی Backup", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                            CommandTextButton("کپی", { clipboard.setText(AnnotatedString(raw)) }, Icons.Rounded.ContentCopy)
+                            Text(copy.backupOutput, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                            CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(raw)) }, Icons.Rounded.ContentCopy)
                         }
                         Spacer(Modifier.height(CommandSpacing.sm))
                         Text(raw, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 8, overflow = TextOverflow.Ellipsis)
@@ -260,8 +260,8 @@ fun CommandBackupScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("بررسی و Restore", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(raw, { raw = it; preview = null; result = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text("متن Backup") })
+                    Text(copy.backupVerifyRestore, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    OutlinedTextField(raw, { raw = it; preview = null; result = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
                     OutlinedTextField(restorePassword, { restorePassword = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Password Backup") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton("Merge", { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
@@ -270,7 +270,7 @@ fun CommandBackupScreen(
                     }
                     if (preview != null) {
                         val p = preview!!
-                        CommandStatusMark(if (p.isValid) "ساختار معتبر" else "ساختار نامعتبر", if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) "${p.serversCount} سرور · ${p.tunnelsCount} تونل · ${p.uptimeCount} Monitor · ${BackupEngine.formatTimestamp(p.timestamp)}" else p.errorMessage)
+                        CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
                         CommandPrimaryButton("Restore ${if (mode == RestoreMode.Merge) "Merge" else "Overwrite"}", {
                             val restored = BackupEngine.restoreBackup(context, raw, restorePassword.takeIf { it.isNotBlank() }, mode)
@@ -319,7 +319,7 @@ fun CommandAlertsScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.alerts, "کانال‌ها و Triggerهای واقعی", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.alerts, copy.alertsChannelsBody, modifier = Modifier.weight(1f))
             }
         }
         item {
@@ -328,7 +328,7 @@ fun CommandAlertsScreen(
                     Text("Telegram", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(telegramToken, { telegramToken = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Bot Token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     OutlinedTextField(telegramChat, { telegramChat = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Chat ID") })
-                    CommandToggleRow("فعال‌سازی Telegram", telegramEnabled) { telegramEnabled = it }
+                    CommandToggleRow(copy.alertsEnableTelegram, telegramEnabled) { telegramEnabled = it }
                     CommandSecondaryButton("Test Telegram", {
                         testing = true
                         scope.launch {
@@ -345,7 +345,7 @@ fun CommandAlertsScreen(
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text("Discord Webhook", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(discordUrl, { discordUrl = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Webhook URL") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                    CommandToggleRow("فعال‌سازی Discord", discordEnabled) { discordEnabled = it }
+                    CommandToggleRow(copy.alertsEnableDiscord, discordEnabled) { discordEnabled = it }
                     CommandSecondaryButton("Test Discord", {
                         testing = true
                         scope.launch {
@@ -360,10 +360,10 @@ fun CommandAlertsScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                    Text("Triggerها", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    CommandToggleRow("قطع شدن Server", downTrigger) { downTrigger = it }
-                    CommandToggleRow("Spike CPU یا Memory", spikeTrigger) { spikeTrigger = it }
-                    CommandToggleRow("افتادن Tunnel", tunnelTrigger) { tunnelTrigger = it }
+                    Text(copy.alertsTriggers, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    CommandToggleRow(copy.alertsTriggerServerDown, downTrigger) { downTrigger = it }
+                    CommandToggleRow(copy.alertsTriggerCpuSpike, spikeTrigger) { spikeTrigger = it }
+                    CommandToggleRow(copy.alertsTriggerTunnelDown, tunnelTrigger) { tunnelTrigger = it }
                 }
             }
         }

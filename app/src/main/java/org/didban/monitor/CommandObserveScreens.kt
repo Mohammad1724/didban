@@ -561,7 +561,7 @@ fun CommandFleetScreen(
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(11.dp),
-                        label = { Text(if (copy == CommandCopy.fa) copy.serversSearchPlaceholder else "Search name or host") }
+                        label = { Text(copy.serversSearchPlaceholder) }
                     )
                     CommandSecondaryButton(
                         text = copy.manageServers,
