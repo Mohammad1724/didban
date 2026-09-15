@@ -44,8 +44,8 @@ type Config struct {
 	WatchdogEnabled     bool
 	WatchdogIntervalSec int
 	// Multi-point probing (Phase 4 · 4-B)
-	ProbeEnabled      bool
-	ProbeIntervalSec  int
+	ProbeEnabled     bool
+	ProbeIntervalSec int
 
 	// Alerts
 	TelegramToken  string

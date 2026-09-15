@@ -72,6 +72,15 @@ func (a *API) routes() http.Handler {
 // cap is the same value and is therefore no longer needed per-handler).
 const maxRequestBodyBytes = 2 * 1024 * 1024
 
+// bodyCapExemptPaths are routes that stream a large body and enforce their own
+// limit inside the handler. The global 2 MiB cap must not be applied to them:
+// the bandwidth benchmark uploads up to bandwidthMaxBytes (200 MiB) and its
+// handler already wraps the body in http.MaxBytesReader, so capping it here
+// made every upload test fail with 400 "request body too large".
+var bodyCapExemptPaths = map[string]bool{
+	"/api/bandwidth/upload": true,
+}
+
 // clientIP is the direct peer address. X-Forwarded-For is deliberately not
 // trusted: the agent listens directly on the LAN/WAN interface.
 func clientIP(r *http.Request) string {
@@ -97,8 +106,11 @@ func (s *statusRecorder) WriteHeader(code int) {
 // query strings, headers or bodies (no secrets in logs).
 func (a *API) harden(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Global body cap for every request (enforced at read time).
-		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+		// Global body cap for every request (enforced at read time), except for
+		// the routes that stream a large payload and cap it themselves.
+		if !bodyCapExemptPaths[r.URL.Path] {
+			r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+		}
 
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()

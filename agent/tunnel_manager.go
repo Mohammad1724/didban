@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -494,14 +495,18 @@ func (tm *TunnelManager) queryServiceStatusLocked(id, name, core, role, serviceN
 	// 2. Query systemctl show for PID and uptime.
 	var pid int
 	var uptimeStr string
-	cmdShow := exec.CommandContext(ctx, "systemctl", "show", serviceName, "--property=MainPID,ActiveEnterTimestamp")
-	if outShow, err := cmdShow.Output(); err == nil {
-		lines := strings.Split(string(outShow), "\n")
-		for _, l := range lines {
-			if strings.HasPrefix(l, "MainPID=") {
+	if outShow, ok := systemctlShow(ctx, serviceName, "MainPID,ActiveEnterTimestamp"); ok {
+		for _, l := range strings.Split(outShow, "\n") {
+			switch {
+			case strings.HasPrefix(l, "MainPID="):
 				_, _ = fmt.Sscanf(l, "MainPID=%d", &pid)
-			} else if strings.HasPrefix(l, "ActiveEnterTimestamp=") {
-				uptimeStr = strings.TrimPrefix(l, "ActiveEnterTimestamp=")
+			case strings.HasPrefix(l, "ActiveEnterTimestamp="):
+				// This field used to carry the raw systemctl timestamp
+				// ("Wed 2019-12-11 21:44:50 UTC"), which is a wall-clock
+				// instant rather than an uptime. Report a duration instead.
+				if t, found := parseSystemdTimestamp(strings.TrimPrefix(l, "ActiveEnterTimestamp=")); found {
+					uptimeStr = formatUptime(uint64(uptimeSeconds(t)))
+				}
 			}
 		}
 	}
@@ -543,6 +548,88 @@ func (tm *TunnelManager) queryServiceStatusLocked(id, name, core, role, serviceN
 // has finished so the underlying timer does not linger until the deadline.
 func systemCmdContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), systemCommandTimeout)
+}
+
+// ── systemctl timestamps ─────────────────────────────────────────────────────
+//
+// `systemctl show --property=ActiveEnterTimestamp` prints a *human* timestamp
+// ("Wed 2019-12-11 21:44:50 UTC"), not RFC3339, and the day/month names follow
+// the manager's locale. Parsing it as RFC3339 therefore always failed, which
+// left UptimeSec at 0 and made the watchdog classify every unit with three or
+// more restarts as a permanent crash_loop.
+//
+// The fix has two layers: ask systemctl for an unambiguous format
+// (--timestamp=unix, systemd >= 247) with LC_ALL=C pinned, and keep a
+// multi-layout fallback for older releases that reject the flag.
+
+// systemdTimeLayouts are the fallback formats for the human-readable form,
+// with LC_ALL=C pinned so the abbreviations are always English.
+var systemdTimeLayouts = []string{
+	"Mon 2006-01-02 15:04:05 MST",
+	"Mon 2006-01-02 15:04:05 -0700",
+	"Mon 2006-01-02 15:04:05 -0700 MST",
+	"2006-01-02 15:04:05 MST",
+	time.RFC3339,
+}
+
+// systemctlUnixTimestampOK reports once whether this host's systemctl accepts
+// --timestamp=unix. Older systemd rejects the flag with a non-zero exit, and
+// the watchdog calls this path every tick, so the probe must not repeat.
+var systemctlUnixTimestampOK = sync.OnceValue(func() bool {
+	ctx, cancel := systemCmdContext()
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "systemctl", "--timestamp=unix", "show",
+		"--property=SystemState")
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	return cmd.Run() == nil
+})
+
+// systemctlShow runs `systemctl show <unit> --property=<props>` and returns its
+// stdout. ok is false when systemctl itself failed (missing unit, no systemd).
+func systemctlShow(ctx context.Context, unit, props string) (out string, ok bool) {
+	args := []string{"show", unit, "--property=" + props}
+	if systemctlUnixTimestampOK() {
+		args = append([]string{"--timestamp=unix"}, args...)
+	}
+	cmd := exec.CommandContext(ctx, "systemctl", args...)
+	cmd.Env = append(os.Environ(), "LC_ALL=C")
+	b, err := cmd.Output()
+	if err != nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+// parseSystemdTimestamp converts a systemctl timestamp property into a
+// time.Time. It accepts unix seconds (from --timestamp=unix), the C-locale
+// human format and RFC3339. Empty, "n/a" and non-positive values mean the unit
+// has not been active, which callers must treat as "unknown", never as epoch.
+func parseSystemdTimestamp(value string) (time.Time, bool) {
+	v := strings.TrimSpace(value)
+	if v == "" || v == "n/a" || v == "-" || v == "none" {
+		return time.Time{}, false
+	}
+	if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+		if n <= 0 {
+			return time.Time{}, false
+		}
+		return time.Unix(n, 0), true
+	}
+	for _, layout := range systemdTimeLayouts {
+		if t, err := time.ParseInLocation(layout, v, time.Local); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// uptimeSeconds returns whole seconds elapsed since t, clamped to >= 0 so a
+// clock skew or a future timestamp can never produce a negative uptime.
+func uptimeSeconds(t time.Time) int {
+	if sec := int(time.Since(t).Seconds()); sec > 0 {
+		return sec
+	}
+	return 0
 }
 
 // ── Item 27: full delete-time cleanup ────────────────────────────────────────
@@ -755,21 +842,19 @@ func (tm *TunnelManager) WatchInputs(serviceName string) WatchInputs {
 	wi.Status = statusStr
 	wi.Active = statusStr == "active"
 
-	if outShow, err := exec.CommandContext(ctx, "systemctl", "show", serviceName,
-		"--property=MainPID,ActiveEnterTimestamp,NRestarts").Output(); err == nil {
-		for _, l := range strings.Split(string(outShow), "\n") {
+	if outShow, ok := systemctlShow(ctx, serviceName, "MainPID,ActiveEnterTimestamp,NRestarts"); ok {
+		for _, l := range strings.Split(outShow, "\n") {
 			switch {
 			case strings.HasPrefix(l, "MainPID="):
 				_, _ = fmt.Sscanf(l, "MainPID=%d", &wi.PID)
 			case strings.HasPrefix(l, "NRestarts="):
 				_, _ = fmt.Sscanf(l, "NRestarts=%d", &wi.NRestarts)
 			case strings.HasPrefix(l, "ActiveEnterTimestamp="):
-				ts := strings.TrimPrefix(l, "ActiveEnterTimestamp=")
-				if t, perr := time.Parse(time.RFC3339, ts); perr == nil {
-					wi.UptimeSec = int(time.Since(t).Seconds())
-					if wi.UptimeSec < 0 {
-						wi.UptimeSec = 0
-					}
+				// Unknown (never-active unit, unparseable value) must leave
+				// UptimeSec at 0 — classifyWatch treats 0 as "just restarted",
+				// so a bogus epoch here would fake a crash_loop.
+				if t, found := parseSystemdTimestamp(strings.TrimPrefix(l, "ActiveEnterTimestamp=")); found {
+					wi.UptimeSec = uptimeSeconds(t)
 				}
 			}
 		}

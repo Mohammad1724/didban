@@ -33,12 +33,16 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-    <View
+    <!-- RemoteViews only accepts a whitelist of view classes; a plain <View>
+         makes the whole widget fail to inflate (lint: RemoteViewLayout).
+         A 1dp LinearLayout with a background renders the same rule. -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        android:background="#24324D" />
+        android:background="#24324D"
+        android:orientation="horizontal" />
 
     <!-- 3 Micro Pods -->
     <LinearLayout

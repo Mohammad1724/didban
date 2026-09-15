@@ -201,15 +201,22 @@ func metricColor(val float64) string {
 	return "#4ade80"
 }
 
+// formatUptime renders a duration in seconds compactly ("42s", "5m 9s",
+// "2h 5m", "1d 2h 3m"). Shared by the public status page (host uptime) and the
+// tunnel status payload (unit uptime), so both speak the same format.
 func formatUptime(sec uint64) string {
 	d := sec / 86400
 	h := (sec % 86400) / 3600
 	m := (sec % 3600) / 60
+	s := sec % 60
 	if d > 0 {
 		return fmt.Sprintf("%dd %dh %dm", d, h, m)
 	}
 	if h > 0 {
 		return fmt.Sprintf("%dh %dm", h, m)
 	}
-	return fmt.Sprintf("%dm", m)
+	if m > 0 {
+		return fmt.Sprintf("%dm %ds", m, s)
+	}
+	return fmt.Sprintf("%ds", s)
 }
