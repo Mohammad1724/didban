@@ -334,6 +334,14 @@ interface CommandCopy {
     val scoreOutOf: String
     val nodes: String
     val pressAgainToExit: String
+    val metricUptime: String
+    val metricLoad: String
+    val metricDisks: String
+    val metricInterfaces: String
+    val metricConfigs: String
+    val metricUsed: String
+    val metricTotal: String
+    val metricExpire: String
     val netRegionLabel: String
     val netDnsRecordsLabel: String
     val svcLoadHint: String
@@ -769,6 +777,14 @@ internal object CommandCopyFa : CommandCopy {
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
+    override val metricUptime = "آپ‌تایم"
+    override val metricLoad = "بار"
+    override val metricDisks = "دیسک"
+    override val metricInterfaces = "رابط شبکه"
+    override val metricConfigs = "تنظیمات"
+    override val metricUsed = "مصرف"
+    override val metricTotal = "کل"
+    override val metricExpire = "انقضا"
     override val netRegionLabel = "منطقه"
     override val netDnsRecordsLabel = "رکوردهای DNS"
     override val svcLoadHint = "سرویس‌ها را بارگذاری کنید تا systemd روی %1 پرس‌وجو شود. هیچ سرویسی به‌صورت محلی ساخته نمی‌شود."
@@ -1197,6 +1213,14 @@ internal object CommandCopyEn : CommandCopy {
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
     override val pressAgainToExit = "Press back again to exit"
+    override val metricUptime = "Uptime"
+    override val metricLoad = "Load"
+    override val metricDisks = "disks"
+    override val metricInterfaces = "interfaces"
+    override val metricConfigs = "configs"
+    override val metricUsed = "Used"
+    override val metricTotal = "Total"
+    override val metricExpire = "Expire"
     override val netRegionLabel = "Region"
     override val netDnsRecordsLabel = "DNS records"
     override val svcLoadHint = "Load services to query systemd on %1. No service is fabricated locally."

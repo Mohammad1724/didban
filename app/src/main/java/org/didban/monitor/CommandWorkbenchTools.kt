@@ -284,7 +284,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     OutlinedTextField(subscription, { subscription = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionUrl) })
                     CommandSecondaryButton(if (busy) copy.waitingForData else copy.wtFetchSubscription, ::inspectSubscription, enabled = !busy)
                     subscriptionInfo?.let { info ->
-                        CommandStatusMark("${info.configs.size} configs", CommandHealthTone.INFO, detail = "Used ${info.usedFormatted} · Total ${info.totalFormatted} · Expire ${info.expireDateFormatted}")
+                        CommandStatusMark("${info.configs.size} ${copy.metricConfigs}", CommandHealthTone.INFO, detail = "${copy.metricUsed} ${info.usedFormatted} · ${copy.metricTotal} ${info.totalFormatted} · ${copy.metricExpire} ${info.expireDateFormatted}")
                         info.configs.take(20).forEach { cfg ->
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 Text(cfg.remark, Modifier.weight(1f), color = CommandColors.textPrimary)
