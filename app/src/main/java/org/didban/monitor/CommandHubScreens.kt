@@ -40,12 +40,12 @@ fun CommandWorkbenchIndexScreen(
     val utilities = listOf(CommandRoute.DEVELOPER_LAB)
     CommandToolIndex(
         title = copy.workbench,
-        body = "از سؤال عملیاتی شروع کنید؛ ابزار فقط در Context لازم باز می‌شود.",
+        body = copy.hubObserveBody,
         groups = listOf(
-            "اجرا" to execute,
-            "انتقال فایل" to transfer,
-            "بررسی و تولید" to inspect,
-            "ابزارهای توسعه" to utilities
+            copy.run to execute,
+            copy.hubFileTransfer to transfer,
+            copy.hubInspectGenerate to inspect,
+            copy.hubDevTools to utilities
         ),
         copy = copy,
         icon = Icons.Rounded.Terminal,
@@ -60,12 +60,12 @@ fun CommandProtectIndexScreen(
 ) {
     CommandToolIndex(
         title = copy.protect,
-        body = "اطلاعات حساس، اعلان‌ها و بازیابی داده در یک فضای جدا از عملیات عادی.",
+        body = copy.hubProtectBody,
         groups = listOf(
-            "Secret و Trust" to listOf(CommandRoute.VAULT),
-            "تحویل هشدار" to listOf(CommandRoute.ALERTS),
-            "داده و بازیابی" to listOf(CommandRoute.BACKUP),
-            "رفتار برنامه" to listOf(CommandRoute.SETTINGS)
+            copy.hubSecretTrust to listOf(CommandRoute.VAULT),
+            copy.hubAlertDelivery to listOf(CommandRoute.ALERTS),
+            copy.hubDataRecovery to listOf(CommandRoute.BACKUP),
+            copy.hubAppBehaviour to listOf(CommandRoute.SETTINGS)
         ),
         copy = copy,
         icon = Icons.Rounded.Security,

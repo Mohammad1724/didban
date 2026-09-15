@@ -108,7 +108,7 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
                     if (selected != "Generator") {
                         OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text("Input") })
                     } else {
-                        Text("این ابزار هیچ input ساختگی مصرف نمی‌کند؛ خروجی با SecureRandom و UUID واقعی تولید می‌شود.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.devLabBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                     CommandPrimaryButton("Run $selected", ::execute, icon = Icons.Rounded.PlayArrow)
                 }
@@ -238,7 +238,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         probe = null
         parsed = ProxyEngine.parseConfig(uri)
-        if (parsed == null) { error = "Config قابل parse نیست"; return }
+        if (parsed == null) { error = copy.vaultConfigUnparseable; return }
         busy = true
         scope.launch {
             probe = ProxyEngine.probeConfig(parsed!!)
@@ -329,7 +329,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         scope.launch {
             try {
                 files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC)
-                status = "${files.size} entries · Trust Store فعال است"
+                status = copy.hostKeysStatus.replace("%d", files.size.toString())
             } catch (e: Exception) { error = e.message ?: "SFTP browse failed" }
             finally { loading = false }
         }
@@ -386,7 +386,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                             OutlinedTextField(path, { path = it }, Modifier.weight(1f), singleLine = true, label = { Text("Remote path") })
                             CommandPrimaryButton(if (loading) copy.waitingForData else copy.refresh, ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
                         }
-                        Text("SFTP از Trust Store محلی استفاده می‌کند؛ اولین کلید سرور به‌صورت TOFU ثبت می‌شود و تغییر بعدی اتصال را رد می‌کند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.sftpBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                 }
             }

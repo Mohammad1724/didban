@@ -65,7 +65,7 @@ fun CommandNetworkToolsScreen(
     fun run() {
         val clean = host.trim().removePrefix("https://").removePrefix("http://").substringBefore("/")
         if (clean.isBlank()) {
-            error = "Host یا domain وارد نشده است."
+            error = copy.netNoHost
             return
         }
         val targetPort = port.toIntOrNull()?.coerceIn(1, 65535) ?: 443
@@ -89,7 +89,7 @@ fun CommandNetworkToolsScreen(
                         }
                         portResults = found.sortedBy { it.port }
                         summary = "${portResults.size} open ports found"
-                        detail = if (portResults.isEmpty()) "هیچ پورت باز از مجموعهٔ common portها پاسخ نداد." else "فقط پورت‌هایی که واقعاً پاسخ دادند نمایش داده می‌شوند."
+                        detail = if (portResults.isEmpty()) copy.netNoOpenPorts else copy.netOnlyAnsweredPorts
                     }
                     NetworkDiagnosticMode.CERTIFICATE -> {
                         val cert = SslInspector.inspect(clean, targetPort)
@@ -132,7 +132,7 @@ fun CommandNetworkToolsScreen(
                         OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text("Host / domain") })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
                     }
-                    Text("Probe از دستگاه فعلی اجرا می‌شود؛ نتیجه فقط پس از پاسخ واقعی شبکه نمایش داده می‌شود.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     CommandPrimaryButton(if (loading) copy.waitingForData else "Run ${mode.label}", ::run, enabled = !loading, icon = Icons.Rounded.PlayArrow)
                 }
             }

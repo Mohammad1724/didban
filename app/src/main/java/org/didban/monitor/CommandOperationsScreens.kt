@@ -106,7 +106,7 @@ fun CommandTunnelsScreen(
                 Column(Modifier.padding(CommandSpacing.md)) {
                     Text("Tunnel configuration", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Spacer(Modifier.height(CommandSpacing.xs))
-                    Text("ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد.", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
+                    Text(copy.tunnelsBody, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     Spacer(Modifier.height(CommandSpacing.sm))
                     CommandSecondaryButton(copy.addTunnel, onOpenEditor, icon = Icons.Rounded.Add)
                 }

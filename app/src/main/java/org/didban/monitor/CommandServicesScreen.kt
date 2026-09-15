@@ -87,7 +87,7 @@ fun CommandServicesScreen(
     fun execute(command: String, label: String, after: (SshExecResult) -> Unit = {}) {
         val target = server ?: return
         if (password.isBlank()) {
-            error = "رمز SSH وارد نشده است."
+            error = copy.svcNoPassword
             return
         }
         loading = true
@@ -118,7 +118,7 @@ fun CommandServicesScreen(
     fun refresh() {
         execute(
             command = "systemctl list-units --type=service --state=running,failed --no-pager --no-legend --output=plain 2>/dev/null",
-            label = "در حال دریافت سرویس‌ها"
+            label = copy.svcFetching
         ) { result ->
             if (result.isSuccess) services = OutputParsers.systemdUnits(result.stdout)
             else services = emptyList()
@@ -128,9 +128,9 @@ fun CommandServicesScreen(
     fun runAction(action: PendingServiceAction) {
         val unit = SecurityValidation.shellQuote(action.unit)
         if (action.action == "logs") {
-            execute("journalctl -u $unit -n 40 --no-pager", "در حال خواندن Journal")
+            execute("journalctl -u $unit -n 40 --no-pager", copy.svcReadingJournal)
         } else {
-            execute("systemctl ${action.action} $unit && systemctl is-active $unit", "در حال اجرای ${action.action}") {
+            execute("systemctl ${action.action} $unit && systemctl is-active $unit", copy.svcRunningAction.replace("%s", action.action)) {
                 if (it.isSuccess) refresh()
             }
         }
@@ -226,15 +226,15 @@ fun CommandServicesScreen(
         val action = pendingAction!!
         AlertDialog(
             onDismissRequest = { pendingAction = null },
-            title = { Text("تأیید ${action.action} روی ${action.unit}", fontWeight = FontWeight.Bold) },
-            text = { Text("این عملیات مستقیماً روی سرویس واقعی سرور اجرا می‌شود. خروجی خام SSH بعد از اجرا نمایش داده خواهد شد.") },
+            title = { Text(copy.svcConfirmTitle.replace("%1", action.action).replace("%2", action.unit), fontWeight = FontWeight.Bold) },
+            text = { Text(copy.svcConfirmBody) },
             confirmButton = {
                 TextButton(onClick = {
                     pendingAction = null
                     runAction(action)
-                }) { Text("اجرا", color = if (action.action == "stop") CommandColors.danger else CommandColors.accent) }
+                }) { Text(copy.run, color = if (action.action == "stop") CommandColors.danger else CommandColors.accent) }
             },
-            dismissButton = { TextButton(onClick = { pendingAction = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { pendingAction = null }) { Text(copy.cancel) } }
         )
     }
 }

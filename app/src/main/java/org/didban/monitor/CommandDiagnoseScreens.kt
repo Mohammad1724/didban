@@ -129,7 +129,7 @@ fun CommandRadarScreen(
         val host = targetHost.trim()
         val port = targetPort.toIntOrNull()
         if (name.isEmpty() || host.isEmpty() || port == null) {
-            error = "${copy.target}: ${copy.host} و ${copy.port}"
+            error = "${copy.target}: ${copy.host} ${copy.and} ${copy.port}"
             return
         }
         scope.launch {
