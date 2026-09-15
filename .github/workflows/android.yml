@@ -6,13 +6,54 @@ on:
       - main
     tags:
       - 'v*'
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Unit tests + lint gate the release build: until this job existed, a tag
+  # could publish an APK that did not even pass its own test suite.
+  verify:
+    name: Tests & lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Unit tests
+        run: gradle testDebugUnitTest --no-daemon
+
+      - name: Lint
+        run: gradle lintDebug --no-daemon
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            app/build/reports/lint-results-debug.*
+            app/build/reports/tests/testDebugUnitTest/**
+          if-no-files-found: ignore
+
   build:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
