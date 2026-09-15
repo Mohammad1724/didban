@@ -214,18 +214,18 @@ fun CommandOverviewScreen(
                             if (wide) {
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                                     CommandMetricTile(copy.online, "$healthyCount / ${views.size}", copy.healthy, CommandHealthTone.HEALTHY, Modifier.weight(1f))
-                                    CommandMetricTile(copy.averageCpu, averageCpu?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                    CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
+                                    CommandMetricTile(copy.averageCpu, averageCpu?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
+                                    CommandMetricTile(copy.averageMemory, averageMemory?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
                                     CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                 }
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                                         CommandMetricTile(copy.online, "$healthyCount / ${views.size}", copy.healthy, CommandHealthTone.HEALTHY, Modifier.weight(1f))
-                                        CommandMetricTile(copy.averageCpu, averageCpu?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
+                                        CommandMetricTile(copy.averageCpu, averageCpu?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                     }
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                        CommandMetricTile(copy.averageMemory, averageMemory?.let(Fmt::pct) ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
+                                        CommandMetricTile(copy.averageMemory, averageMemory?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
                                         CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
                                     }
                                 }

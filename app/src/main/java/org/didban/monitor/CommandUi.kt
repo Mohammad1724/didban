@@ -632,7 +632,7 @@ fun CommandTelemetryBar(
                 Box(Modifier.fillMaxWidth(value.coerceIn(0f, 100f) / 100f).fillMaxHeight().background(color, RoundedCornerShape(99.dp)))
             }
         }
-        Text(value?.let(Fmt::pct) ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(38.dp), textAlign = TextAlign.End)
+        Text(value?.let { Fmt.pct(it) } ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(38.dp), textAlign = TextAlign.End)
     }
 }
 
