@@ -194,7 +194,7 @@ fun CommandTunnelEditorScreen(
     fun saveOnly() {
         val cfg = buildConfig()
         persist(cfg)
-        message = "تنظیمات تونل ذخیره شد؛ هنوز هیچ deploy یا تغییر remote انجام نشده است."
+        message = copy.tunSaved
         error = null
     }
 
@@ -207,9 +207,9 @@ fun CommandTunnelEditorScreen(
                 token = cfg.token
                 persist(cfg)
                 generated = it
-                message = "کد بر اساس تنظیمات واقعی ساخته شد و token پایدار ذخیره شد."
+                message = copy.tunCodeGenerated
             }
-            .onFailure { error = it.message ?: "تولید کد ناموفق بود." }
+            .onFailure { error = it.message ?: copy.tunCodeFailed }
     }
 
     fun deploy() {
@@ -217,7 +217,7 @@ fun CommandTunnelEditorScreen(
         persist(cfg)
         busy = true
         error = null
-        message = "در حال deploy از طریق Agent واقعی..."
+        message = copy.tunDeploying
         scope.launch {
             runCatching { TunnelEngine.autoDeployTunnel(context, cfg) }
                 .onSuccess {
@@ -226,7 +226,7 @@ fun CommandTunnelEditorScreen(
                     message = it.summaryMessage
                     generated = null
                 }
-                .onFailure { error = it.message ?: "Deploy ناموفق بود." }
+                .onFailure { error = it.message ?: copy.tunDeployFailed }
             busy = false
         }
     }
@@ -240,7 +240,7 @@ fun CommandTunnelEditorScreen(
                 .onSuccess { result ->
                     message = if (result.first) "Tunnel reachable · ${result.second} ms" else "Tunnel unreachable"
                 }
-                .onFailure { error = it.message ?: "Probe ناموفق بود." }
+                .onFailure { error = it.message ?: copy.tunProbeFailed }
             busy = false
         }
     }
@@ -251,8 +251,8 @@ fun CommandTunnelEditorScreen(
         error = null
         scope.launch {
             runCatching { TunnelEngine.controlRemoteTunnel(context, cfg, action) }
-                .onSuccess { ok -> message = if (ok) "Remote action $action انجام شد." else "Remote action $action ناموفق بود." }
-                .onFailure { error = it.message ?: "Remote action ناموفق بود." }
+                .onSuccess { ok -> message = if (ok) copy.tunActionDone.replace("%1", action) else copy.tunActionFailed.replace("%1", action) }
+                .onFailure { error = it.message ?: copy.tunActionFailedGeneric }
             busy = false
         }
     }
@@ -283,7 +283,7 @@ fun CommandTunnelEditorScreen(
                         CommandTextButton("New", ::resetForm, icon = Icons.Rounded.Tune)
                     }
                     if (records.isEmpty()) {
-                        Text("هنوز تونلی ذخیره نشده است. فرم زیر برای ساخت اولین تنظیمات آماده است.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.tunEmptyBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     } else {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             records.forEach { cfg ->
@@ -332,9 +332,9 @@ fun CommandTunnelEditorScreen(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton("Generate secure token", { token = TunnelEngine.generateRandomToken(24) }, icon = Icons.Rounded.Tune)
-                        Text(if (token.isBlank()) "token خالی است" else "token وارد شده", color = if (token.isBlank()) CommandColors.warning else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(if (token.isBlank()) copy.tunTokenEmpty else copy.tunTokenSet, color = if (token.isBlank()) CommandColors.warning else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
-                    if (discovered) Text("این tunnel از Discovery آمده است؛ deploy بدون token واقعی مسدود خواهد بود.", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    if (discovered) Text(copy.tunDiscoveryBody, color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -381,7 +381,7 @@ fun CommandTunnelEditorScreen(
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Text("Remote operations", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        Text("این actionها به Agentهای واقعی که host آن‌ها با endpointها match شود ارسال می‌شوند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.tunActionsBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             CommandPrimaryButton("Deploy", { confirmAction = TunnelConfirmAction.DEPLOY }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
                             CommandSecondaryButton("Test", ::test, icon = Icons.Rounded.Refresh, enabled = !busy)
@@ -410,7 +410,7 @@ fun CommandTunnelEditorScreen(
                             Text(artifact, Modifier.weight(1f), color = CommandColors.textSecondary)
                             CommandTextButton("Copy", { clipboard.setText(AnnotatedString(artifactText)) }, icon = Icons.Rounded.ContentCopy, enabled = artifactText.isNotBlank())
                         }
-                        Text(artifactText.ifBlank { "بدون خروجی" }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 60, overflow = TextOverflow.Ellipsis)
+                        Text(artifactText.ifBlank { copy.noOutput }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 60, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -422,9 +422,9 @@ fun CommandTunnelEditorScreen(
         val action = confirmAction
         AlertDialog(
             onDismissRequest = { confirmAction = null },
-            title = { Text(if (action == TunnelConfirmAction.DELETE) "Delete tunnel؟" else "Deploy tunnel؟", fontWeight = FontWeight.Bold) },
+            title = { Text(if (action == TunnelConfirmAction.DELETE) copy.tunDeleteTitle else copy.tunDeployTitle, fontWeight = FontWeight.Bold) },
             text = {
-                Text(if (action == TunnelConfirmAction.DELETE) "رکورد محلی این tunnel حذف می‌شود و delete remote نیز برای Agentهای match‌شده ارسال خواهد شد." else "این عملیات روی Agentهای واقعی اجرا می‌شود و ممکن است سرویس‌های دو طرف را تغییر دهد.")
+                Text(if (action == TunnelConfirmAction.DELETE) copy.tunDeleteBody else copy.tunDeployBody)
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -436,12 +436,12 @@ fun CommandTunnelEditorScreen(
                             records = records.filterNot { it.id == id }
                             Prefs.saveTunnels(context, records)
                             resetForm()
-                            message = "رکورد tunnel حذف شد."
+                            message = copy.tunDeleted
                         }
                     } else deploy()
-                }) { Text(if (action == TunnelConfirmAction.DELETE) "حذف" else "Deploy", color = if (action == TunnelConfirmAction.DELETE) CommandColors.danger else CommandColors.accent) }
+                }) { Text(if (action == TunnelConfirmAction.DELETE) copy.delete else copy.deploy, color = if (action == TunnelConfirmAction.DELETE) CommandColors.danger else CommandColors.accent) }
             },
-            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text(copy.cancel) } }
         )
     }
 }

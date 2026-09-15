@@ -64,7 +64,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
 
     fun loadZones() {
         if (apiToken.isBlank()) {
-            error = "Cloudflare API token وارد نشده است."
+            error = copy.dnsNoToken
             return
         }
         busy = true
@@ -77,7 +77,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                 selectedZone = first
                 records = if (first == null) emptyList() else CloudflareService.listRecords(apiToken, first.id)
             } catch (e: Exception) {
-                error = e.message ?: "Zoneها بارگذاری نشدند."
+                error = e.message ?: copy.dnsZonesLoadFailed
             } finally {
                 busy = false
             }
@@ -93,8 +93,8 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         scope.launch {
             runCatching { CloudflareService.listRecords(apiToken, zone.id) }
-                .onSuccess { records = it; message = "${it.size} record واقعی دریافت شد." }
-                .onFailure { error = it.message ?: "Recordها بارگذاری نشدند." }
+                .onSuccess { records = it; message = copy.dnsRecordsLoaded.replace("%1", it.size.toString()) }
+                .onFailure { error = it.message ?: copy.dnsRecordsLoadFailed }
             busy = false
         }
     }
@@ -111,7 +111,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
     fun saveRecord() {
         val zone = selectedZone
         if (zone == null || recordName.isBlank() || recordContent.isBlank()) {
-            error = "Zone، name و content اجباری هستند."
+            error = copy.dnsRecordFieldsRequired
             return
         }
         busy = true
@@ -129,9 +129,9 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     ttl = recordTtl.toIntOrNull()?.coerceIn(1, 86400) ?: 1
                 )
             }.onSuccess {
-                message = if (selectedRecord == null) "Record ساخته شد." else "Record ویرایش شد."
+                message = if (selectedRecord == null) copy.dnsRecordCreated else copy.dnsRecordUpdated
                 loadRecords(zone)
-            }.onFailure { error = it.message ?: "ذخیرهٔ Record ناموفق بود." }
+            }.onFailure { error = it.message ?: copy.dnsRecordSaveFailed }
             busy = false
         }
     }
@@ -143,7 +143,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         scope.launch {
             runCatching { IpInfoService.lookup(lookup) }
                 .onSuccess { lookupResult = it }
-                .onFailure { error = it.message ?: "DNS lookup ناموفق بود." }
+                .onFailure { error = it.message ?: copy.dnsLookupFailed }
             busy = false
         }
     }
@@ -164,11 +164,11 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         CommandPrimaryButton("Save token", {
                             apiToken = tokenDraft.trim()
                             Prefs.setCfToken(context, tokenDraft)
-                            message = "Token در SecureStorage ذخیره شد؛ برای دریافت Zoneها Refresh را بزنید."
+                            message = copy.dnsTokenSaved
                         }, icon = Icons.Rounded.Save)
                         CommandSecondaryButton(if (busy) copy.waitingForData else "Load zones", ::loadZones, enabled = !busy, icon = Icons.Rounded.Refresh)
                     }
-                    Text("Token در UI نمایش داده نمی‌شود و هیچ Zone یا Record ساختگی ساخته نمی‌شود.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(copy.dnsTokenBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -178,7 +178,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text("Zones", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    if (zones.isEmpty()) Text("پس از واردکردن Token، Zoneهای واقعی اینجا ظاهر می‌شوند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    if (zones.isEmpty()) Text(copy.dnsNoZonesYet, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                         zones.forEach { zone -> CommandSecondaryButton("${zone.name} · ${zone.status}", { loadRecords(zone) }, enabled = selectedZone?.id != zone.id) }
                     }
@@ -193,7 +193,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                             Text("Records · ${selectedZone?.name}", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                             CommandTextButton("New", { selectedRecord = null; recordName = ""; recordContent = "" }, icon = Icons.Rounded.Add)
                         }
-                        if (records.isEmpty()) Text("این Zone Record واقعی ندارد یا هنوز load نشده است.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        if (records.isEmpty()) Text(copy.dnsZoneEmpty, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         records.forEach { record ->
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 CommandStatusMark(record.type, CommandHealthTone.INFO, Modifier.weight(1f), "${record.name} → ${record.content}")
@@ -235,7 +235,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     }
                     lookupResult?.let { result ->
                         CommandStatusMark("${result.flag} ${result.country} · ${result.ip}", CommandHealthTone.INFO, detail = "${result.reverseDns.ifBlank { "No PTR" }} · ${result.isp.ifBlank { "No ISP" }}")
-                        if (result.dnsRecords.isEmpty()) Text("پاسخ DNS عمومی برای این domain دریافت نشد.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        if (result.dnsRecords.isEmpty()) Text(copy.dnsNoPublicAnswer, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         result.dnsRecords.take(30).forEach { record ->
                             Text("${record.type} ${record.name} → ${record.data} · TTL ${record.ttl}", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -250,8 +250,8 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         val record = deleteRecord!!
         AlertDialog(
             onDismissRequest = { deleteRecord = null },
-            title = { Text("Delete DNS record؟", fontWeight = FontWeight.Bold) },
-            text = { Text("${record.type} ${record.name} حذف واقعی از Cloudflare خواهد شد.") },
+            title = { Text(copy.dnsDeleteTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(copy.dnsDeleteBody.replace("%1", record.type).replace("%2", record.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     val zone = selectedZone
@@ -260,14 +260,14 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         busy = true
                         scope.launch {
                             runCatching { CloudflareService.deleteRecord(apiToken, zone.id, record.id) }
-                                .onSuccess { message = "Record حذف شد."; loadRecords(zone) }
-                                .onFailure { error = it.message ?: "حذف Record ناموفق بود." }
+                                .onSuccess { message = copy.dnsRecordDeleted; loadRecords(zone) }
+                                .onFailure { error = it.message ?: copy.dnsRecordDeleteFailed }
                             busy = false
                         }
                     }
-                }) { Text("حذف", color = CommandColors.danger) }
+                }) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text(copy.cancel) } }
         )
     }
 }

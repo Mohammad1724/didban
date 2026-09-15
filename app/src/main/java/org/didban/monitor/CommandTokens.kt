@@ -340,6 +340,63 @@ interface CommandCopy {
     val scoreOutOf: String
     val nodes: String
     val pressAgainToExit: String
+    val dnsNoToken: String
+    val dnsZonesLoadFailed: String
+    val dnsRecordsLoadFailed: String
+    val dnsRecordFieldsRequired: String
+    val dnsRecordCreated: String
+    val dnsRecordSaveFailed: String
+    val dnsLookupFailed: String
+    val dnsTokenSaved: String
+    val dnsTokenBody: String
+    val dnsNoZonesYet: String
+    val dnsZoneEmpty: String
+    val dnsNoPublicAnswer: String
+    val dnsDeleteTitle: String
+    val dnsRecordDeleted: String
+    val dnsRecordDeleteFailed: String
+    val dnsRecordUpdated: String
+    val dnsRecordsLoaded: String
+    val dnsDeleteBody: String
+    val setPollRange: String
+    val setPollSaved: String
+    val setBody: String
+    val setAppearanceBody: String
+    val setPollBody: String
+    val setDangerBody: String
+    val setPurge: String
+    val setTrustEmpty: String
+    val setRuntimeBody: String
+    val setConnectivityBody: String
+    val setResetVaultBody: String
+    val setPurgeTrustBody: String
+    val setVaultReady: String
+    val setVaultLockedHint: String
+    val setResetVaultTitle: String
+    val setPurgeTrustTitle: String
+    val setResetVaultAction: String
+    val setPurgeTrustAction: String
+    val setTrustCount: String
+    val tunSaved: String
+    val tunCodeGenerated: String
+    val tunCodeFailed: String
+    val tunDeploying: String
+    val tunDeployFailed: String
+    val tunProbeFailed: String
+    val tunActionFailedGeneric: String
+    val tunEmptyBody: String
+    val tunDiscoveryBody: String
+    val tunActionsBody: String
+    val tunDeleteBody: String
+    val tunDeleted: String
+    val tunTokenEmpty: String
+    val tunTokenSet: String
+    val tunDeleteTitle: String
+    val tunDeployTitle: String
+    val tunDeployBody: String
+    val tunActionDone: String
+    val tunActionFailed: String
+    val deploy: String
     val vaultBadMaster: String
     val vaultUnlockFailed: String
     val vaultSaveFailed: String
@@ -607,6 +664,63 @@ internal object CommandCopyFa : CommandCopy {
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
+    override val dnsNoToken = "Cloudflare API token وارد نشده است."
+    override val dnsZonesLoadFailed = "Zoneها بارگذاری نشدند."
+    override val dnsRecordsLoadFailed = "Recordها بارگذاری نشدند."
+    override val dnsRecordFieldsRequired = "Zone، name و content اجباری هستند."
+    override val dnsRecordCreated = "Record ساخته شد."
+    override val dnsRecordSaveFailed = "ذخیرهٔ Record ناموفق بود."
+    override val dnsLookupFailed = "DNS lookup ناموفق بود."
+    override val dnsTokenSaved = "Token در SecureStorage ذخیره شد؛ برای دریافت Zoneها Refresh را بزنید."
+    override val dnsTokenBody = "Token در UI نمایش داده نمی‌شود و هیچ Zone یا Record ساختگی ساخته نمی‌شود."
+    override val dnsNoZonesYet = "پس از واردکردن Token، Zoneهای واقعی اینجا ظاهر می‌شوند."
+    override val dnsZoneEmpty = "این Zone Record واقعی ندارد یا هنوز load نشده است."
+    override val dnsNoPublicAnswer = "پاسخ DNS عمومی برای این domain دریافت نشد."
+    override val dnsDeleteTitle = "Delete DNS record؟"
+    override val dnsRecordDeleted = "Record حذف شد."
+    override val dnsRecordDeleteFailed = "حذف Record ناموفق بود."
+    override val dnsRecordUpdated = "Record ویرایش شد."
+    override val dnsRecordsLoaded = "%1 record واقعی دریافت شد."
+    override val dnsDeleteBody = "%1 %2 حذف واقعی از Cloudflare خواهد شد."
+    override val setPollRange = "Poll interval باید بین ۵ تا ۳۶۰۰ ثانیه باشد."
+    override val setPollSaved = "Poll interval ذخیره شد؛ از Poll بعدی اعمال می‌شود."
+    override val setBody = "کنترل رفتار، مشاهده‌پذیری و سطح اعتماد دستگاه"
+    override val setAppearanceBody = "تغییرات این بخش بلافاصله در Shell اعمال می‌شوند."
+    override val setPollBody = "فاصلهٔ درخواست‌های واقعی Agent و محدودیت‌های آن."
+    override val setDangerBody = "این عملیات به داده‌های رمزنگاری‌شده یا trust anchorهای SSH دست می‌زنند."
+    override val setPurge = "پاک‌سازی"
+    override val setTrustEmpty = "Trust Store خالی است."
+    override val setRuntimeBody = "اطلاعات runtime؛ هیچ وضعیت ساختگی در این بخش تولید نمی‌شود."
+    override val setConnectivityBody = "برای بررسی کامل connectivity از ابزارهای SSH، SFTP و Probe در Workbench استفاده کنید."
+    override val setResetVaultBody = "این کار Master Password، canary و تمام Noteهای رمزنگاری‌شدهٔ Vault را حذف می‌کند و قابل بازگشت نیست."
+    override val setPurgeTrustBody = "تمام SSH host keyهای ذخیره‌شده حذف می‌شوند؛ اتصال بعدی هر سرور دوباره نیازمند Trust است."
+    override val setVaultReady = "Secretها بدون Master Password خوانده نمی‌شوند."
+    override val setVaultLockedHint = "برای ذخیرهٔ Secret ابتدا Vault را باز کنید."
+    override val setResetVaultTitle = "Reset Vault؟"
+    override val setPurgeTrustTitle = "پاک‌سازی Trust Store؟"
+    override val setResetVaultAction = "حذف Vault"
+    override val setPurgeTrustAction = "حذف Trustها"
+    override val setTrustCount = "%1 host key ثبت شده؛ fingerprintها Secret نیستند."
+    override val tunSaved = "تنظیمات تونل ذخیره شد؛ هنوز هیچ deploy یا تغییر remote انجام نشده است."
+    override val tunCodeGenerated = "کد بر اساس تنظیمات واقعی ساخته شد و token پایدار ذخیره شد."
+    override val tunCodeFailed = "تولید کد ناموفق بود."
+    override val tunDeploying = "در حال deploy از طریق Agent واقعی..."
+    override val tunDeployFailed = "Deploy ناموفق بود."
+    override val tunProbeFailed = "Probe ناموفق بود."
+    override val tunActionFailedGeneric = "Remote action ناموفق بود."
+    override val tunEmptyBody = "هنوز تونلی ذخیره نشده است. فرم زیر برای ساخت اولین تنظیمات آماده است."
+    override val tunDiscoveryBody = "این tunnel از Discovery آمده است؛ deploy بدون token واقعی مسدود خواهد بود."
+    override val tunActionsBody = "این actionها به Agentهای واقعی که host آن‌ها با endpointها match شود ارسال می‌شوند."
+    override val tunDeleteBody = "رکورد محلی این tunnel حذف می‌شود و delete remote نیز برای Agentهای match‌شده ارسال خواهد شد."
+    override val tunDeleted = "رکورد tunnel حذف شد."
+    override val tunTokenEmpty = "token خالی است"
+    override val tunTokenSet = "token وارد شده"
+    override val tunDeleteTitle = "Delete tunnel؟"
+    override val tunDeployTitle = "Deploy tunnel؟"
+    override val tunDeployBody = "این عملیات روی Agentهای واقعی اجرا می‌شود و ممکن است سرویس‌های دو طرف را تغییر دهد."
+    override val tunActionDone = "Remote action %1 انجام شد."
+    override val tunActionFailed = "Remote action %1 ناموفق بود."
+    override val deploy = "Deploy"
     override val vaultBadMaster = "رمز Master نادرست است."
     override val vaultUnlockFailed = "بازکردن Vault ناموفق بود."
     override val vaultSaveFailed = "ذخیرهٔ Vault ناموفق بود."
@@ -867,6 +981,63 @@ internal object CommandCopyEn : CommandCopy {
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
     override val pressAgainToExit = "Press back again to exit"
+    override val dnsNoToken = "No Cloudflare API token entered."
+    override val dnsZonesLoadFailed = "Zones failed to load."
+    override val dnsRecordsLoadFailed = "Records failed to load."
+    override val dnsRecordFieldsRequired = "Zone, name and content are required."
+    override val dnsRecordCreated = "Record created."
+    override val dnsRecordSaveFailed = "Saving the record failed."
+    override val dnsLookupFailed = "DNS lookup failed."
+    override val dnsTokenSaved = "Token stored in SecureStorage; press refresh to load the zones."
+    override val dnsTokenBody = "The token is never shown in the UI, and no fake zone or record is created."
+    override val dnsNoZonesYet = "Real zones appear here once a token is entered."
+    override val dnsZoneEmpty = "This zone has no real records, or they have not loaded yet."
+    override val dnsNoPublicAnswer = "No public DNS answer was received for this domain."
+    override val dnsDeleteTitle = "Delete DNS record?"
+    override val dnsRecordDeleted = "Record deleted."
+    override val dnsRecordDeleteFailed = "Deleting the record failed."
+    override val dnsRecordUpdated = "Record updated."
+    override val dnsRecordsLoaded = "%1 real records received."
+    override val dnsDeleteBody = "%1 %2 will really be deleted from Cloudflare."
+    override val setPollRange = "Poll interval must be between 5 and 3600 seconds."
+    override val setPollSaved = "Poll interval saved; it applies from the next poll."
+    override val setBody = "Controls behaviour, observability and this device's trust level."
+    override val setAppearanceBody = "Changes in this section apply to the shell immediately."
+    override val setPollBody = "The real agent request interval and its limits."
+    override val setDangerBody = "These actions touch encrypted data or SSH trust anchors."
+    override val setPurge = "Purge"
+    override val setTrustEmpty = "The trust store is empty."
+    override val setRuntimeBody = "Runtime information; no synthetic status is produced in this section."
+    override val setConnectivityBody = "For a full connectivity check use the SSH, SFTP and Probe tools in the workbench."
+    override val setResetVaultBody = "This deletes the master password, the canary and every encrypted vault note. It cannot be undone."
+    override val setPurgeTrustBody = "Every stored SSH host key is deleted; the next connection to each server needs trust again."
+    override val setVaultReady = "Secrets cannot be read without the master password."
+    override val setVaultLockedHint = "Unlock the vault before storing a secret."
+    override val setResetVaultTitle = "Reset vault?"
+    override val setPurgeTrustTitle = "Purge trust store?"
+    override val setResetVaultAction = "Delete vault"
+    override val setPurgeTrustAction = "Delete trust entries"
+    override val setTrustCount = "%1 host keys recorded; fingerprints are not secrets."
+    override val tunSaved = "Tunnel configuration saved; no deploy or remote change has happened yet."
+    override val tunCodeGenerated = "Code generated from the real configuration, and a stable token stored."
+    override val tunCodeFailed = "Generating the code failed."
+    override val tunDeploying = "Deploying through the real agent…"
+    override val tunDeployFailed = "Deploy failed."
+    override val tunProbeFailed = "Probe failed."
+    override val tunActionFailedGeneric = "The remote action failed."
+    override val tunEmptyBody = "No tunnel has been saved yet. The form below is ready to create the first configuration."
+    override val tunDiscoveryBody = "This tunnel came from discovery; deploy stays blocked without a real token."
+    override val tunActionsBody = "These actions are sent to the real agents whose host matches the endpoints."
+    override val tunDeleteBody = "The local record for this tunnel is deleted, and a remote delete is also sent to the matched agents."
+    override val tunDeleted = "Tunnel record deleted."
+    override val tunTokenEmpty = "token is empty"
+    override val tunTokenSet = "token entered"
+    override val tunDeleteTitle = "Delete tunnel?"
+    override val tunDeployTitle = "Deploy tunnel?"
+    override val tunDeployBody = "This runs on real agents and may change the services on both ends."
+    override val tunActionDone = "Remote action %1 completed."
+    override val tunActionFailed = "Remote action %1 failed."
+    override val deploy = "Deploy"
     override val vaultBadMaster = "The master password is incorrect."
     override val vaultUnlockFailed = "Unlocking the vault failed."
     override val vaultSaveFailed = "Saving the vault failed."

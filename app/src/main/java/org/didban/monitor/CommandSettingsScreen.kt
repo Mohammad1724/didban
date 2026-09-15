@@ -58,11 +58,11 @@ fun CommandSettingsScreen(
     fun saveInterval() {
         val seconds = interval.toLongOrNull()?.coerceIn(5L, 3600L)
         if (seconds == null) {
-            saveMessage = "Poll interval باید بین ۵ تا ۳۶۰۰ ثانیه باشد."
+            saveMessage = copy.setPollRange
         } else {
             Prefs.setPollIntervalSec(context, seconds)
             interval = seconds.toString()
-            saveMessage = "Poll interval ذخیره شد؛ از Poll بعدی اعمال می‌شود."
+            saveMessage = copy.setPollSaved
         }
     }
 
@@ -73,12 +73,12 @@ fun CommandSettingsScreen(
         item {
             CommandSectionTitle(
                 title = copy.settings,
-                supporting = "کنترل رفتار، مشاهده‌پذیری و سطح اعتماد دستگاه",
+                supporting = copy.setBody,
                 modifier = Modifier.padding(top = CommandSpacing.sm)
             )
         }
         item {
-            SettingsSection(title = "Appearance", detail = "تغییرات این بخش بلافاصله در Shell اعمال می‌شوند.") {
+            SettingsSection(title = "Appearance", detail = copy.setAppearanceBody) {
                 Text(copy.language, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                 Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                     CommandSecondaryButton(copy.persian, { onLanguageChange("fa") }, enabled = language != "fa", modifier = Modifier.weight(1f))
@@ -93,7 +93,7 @@ fun CommandSettingsScreen(
             }
         }
         item {
-            SettingsSection(title = "Monitoring", detail = "فاصلهٔ درخواست‌های واقعی Agent و محدودیت‌های آن.") {
+            SettingsSection(title = "Monitoring", detail = copy.setPollBody) {
                 OutlinedTextField(
                     value = interval,
                     onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null },
@@ -103,28 +103,28 @@ fun CommandSettingsScreen(
                 )
                 CommandPrimaryButton(copy.save, ::saveInterval, icon = Icons.Rounded.Settings)
                 if (saveMessage != null) {
-                    Text(saveMessage ?: "", color = if (saveMessage!!.contains("ذخیره")) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(saveMessage ?: "", color = if (saveMessage!!.contains(copy.save)) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
         item {
-            SettingsSection(title = "Security", detail = "این عملیات به داده‌های رمزنگاری‌شده یا trust anchorهای SSH دست می‌زنند.") {
+            SettingsSection(title = "Security", detail = copy.setDangerBody) {
                 CommandStatusMark(
                     if (vaultInitialized) "Vault initialized" else "Vault not initialized",
                     if (vaultInitialized) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN,
-                    detail = if (vaultInitialized) "Secretها بدون Master Password خوانده نمی‌شوند." else "برای ذخیرهٔ Secret ابتدا Vault را باز کنید."
+                    detail = if (vaultInitialized) copy.setVaultReady else copy.setVaultLockedHint
                 )
                 CommandSecondaryButton("Reset Vault", { confirmAction = SettingsConfirmAction.RESET_VAULT }, icon = Icons.Rounded.Lock, enabled = vaultInitialized)
                 CommandRule()
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
                         Text("SSH Trust Store", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                        Text("${trustEntries.size} host key ثبت شده؛ fingerprintها Secret نیستند.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        Text(copy.setTrustCount.replace("%1", trustEntries.size.toString()), color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
-                    CommandTextButton("پاک‌سازی", { confirmAction = SettingsConfirmAction.CLEAR_TRUST }, icon = Icons.Rounded.DeleteOutline, enabled = trustEntries.isNotEmpty())
+                    CommandTextButton(copy.setPurge, { confirmAction = SettingsConfirmAction.CLEAR_TRUST }, icon = Icons.Rounded.DeleteOutline, enabled = trustEntries.isNotEmpty())
                 }
                 if (trustEntries.isEmpty()) {
-                    Text("Trust Store خالی است.", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(copy.setTrustEmpty, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 } else {
                     trustEntries.forEach { entry ->
                         Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
@@ -138,9 +138,9 @@ fun CommandSettingsScreen(
             }
         }
         item {
-            SettingsSection(title = "Diagnostics", detail = "اطلاعات runtime؛ هیچ وضعیت ساختگی در این بخش تولید نمی‌شود.") {
+            SettingsSection(title = "Diagnostics", detail = copy.setRuntimeBody) {
                 CommandStatusMark("Didban ${BuildConfig.VERSION_NAME}", CommandHealthTone.INFO, detail = "Host Key Store initialized: ${HostKeyTrustStore.initialized}")
-                Text("برای بررسی کامل connectivity از ابزارهای SSH، SFTP و Probe در Workbench استفاده کنید.", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                Text(copy.setConnectivityBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
@@ -150,11 +150,11 @@ fun CommandSettingsScreen(
         val action = confirmAction
         AlertDialog(
             onDismissRequest = { confirmAction = null },
-            title = { Text(if (action == SettingsConfirmAction.RESET_VAULT) "Reset Vault؟" else "پاک‌سازی Trust Store؟", fontWeight = FontWeight.Bold) },
+            title = { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultTitle else copy.setPurgeTrustTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    if (action == SettingsConfirmAction.RESET_VAULT) "این کار Master Password، canary و تمام Noteهای رمزنگاری‌شدهٔ Vault را حذف می‌کند و قابل بازگشت نیست."
-                    else "تمام SSH host keyهای ذخیره‌شده حذف می‌شوند؛ اتصال بعدی هر سرور دوباره نیازمند Trust است."
+                    if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultBody
+                    else copy.setPurgeTrustBody
                 )
             },
             confirmButton = {
@@ -167,9 +167,9 @@ fun CommandSettingsScreen(
                         trustEntries = loadTrustEntries()
                     }
                     confirmAction = null
-                }) { Text(if (action == SettingsConfirmAction.RESET_VAULT) "حذف Vault" else "حذف Trustها", color = CommandColors.danger) }
+                }) { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultAction else copy.setPurgeTrustAction, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text("لغو") } }
+            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text(copy.cancel) } }
         )
     }
 }
