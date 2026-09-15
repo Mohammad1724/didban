@@ -254,13 +254,14 @@ fun CommandOverviewScreen(
 private fun List<Float>.averageOrNull(): Float? = takeIf { it.isNotEmpty() }?.average()?.toFloat()
 
 private fun commandHealthScore(views: List<CommandServerView>): Int? {
-    if (views.isEmpty() || views.none { it.state?.metrics != null || it.state?.error != null }) return null
-    return views.map {
+    val known = views.filter { it.state?.metrics != null || it.state?.error != null }
+    if (known.isEmpty()) return null
+    return known.map {
         when (it.tone) {
             CommandHealthTone.HEALTHY -> 100
             CommandHealthTone.ATTENTION -> 65
             CommandHealthTone.OFFLINE -> 0
-            CommandHealthTone.UNKNOWN -> 50
+            CommandHealthTone.UNKNOWN -> 0
             CommandHealthTone.INFO -> 100
         }
     }.average().roundToInt()
