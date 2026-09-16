@@ -35,6 +35,7 @@ import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MonitorHeart
@@ -245,6 +246,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
     var selectedServerId by rememberSaveable { mutableStateOf<Long?>(null) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var mobileNavigationOpen by rememberSaveable { mutableStateOf(false) }
+    var helpVisible by rememberSaveable { mutableStateOf(false) }
 
     // Deliberately plain `remember`: the exit hint is transient, so it should
     // not survive a configuration change (a stale "press again" pill after a
@@ -352,6 +354,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                     Column(Modifier.weight(1f).fillMaxHeight()) {
                         CommandScopeBar(
                             copy = copy,
+                            language = language,
                             route = route,
                             selectedServer = selectedServer,
                             servers = servers,
@@ -366,7 +369,8 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                             },
                             onRefresh = {
                                 servers.forEach { PollingCoordinator.requestNow(it.id) }
-                            }
+                            },
+                            onHelp = { helpVisible = true }
                         )
                         CommandRouteContent(
                             copy = copy,
@@ -407,6 +411,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                     }
                     CommandScopeBar(
                         copy = copy,
+                        language = language,
                         route = route,
                         selectedServer = selectedServer,
                         servers = servers,
@@ -442,6 +447,10 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         }
                     )
                 }
+            }
+
+            if (helpVisible) {
+                CommandHelpDialog(route = route, language = language, copy = copy, onDismiss = { helpVisible = false })
             }
 
             AnimatedVisibility(
@@ -673,11 +682,13 @@ private fun CommandMobileNavigation(
 @Composable
 private fun CommandScopeBar(
     copy: CommandCopy,
+    language: String,
     route: CommandRoute,
     selectedServer: ServerConfig?,
     servers: List<ServerConfig>,
     onSelectedServer: (ServerConfig?) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    onHelp: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     Row(
@@ -722,6 +733,11 @@ private fun CommandScopeBar(
             text = "${servers.size} ${copy.servers}",
             tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
             modifier = Modifier.padding(end = CommandSpacing.xs)
+        )
+        CommandIconButton(
+            Icons.Rounded.HelpOutline,
+            if (language == "fa") "راهنمای این صفحه" else "Page guide",
+            onHelp
         )
         CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
     }
