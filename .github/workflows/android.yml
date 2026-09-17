@@ -56,6 +56,27 @@ jobs:
       - name: Lint
         run: gradle lintDebug --no-daemon
 
+      - name: Verify Android component exposure policy
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse('app/src/main/AndroidManifest.xml').getroot()
+          android = '{http://schemas.android.com/apk/res/android}'
+          app = manifest.find('application')
+          assert app is not None
+          assert app.get(android + 'allowBackup') == 'false'
+          assert app.get(android + 'usesCleartextTraffic') == 'false'
+          allowed_exported = {'.MainActivity'}
+          for tag in ('activity', 'activity-alias', 'service', 'receiver', 'provider'):
+              for component in app.findall(tag):
+                  name = component.get(android + 'name', '')
+                  exported = component.get(android + 'exported') == 'true'
+                  if exported and name not in allowed_exported:
+                      raise SystemExit(f'Unexpected exported Android component: {tag} {name}')
+          receiver = app.find("receiver[@{http://schemas.android.com/apk/res/android}name='.DidbanWidgetProvider']")
+          assert receiver is not None and receiver.get(android + 'exported') == 'false'
+          PY
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
