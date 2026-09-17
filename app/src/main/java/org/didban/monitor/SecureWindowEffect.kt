@@ -10,12 +10,12 @@ import java.util.WeakHashMap
 
 /** Prevents screenshots, screen recording, and sensitive Recent Apps previews. */
 @Composable
-fun SecureWindowEffect() {
+fun SecureWindowEffect(enabled: Boolean = true) {
     val view = LocalView.current
-    DisposableEffect(view) {
+    DisposableEffect(view, enabled) {
         val activity = view.context.findActivity()
-        if (activity != null) SecureWindowRegistry.acquire(activity)
-        onDispose { if (activity != null) SecureWindowRegistry.release(activity) }
+        if (enabled && activity != null) SecureWindowRegistry.acquire(activity)
+        onDispose { if (enabled && activity != null) SecureWindowRegistry.release(activity) }
     }
 }
 

@@ -56,6 +56,7 @@ fun CommandSshScreen(
     onSelectServer: () -> Unit,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -169,6 +170,7 @@ fun CommandBatchScreen(
     copy: CommandCopy,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val servers = remember { Prefs.loadServers(context) }

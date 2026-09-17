@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var apiToken by remember { mutableStateOf(Prefs.getCfToken(context)) }

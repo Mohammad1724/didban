@@ -963,6 +963,9 @@ fun InputField(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     trailingIcon: (@Composable () -> Unit)? = null
 ) {
+    // Generic password fields may be embedded in otherwise non-sensitive
+    // screens; secure the containing window for exactly their composition.
+    SecureWindowEffect(enabled = isPassword)
     var passVisible by remember { mutableStateOf(!isPassword) }
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
