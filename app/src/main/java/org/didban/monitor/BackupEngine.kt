@@ -36,6 +36,18 @@ enum class RestoreMode {
 object BackupEngine {
 
     private const val ENC_PREFIX = "DIDBAN_BACKUP_V2:"
+    private const val MAX_BACKUP_CHARS = 8 * 1024 * 1024
+    private const val MAX_RECORDS_PER_SECTION = 2_000
+
+    private fun validateEnvelope(root: JSONObject) {
+        val version = root.optInt("version", 1)
+        require(version in 1..2) { "Unsupported backup version" }
+        listOf("servers", "tunnels", "uptime_targets").forEach { key ->
+            require((root.optJSONArray(key)?.length() ?: 0) <= MAX_RECORDS_PER_SECTION) {
+                "Backup section is too large"
+            }
+        }
+    }
 
     /**
      * Creates a full backup of Didban (Servers, Tunnels, Uptime, Vault, Settings).
@@ -80,14 +92,20 @@ object BackupEngine {
 
         val plainJson = root.toString()
 
+        require(plainJson.length <= MAX_BACKUP_CHARS) { "Backup is too large to export safely" }
         val encrypted = EncryptedVault.encrypt(plainJson, backupPassword)
-        return "$ENC_PREFIX$encrypted"
+        val output = "$ENC_PREFIX$encrypted"
+        require(output.length <= MAX_BACKUP_CHARS) { "Encrypted backup is too large to export safely" }
+        return output
     }
 
     /**
      * Inspects and previews a backup blob without applying it.
      */
     fun inspectBackup(raw: String, password: String? = null): BackupPreview {
+        if (raw.length > MAX_BACKUP_CHARS) {
+            return BackupPreview(isValid = false, isEncrypted = raw.startsWith(ENC_PREFIX), errorMessage = "حجم بکاپ بیش از حد مجاز است.")
+        }
         val trimmed = raw.trim()
         if (trimmed.isBlank()) {
             return BackupPreview(isValid = false, isEncrypted = false, errorMessage = "رشته بکاپ خالی است")
@@ -98,14 +116,14 @@ object BackupEngine {
         val jsonStr = if (isEncrypted) {
             if (password.isNullOrBlank()) {
                 return BackupPreview(
-                    isValid = true,
+                    isValid = false,
                     isEncrypted = true,
                     errorMessage = "این بکاپ رمزنگاری شده است. لطفاً رمز عبور را وارد کنید."
                 )
             }
             try {
                 val encPayload = trimmed.removePrefix(ENC_PREFIX)
-                EncryptedVault.decrypt(encPayload, password)
+                EncryptedVault.decrypt(encPayload, password).also { require(it.length <= MAX_BACKUP_CHARS) { "Decrypted backup is too large" } }
             } catch (e: Exception) {
                 return BackupPreview(
                     isValid = false,
@@ -119,6 +137,7 @@ object BackupEngine {
 
         return try {
             val root = JSONObject(jsonStr)
+            validateEnvelope(root)
             val serversArr = root.optJSONArray("servers") ?: JSONArray()
             val tunnelsArr = root.optJSONArray("tunnels") ?: JSONArray()
             val uptimeArr = root.optJSONArray("uptime_targets") ?: JSONArray()
@@ -150,6 +169,9 @@ object BackupEngine {
         password: String? = null,
         mode: RestoreMode = RestoreMode.Merge
     ): RestoreResult {
+        if (raw.length > MAX_BACKUP_CHARS) {
+            return RestoreResult(success = false, message = "حجم بکاپ بیش از حد مجاز است.")
+        }
         val trimmed = raw.trim()
         val isEncrypted = trimmed.startsWith(ENC_PREFIX)
 
@@ -159,7 +181,7 @@ object BackupEngine {
             }
             try {
                 val encPayload = trimmed.removePrefix(ENC_PREFIX)
-                EncryptedVault.decrypt(encPayload, password)
+                EncryptedVault.decrypt(encPayload, password).also { require(it.length <= MAX_BACKUP_CHARS) { "Decrypted backup is too large" } }
             } catch (e: Exception) {
                 return RestoreResult(success = false, message = "رمز عبور اشتباه است یا فایل بکاپ خراب است.")
             }
@@ -169,6 +191,7 @@ object BackupEngine {
 
         return try {
             val root = JSONObject(jsonStr)
+            validateEnvelope(root)
 
             // Parse and validate the complete document before touching storage.
             val serversArr = root.optJSONArray("servers") ?: JSONArray()
@@ -176,21 +199,37 @@ object BackupEngine {
                 ServerConfig.fromJson(serversArr.getJSONObject(i))
             }
             val unsafeServer = incomingServers.firstOrNull {
-                !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
+                it.id <= 0 || it.name.isBlank() || it.name.length > 200 || it.token.length > 4096 ||
+                    !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
                     !CertFingerprint.isValidSha256(it.fingerprint)
             }
             require(unsafeServer == null) {
                 "Backup contains an insecure or invalid server connection: ${unsafeServer?.name}"
+            }
+            require(incomingServers.map { it.id }.distinct().size == incomingServers.size) { "Duplicate server ids" }
+            require(incomingServers.map { "${it.host.lowercase(Locale.ROOT)}:${it.port}" }.distinct().size == incomingServers.size) {
+                "Duplicate server endpoints"
             }
 
             val tunnelsArr = root.optJSONArray("tunnels") ?: JSONArray()
             val incomingTunnels = MutableList(tunnelsArr.length()) { i ->
                 TunnelConfig.fromJson(tunnelsArr.getJSONObject(i))
             }
+            require(incomingTunnels.all { it.id > 0 && it.name.isNotBlank() && it.name.length <= 200 && it.token.length <= 4096 }) {
+                "Invalid tunnel record"
+            }
+            require(incomingTunnels.map { it.id }.distinct().size == incomingTunnels.size) { "Duplicate tunnel ids" }
             val uptimeArr = root.optJSONArray("uptime_targets") ?: JSONArray()
             val incomingUptime = MutableList(uptimeArr.length()) { i ->
                 UptimeTarget.fromJson(uptimeArr.getJSONObject(i))
             }
+            val allowedProbeTypes = setOf("HTTP", "HTTPS", "TCP", "PING", "KEYWORD", "SSL")
+            require(incomingUptime.all {
+                it.id > 0 && it.name.isNotBlank() && it.name.length <= 200 &&
+                    it.type in allowedProbeTypes && it.target.isNotBlank() && it.target.length <= 2048 &&
+                    it.port in 1..65535 && it.intervalSec in 10..86400 && it.keyword.length <= 2048
+            }) { "Invalid uptime monitor" }
+            require(incomingUptime.map { it.id }.distinct().size == incomingUptime.size) { "Duplicate uptime ids" }
 
             val currentServerResult = Prefs.loadServersResult(ctx)
             check(currentServerResult.error == null) { "Existing secure server data cannot be read" }

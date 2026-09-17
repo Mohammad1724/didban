@@ -443,7 +443,13 @@ fun CommandTunnelEditorScreen(
     if (actionToConfirm != null && configToConfirm != null) {
         val action = actionToConfirm
         val cfg = configToConfirm
-        val actionLabel = action.name.lowercase()
+        val actionLabel = when (action) {
+            TunnelConfirmAction.DEPLOY -> copy.deploy
+            TunnelConfirmAction.START -> copy.start
+            TunnelConfirmAction.STOP -> copy.stop
+            TunnelConfirmAction.RESTART -> copy.restart
+            TunnelConfirmAction.DELETE -> copy.delete
+        }
         AlertDialog(
             onDismissRequest = { if (!busy) { confirmAction = null; confirmConfig = null } },
             title = { Text(if (action == TunnelConfirmAction.DELETE) copy.tunDeleteTitle else if (action == TunnelConfirmAction.DEPLOY) copy.tunDeployTitle else actionLabel, fontWeight = FontWeight.Bold) },

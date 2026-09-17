@@ -43,7 +43,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private data class PendingRestoreRequest(
+    val raw: String,
+    val password: String?,
+    val mode: RestoreMode,
+    val preview: BackupPreview
+)
 
 @Composable
 fun CommandVaultScreen(
@@ -214,12 +223,17 @@ fun CommandBackupScreen(
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     var createPassword by remember { mutableStateOf("") }
     var restorePassword by remember { mutableStateOf("") }
     var raw by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<BackupPreview?>(null) }
     var mode by remember { mutableStateOf(RestoreMode.Merge) }
     var result by remember { mutableStateOf<String?>(null) }
+    var resultSuccess by remember { mutableStateOf<Boolean?>(null) }
+    var inspectedRaw by remember { mutableStateOf<String?>(null) }
+    var pendingRestore by remember { mutableStateOf<PendingRestoreRequest?>(null) }
+    var busy by remember { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
@@ -272,12 +286,12 @@ fun CommandBackupScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.backupVerifyRestore, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(raw, { raw = it; preview = null; result = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
-                    OutlinedTextField(restorePassword, { restorePassword = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.backupPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(raw, { raw = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
+                    OutlinedTextField(restorePassword, { restorePassword = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.backupPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton("Merge", { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
                         CommandSecondaryButton("Overwrite", { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
-                        CommandSecondaryButton("Inspect", { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }) }, enabled = raw.isNotBlank())
+                        CommandSecondaryButton("Inspect", { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = raw }, enabled = raw.isNotBlank() && !busy)
                     }
                     val currentPreview = preview
                     if (currentPreview != null) {
@@ -285,15 +299,51 @@ fun CommandBackupScreen(
                         CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
                         CommandPrimaryButton(copy.backupRestoreAction.replace("%1", if (mode == RestoreMode.Merge) copy.backupModeMerge else copy.backupModeOverwrite), {
-                            val restored = BackupEngine.restoreBackup(context, raw, restorePassword.takeIf { it.isNotBlank() }, mode)
-                            result = restored.message
-                        }, enabled = p.isValid)
+                            if (raw == inspectedRaw) pendingRestore = PendingRestoreRequest(raw, restorePassword.takeIf { it.isNotBlank() }, mode, p)
+                        }, enabled = p.isValid && raw == inspectedRaw && !busy)
                     }
-                    if (result != null) Text(result ?: "", color = CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    if (result != null) Text(result ?: "", color = if (resultSuccess == true) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+
+    val request = pendingRestore
+    if (request != null) {
+        val destructive = request.mode == RestoreMode.Overwrite
+        AlertDialog(
+            onDismissRequest = { if (!busy) pendingRestore = null },
+            title = { Text(copy.backupRestoreAction.replace("%1", if (destructive) copy.backupModeOverwrite else copy.backupModeMerge), fontWeight = FontWeight.Bold) },
+            text = {
+                Text(copy.backupSummary
+                    .replace("%1", request.preview.serversCount.toString())
+                    .replace("%2", request.preview.tunnelsCount.toString())
+                    .replace("%3", request.preview.uptimeCount.toString())
+                    .replace("%4", BackupEngine.formatTimestamp(request.preview.timestamp)))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (busy) return@TextButton
+                    busy = true
+                    scope.launch {
+                        val restored = withContext(Dispatchers.Default) {
+                            BackupEngine.restoreBackup(context, request.raw, request.password, request.mode)
+                        }
+                        result = restored.message.take(500)
+                        resultSuccess = restored.success
+                        if (restored.success) {
+                            pendingRestore = null
+                            preview = null
+                            inspectedRaw = null
+                            restorePassword = ""
+                        }
+                        busy = false
+                    }
+                }, enabled = !busy) { Text(copy.run, color = if (destructive) CommandColors.danger else CommandColors.accent) }
+            },
+            dismissButton = { TextButton(onClick = { pendingRestore = null }, enabled = !busy) { Text(copy.cancel) } }
+        )
     }
 }
 
