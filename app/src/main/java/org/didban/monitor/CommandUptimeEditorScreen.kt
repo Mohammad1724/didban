@@ -220,18 +220,30 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
     if (targetToDelete != null) {
         val item = targetToDelete
         AlertDialog(
-            onDismissRequest = { deleteTarget = null },
+            onDismissRequest = { if (!busy) deleteTarget = null },
             title = { Text(copy.upDeleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(copy.upDeleteBody.replace("%1", item.name)) },
+            text = { Text("${copy.upDeleteBody.replace("%1", item.name)}\n\n${item.type} · ${item.target}:${item.port} · #${item.id}") },
             confirmButton = {
                 TextButton(onClick = {
-                    UptimeEngine.remove(context, item.id)
-                    deleteTarget = null
-                    reset()
-                    message = copy.upDeleted
-                }) { Text(copy.delete, color = CommandColors.danger) }
+                    if (busy) return@TextButton
+                    busy = true
+                    val current = targets.firstOrNull { it.id == item.id }
+                    runCatching {
+                        check(current != null && current.name == item.name && current.type == item.type && current.target == item.target) {
+                            copy.upCheckFailed
+                        }
+                        UptimeEngine.remove(context, item.id)
+                    }.onSuccess {
+                        deleteTarget = null
+                        reset()
+                        message = copy.upDeleted
+                    }.onFailure {
+                        error = (it.message ?: copy.operationFailed).take(300)
+                    }
+                    busy = false
+                }, enabled = !busy) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(copy.cancel) } }
+            dismissButton = { TextButton(onClick = { deleteTarget = null }, enabled = !busy) { Text(copy.cancel) } }
         )
     }
 }

@@ -130,11 +130,12 @@ object Prefs {
     }
 
     fun resetVault(ctx: Context) {
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val saved = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .remove("vault_canary_enc")
             .remove("vault_notes_enc")
-            .apply()
+            .commit()
+        check(saved) { "Vault reset could not be persisted" }
     }
 
     // ── Uptime Targets ──
@@ -157,8 +158,9 @@ object Prefs {
     fun saveUptimeTargets(ctx: Context, targets: List<UptimeTarget>) {
         val arr = JSONArray()
         targets.forEach { arr.put(it.toJson()) }
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("uptime_targets", arr.toString()).apply()
+        val saved = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("uptime_targets", arr.toString()).commit()
+        check(saved) { "Uptime monitors could not be persisted" }
     }
 
     // ── Dual-Node Tunnels ──

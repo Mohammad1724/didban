@@ -268,9 +268,12 @@ object UptimeEngine {
     fun remove(ctx: Context, id: Long) {
         val app = ctx.applicationContext
         ensureLoaded(app)
-        liveTargets.value = liveTargets.value.filter { it.id != id }
-        scheduler.prune(liveTargets.value.map { it.id }.toHashSet())
-        commit(app)
+        val next = liveTargets.value.filter { it.id != id }
+        // Persist first: a storage failure must not make the monitor disappear
+        // from the live UI while leaving it on disk to return after restart.
+        Prefs.saveUptimeTargets(app, next)
+        liveTargets.value = next
+        scheduler.prune(next.map { it.id }.toHashSet())
     }
 
     /** Toggle pause; unpausing triggers an immediate check. */

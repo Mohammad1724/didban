@@ -267,32 +267,43 @@ fun CommandManageServersScreen(
     if (serverToDelete != null) {
         val server = serverToDelete
         AlertDialog(
-            onDismissRequest = { deleteServer = null },
+            onDismissRequest = { if (!busy) deleteServer = null },
             title = { Text(copy.srvDeleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(copy.srvDeleteBody.replace("%1", server.name)) },
+            text = { Text("${copy.srvDeleteBody.replace("%1", server.name)}\n\n${server.name} · ${server.host}:${server.port} · #${server.id}") },
             confirmButton = {
                 TextButton(onClick = {
+                    if (busy) return@TextButton
                     if (initialLoad.error != null) {
                         deleteServer = null
                         error = securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
                         return@TextButton
                     }
-                    val next = records.filterNot { it.id == server.id }
-                    runCatching { Prefs.saveServers(context, next) }
-                        .onSuccess {
-                            HttpClientPool.evictForServer(server)
-                            records = next
-                            deleteServer = null
-                            reset()
-                            message = copy.srvLocalDeleted
+                    busy = true
+                    val current = records.firstOrNull { it.id == server.id }
+                    runCatching {
+                        check(current != null && current.name == server.name && current.host == server.host && current.token == server.token) {
+                            securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
                         }
-                        .onFailure {
-                            deleteServer = null
-                            error = it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED)
-                        }
-                }) { Text(copy.delete, color = CommandColors.danger) }
+                        val next = records.filterNot { it.id == server.id }
+                        Prefs.saveServers(context, next)
+                        next
+                    }.onSuccess { next ->
+                        HttpClientPool.evictForServer(server)
+                        records = next
+                        deleteServer = null
+                        reset()
+                        message = copy.srvLocalDeleted
+                    }.onFailure {
+                        deleteServer = null
+                        error = SecretRedactor.redact(
+                            it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED),
+                            listOf(server.token)
+                        ).take(300)
+                    }
+                    busy = false
+                }, enabled = !busy) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteServer = null }) { Text(copy.cancel) } }
+            dismissButton = { TextButton(onClick = { deleteServer = null }, enabled = !busy) { Text(copy.cancel) } }
         )
     }
 }

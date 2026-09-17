@@ -63,6 +63,6 @@ object HostKeyTrustStore : HostKeyStore {
     /** Removes every stored SSH host-key trust anchor after explicit confirmation. */
     fun clearAll() {
         requireInit()
-        prefs.edit().clear().apply()
+        check(prefs.edit().clear().commit()) { "SSH trust-store purge could not be persisted" }
     }
 }

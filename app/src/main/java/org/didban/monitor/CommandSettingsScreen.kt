@@ -54,6 +54,7 @@ fun CommandSettingsScreen(
     var confirmAction by remember { mutableStateOf<SettingsConfirmAction?>(null) }
     var trustEntries by remember { mutableStateOf(loadTrustEntries()) }
     var vaultInitialized by remember { mutableStateOf(Prefs.isVaultInitialized(context)) }
+    var mutationBusy by remember { mutableStateOf(false) }
 
     fun saveInterval() {
         val seconds = interval.toLongOrNull()?.coerceIn(5L, 3600L)
@@ -150,7 +151,7 @@ fun CommandSettingsScreen(
     if (confirmAction != null) {
         val action = confirmAction
         AlertDialog(
-            onDismissRequest = { confirmAction = null },
+            onDismissRequest = { if (!mutationBusy) confirmAction = null },
             title = { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultTitle else copy.setPurgeTrustTitle, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
@@ -160,17 +161,22 @@ fun CommandSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (action == SettingsConfirmAction.RESET_VAULT) {
-                        Prefs.resetVault(context)
-                        vaultInitialized = false
-                    } else {
-                        runCatching { HostKeyTrustStore.clearAll() }
-                        trustEntries = loadTrustEntries()
+                    if (mutationBusy) return@TextButton
+                    mutationBusy = true
+                    runCatching {
+                        if (action == SettingsConfirmAction.RESET_VAULT) Prefs.resetVault(context)
+                        else HostKeyTrustStore.clearAll()
+                    }.onSuccess {
+                        if (action == SettingsConfirmAction.RESET_VAULT) vaultInitialized = false
+                        else trustEntries = loadTrustEntries()
+                        confirmAction = null
+                    }.onFailure {
+                        saveMessage = (it.message ?: copy.operationFailed).take(300)
                     }
-                    confirmAction = null
-                }) { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultAction else copy.setPurgeTrustAction, color = CommandColors.danger) }
+                    mutationBusy = false
+                }, enabled = !mutationBusy) { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultAction else copy.setPurgeTrustAction, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text(copy.cancel) } }
+            dismissButton = { TextButton(onClick = { confirmAction = null }, enabled = !mutationBusy) { Text(copy.cancel) } }
         )
     }
 }
