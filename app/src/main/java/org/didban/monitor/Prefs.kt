@@ -91,11 +91,12 @@ object Prefs {
     fun setupMasterPassword(ctx: Context, password: String) {
         val canary = EncryptedVault.encrypt("DIDBAN_VAULT_OK", password)
         val initialNotes = EncryptedVault.encrypt("[]", password)
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val saved = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             .edit()
             .putString("vault_canary_enc", canary)
             .putString("vault_notes_enc", initialNotes)
-            .apply()
+            .commit()
+        check(saved) { "Vault initialization could not be persisted" }
     }
 
     fun verifyMasterPassword(ctx: Context, password: String): Boolean {
@@ -112,21 +113,31 @@ object Prefs {
     fun loadVaultNotes(ctx: Context, password: String): List<VaultNote> {
         val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
         val rawEncrypted = sp.getString("vault_notes_enc", null) ?: return emptyList()
+        require(rawEncrypted.length <= 16 * 1024 * 1024) { "Vault payload is too large" }
         val jsonStr = EncryptedVault.decrypt(rawEncrypted, password)
+        require(jsonStr.length <= 8 * 1024 * 1024) { "Vault payload is too large" }
         val arr = JSONArray(jsonStr)
-        val list = mutableListOf<VaultNote>()
-        for (i in 0 until arr.length()) {
-            list.add(VaultNote.fromJson(arr.getJSONObject(i)))
+        require(arr.length() <= 1_000) { "Vault note limit exceeded" }
+        val list = MutableList(arr.length()) { i -> VaultNote.fromJson(arr.getJSONObject(i)) }
+        require(list.map { it.id }.distinct().size == list.size) { "Duplicate vault note ids" }
+        require(list.all { it.title.isNotBlank() && it.title.length <= 200 && it.tags.length <= 500 && it.content.length <= 65_536 }) {
+            "Vault note fields exceed safe limits"
         }
         return list
     }
 
     fun saveVaultNotes(ctx: Context, notes: List<VaultNote>, password: String) {
+        require(notes.size <= 1_000) { "Vault note limit exceeded" }
+        require(notes.map { it.id }.distinct().size == notes.size) { "Duplicate vault note ids" }
+        require(notes.all { it.title.isNotBlank() && it.title.length <= 200 && it.tags.length <= 500 && it.content.length <= 65_536 }) {
+            "Vault note fields exceed safe limits"
+        }
         val arr = JSONArray()
         notes.forEach { arr.put(it.toJson()) }
         val enc = EncryptedVault.encrypt(arr.toString(), password)
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
-            .edit().putString("vault_notes_enc", enc).apply()
+        val saved = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("vault_notes_enc", enc).commit()
+        check(saved) { "Vault changes could not be persisted" }
     }
 
     fun resetVault(ctx: Context) {

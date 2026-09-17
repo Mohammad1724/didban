@@ -67,6 +67,8 @@ fun CommandVaultScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var revealedId by remember { mutableStateOf<Long?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    var deleteNote by remember { mutableStateOf<VaultNote?>(null) }
+    var mutating by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
     var tags by remember { mutableStateOf("SSH") }
@@ -171,7 +173,7 @@ fun CommandVaultScreen(
                                     clipboard.setText(AnnotatedString(note.content))
                                 })
                                 CommandIconButton(Icons.Rounded.DeleteOutline, copy.deleteSecret, {
-                                    commitNotes(notes.filterNot { it.id == note.id })
+                                    if (!mutating) deleteNote = note
                                 })
                             }
                             Spacer(Modifier.height(CommandSpacing.sm))
@@ -196,22 +198,50 @@ fun CommandVaultScreen(
             title = { Text(copy.vaultAddSecret) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    OutlinedTextField(title, { title = it }, label = { Text(copy.secretTitle) }, singleLine = true)
-                    OutlinedTextField(tags, { tags = it }, label = { Text("Tag") }, singleLine = true)
-                    OutlinedTextField(content, { content = it }, label = { Text(copy.secretContent) }, minLines = 4)
+                    OutlinedTextField(title, { title = it.take(200) }, label = { Text(copy.secretTitle) }, singleLine = true)
+                    OutlinedTextField(tags, { tags = it.take(500) }, label = { Text("Tag") }, singleLine = true)
+                    OutlinedTextField(content, { content = it.take(65_536) }, label = { Text(copy.secretContent) }, minLines = 4)
                 }
             },
             confirmButton = {
-                TextButton(enabled = title.isNotBlank() && content.isNotBlank(), onClick = {
-                    val next = notes + VaultNote(System.currentTimeMillis(), title.trim(), content, tags.trim())
+                TextButton(enabled = title.isNotBlank() && content.isNotBlank() && !mutating, onClick = {
+                    if (mutating) return@TextButton
+                    mutating = true
+                    val nextId = generateSequence(System.currentTimeMillis()) { it + 1 }.first { id -> notes.none { it.id == id } }
+                    val next = notes + VaultNote(nextId, title.trim(), content, tags.trim())
                     if (commitNotes(next)) {
                         title = ""
                         content = ""
                         showAdd = false
                     }
+                    mutating = false
                 }) { Text(copy.save) }
             },
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text(copy.close) } }
+        )
+    }
+
+    val noteToDelete = deleteNote
+    if (noteToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { if (!mutating) deleteNote = null },
+            title = { Text(copy.deleteSecret, fontWeight = FontWeight.Bold) },
+            text = { Text("${noteToDelete.title}\n${noteToDelete.tags.ifBlank { "SECRET" }} · #${noteToDelete.id}") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (mutating) return@TextButton
+                    mutating = true
+                    val current = notes.firstOrNull { it.id == noteToDelete.id }
+                    if (current != null && current.title == noteToDelete.title && current.content == noteToDelete.content) {
+                        if (commitNotes(notes.filterNot { it.id == noteToDelete.id })) {
+                            if (revealedId == noteToDelete.id) revealedId = null
+                            deleteNote = null
+                        }
+                    } else error = copy.vaultSaveFailed
+                    mutating = false
+                }, enabled = !mutating) { Text(copy.delete, color = CommandColors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { deleteNote = null }, enabled = !mutating) { Text(copy.cancel) } }
         )
     }
 }
