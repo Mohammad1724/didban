@@ -79,9 +79,14 @@ fun CommandVaultScreen(
         }.onFailure { error = it.message ?: copy.vaultUnlockFailed }
     }
 
-    fun saveNotes() {
-        runCatching { Prefs.saveVaultNotes(context, notes, password) }
+    fun commitNotes(next: List<VaultNote>): Boolean {
+        return runCatching { Prefs.saveVaultNotes(context, next, password) }
+            .onSuccess {
+                notes = next
+                error = null
+            }
             .onFailure { error = it.message ?: copy.vaultSaveFailed }
+            .isSuccess
     }
 
     fun lock() {
@@ -157,8 +162,7 @@ fun CommandVaultScreen(
                                     clipboard.setText(AnnotatedString(note.content))
                                 })
                                 CommandIconButton(Icons.Rounded.DeleteOutline, copy.deleteSecret, {
-                                    notes = notes.filterNot { it.id == note.id }
-                                    saveNotes()
+                                    commitNotes(notes.filterNot { it.id == note.id })
                                 })
                             }
                             Spacer(Modifier.height(CommandSpacing.sm))
@@ -190,11 +194,12 @@ fun CommandVaultScreen(
             },
             confirmButton = {
                 TextButton(enabled = title.isNotBlank() && content.isNotBlank(), onClick = {
-                    notes = notes + VaultNote(System.currentTimeMillis(), title.trim(), content, tags.trim())
-                    saveNotes()
-                    title = ""
-                    content = ""
-                    showAdd = false
+                    val next = notes + VaultNote(System.currentTimeMillis(), title.trim(), content, tags.trim())
+                    if (commitNotes(next)) {
+                        title = ""
+                        content = ""
+                        showAdd = false
+                    }
                 }) { Text(copy.save) }
             },
             dismissButton = { TextButton(onClick = { showAdd = false }) { Text(copy.close) } }
@@ -237,9 +242,15 @@ fun CommandBackupScreen(
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                     )
                     CommandPrimaryButton(copy.backupCreateEncrypted, {
-                        raw = BackupEngine.createBackup(context, createPassword.takeIf { it.isNotBlank() })
-                        result = copy.backupCreated
-                    }, icon = Icons.Rounded.Security)
+                        runCatching { BackupEngine.createBackup(context, createPassword) }
+                            .onSuccess {
+                                raw = it
+                                result = copy.backupCreated
+                            }
+                            .onFailure {
+                                result = if (Prefs.getLanguage(context) == "fa") "برای جلوگیری از افشای توکن‌ها، واردکردن رمز بکاپ الزامی است." else "A backup password is required to prevent credential exposure."
+                            }
+                    }, icon = Icons.Rounded.Security, enabled = createPassword.isNotBlank())
                 }
             }
         }

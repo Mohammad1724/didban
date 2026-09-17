@@ -142,7 +142,8 @@ fun CommandNetworkToolsScreen(
             item {
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandStatusMark(summary ?: "", if (summary!!.contains("failed", true) || summary!!.contains("filtered", true)) CommandHealthTone.OFFLINE else CommandHealthTone.INFO)
+                        val currentSummary = summary.orEmpty()
+                        CommandStatusMark(currentSummary, if (currentSummary.contains("failed", true) || currentSummary.contains("filtered", true)) CommandHealthTone.OFFLINE else CommandHealthTone.INFO)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(detail, Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 30, overflow = TextOverflow.Ellipsis)
                             CommandTextButton("Copy", { clipboard.setText(AnnotatedString(detail)) }, icon = Icons.Rounded.ContentCopy)

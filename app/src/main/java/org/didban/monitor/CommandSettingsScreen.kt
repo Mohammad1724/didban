@@ -103,7 +103,8 @@ fun CommandSettingsScreen(
                 )
                 CommandPrimaryButton(copy.save, ::saveInterval, icon = Icons.Rounded.Settings)
                 if (saveMessage != null) {
-                    Text(saveMessage ?: "", color = if (saveMessage!!.contains(copy.save)) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    val currentMessage = saveMessage.orEmpty()
+                    Text(currentMessage, color = if (currentMessage.contains(copy.save)) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }

@@ -13,15 +13,20 @@ object Prefs {
     )
 
     /** Detailed form for user-facing screens: corruption/decryption is not disguised as an empty fleet. */
-    fun loadServersResult(ctx: Context): ServerLoadResult = try {
-        val raw = SecureStorage.getSecret(ctx, FILE, "servers")
-        if (raw.isEmpty()) return ServerLoadResult(mutableListOf())
-        val arr = JSONArray(raw)
-        val list = mutableListOf<ServerConfig>()
-        for (i in 0 until arr.length()) list.add(ServerConfig.fromJson(arr.getJSONObject(i)))
-        ServerLoadResult(list)
-    } catch (e: Exception) {
-        ServerLoadResult(mutableListOf(), e)
+    fun loadServersResult(ctx: Context): ServerLoadResult {
+        return try {
+            val raw = SecureStorage.getSecret(ctx, FILE, "servers")
+            if (raw.isEmpty()) {
+                ServerLoadResult(mutableListOf())
+            } else {
+                val arr = JSONArray(raw)
+                val list = mutableListOf<ServerConfig>()
+                for (i in 0 until arr.length()) list.add(ServerConfig.fromJson(arr.getJSONObject(i)))
+                ServerLoadResult(list)
+            }
+        } catch (e: Exception) {
+            ServerLoadResult(mutableListOf(), e)
+        }
     }
 
     /** Compatibility form for background workers; UI should prefer [loadServersResult]. */

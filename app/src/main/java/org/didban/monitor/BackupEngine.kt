@@ -42,6 +42,8 @@ object BackupEngine {
      * If [password] is provided and not blank, encrypts the payload with AES-256-GCM.
      */
     fun createBackup(ctx: Context, password: String? = null): String {
+        val backupPassword = password?.takeIf { it.isNotBlank() }
+            ?: throw IllegalArgumentException("A backup password is required because exports contain credentials")
         val sp = ctx.getSharedPreferences("didban", Context.MODE_PRIVATE)
 
         val root = JSONObject().apply {
@@ -78,12 +80,8 @@ object BackupEngine {
 
         val plainJson = root.toString()
 
-        return if (!password.isNullOrBlank()) {
-            val encrypted = EncryptedVault.encrypt(plainJson, password)
-            "$ENC_PREFIX$encrypted"
-        } else {
-            plainJson
-        }
+        val encrypted = EncryptedVault.encrypt(plainJson, backupPassword)
+        return "$ENC_PREFIX$encrypted"
     }
 
     /**
@@ -179,6 +177,16 @@ object BackupEngine {
             val incomingServers = mutableListOf<ServerConfig>()
             for (i in 0 until serversArr.length()) {
                 incomingServers.add(ServerConfig.fromJson(serversArr.getJSONObject(i)))
+            }
+            val unsafeServer = incomingServers.firstOrNull {
+                !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
+                    !CertFingerprint.isValidSha256(it.fingerprint)
+            }
+            if (unsafeServer != null) {
+                return RestoreResult(
+                    success = false,
+                    message = "Backup contains an insecure or invalid server connection: ${unsafeServer.name}"
+                )
             }
             val finalServers = if (mode == RestoreMode.Merge) {
                 val existing = Prefs.loadServers(ctx)

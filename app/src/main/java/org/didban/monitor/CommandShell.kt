@@ -424,7 +424,8 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                                 if (route == CommandRoute.SERVER_DOSSIER) navigate(CommandRoute.FLEET)
                             }
                         },
-                        onRefresh = { servers.forEach { PollingCoordinator.requestNow(it.id) } }
+                        onRefresh = { servers.forEach { PollingCoordinator.requestNow(it.id) } },
+                        onHelp = { helpVisible = true }
                     )
                     CommandRouteContent(
                         copy = copy,
