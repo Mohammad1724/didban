@@ -179,6 +179,12 @@ func TestApplyTunnelRejectsConfigOutsideSandbox(t *testing.T) {
 	}
 }
 
+func TestDefaultDeployModeCannotExecuteScripts(t *testing.T) {
+	if defaultDeployMode != DeployModeConfigOnly {
+		t.Fatalf("default deploy mode=%q, want config-only", defaultDeployMode)
+	}
+}
+
 func TestApplyTunnelConfigOnlyBlocksScript(t *testing.T) {
 	tm, _ := newTestManager(t, DeployModeConfigOnly)
 

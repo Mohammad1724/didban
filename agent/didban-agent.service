@@ -11,14 +11,21 @@ ExecStart=/usr/local/bin/didban-agent
 Restart=always
 RestartSec=5
 
-# Hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-ReadWritePaths=/var/lib/didban
+# The agent manages validated tunnel configs and systemd services. Keep the OS
+# image immutable while permitting its required /etc, /var and /run access.
+ProtectSystem=full
 ProtectHome=true
 PrivateTmp=true
+NoNewPrivileges=true
+UMask=0077
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
 ProtectKernelTunables=true
-ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
 RestrictSUIDSGID=true
 
 [Install]

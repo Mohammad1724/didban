@@ -188,6 +188,9 @@ cat > "$CONF_DIR/agent.conf" <<EOF
 DIDBAN_TOKEN=$TOKEN
 DIDBAN_ADDR=:$PORT
 DIDBAN_DATA=$DATA_DIR
+# Secure default: authenticated API requests cannot execute shell scripts.
+# Set to scripts only when zero-touch installers are explicitly required.
+DIDBAN_DEPLOY_MODE=config-only
 # Uncomment to disable TLS (NOT recommended):
 # DIDBAN_PLAIN=1
 # Detailed status page is authenticated by default. Explicit public opt-in:
@@ -220,7 +223,7 @@ EOF
 #     /var/lib/didban,
 #   - talks to /var/run/docker.sock (Docker) and the systemd bus (/run/dbus),
 #   - runs systemctl / journalctl for tunnel services,
-#   - (default deploy mode "scripts") runs operator-approved install scripts.
+#   - explicit deploy mode "scripts" runs operator-approved install scripts.
 # The old unit used ProtectSystem=strict (entire FS read-only except
 # /dev,/proc,/sys) which made /etc read-only and silently broke tunnel config
 # deployment. "full" keeps the OS image (/usr, /boot, /efi) immutable while
@@ -247,6 +250,10 @@ PrivateTmp=true
 
 # Hardening that cannot conflict with the functions above:
 NoNewPrivileges=true
+UMask=0077
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectKernelLogs=true
@@ -262,9 +269,8 @@ RestrictSUIDSGID=true
 #                                 (docker.sock, dbus) + internet (alerts)
 #   MemoryDenyWriteExecute=true   install scripts may need exec mappings
 #
-# Hardened variant (verify on a real host before deploying): set
-# DIDBAN_DEPLOY_MODE=config-only in /etc/didban/agent.conf (agent then never
-# executes scripts) and tighten to:
+# config-only is the default. A stricter host-specific unit may additionally
+# be tested with the following settings (paths vary by deployment):
 #   ProtectSystem=strict
 #   ReadWritePaths=/var/lib/didban /etc/didban /run/docker.sock /run/dbus
 

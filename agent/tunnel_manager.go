@@ -51,13 +51,14 @@ const (
 type DeployMode string
 
 const (
-	// DeployModeScripts (default) allows writing configs AND running the install
-	// script provided by the (authenticated) app.
+	// DeployModeScripts is an explicit operator opt-in that allows writing
+	// configs AND running the install script provided by the authenticated app.
 	DeployModeScripts DeployMode = "scripts"
-	// DeployModeConfigOnly is the hardened mode: the agent only writes config
-	// files inside its sandbox and manages the systemd unit name; it will never
-	// execute arbitrary shell commands.
+	// DeployModeConfigOnly is the secure default: the agent writes config files
+	// inside its sandbox and manages validated systemd unit names, but never
+	// executes request-supplied shell commands.
 	DeployModeConfigOnly DeployMode = "config-only"
+	defaultDeployMode               = DeployModeConfigOnly
 )
 
 func (m DeployMode) valid() bool {
