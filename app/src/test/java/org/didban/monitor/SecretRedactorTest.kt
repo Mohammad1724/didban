@@ -26,6 +26,15 @@ class SecretRedactorTest {
         assertFalse(safe.contains("secret-value"))
     }
 
+    @Test fun `redacts query command line and URI credentials`() {
+        val input = "https://host/path?access_token=query-secret&ok=1 --password cli-secret https://user:uri-secret@host/path"
+        val safe = SecretRedactor.redact(input)
+        assertFalse(safe.contains("query-secret"))
+        assertFalse(safe.contains("cli-secret"))
+        assertFalse(safe.contains("uri-secret"))
+        assertTrue(safe.contains("ok=1"))
+    }
+
     @Test fun `does not redact ordinary diagnostics`() {
         val input = "Connection refused at server.example:8686"
         assertTrue(SecretRedactor.redact(input).contains("server.example:8686"))

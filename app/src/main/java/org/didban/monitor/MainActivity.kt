@@ -49,11 +49,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
@@ -151,7 +149,7 @@ fun CrashRecoveryScreen(
     onReset: () -> Unit,
     consecutiveCount: Int = 0
 ) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var copied by remember { mutableStateOf(false) }
 
     DidbanTheme(dark = true) {
@@ -242,7 +240,7 @@ fun CrashRecoveryScreen(
                         text = if (copied) "Copied!" else "Copy Log",
                         icon = Icons.Rounded.ContentCopy,
                         onClick = {
-                            clipboard.setText(AnnotatedString(trace))
+                            SensitiveClipboard.copy(context, "Didban crash diagnostic", trace)
                             copied = true
                         },
                         modifier = Modifier.weight(1f).height(44.dp)

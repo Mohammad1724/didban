@@ -11,6 +11,9 @@ object SecretRedactor {
         Regex("gh[pousr]_[A-Za-z0-9]{20,}"),
         Regex("(?i)(api\\.telegram\\.org/bot)[^/\\s]+"),
         Regex("(?i)(discord(?:app)?\\.com/api/webhooks/\\d+/)[^/?\\s]+"),
+        Regex("(?i)([?&](?:access[_-]?token|token|password|secret|api[_-]?key)=)[^&#\\s]+"),
+        Regex("(?i)((?:--?(?:password|token|secret)|pass)\\s+)[^\\s,;]+"),
+        Regex("(?i)(://[^:/\\s]+:)[^@/\\s]+(?=@)"),
         Regex("(?i)([\"']?(?:token|password|secret|api[_-]?key)[\"']?\\s*[:=]\\s*[\"'])[^\"']+([\"'])")
     )
 

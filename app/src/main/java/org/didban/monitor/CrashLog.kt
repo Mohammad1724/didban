@@ -23,7 +23,9 @@ object CrashLog {
     private const val KEY_TRACE = "last_crash_trace"
     private const val KEY_COUNT = "crash_count"
     private const val KEY_LAST_AT = "crash_last_at"
+    private const val ENCRYPTED_PREFIX = "enc1:"
     private const val ENCRYPTION_FAILED = "trace unavailable (encryption failed)"
+    private const val DECRYPTION_FAILED = "trace unavailable (authentication failed)"
 
     /** Read the persisted crash record (null = no recorded crash). */
     fun readRecord(ctx: Context): CrashPolicy.CrashRecord? {
@@ -53,7 +55,7 @@ object CrashLog {
             val trace = SecretRedactor.redact(throwable.stackTraceToString())
                 .take(CrashPolicy.MAX_TRACE_CHARS)
             val payload = try {
-                SecureStorage.encrypt(trace)
+                ENCRYPTED_PREFIX + SecureStorage.encrypt(trace)
             } catch (_: Throwable) {
                 ENCRYPTION_FAILED
             }
@@ -71,10 +73,20 @@ object CrashLog {
         val raw = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_TRACE, null) ?: return null
         if (raw == ENCRYPTION_FAILED) return raw
-        val trace = try {
-            SecureStorage.decrypt(raw)
-        } catch (_: Throwable) {
-            raw // legacy plaintext from before the encryption fix
+        val trace = if (raw.startsWith(ENCRYPTED_PREFIX)) {
+            try {
+                SecureStorage.decrypt(raw.removePrefix(ENCRYPTED_PREFIX))
+            } catch (_: Throwable) {
+                // Authenticated ciphertext must never be rendered as if it
+                // were a legacy plaintext trace when storage is corrupted.
+                return DECRYPTION_FAILED
+            }
+        } else {
+            try {
+                SecureStorage.decrypt(raw) // pre-prefix encrypted record
+            } catch (_: Throwable) {
+                raw // legacy plaintext from before crash-trace encryption
+            }
         }
         // Redact again on read so legacy traces and future pattern additions
         // are protected before display or clipboard export.
