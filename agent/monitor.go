@@ -133,7 +133,7 @@ func NewMonitor(cfg *Config) *Monitor {
 	m := &Monitor{
 		cfg:           cfg,
 		events:        NewEventLog(cfg.DataDir + "/events.jsonl"),
-		dispatcher:    NewAlertDispatcher(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy, cfg.DiscordWebhook, cfg.GenericWebhook),
+		dispatcher:    NewAlertDispatcher(cfg.TelegramToken, cfg.TelegramChatID, cfg.TelegramProxy, cfg.DiscordWebhook, cfg.GenericWebhook, cfg.AllowPrivateWebhooks),
 		uidMap:        loadUserMap(),
 		lastDiskEvent: make(map[string]time.Time),
 		watchState:    make(map[string]bool),

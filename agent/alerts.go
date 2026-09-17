@@ -11,6 +11,14 @@ import (
 	"time"
 )
 
+func mustURLPath(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.EscapedPath()
+}
+
 // AlertDispatcher handles dispatching alerts to Telegram, Discord, and Webhooks.
 type AlertDispatcher struct {
 	tgToken        string
@@ -23,22 +31,37 @@ type AlertDispatcher struct {
 	webhookEnabled bool
 }
 
-func NewAlertDispatcher(tgToken, tgChatID, tgProxy, discordWebhook, genericWebhook string) *AlertDispatcher {
+func NewAlertDispatcher(tgToken, tgChatID, tgProxy, discordWebhook, genericWebhook string, allowPrivate bool) *AlertDispatcher {
 	tgToken = strings.TrimSpace(tgToken)
 	tgChatID = strings.TrimSpace(tgChatID)
 	discordWebhook = strings.TrimSpace(discordWebhook)
 	genericWebhook = strings.TrimSpace(genericWebhook)
 
+	transport := secureOutboundTransport(allowPrivate)
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout:   10 * time.Second,
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	if tgProxy = strings.TrimSpace(tgProxy); tgProxy != "" {
-		if parsed, err := url.Parse(tgProxy); err == nil {
-			client.Transport = &http.Transport{
-				Proxy: http.ProxyURL(parsed),
-			}
+		if parsed, err := validateOutboundProxy(tgProxy, allowPrivate); err == nil {
+			transport.Proxy = http.ProxyURL(parsed)
 		}
+	}
+
+	discordHosts := map[string]bool{"discord.com": true, "canary.discord.com": true, "ptb.discord.com": true, "discordapp.com": true}
+	if validated, err := validateOutboundHTTPS(discordWebhook, discordHosts, allowPrivate); err == nil && strings.HasPrefix(mustURLPath(validated), "/api/webhooks/") {
+		discordWebhook = validated
+	} else {
+		discordWebhook = ""
+	}
+	if validated, err := validateOutboundHTTPS(genericWebhook, nil, allowPrivate); err == nil {
+		genericWebhook = validated
+	} else {
+		genericWebhook = ""
 	}
 
 	return &AlertDispatcher{

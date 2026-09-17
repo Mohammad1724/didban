@@ -48,12 +48,13 @@ type Config struct {
 	ProbeIntervalSec int
 
 	// Alerts
-	TelegramToken  string
-	TelegramChatID string
-	TelegramProxy  string
-	DiscordWebhook string
-	GenericWebhook string
-	EnableAlerts   bool
+	TelegramToken        string
+	TelegramChatID       string
+	TelegramProxy        string
+	DiscordWebhook       string
+	GenericWebhook       string
+	EnableAlerts         bool
+	AllowPrivateWebhooks bool
 }
 
 func envOr(key, def string) string {
@@ -125,6 +126,7 @@ func main() {
 	flag.StringVar(&cfg.DiscordWebhook, "discord-webhook", os.Getenv("DIDBAN_DISCORD_WEBHOOK"), "Discord Webhook URL for alerts")
 	flag.StringVar(&cfg.GenericWebhook, "webhook-url", os.Getenv("DIDBAN_WEBHOOK_URL"), "Generic Webhook URL for alerts")
 	flag.BoolVar(&cfg.EnableAlerts, "alerts", os.Getenv("DIDBAN_ALERTS") != "0", "Enable outbound alerts")
+	flag.BoolVar(&cfg.AllowPrivateWebhooks, "allow-private-webhooks", os.Getenv("DIDBAN_ALLOW_PRIVATE_WEBHOOKS") == "1", "allow alert webhooks/proxies to reach private networks")
 	flag.StringVar((*string)(&cfg.DeployMode), "deploy-mode", envOr("DIDBAN_DEPLOY_MODE", "scripts"), "tunnel deploy mode: 'scripts' (default) or 'config-only' (never execute install scripts)")
 	flag.StringVar(&cfg.ConfigDir, "config-dir", envOr("DIDBAN_TUNNEL_CONFIG_DIR", "/etc/didban/tunnels"), "sandboxed directory for tunnel configuration files")
 	// Tunnel watchdog: enabled by default; interval 5..600s. A set-but-invalid
