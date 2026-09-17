@@ -34,7 +34,12 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            // Release artifacts are optimized and stripped. Security-critical
+            // crypto/SSH implementations loaded by class name are retained by
+            // the narrow rules in proguard-rules.pro.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig hasSigning ? signingConfigs.release : signingConfigs.debug
         }
     }

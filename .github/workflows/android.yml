@@ -111,10 +111,12 @@ jobs:
       - name: Build release APK
         run: gradle assembleRelease --no-daemon
 
-      - name: Verify APK signature
+      - name: Verify release hardening and APK signature
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
+          MAPPING=app/build/outputs/mapping/release/mapping.txt
           test -s "$APK"
+          test -s "$MAPPING" || { echo "::error::R8 mapping is missing; release minification did not run."; exit 1; }
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -type f -name apksigner | sort -V | tail -n 1)"
           test -x "$APKSIGNER"
           "$APKSIGNER" verify --verbose "$APK"
