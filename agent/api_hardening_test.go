@@ -128,6 +128,17 @@ func TestGlobalBodyCap_AppliesToAllEndpoints(t *testing.T) {
 	}
 }
 
+func TestAPIResponsesAreNotCacheable(t *testing.T) {
+	api := hardeningAPI(t)
+	rec := doAuth(t, api, http.MethodGet, "/api/metrics", "hard-token")
+	if rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("Cache-Control=%q, want no-store", rec.Header().Get("Cache-Control"))
+	}
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("X-Content-Type-Options=%q", rec.Header().Get("X-Content-Type-Options"))
+	}
+}
+
 // ── Access log hygiene ──────────────────────────────────────────────────────
 
 func TestAccessLog_DoesNotLeakSecrets(t *testing.T) {

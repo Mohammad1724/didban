@@ -41,22 +41,22 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/status", a.handleStatusPage)
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
-	mux.HandleFunc("/api/processes/kill", a.auth(a.idempotent(a.handleProcessKill)))
+	mux.HandleFunc("/api/processes/kill", a.auth(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill))))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
 
 	// Real bandwidth test (streaming download / upload sink)
 	mux.HandleFunc("/api/bandwidth/download", a.auth(a.handleBandwidthDownload))
 	mux.HandleFunc("/api/bandwidth/upload", a.auth(a.handleBandwidthUpload))
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
-	mux.HandleFunc("/api/docker/restart", a.auth(a.idempotent(a.handleDockerRestart)))
-	mux.HandleFunc("/api/docker/stop", a.auth(a.idempotent(a.handleDockerStop)))
+	mux.HandleFunc("/api/docker/restart", a.auth(a.idempotent(a.auditDestructive("docker_restart", a.handleDockerRestart))))
+	mux.HandleFunc("/api/docker/stop", a.auth(a.idempotent(a.auditDestructive("docker_stop", a.handleDockerStop))))
 
 	// Tunnel Management APIs (Smite / Marzban style auto-orchestration)
-	mux.HandleFunc("/api/tunnel/apply", a.auth(a.idempotent(a.handleTunnelApply)))
-	mux.HandleFunc("/api/tunnel/start", a.auth(a.idempotent(a.handleTunnelStart)))
-	mux.HandleFunc("/api/tunnel/stop", a.auth(a.idempotent(a.handleTunnelStop)))
-	mux.HandleFunc("/api/tunnel/restart", a.auth(a.idempotent(a.handleTunnelRestart)))
-	mux.HandleFunc("/api/tunnel/delete", a.auth(a.idempotent(a.handleTunnelDelete)))
+	mux.HandleFunc("/api/tunnel/apply", a.auth(a.idempotent(a.auditDestructive("tunnel_apply", a.handleTunnelApply))))
+	mux.HandleFunc("/api/tunnel/start", a.auth(a.idempotent(a.auditDestructive("tunnel_start", a.handleTunnelStart))))
+	mux.HandleFunc("/api/tunnel/stop", a.auth(a.idempotent(a.auditDestructive("tunnel_stop", a.handleTunnelStop))))
+	mux.HandleFunc("/api/tunnel/restart", a.auth(a.idempotent(a.auditDestructive("tunnel_restart", a.handleTunnelRestart))))
+	mux.HandleFunc("/api/tunnel/delete", a.auth(a.idempotent(a.auditDestructive("tunnel_delete", a.handleTunnelDelete))))
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
@@ -112,6 +112,11 @@ func (s *statusRecorder) WriteHeader(code int) {
 // query strings, headers or bodies (no secrets in logs).
 func (a *API) harden(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+			w.Header().Set("Pragma", "no-cache")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+		}
 		// Global body cap for every request (enforced at read time), except for
 		// the routes that stream a large payload and cap it themselves.
 		if !bodyCapExemptPaths[r.URL.Path] {
