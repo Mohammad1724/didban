@@ -139,6 +139,37 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 	}
 }
 
+func TestDetailedStatusIsPrivateByDefault(t *testing.T) {
+	api := hardeningAPI(t)
+	unauthorized := httptest.NewRecorder()
+	api.routes().ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/status", nil))
+	if unauthorized.Code != http.StatusUnauthorized {
+		t.Fatalf("private status without token=%d, want 401", unauthorized.Code)
+	}
+	authorized := doAuth(t, api, http.MethodGet, "/status", "hard-token")
+	if authorized.Code != http.StatusOK {
+		t.Fatalf("private status with token=%d, want 200", authorized.Code)
+	}
+	if authorized.Header().Get("Content-Security-Policy") == "" || authorized.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatal("status page security headers missing")
+	}
+}
+
+func TestDetailedStatusPublicOptInDoesNotExposeAPIStatus(t *testing.T) {
+	api := hardeningAPI(t)
+	api.cfg.PublicStatus = true
+	public := httptest.NewRecorder()
+	api.routes().ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/status", nil))
+	if public.Code != http.StatusOK {
+		t.Fatalf("opt-in public status=%d, want 200", public.Code)
+	}
+	privateAPI := httptest.NewRecorder()
+	api.routes().ServeHTTP(privateAPI, httptest.NewRequest(http.MethodGet, "/api/status", nil))
+	if privateAPI.Code != http.StatusUnauthorized {
+		t.Fatalf("API status without token=%d, want 401", privateAPI.Code)
+	}
+}
+
 // ── Access log hygiene ──────────────────────────────────────────────────────
 
 func TestAccessLog_DoesNotLeakSecrets(t *testing.T) {

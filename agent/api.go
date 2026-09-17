@@ -38,8 +38,14 @@ func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog, pm
 func (a *API) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", a.handleHealth)
-	mux.HandleFunc("/status", a.handleStatusPage)
-	mux.HandleFunc("/api/status", a.handleStatusPage)
+	if a.cfg.PublicStatus {
+		mux.HandleFunc("/status", a.handleStatusPage)
+	} else {
+		mux.HandleFunc("/status", a.auth(a.handleStatusPage))
+	}
+	// The API namespace is always authenticated, regardless of the optional
+	// public status-page posture.
+	mux.HandleFunc("/api/status", a.auth(a.handleStatusPage))
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
 	mux.HandleFunc("/api/processes/kill", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill)))))
@@ -113,10 +119,15 @@ func (s *statusRecorder) WriteHeader(code int) {
 // query strings, headers or bodies (no secrets in logs).
 func (a *API) harden(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/status" {
 			w.Header().Set("Cache-Control", "no-store")
 			w.Header().Set("Pragma", "no-cache")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
+		}
+		if r.URL.Path == "/status" || r.URL.Path == "/api/status" {
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		}
 		// Global body cap for every request (enforced at read time), except for
 		// the routes that stream a large payload and cap it themselves.

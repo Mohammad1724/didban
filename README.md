@@ -16,7 +16,7 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 - 🐳 **Docker Container Watcher & Remote Control** — monitor all Docker containers via native socket (`/var/run/docker.sock`, zero dependencies), detect crashed/unhealthy containers with instant alerts, and restart/stop containers on the go
 - ⏱️ **Uptime & Heartbeat Engine (Uptime Kuma style)** — monitor HTTP(S), TCP ports (MySQL, Redis, Postgres), Ping, Keywords, and SSL with 30-bar heartbeats and incident downtime tracking
 - 🛡️ **DPI Censorship & TLS Inspector** — diagnose TCP SYN drops, DPI TCP RST injections, and TLS Handshake SNI filtering/censorship
-- 📄 **Public HTML Status Page** — built-in responsive web status page at `/status` showing server health, uptime, disks, ports, and activity
+- 📄 **Authenticated HTML Status Page** — built-in responsive web status page at `/status` showing server health, uptime, disks, ports, and activity
 - ✈️ **Multi-channel instant alerts** — get rich alerts with top culprit processes sent to **Telegram**, **Discord Webhooks**, and **Generic Webhooks**
 - 👂 **Listening ports & active connections** — live inspection of server ports, sockets, connected remote IPs, matched to PIDs and process names
 - 🛑 **Remote process killer** — search, inspect, and terminate (SIGTERM/SIGKILL) heavy or runaway processes straight from the app or API
@@ -52,7 +52,7 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 │  • /api/metrics  /api/processes  /api/network/sockets          │
 │  • /api/docker/containers  /api/docker/restart  /api/docker/stop│
 │  • /api/events   /api/history    /api/processes/kill           │
-│  • Public HTML Status Page (/status)                           │
+│  • Authenticated HTML Status Page (/status)                           │
 │  • Multi-Channel Alert Dispatcher (Telegram/Discord/Webhook)   │
 │  • records spikes & container events 24/7 to disk              │
 └────────────────────────────────────────────────────────────────┘
@@ -101,9 +101,9 @@ For every configured tunnel:
 - **Docker Compose & Config Files**: Ready-to-use `docker-compose.yml` and `toml`/`yaml` configuration definitions.
 - **Live Latency & Health Probing**: Real-time round-trip latency (ms) and connectivity verification.
 
-## Public Status Page
+## Status Page
 
-Visit `https://YOUR_SERVER_IP:8686/status` in your browser to view the clean, auto-refreshing public server status board.
+`/status` exposes hostname, disks, listening ports, process names, and recent events, so it requires the same Bearer token as the API by default. For an intentionally public deployment, set `DIDBAN_PUBLIC_STATUS=1` (or pass `--public-status`). Keep the default on Internet-facing agents.
 
 ## Alerts Configuration (Telegram, Discord, Webhooks)
 
@@ -138,7 +138,7 @@ All `/api/*` endpoints require `Authorization: Bearer <token>`. The `?token=` qu
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | liveness & alert status (no auth) |
-| `GET` | `/status` | public responsive HTML status board |
+| `GET` | `/status` | authenticated responsive HTML status board (public only with explicit opt-in) |
 | `GET` | `/api/metrics` | CPU (usage/user/system/iowait/**steal**), memory, swap, disks, network rates, load, uptime |
 | `GET` | `/api/docker/containers` | list all Docker containers, health, state, image, and exposed ports |
 | `POST` | `/api/docker/restart` | restart a Docker container (`{"id": "container_id_or_name"}`) |

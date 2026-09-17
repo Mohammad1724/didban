@@ -190,6 +190,8 @@ DIDBAN_ADDR=:$PORT
 DIDBAN_DATA=$DATA_DIR
 # Uncomment to disable TLS (NOT recommended):
 # DIDBAN_PLAIN=1
+# Detailed status page is authenticated by default. Explicit public opt-in:
+# DIDBAN_PUBLIC_STATUS=1
 
 # ── Spike thresholds (percent) ──────────────────────────────────
 # DIDBAN_CPU_TH=70

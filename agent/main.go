@@ -31,6 +31,7 @@ type Config struct {
 	Token          string
 	DataDir        string
 	PlainHTTP      bool
+	PublicStatus   bool    // expose detailed /status without authentication (opt-in)
 	CPUThreshold   float64 // percent, spike event threshold
 	MemThreshold   float64 // percent, spike event threshold
 	StealThreshold float64 // percent, steal event threshold
@@ -101,6 +102,7 @@ func main() {
 	flag.StringVar(&cfg.Token, "token", os.Getenv("DIDBAN_TOKEN"), "auth token (auto-generated if empty)")
 	flag.StringVar(&cfg.DataDir, "data", envOr("DIDBAN_DATA", "/var/lib/didban"), "data directory (events, TLS certs)")
 	flag.BoolVar(&cfg.PlainHTTP, "plain", os.Getenv("DIDBAN_PLAIN") == "1", "disable TLS (NOT recommended)")
+	flag.BoolVar(&cfg.PublicStatus, "public-status", os.Getenv("DIDBAN_PUBLIC_STATUS") == "1", "expose detailed /status without a bearer token")
 	// Spike thresholds: flag > env (DIDBAN_*_TH in /etc/didban/agent.conf) >
 	// default. An invalid env value aborts startup instead of silently
 	// falling back (H13).
