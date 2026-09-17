@@ -199,7 +199,7 @@ object BackupEngine {
                 ServerConfig.fromJson(serversArr.getJSONObject(i))
             }
             val unsafeServer = incomingServers.firstOrNull {
-                it.id <= 0 || it.name.isBlank() || it.name.length > 200 || it.token.length > 4096 ||
+                it.id <= 0 || it.name.isBlank() || it.name.length > 200 || !AgentTokenPolicy.isValid(it.token) ||
                     !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
                     !CertFingerprint.isValidSha256(it.fingerprint)
             }

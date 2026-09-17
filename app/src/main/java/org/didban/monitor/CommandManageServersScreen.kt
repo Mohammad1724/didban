@@ -122,6 +122,7 @@ fun CommandManageServersScreen(
         server.name.isBlank() -> copy.srvNameRequired
         !TunnelFieldValidation.isHost(server.host) -> copy.srvHostInvalid
         server.token.isBlank() -> copy.srvTokenRequired
+        !AgentTokenPolicy.isValid(server.token) -> securityMessage(Prefs.getLanguage(context), SecurityMessage.WEAK_AGENT_TOKEN)
         !server.useTls -> securityMessage(Prefs.getLanguage(context), SecurityMessage.HTTP_DISABLED)
         !CertFingerprint.isValidSha256(server.fingerprint) -> copy.srvFingerprintInvalid
         else -> null

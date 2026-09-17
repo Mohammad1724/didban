@@ -167,7 +167,7 @@ Tunnel apply endpoints are hardened against command-injection and path-traversal
 - **Audit trail.** Every deploy carrying a script records `tunnel_deploy_start` / `tunnel_deploy_ok` / `tunnel_deploy_failed` events (visible at `/api/events`) including the first 8 bytes of the script's SHA-256.
 - **Timeouts.** All `systemctl`/`journalctl` calls are bounded (10 s) so a hung D-Bus can never wedge an API handler.
 - **Proper status codes.** Unknown tunnel `status`/`start`/`stop` → `404`; invalid input → `400`; internal failure → `500`.
-- **Token hygiene.** The full token is printed only on the agent's first start; subsequent restarts show a prefix only, so the secret does not accumulate in the systemd journal.
+- **Token hygiene.** The full token is printed only on the agent's first start; subsequent restarts show a prefix only, so the secret does not accumulate in the systemd journal. Custom Agent tokens must be 32–256 printable ASCII characters without whitespace; weak or header-ambiguous values fail startup.
 
 ## Data & persistence
 

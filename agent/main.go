@@ -169,9 +169,13 @@ func main() {
 		fatal("cannot secure data directory %s: %v", cfg.DataDir, err)
 	}
 
-	// Resolve or generate the auth token.
+	// Resolve or generate the auth token, then enforce a strength/format floor
+	// regardless of whether it came from a flag, environment, or disk.
 	if cfg.Token == "" {
 		cfg.Token = loadOrCreateToken(filepath.Join(cfg.DataDir, "token"))
+	}
+	if err := validateAuthToken(cfg.Token); err != nil {
+		fatal("invalid agent authentication token: %v", err)
 	}
 
 	// Prepare TLS (self-signed, auto-generated) unless running in plain mode.
@@ -256,6 +260,26 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+const (
+	minAuthTokenBytes = 32
+	maxAuthTokenBytes = 256
+)
+
+func validateAuthToken(token string) error {
+	if len(token) < minAuthTokenBytes {
+		return fmt.Errorf("must be at least %d ASCII characters", minAuthTokenBytes)
+	}
+	if len(token) > maxAuthTokenBytes {
+		return fmt.Errorf("must not exceed %d characters", maxAuthTokenBytes)
+	}
+	for _, b := range []byte(token) {
+		if b < 0x21 || b > 0x7e {
+			return fmt.Errorf("must contain printable ASCII without whitespace")
+		}
+	}
+	return nil
 }
 
 func loadOrCreateToken(path string) string {
