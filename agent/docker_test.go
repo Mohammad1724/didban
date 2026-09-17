@@ -74,6 +74,21 @@ func fakeDockerDaemon(t *testing.T, inspectStatus int, inspectEnv []string) stri
 	return sock
 }
 
+func TestValidateDockerIdentifier(t *testing.T) {
+	valid := []string{"abcdef123456", "web-1", "stack_service.2", "A"}
+	for _, value := range valid {
+		if got, err := validateDockerIdentifier(value); err != nil || got != value {
+			t.Errorf("valid identifier %q rejected: got=%q err=%v", value, got, err)
+		}
+	}
+	invalid := []string{"", "../containers/victim/stop", "name/restart", "name?x=1", " name with spaces ", strings.Repeat("a", 129)}
+	for _, value := range invalid {
+		if _, err := validateDockerIdentifier(value); err == nil {
+			t.Errorf("unsafe identifier %q accepted", value)
+		}
+	}
+}
+
 func TestGetDockerContainersEnrichesFilteredEnv(t *testing.T) {
 	oldSock := dockerSockPath
 	dockerSockPath = fakeDockerDaemon(t, http.StatusOK, []string{

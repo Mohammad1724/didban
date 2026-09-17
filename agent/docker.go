@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -68,8 +71,23 @@ var dockerEnvAllowlist = map[string]bool{
 	"PASSWORD": true,
 }
 
-// maxEnvInspect bounds the extra /inspect calls per containers listing.
-const maxEnvInspect = 50
+// Bounds protect the agent if the privileged local Docker socket is replaced
+// by a broken or malicious peer.
+const (
+	maxEnvInspect         = 50
+	maxDockerListBytes    = 4 << 20
+	maxDockerInspectBytes = 1 << 20
+)
+
+var dockerIdentifierPattern = regexp.MustCompile(`^(?:[a-fA-F0-9]{12,64}|[A-Za-z0-9][A-Za-z0-9_.-]{0,127})$`)
+
+func validateDockerIdentifier(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if !dockerIdentifierPattern.MatchString(value) {
+		return "", fmt.Errorf("invalid container ID or name")
+	}
+	return value, nil
+}
 
 // filterEnv keeps only non-empty allowlisted keys from a raw docker
 // env list ("KEY=VALUE" strings). Matching is EXACT — DB_PASSWORD must
@@ -94,7 +112,11 @@ func filterEnv(raw []string) map[string]string {
 // inspectEnv fetches one container's Config.Env and returns the filtered
 // subset (nil on any error — enrichment is best effort).
 func inspectEnv(client *http.Client, id string) map[string]string {
-	resp, err := client.Get("http://localhost/v1.41/containers/" + id + "/inspect")
+	id, err := validateDockerIdentifier(id)
+	if err != nil {
+		return nil
+	}
+	resp, err := client.Get("http://localhost/v1.41/containers/" + url.PathEscape(id) + "/inspect")
 	if err != nil {
 		return nil
 	}
@@ -107,7 +129,7 @@ func inspectEnv(client *http.Client, id string) map[string]string {
 			Env []string `json:"Env"`
 		} `json:"Config"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDockerInspectBytes)).Decode(&raw); err != nil {
 		return nil
 	}
 	return filterEnv(raw.Config.Env)
@@ -143,9 +165,12 @@ func GetDockerContainers() DockerSummary {
 		return DockerSummary{Installed: true, Error: err.Error(), Containers: []ContainerInfo{}}
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return DockerSummary{Installed: true, Error: fmt.Sprintf("docker API returned HTTP %d", resp.StatusCode), Containers: []ContainerInfo{}}
+	}
 
 	var rawList []rawDockerContainer
-	if err := json.NewDecoder(resp.Body).Decode(&rawList); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDockerListBytes)).Decode(&rawList); err != nil {
 		return DockerSummary{Installed: true, Error: err.Error(), Containers: []ContainerInfo{}}
 	}
 
@@ -199,9 +224,10 @@ func GetDockerContainers() DockerSummary {
 
 // RestartDockerContainer restarts a container by ID or Name.
 func RestartDockerContainer(idOrName string) error {
-	idOrName = strings.TrimSpace(idOrName)
-	if idOrName == "" {
-		return fmt.Errorf("container ID or name is required")
+	var err error
+	idOrName, err = validateDockerIdentifier(idOrName)
+	if err != nil {
+		return err
 	}
 
 	client, _, err := getDockerClient()
@@ -209,8 +235,8 @@ func RestartDockerContainer(idOrName string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("http://localhost/v1.41/containers/%s/restart?t=10", idOrName)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	endpoint := fmt.Sprintf("http://localhost/v1.41/containers/%s/restart?t=10", url.PathEscape(idOrName))
+	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -229,9 +255,10 @@ func RestartDockerContainer(idOrName string) error {
 
 // StopDockerContainer stops a container by ID or Name.
 func StopDockerContainer(idOrName string) error {
-	idOrName = strings.TrimSpace(idOrName)
-	if idOrName == "" {
-		return fmt.Errorf("container ID or name is required")
+	var err error
+	idOrName, err = validateDockerIdentifier(idOrName)
+	if err != nil {
+		return err
 	}
 
 	client, _, err := getDockerClient()
@@ -239,8 +266,8 @@ func StopDockerContainer(idOrName string) error {
 		return err
 	}
 
-	url := fmt.Sprintf("http://localhost/v1.41/containers/%s/stop?t=10", idOrName)
-	req, err := http.NewRequest(http.MethodPost, url, nil)
+	endpoint := fmt.Sprintf("http://localhost/v1.41/containers/%s/stop?t=10", url.PathEscape(idOrName))
+	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
 	if err != nil {
 		return err
 	}
