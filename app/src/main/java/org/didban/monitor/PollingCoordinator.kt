@@ -3,7 +3,6 @@ package org.didban.monitor
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -191,10 +190,9 @@ object PollingCoordinator {
         lastAlertAt[key] = now
 
         val appCtx = ctx.applicationContext
-        val openIntent = Intent(appCtx, MainActivity::class.java)
-            .putExtra("server_id", server.id)
+        val openIntent = InternalNavigation.openServerIntent(appCtx, server.id)
         val pi = PendingIntent.getActivity(
-            appCtx, (server.id % 100000L).toInt(),
+            appCtx, 0,
             openIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

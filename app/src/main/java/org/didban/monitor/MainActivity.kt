@@ -127,14 +127,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         try {
             handleServerIntent(intent)
         } catch (_: Throwable) {}
     }
 
     private fun handleServerIntent(intent: Intent?) {
-        val id = intent?.getLongExtra("server_id", -1L) ?: -1L
-        pendingServerId.value = if (id > 0) id else null
+        // MainActivity is exported for the launcher. Never trust navigation
+        // extras supplied by another app; only our immutable notification
+        // PendingIntent carries the process-scoped capability.
+        pendingServerId.value = InternalNavigation.trustedServerId(intent)
     }
 }
 
