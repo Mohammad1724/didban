@@ -21,6 +21,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,6 +53,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
     var port by remember { mutableStateOf("443") }
     var interval by remember { mutableStateOf("30") }
     var keyword by remember { mutableStateOf("") }
+    var allowPrivateNetwork by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -65,6 +67,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         port = "443"
         interval = "30"
         keyword = ""
+        allowPrivateNetwork = false
         message = null
         error = null
     }
@@ -77,6 +80,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         port = item.port.toString()
         interval = item.intervalSec.toString()
         keyword = item.keyword
+        allowPrivateNetwork = item.allowPrivateNetwork
         message = null
         error = null
     }
@@ -91,6 +95,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         port = port.toIntOrNull()?.coerceIn(1, 65535) ?: if (type == "HTTPS" || type == "SSL") 443 else 80,
         intervalSec = interval.toIntOrNull()?.coerceIn(10, 86400) ?: 30,
         keyword = keyword.trim(),
+        allowPrivateNetwork = allowPrivateNetwork,
         isPaused = selectedId?.let { id -> targets.firstOrNull { it.id == id }?.isPaused } ?: false,
         lastStatus = selectedId?.let { id -> targets.firstOrNull { it.id == id }?.lastStatus } ?: -1,
         lastLatencyMs = original?.lastLatencyMs ?: 0,
@@ -180,6 +185,13 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upIntervalSeconds) })
                         OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.upKeywordHint) })
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Allow private network targets", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                            Text("Required for localhost, LAN, link-local or private IPv6 targets. Enable only for trusted destinations.", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        }
+                        Switch(checked = allowPrivateNetwork, onCheckedChange = { allowPrivateNetwork = it })
                     }
                     Text(copy.upEditorBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }

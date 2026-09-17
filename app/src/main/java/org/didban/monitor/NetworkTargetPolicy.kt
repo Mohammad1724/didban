@@ -9,14 +9,22 @@ object NetworkTargetPolicy {
     private const val MAX_URL_LENGTH = 4_096
 
     fun requirePublicHttps(raw: String, allowedHosts: Set<String>? = null): URI {
-        require(raw.length in 1..MAX_URL_LENGTH) { "URL length is invalid" }
-        val uri = URI(raw.trim())
-        require(uri.scheme.equals("https", ignoreCase = true)) { "HTTPS is required" }
-        require(uri.rawUserInfo == null && uri.rawFragment == null) { "URL credentials and fragments are not allowed" }
-        val host = uri.host?.trimEnd('.')?.lowercase() ?: error("URL host is missing")
-        require(host.isNotBlank()) { "URL host is missing" }
+        val uri = requireWebUrl(raw, setOf("https"))
+        val host = uri.host.trimEnd('.').lowercase()
         if (allowedHosts != null) require(host in allowedHosts) { "URL host is not allowed" }
         require(uri.port == -1 || uri.port == 443) { "Only HTTPS port 443 is allowed" }
+        return uri
+    }
+
+    fun requirePublicWebUrl(raw: String): URI = requireWebUrl(raw, setOf("http", "https"))
+
+    private fun requireWebUrl(raw: String, schemes: Set<String>): URI {
+        require(raw.length in 1..MAX_URL_LENGTH) { "URL length is invalid" }
+        val uri = URI(raw.trim())
+        require(uri.scheme?.lowercase() in schemes) { "URL scheme is not allowed" }
+        require(uri.rawUserInfo == null && uri.rawFragment == null) { "URL credentials and fragments are not allowed" }
+        require(!uri.host.isNullOrBlank()) { "URL host is missing" }
+        require(uri.port == -1 || uri.port in 1..65535) { "URL port is invalid" }
         return uri
     }
 

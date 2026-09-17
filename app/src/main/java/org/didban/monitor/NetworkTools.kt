@@ -126,7 +126,7 @@ data class SslCertInfo(
 )
 
 object SslInspector {
-    suspend fun inspect(host: String, port: Int = 443, timeoutMs: Int = 8000): SslCertInfo = withContext(Dispatchers.IO) {
+    suspend fun inspect(host: String, port: Int = 443, timeoutMs: Int = 8000, resolvedAddress: InetAddress? = null): SslCertInfo = withContext(Dispatchers.IO) {
         var certChain: Array<X509Certificate>? = null
 
         val tm = object : X509TrustManager {
@@ -142,7 +142,7 @@ object SslInspector {
 
         val socket = sslContext.socketFactory.createSocket() as SSLSocket
         try {
-            socket.connect(InetSocketAddress(host, port), timeoutMs)
+            socket.connect(InetSocketAddress(resolvedAddress ?: InetAddress.getByName(host), port), timeoutMs)
             socket.soTimeout = timeoutMs
             socket.startHandshake()
 

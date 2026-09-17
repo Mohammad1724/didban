@@ -23,6 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.TimeUnit
@@ -81,6 +82,7 @@ data class UptimeTarget(
     var port: Int = 80,
     var intervalSec: Int = 30,
     var keyword: String = "",
+    var allowPrivateNetwork: Boolean = false,
     var isPaused: Boolean = false,
     var lastStatus: Int = -1, // -1 = pending, 1 = up, 0 = down
     var lastLatencyMs: Long = 0,
@@ -103,6 +105,7 @@ data class UptimeTarget(
         put("port", port)
         put("intervalSec", intervalSec)
         put("keyword", keyword)
+        put("allowPrivateNetwork", allowPrivateNetwork)
         put("isPaused", isPaused)
         put("lastStatus", lastStatus)
         put("lastLatencyMs", lastLatencyMs)
@@ -127,6 +130,7 @@ data class UptimeTarget(
                 port = o.optInt("port", 80),
                 intervalSec = o.optInt("intervalSec", 30),
                 keyword = o.optString("keyword"),
+                allowPrivateNetwork = o.optBoolean("allowPrivateNetwork", false),
                 isPaused = o.optBoolean("isPaused", false),
                 lastStatus = o.optInt("lastStatus", -1),
                 lastLatencyMs = o.optLong("lastLatencyMs", 0),
@@ -152,7 +156,16 @@ data class UptimeTarget(
 // ── Background Uptime Monitor Runner ─────────────────────────────────────────
 
 object UptimeEngine {
-    private val httpClient = OkHttpClient.Builder()
+    private val publicHttpClient = OkHttpClient.Builder()
+        .dns(PublicOnlyDns)
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
+        .build()
+    private val privateHttpClient = OkHttpClient.Builder()
+        .followRedirects(false)
+        .followSslRedirects(false)
         .connectTimeout(6, TimeUnit.SECONDS)
         .readTimeout(8, TimeUnit.SECONDS)
         .build()
@@ -311,8 +324,10 @@ object UptimeEngine {
                     if (!url.startsWith("http://") && !url.startsWith("https://")) {
                         url = "https://$url"
                     }
-                    val req = Request.Builder().url(url).build()
-                    httpClient.newCall(req).execute().use { resp ->
+                    val validatedUrl = NetworkTargetPolicy.requirePublicWebUrl(url).toASCIIString()
+                    val req = Request.Builder().url(validatedUrl).build()
+                    val client = if (target.allowPrivateNetwork) privateHttpClient else publicHttpClient
+                    client.newCall(req).execute().use { resp ->
                         val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
                         if (resp.isSuccessful) {
                             if (target.type.uppercase() == "KEYWORD" && target.keyword.isNotBlank()) {
@@ -334,15 +349,27 @@ object UptimeEngine {
 
                 "TCP", "PING" -> {
                     val port = if (target.port > 0) target.port else 80
+                    val addresses = InetAddress.getAllByName(target.target.trim()).toList()
+                    require(addresses.isNotEmpty()) { "Target did not resolve" }
+                    if (!target.allowPrivateNetwork) {
+                        require(addresses.all(NetworkTargetPolicy::isPublicAddress)) { "Private network target requires explicit permission" }
+                    }
                     Socket().use { s ->
-                        s.connect(InetSocketAddress(target.target.trim(), port), 5000)
+                        // Connect to the already validated address to avoid a
+                        // second DNS lookup between policy and connection.
+                        s.connect(InetSocketAddress(addresses.first(), port), 5000)
                         isUp = true
                     }
                 }
 
                 "SSL" -> {
                     val port = if (target.port > 0) target.port else 443
-                    val cert = SslInspector.inspect(target.target.trim(), port, 5000)
+                    val addresses = InetAddress.getAllByName(target.target.trim()).toList()
+                    require(addresses.isNotEmpty()) { "Target did not resolve" }
+                    if (!target.allowPrivateNetwork) {
+                        require(addresses.all(NetworkTargetPolicy::isPublicAddress)) { "Private network target requires explicit permission" }
+                    }
+                    val cert = SslInspector.inspect(target.target.trim(), port, 5000, addresses.first())
                     isUp = !cert.isExpired
                     if (cert.isExpired) errMsg = "Certificate expired"
                 }
