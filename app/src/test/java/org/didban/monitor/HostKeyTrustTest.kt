@@ -66,35 +66,24 @@ class HostKeyTrustTest {
         assertEquals("def", store.getFingerprint("OTHER", 22))
     }
 
-    // ── AutoTrustPolicy ─────────────────────────────────────────────────────
+    // ── StoredHostKeyPolicy ────────────────────────────────────────────────
 
     @Test
-    fun `auto trust records the key on first contact`() = runBlocking {
+    fun `background policy rejects unknown host without storing it`() = runBlocking {
         val store = InMemoryHostKeyStore()
-        val policy = AutoTrustPolicy(store)
-        assertTrue(policy.verify("h1", 22, keyA))
-        assertEquals(HostKeyFingerprint.of(keyA), store.getFingerprint("h1", 22))
+        val policy = StoredHostKeyPolicy(store)
+        assertFalse(policy.verify("h1", 22, keyA))
+        assertEquals(null, store.getFingerprint("h1", 22))
     }
 
     @Test
-    fun `auto trust enforces the key on later contacts`() = runBlocking {
+    fun `background policy accepts only matching confirmed key`() = runBlocking {
         val store = InMemoryHostKeyStore()
-        val policy = AutoTrustPolicy(store)
+        store.storeFingerprint("h1", 22, HostKeyFingerprint.of(keyA))
+        val policy = StoredHostKeyPolicy(store)
         assertTrue(policy.verify("h1", 22, keyA))
-        assertTrue(policy.verify("h1", 22, keyA))
-        // A different key for the same host must be rejected (possible MITM).
         assertFalse(policy.verify("h1", 22, keyB))
-        // The stored key must be unchanged after a rejection.
         assertEquals(HostKeyFingerprint.of(keyA), store.getFingerprint("h1", 22))
-    }
-
-    @Test
-    fun `auto trust keeps hosts independent`() = runBlocking {
-        val store = InMemoryHostKeyStore()
-        val policy = AutoTrustPolicy(store)
-        assertTrue(policy.verify("h1", 22, keyA))
-        // A different host with a different key is trusted independently.
-        assertTrue(policy.verify("h2", 22, keyB))
     }
 
     // ── ConfirmingHostKeyPolicy ─────────────────────────────────────────────
@@ -167,13 +156,12 @@ class HostKeyTrustTest {
     }
 
     @Test
-    fun `forget clears trust`() = runBlocking {
+    fun `forget makes background trust fail closed again`() = runBlocking {
         val store = InMemoryHostKeyStore()
-        val policy = AutoTrustPolicy(store)
+        store.storeFingerprint("h1", 22, HostKeyFingerprint.of(keyA))
+        val policy = StoredHostKeyPolicy(store)
         assertTrue(policy.verify("h1", 22, keyA))
         store.forget("h1", 22)
-        // After forget, even a different key is trusted again (fresh TOFU).
-        assertTrue(policy.verify("h1", 22, keyB))
-        assertEquals(HostKeyFingerprint.of(keyB), store.getFingerprint("h1", 22))
+        assertFalse(policy.verify("h1", 22, keyA))
     }
 }

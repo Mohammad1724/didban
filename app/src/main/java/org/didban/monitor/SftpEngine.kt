@@ -96,7 +96,7 @@ object SftpEngine {
         port: Int,
         user: String,
         pass: String,
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): com.jcraft.jsch.Session {
         CryptoSecurity.ensureInitialized()
         val jsch = JSch()
@@ -140,7 +140,7 @@ object SftpEngine {
         remotePath: String = "/etc",
         showHidden: Boolean = true,
         sortMode: SftpSortMode = SftpSortMode.NAME_ASC,
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): List<SftpFileItem> = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null
@@ -221,7 +221,7 @@ object SftpEngine {
         pass: String,
         remotePath: String,
         maxBytes: Long = 4 * 1024 * 1024, // 4 MB limit for editor safety
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): String = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null
@@ -257,7 +257,7 @@ object SftpEngine {
         pass: String,
         remotePath: String,
         content: String,
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): Boolean = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null

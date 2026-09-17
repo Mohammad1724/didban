@@ -34,9 +34,9 @@ object SshEngine {
      * Executes a command over SSH on a remote host.
      *
      * Host keys are verified against the local trust store (TOFU) via
-     * [hostKeyPolicy] right after the key exchange. Default is automatic
-     * TOFU; interactive screens pass a [ConfirmingHostKeyPolicy] so the
-     * first contact requires explicit user confirmation.
+     * [hostKeyPolicy] right after the key exchange. The default requires a
+     * previously confirmed key; interactive screens pass a
+     * [ConfirmingHostKeyPolicy] so first contact requires explicit approval.
      */
     suspend fun execute(
         host: String,
@@ -45,7 +45,7 @@ object SshEngine {
         password: String,
         command: String,
         timeoutSec: Int = 25,
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): SshExecResult = withContext(Dispatchers.IO) {
         val t0 = System.currentTimeMillis()
         var session: com.jcraft.jsch.Session? = null
@@ -149,7 +149,7 @@ object SshEngine {
         targets: List<Triple<ServerConfig, Int, String>>, // ServerConfig, sshPort, password
         command: String,
         timeoutSec: Int = 30,
-        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
+        hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): List<BatchServerResult> = withContext(Dispatchers.IO) {
         // M10: bound the fan-out — N targets must not mean N simultaneous
         // SSH sessions (each with up to 2×1MB of streams) on the phone.

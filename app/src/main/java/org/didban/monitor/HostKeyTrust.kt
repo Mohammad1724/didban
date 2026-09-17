@@ -11,8 +11,8 @@ import java.util.Base64
  * known_hosts itself in our flow, so every session verifies the presented
  * host key against a local trust store right after the key exchange:
  *
- *  - First contact: the key is recorded (after explicit user confirmation in
- *    interactive flows, or automatically in non-interactive pipelines).
+ *  - First contact: the key is recorded only after explicit user confirmation.
+ *    Non-interactive pipelines reject hosts that have not been confirmed.
  *  - Later contacts: the key must match exactly; any change aborts the
  *    connection (possible MITM, or the server was reimaged).
  *
@@ -71,26 +71,20 @@ interface HostKeyPolicy {
 }
 
 /**
- * Non-interactive TOFU: trust the key on first contact, enforce it forever
- * after. Used by background pipelines (tunnel deploy, SFTP, batch jobs)
- * where no user is present to confirm a dialog.
+ * Non-interactive policy: only an already confirmed key is accepted. Unknown
+ * hosts fail closed so a background job cannot establish trust while the
+ * network is under an active MITM attack.
  */
-class AutoTrustPolicy(private val store: HostKeyStore) : HostKeyPolicy {
+class StoredHostKeyPolicy(private val store: HostKeyStore) : HostKeyPolicy {
     override suspend fun verify(host: String, port: Int, rawKey: ByteArray): Boolean {
-        val fp = HostKeyFingerprint.of(rawKey)
-        val stored = store.getFingerprint(host, port)
-        return if (stored == null) {
-            store.storeFingerprint(host, port, fp)
-            true
-        } else {
-            HostKeyFingerprint.verify(stored, rawKey)
-        }
+        val stored = store.getFingerprint(host, port) ?: return false
+        return HostKeyFingerprint.verify(stored, rawKey)
     }
 }
 
 /**
  * Interactive TOFU: first contact suspends until the user confirms a dialog;
- * a changed key suspends until the user explicitly resets trust.
+ * a changed key suspends until the user explicitly confirms replacement.
  */
 class ConfirmingHostKeyPolicy(
     private val store: HostKeyStore,
