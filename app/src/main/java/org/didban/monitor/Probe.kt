@@ -119,6 +119,7 @@ object ProbeSpecs {
         if (host.isEmpty()) return null
         val json = JSONObject()
         json.put("name", specName(t))
+        json.put("allow_private", t.allowPrivateNetwork)
 
         when (t.type.uppercase()) {
             "HTTP", "HTTPS", "KEYWORD" -> {

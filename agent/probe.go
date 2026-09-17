@@ -65,12 +65,13 @@ const (
 
 // ProbeTargetSpec is one registered probe target (app-owned, validated).
 type ProbeTargetSpec struct {
-	Name   string    `json:"name"`
-	Mode   ProbeMode `json:"mode"`
-	Host   string    `json:"host"`
-	Port   int       `json:"port"`
-	Scheme string    `json:"scheme,omitempty"` // http only: "" = auto (https for :443, else http)
-	Path   string    `json:"path,omitempty"`   // http only: "" = "/"
+	Name         string    `json:"name"`
+	Mode         ProbeMode `json:"mode"`
+	Host         string    `json:"host"`
+	Port         int       `json:"port"`
+	Scheme       string    `json:"scheme,omitempty"` // http only: "" = auto (https for :443, else http)
+	Path         string    `json:"path,omitempty"`   // http only: "" = "/"
+	AllowPrivate bool      `json:"allow_private,omitempty"`
 }
 
 // ID is the stable per-target key: the (validated, trimmed) name.
@@ -121,7 +122,40 @@ type ProbeSnapshot struct {
 // probeHTTPClient is the client used for HTTP probes. Package-level so
 // tests can swap in a client that trusts a test TLS certificate.
 var probeHTTPClient = func() *http.Client {
-	return &http.Client{Timeout: probeHTTPTimeout}
+	return &http.Client{
+		Timeout: probeHTTPTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+func publicProbeIP(ip net.IP) bool {
+	if ip == nil || ip.IsUnspecified() || ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() {
+		return false
+	}
+	if v4 := ip.To4(); v4 != nil {
+		// Carrier-grade NAT 100.64.0.0/10.
+		if v4[0] == 100 && v4[1] >= 64 && v4[1] <= 127 {
+			return false
+		}
+	}
+	return true
+}
+
+func resolveProbeHost(host string, allowPrivate bool) ([]net.IP, error) {
+	addresses, err := net.LookupIP(host)
+	if err != nil || len(addresses) == 0 {
+		return nil, fmt.Errorf("target did not resolve")
+	}
+	if !allowPrivate {
+		for _, ip := range addresses {
+			if !publicProbeIP(ip) {
+				return nil, fmt.Errorf("private target requires allow_private")
+			}
+		}
+	}
+	return addresses, nil
 }
 
 // errToDetail shortens transport errors for API/UI display.
@@ -189,9 +223,13 @@ func normalizeProbeSpec(raw ProbeTargetSpec) (ProbeTargetSpec, error) {
 func probeOnce(spec ProbeTargetSpec) ProbeResult {
 	start := time.Now()
 	at := func() time.Time { return time.Now() }
+	addresses, resolveErr := resolveProbeHost(spec.Host, spec.AllowPrivate)
+	if resolveErr != nil {
+		return ProbeResult{Up: false, Detail: errToDetail(resolveErr), At: at()}
+	}
 	switch spec.Mode {
 	case ProbeTCP:
-		addr := net.JoinHostPort(spec.Host, fmt.Sprint(spec.Port))
+		addr := net.JoinHostPort(addresses[0].String(), fmt.Sprint(spec.Port))
 		conn, err := net.DialTimeout("tcp", addr, probeDialTimeout)
 		if err != nil {
 			return ProbeResult{Up: false, Detail: errToDetail(err), At: at()}

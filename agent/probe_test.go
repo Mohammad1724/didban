@@ -105,7 +105,7 @@ func TestProbeOnce_TCP(t *testing.T) {
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
 
-	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeTCP, Host: host, Port: port})
+	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeTCP, Host: host, AllowPrivate: true, Port: port})
 	if !res.Up {
 		t.Fatalf("open port: want up, got %v (detail=%s)", res, res.Detail)
 	}
@@ -126,7 +126,7 @@ func TestProbeOnce_TCPClosedPort(t *testing.T) {
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
 
-	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeTCP, Host: host, Port: port})
+	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeTCP, Host: host, AllowPrivate: true, Port: port})
 	if res.Up {
 		t.Fatal("closed port: want down, got up")
 	}
@@ -142,7 +142,7 @@ func TestProbeOnce_HTTP(t *testing.T) {
 	}))
 	defer srv200.Close()
 	h, p, _ := splitHostPort(t, srv200.URL)
-	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, Port: p, Scheme: "http"})
+	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, AllowPrivate: true, Port: p, Scheme: "http"})
 	if !res.Up || res.Detail != "HTTP 200" {
 		t.Fatalf("200: want up/HTTP 200, got up=%v detail=%q", res.Up, res.Detail)
 	}
@@ -153,7 +153,7 @@ func TestProbeOnce_HTTP(t *testing.T) {
 	}))
 	defer srv500.Close()
 	h, p, _ = splitHostPort(t, srv500.URL)
-	res = probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, Port: p, Scheme: "http"})
+	res = probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, AllowPrivate: true, Port: p, Scheme: "http"})
 	if res.Up || res.Detail != "HTTP 500" {
 		t.Fatalf("500: want down/HTTP 500, got up=%v detail=%q", res.Up, res.Detail)
 	}
@@ -176,7 +176,7 @@ func TestProbeOnce_HTTPS(t *testing.T) {
 	}
 	defer func() { probeHTTPClient = old }()
 
-	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, Port: p, Scheme: "https"})
+	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: h, AllowPrivate: true, Port: p, Scheme: "https"})
 	if !res.Up || res.Detail != "HTTP 200" {
 		t.Fatalf("https: want up/HTTP 200, got up=%v detail=%q", res.Up, res.Detail)
 	}
@@ -193,7 +193,7 @@ func TestProbeOnce_HTTPUnreachable(t *testing.T) {
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
 
-	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: host, Port: port, Scheme: "http"})
+	res := probeOnce(ProbeTargetSpec{Name: "x", Mode: ProbeHTTP, Host: host, AllowPrivate: true, Port: port, Scheme: "http"})
 	if res.Up {
 		t.Fatal("unreachable: want down, got up")
 	}
@@ -253,7 +253,7 @@ func TestProbeStateMachine_AlertPath(t *testing.T) {
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
-	spec := ProbeTargetSpec{Name: "flip", Mode: ProbeTCP, Host: host, Port: port}
+	spec := ProbeTargetSpec{Name: "flip", Mode: ProbeTCP, Host: host, AllowPrivate: true, Port: port}
 	if err := pm.SetTargets([]ProbeTargetSpec{spec}); err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +305,7 @@ func TestProbeStateMachine_AlertPath(t *testing.T) {
 	host2, portStr2, _ := net.SplitHostPort(addr2)
 	port2 := 0
 	fmt.Sscanf(portStr2, "%d", &port2)
-	spec2 := ProbeTargetSpec{Name: "flip", Mode: ProbeTCP, Host: host2, Port: port2}
+	spec2 := ProbeTargetSpec{Name: "flip", Mode: ProbeTCP, Host: host2, AllowPrivate: true, Port: port2}
 	if err := pm.SetTargets([]ProbeTargetSpec{spec2}); err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestProbeRemoveTarget_DropsRecord(t *testing.T) {
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
-	spec := ProbeTargetSpec{Name: "gone", Mode: ProbeTCP, Host: host, Port: port}
+	spec := ProbeTargetSpec{Name: "gone", Mode: ProbeTCP, Host: host, AllowPrivate: true, Port: port}
 	if err := pm.SetTargets([]ProbeTargetSpec{spec}); err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +371,7 @@ func TestProbeHistoryAndTransitionCaps(t *testing.T) {
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
-	spec := ProbeTargetSpec{Name: "cap", Mode: ProbeTCP, Host: host, Port: port}
+	spec := ProbeTargetSpec{Name: "cap", Mode: ProbeTCP, Host: host, AllowPrivate: true, Port: port}
 	if err := pm.SetTargets([]ProbeTargetSpec{spec}); err != nil {
 		t.Fatal(err)
 	}
@@ -513,7 +513,7 @@ func TestProbeAPI_FullFlow(t *testing.T) {
 	host, portStr, _ := net.SplitHostPort(addr)
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
-	body := fmt.Sprintf(`{"targets":[{"name":"local","mode":"tcp","host":%q,"port":%d}]}`, host, port)
+	body := fmt.Sprintf(`{"targets":[{"name":"local","mode":"tcp","host":%q,"port":%d,"allow_private":true}]}`, host, port)
 
 	rec = doProbeAuth(t, api, http.MethodPut, "/api/probe/targets", []byte(body))
 	if rec.Code != http.StatusOK {
