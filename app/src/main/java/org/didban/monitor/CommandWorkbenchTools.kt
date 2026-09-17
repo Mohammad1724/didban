@@ -38,7 +38,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 @Composable
 fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
@@ -321,6 +326,17 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
     var loading by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var prompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
+    val promptChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
+    val promptGate = remember { Mutex() }
+    val hostKeyPolicy = remember {
+        ConfirmingHostKeyPolicy(HostKeyTrustStore) { nextPrompt ->
+            promptGate.withLock {
+                withContext(Dispatchers.Main) { prompt = nextPrompt }
+                promptChannel.receive()
+            }
+        }
+    }
 
     fun refresh() {
         val target = server ?: return
@@ -329,7 +345,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         error = null
         scope.launch {
             try {
-                files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC)
+                files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC, hostKeyPolicy)
                 status = copy.hostKeysStatus.replace("%d", files.size.toString())
             } catch (e: Exception) { error = e.message ?: "SFTP browse failed" }
             finally { loading = false }
@@ -344,7 +360,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             loading = true
             error = null
             scope.launch {
-                try { content = SftpEngine.readFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, item.path); activeFile = item.path }
+                try { content = SftpEngine.readFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, item.path, hostKeyPolicy = hostKeyPolicy); activeFile = item.path }
                 catch (e: Exception) { error = e.message ?: "File read failed" }
                 finally { loading = false }
             }
@@ -356,7 +372,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         loading = true
         error = null
         scope.launch {
-            try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content); status = "Saved $file" }
+            try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content, hostKeyPolicy); status = "Saved $file" }
             catch (e: Exception) { error = e.message ?: "File save failed" }
             finally { loading = false }
         }
@@ -422,5 +438,12 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+    val currentPrompt = prompt
+    if (currentPrompt != null) {
+        CommandHostKeyDialog(copy, currentPrompt, onDecision = { approved ->
+            prompt = null
+            scope.launch { promptChannel.send(approved) }
+        })
     }
 }

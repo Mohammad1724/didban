@@ -123,13 +123,17 @@ object SshEngine {
             )
         } catch (e: Exception) {
             val dur = System.currentTimeMillis() - t0
+            val safeError = SecretRedactor.redact(
+                e.message ?: "SSH Error",
+                listOf(password, command)
+            ).take(500)
             SshExecResult(
                 exitCode = -1,
                 stdout = "",
-                stderr = e.message ?: "SSH Error",
+                stderr = safeError,
                 durationMs = dur,
                 isSuccess = false,
-                errorMessage = e.message ?: "اتصال SSH برقرار نشد"
+                errorMessage = safeError
             )
         } finally {
             try {

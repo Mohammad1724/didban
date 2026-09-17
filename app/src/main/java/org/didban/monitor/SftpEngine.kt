@@ -86,6 +86,11 @@ enum class SftpSortMode {
 
 object SftpEngine {
 
+    private fun safeFailure(prefix: String, error: Exception, password: String): Exception {
+        val detail = SecretRedactor.redact(error.message ?: "SFTP error", listOf(password)).take(500)
+        return Exception("$prefix: $detail")
+    }
+
     private suspend fun createSession(
         host: String,
         port: Int,
@@ -141,7 +146,7 @@ object SftpEngine {
         val items = mutableListOf<SftpFileItem>()
 
         try {
-            session = createSession(host, port, user, pass)
+            session = createSession(host, port, user, pass, hostKeyPolicy)
             sftp = session.openChannel("sftp") as ChannelSftp
             sftp.connect(TimeUnit.SECONDS.toMillis(12).toInt())
 
@@ -198,7 +203,7 @@ object SftpEngine {
             }
             sortedList
         } catch (e: Exception) {
-            throw Exception("خطا در مرور پوشه SFTP: ${e.message}")
+            throw safeFailure("خطا در مرور پوشه SFTP", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -214,13 +219,14 @@ object SftpEngine {
         user: String = "root",
         pass: String,
         remotePath: String,
-        maxBytes: Long = 4 * 1024 * 1024 // 4 MB limit for editor safety
+        maxBytes: Long = 4 * 1024 * 1024, // 4 MB limit for editor safety
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): String = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null
 
         try {
-            session = createSession(host, port, user, pass)
+            session = createSession(host, port, user, pass, hostKeyPolicy)
             sftp = session.openChannel("sftp") as ChannelSftp
             sftp.connect(TimeUnit.SECONDS.toMillis(12).toInt())
 
@@ -233,7 +239,7 @@ object SftpEngine {
             sftp.get(remotePath, out)
             out.toString("UTF-8")
         } catch (e: Exception) {
-            throw Exception("خطا در خواندن فایل: ${e.message}")
+            throw safeFailure("خطا در خواندن فایل", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -249,13 +255,14 @@ object SftpEngine {
         user: String = "root",
         pass: String,
         remotePath: String,
-        content: String
+        content: String,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): Boolean = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null
 
         try {
-            session = createSession(host, port, user, pass)
+            session = createSession(host, port, user, pass, hostKeyPolicy)
             sftp = session.openChannel("sftp") as ChannelSftp
             sftp.connect(TimeUnit.SECONDS.toMillis(12).toInt())
 
@@ -263,7 +270,7 @@ object SftpEngine {
             sftp.put(inStream, remotePath, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در ذخیره فایل روی سرور: ${e.message}")
+            throw safeFailure("خطا در ذخیره فایل روی سرور", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -292,7 +299,7 @@ object SftpEngine {
             sftp.put(emptyIn, remotePath, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در ایجاد فایل: ${e.message}")
+            throw safeFailure("خطا در ایجاد فایل", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -320,7 +327,7 @@ object SftpEngine {
             sftp.mkdir(remotePath)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در ایجاد پوشه: ${e.message}")
+            throw safeFailure("خطا در ایجاد پوشه", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -349,7 +356,7 @@ object SftpEngine {
             sftp.rename(oldPath, newPath)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در تغییر نام / انتقال: ${e.message}")
+            throw safeFailure("خطا در تغییر نام / انتقال", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -379,7 +386,7 @@ object SftpEngine {
             sftp.chmod(octalPermissions, remotePath)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در تغییر دسترسی (chmod): ${e.message}")
+            throw safeFailure("خطا در تغییر دسترسی (chmod)", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -412,7 +419,7 @@ object SftpEngine {
             }
             true
         } catch (e: Exception) {
-            throw Exception("خطا در حذف: ${e.message}")
+            throw safeFailure("خطا در حذف", e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -458,7 +465,7 @@ object SftpEngine {
             sftp.put(inputStream, remotePath, monitor, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw Exception("خطا در آپلود فایل: ${e.message}")
+            throw safeFailure("خطا در آپلود فایل", e, pass)
         } finally {
             try { inputStream.close() } catch (_: Exception) {}
             try { sftp?.disconnect() } catch (_: Exception) {}
@@ -508,7 +515,7 @@ object SftpEngine {
             outputStream.flush()
             true
         } catch (e: Exception) {
-            throw Exception("خطا در دانلود فایل: ${e.message}")
+            throw safeFailure("خطا در دانلود فایل", e, pass)
         } finally {
             try { outputStream.close() } catch (_: Exception) {}
             try { sftp?.disconnect() } catch (_: Exception) {}

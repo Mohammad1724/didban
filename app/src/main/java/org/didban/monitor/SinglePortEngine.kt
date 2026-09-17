@@ -249,7 +249,8 @@ services:
             onProgress("🎉 استقرار تک‌پورت کامل شد و پورت ${config.bindPort} فعال است!", true, false, "Status: ${res3.stdout.trim()}")
             true
         } catch (e: Exception) {
-            onProgress("خطا در اتصال یا اجرا: ${e.message}", true, true, e.message ?: "")
+            val safeError = SecretRedactor.redact(e.message ?: "remote deployment failed", listOf(password)).take(500)
+            onProgress("خطا در اتصال یا اجرا", true, true, safeError)
             false
         }
     }
