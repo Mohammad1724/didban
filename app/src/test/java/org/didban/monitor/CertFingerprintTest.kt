@@ -87,4 +87,14 @@ Tn/eDTUE64VCrcSnVXYolnZhPWJDDrNrE7UYLxtrEWNQRGkqfzDnIbTDtKy/8Zkw
         // the form the pin button stores is already normalized
         assertEquals(EXPECTED_FP, CertFingerprint.normalizeFingerprint(EXPECTED_FP))
     }
+
+    @Test
+    fun validationRequiresExactlySha256Hex() {
+        assertTrue(CertFingerprint.isValidSha256(EXPECTED_FP))
+        assertTrue(CertFingerprint.isValidSha256(EXPECTED_FP.chunked(2).joinToString(":")))
+        assertFalse(CertFingerprint.isValidSha256(""))
+        assertFalse(CertFingerprint.isValidSha256("ab"))
+        assertFalse(CertFingerprint.isValidSha256("g".repeat(64)))
+        assertFalse(CertFingerprint.isValidSha256("a".repeat(65)))
+    }
 }

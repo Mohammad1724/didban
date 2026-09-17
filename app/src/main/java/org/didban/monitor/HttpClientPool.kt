@@ -70,6 +70,11 @@ object HttpClientPool {
      * by the trust manager on every handshake.
      */
     fun standardClient(server: ServerConfig): PooledClient {
+        // Android blocks cleartext process-wide (see the manifest). For TLS,
+        // never create a credential-bearing client without a verified pin.
+        require(!server.useTls || CertFingerprint.isValidSha256(server.fingerprint)) {
+            "A verified SHA-256 certificate fingerprint is required"
+        }
         val key = keyFor(server)
         cache.get(key)?.let { return it }
         val holder: AtomicReference<String>? =

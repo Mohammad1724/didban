@@ -26,6 +26,8 @@ import javax.crypto.SecretKey
 
 // ── Android glue ────────────────────────────────────────────────────────────
 
+class SecretStorageException(message: String, cause: Throwable? = null) : IllegalStateException(message, cause)
+
 object SecureStorage {
 
     private const val KEYSTORE = "AndroidKeyStore"
@@ -73,23 +75,33 @@ object SecureStorage {
         }
         val legacy = sp.getString(key, null) ?: return ""
         if (legacy.isEmpty()) return ""
-        return try {
-            sp.edit().putString(encKey, encrypt(legacy)).remove(key).apply()
-            legacy
-        } catch (_: Exception) {
-            legacy
+        val encrypted = try {
+            encrypt(legacy)
+        } catch (e: Exception) {
+            throw SecretStorageException("Could not migrate legacy secret to secure storage", e)
         }
+        if (!sp.edit().putString(encKey, encrypted).remove(key).commit()) {
+            throw SecretStorageException("Could not finish secure-storage migration")
+        }
+        return legacy
     }
 
-    /** Writes a secret (encrypted) and removes any legacy plaintext copy. */
+    /**
+     * Writes a secret encrypted with the Android Keystore.
+     *
+     * This deliberately fails closed. Credentials must never be silently
+     * downgraded to plaintext when the Keystore is unavailable: callers can
+     * report the storage failure and leave the previous encrypted value intact.
+     */
     fun putSecret(ctx: Context, prefsName: String, key: String, plaintext: String) {
         val sp = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        try {
-            sp.edit().putString(key + "_enc", encrypt(plaintext)).remove(key).apply()
-        } catch (_: Exception) {
-            // Extremely unlikely (Keystore failure); fall back so the value
-            // is at least stored - migration on next read will retry.
-            sp.edit().putString(key, plaintext).apply()
+        val encrypted = try {
+            encrypt(plaintext)
+        } catch (e: Exception) {
+            throw SecretStorageException("Secure storage is unavailable", e)
+        }
+        if (!sp.edit().putString(key + "_enc", encrypted).remove(key).commit()) {
+            throw SecretStorageException("Could not persist encrypted data")
         }
     }
 

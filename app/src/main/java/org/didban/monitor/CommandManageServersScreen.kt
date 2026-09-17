@@ -87,7 +87,9 @@ fun CommandManageServersScreen(
         host = server.host
         port = server.port.toString()
         token = server.token
-        useTls = server.useTls
+        // Plain HTTP records are upgraded in the editor; credentials are never
+        // sent again until a valid HTTPS certificate fingerprint is supplied.
+        useTls = true
         fingerprint = server.fingerprint
         cpuAlert = server.cpuAlert.toString()
         memAlert = server.memAlert.toString()
@@ -112,7 +114,8 @@ fun CommandManageServersScreen(
         server.name.isBlank() -> copy.srvNameRequired
         !TunnelFieldValidation.isHost(server.host) -> copy.srvHostInvalid
         server.token.isBlank() -> copy.srvTokenRequired
-        server.useTls && server.fingerprint.isNotBlank() && runCatching { CertFingerprint.normalizeFingerprint(server.fingerprint) }.getOrNull().isNullOrBlank() -> copy.srvFingerprintInvalid
+        !server.useTls -> if (Prefs.getLanguage(context) == "fa") "اتصال HTTP ناامن غیرفعال است؛ TLS را فعال کنید." else "Insecure HTTP connections are disabled; enable TLS."
+        !CertFingerprint.isValidSha256(server.fingerprint) -> copy.srvFingerprintInvalid
         else -> null
     }
 
@@ -193,7 +196,7 @@ fun CommandManageServersScreen(
                     OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
                     OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Switch(useTls, { useTls = it })
+                        Switch(checked = true, onCheckedChange = null, enabled = false)
                         Text(copy.srvUseTls, color = CommandColors.textSecondary, modifier = Modifier.weight(1f))
                         Text(copy.srvFingerprintPinning, color = CommandColors.textSecondary)
                     }

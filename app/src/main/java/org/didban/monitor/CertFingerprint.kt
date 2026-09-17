@@ -29,4 +29,8 @@ object CertFingerprint {
      */
     fun normalizeFingerprint(input: String): String =
         input.trim().lowercase().replace(":", "").replace(" ", "")
+
+    /** A SHA-256 certificate fingerprint is exactly 32 bytes / 64 hex chars. */
+    fun isValidSha256(input: String): Boolean =
+        normalizeFingerprint(input).matches(Regex("^[0-9a-f]{64}$"))
 }

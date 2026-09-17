@@ -151,7 +151,7 @@ Tn/eDTUE64VCrcSnVXYolnZhPWJDDrNrE7UYLxtrEWNQRGkqfzDnIbTDtKy/8Zkw
         }
     }
 
-    private fun server(port: Int = 39999, useTls: Boolean = true, fingerprint: String = "") =
+    private fun server(port: Int = 39999, useTls: Boolean = true, fingerprint: String = if (useTls) EXPECTED_FP else "") =
         ServerConfig(
             id = 1, name = "test", host = "127.0.0.1", port = port,
             token = "test-token", useTls = useTls, fingerprint = fingerprint
@@ -220,6 +220,16 @@ Tn/eDTUE64VCrcSnVXYolnZhPWJDDrNrE7UYLxtrEWNQRGkqfzDnIbTDtKy/8Zkw
             " F5:7F:84:3C:C2:02:CF:23:D8:EB:98:74:0A:9C:74:76:F3:E0:E5:33:25:19:3B:D3:55:20:CC:12:EA:CB:F9:B9 "
         val s = server(fingerprint = upperColon)
         assertEquals(ClientKey("127.0.0.1", s.port, true, EXPECTED_FP), HttpClientPool.keyFor(s))
+    }
+
+    @Test
+    fun tlsClientWithoutVerifiedPinIsRejectedBeforeSendingCredentials() {
+        try {
+            HttpClientPool.standardClient(server(fingerprint = ""))
+            fail("expected unpinned TLS client to be rejected")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("fingerprint"))
+        }
     }
 
     @Test

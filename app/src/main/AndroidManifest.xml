@@ -14,7 +14,7 @@
         android:theme="@style/Theme.Didban"
         android:allowBackup="false"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
 
         <activity
             android:name=".MainActivity"
