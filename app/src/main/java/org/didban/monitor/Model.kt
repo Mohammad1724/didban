@@ -14,6 +14,7 @@ data class ServerConfig(
     var host: String,
     var port: Int = 8686,
     var token: String = "",
+    var adminToken: String = "",
     var useTls: Boolean = true,
     var fingerprint: String = "",
     var cpuAlert: Int = 90,
@@ -25,6 +26,7 @@ data class ServerConfig(
         put("host", host)
         put("port", port)
         put("token", token)
+        put("adminToken", adminToken)
         put("useTls", useTls)
         put("fingerprint", fingerprint)
         put("cpuAlert", cpuAlert)
@@ -38,6 +40,7 @@ data class ServerConfig(
             host = o.optString("host"),
             port = o.optInt("port", 8686),
             token = o.optString("token"),
+            adminToken = o.optString("adminToken"),
             useTls = o.optBoolean("useTls", true),
             fingerprint = o.optString("fingerprint"),
             cpuAlert = o.optInt("cpuAlert", 90),

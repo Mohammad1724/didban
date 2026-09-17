@@ -28,7 +28,8 @@ var version = "dev"
 // Config holds the agent configuration.
 type Config struct {
 	Addr           string
-	Token          string
+	Token          string // read-only API token
+	AdminToken     string // mutation API token
 	DataDir        string
 	PlainHTTP      bool
 	PublicStatus   bool    // expose detailed /status without authentication (opt-in)
@@ -99,7 +100,8 @@ func intEnvOr(key string, def int) (int, error) {
 func main() {
 	cfg := &Config{}
 	flag.StringVar(&cfg.Addr, "addr", envOr("DIDBAN_ADDR", ":8686"), "HTTP listen address")
-	flag.StringVar(&cfg.Token, "token", os.Getenv("DIDBAN_TOKEN"), "auth token (auto-generated if empty)")
+	flag.StringVar(&cfg.Token, "token", os.Getenv("DIDBAN_TOKEN"), "read-only API token (auto-generated if empty)")
+	flag.StringVar(&cfg.AdminToken, "admin-token", os.Getenv("DIDBAN_ADMIN_TOKEN"), "administrative mutation token (auto-generated if empty)")
 	flag.StringVar(&cfg.DataDir, "data", envOr("DIDBAN_DATA", "/var/lib/didban"), "data directory (events, TLS certs)")
 	flag.BoolVar(&cfg.PlainHTTP, "plain", os.Getenv("DIDBAN_PLAIN") == "1", "disable TLS (NOT recommended)")
 	flag.BoolVar(&cfg.PublicStatus, "public-status", os.Getenv("DIDBAN_PUBLIC_STATUS") == "1", "expose detailed /status without a bearer token")
@@ -175,7 +177,16 @@ func main() {
 		cfg.Token = loadOrCreateToken(filepath.Join(cfg.DataDir, "token"))
 	}
 	if err := validateAuthToken(cfg.Token); err != nil {
-		fatal("invalid agent authentication token: %v", err)
+		fatal("invalid read-only authentication token: %v", err)
+	}
+	if cfg.AdminToken == "" {
+		cfg.AdminToken = loadOrCreateToken(filepath.Join(cfg.DataDir, "admin-token"))
+	}
+	if err := validateAuthToken(cfg.AdminToken); err != nil {
+		fatal("invalid administrative authentication token: %v", err)
+	}
+	if cfg.AdminToken == cfg.Token {
+		fatal("read-only and administrative tokens must be different")
 	}
 
 	// Prepare TLS (self-signed, auto-generated) unless running in plain mode.
@@ -349,9 +360,11 @@ func banner(cfg *Config, fingerprint string, alertsActive bool, watchdogEnabled 
 	fmt.Printf("  Listening:    %s://%s\n", scheme, addr)
 	fmt.Printf("  Status Page:  %s://%s/status\n", scheme, addr)
 	if showFullToken {
-		fmt.Printf("  Token:        %s\n", cfg.Token)
+		fmt.Printf("  Read token:   %s\n", cfg.Token)
+		fmt.Printf("  Admin token:  %s\n", cfg.AdminToken)
 	} else {
-		fmt.Printf("  Token:        %s\n", tokenPrefix(cfg.Token))
+		fmt.Printf("  Read token:   %s\n", tokenPrefix(cfg.Token))
+		fmt.Printf("  Admin token:  %s\n", tokenPrefix(cfg.AdminToken))
 	}
 	if fingerprint != "" {
 		fmt.Printf("  Cert SHA256:  %s\n", fingerprint)

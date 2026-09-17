@@ -29,6 +29,11 @@ type API struct {
 }
 
 func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog, pm *ProbeMonitor) *API {
+	// main always provisions a distinct admin token. The fallback keeps direct
+	// in-process/test construction compatible without weakening real startup.
+	if cfg.AdminToken == "" {
+		cfg.AdminToken = cfg.Token
+	}
 	return &API{
 		cfg: cfg, mon: mon, tm: tm, wd: wd, pm: pm,
 		limiter: newRateLimiter(), mutations: newMutationLimiter(), idempotency: newIdempotencyGuard(),
@@ -48,32 +53,32 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/status", a.auth(a.handleStatusPage))
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
-	mux.HandleFunc("/api/processes/kill", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill)))))
+	mux.HandleFunc("/api/processes/kill", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill)))))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
 
 	// Real bandwidth test (streaming download / upload sink)
 	mux.HandleFunc("/api/bandwidth/download", a.auth(a.handleBandwidthDownload))
 	mux.HandleFunc("/api/bandwidth/upload", a.auth(a.handleBandwidthUpload))
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
-	mux.HandleFunc("/api/docker/restart", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("docker_restart", a.handleDockerRestart)))))
-	mux.HandleFunc("/api/docker/stop", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("docker_stop", a.handleDockerStop)))))
+	mux.HandleFunc("/api/docker/restart", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("docker_restart", a.handleDockerRestart)))))
+	mux.HandleFunc("/api/docker/stop", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("docker_stop", a.handleDockerStop)))))
 
 	// Tunnel Management APIs (Smite / Marzban style auto-orchestration)
-	mux.HandleFunc("/api/tunnel/apply", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_apply", a.handleTunnelApply)))))
-	mux.HandleFunc("/api/tunnel/start", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_start", a.handleTunnelStart)))))
-	mux.HandleFunc("/api/tunnel/stop", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_stop", a.handleTunnelStop)))))
-	mux.HandleFunc("/api/tunnel/restart", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_restart", a.handleTunnelRestart)))))
-	mux.HandleFunc("/api/tunnel/delete", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_delete", a.handleTunnelDelete)))))
+	mux.HandleFunc("/api/tunnel/apply", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_apply", a.handleTunnelApply)))))
+	mux.HandleFunc("/api/tunnel/start", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_start", a.handleTunnelStart)))))
+	mux.HandleFunc("/api/tunnel/stop", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_stop", a.handleTunnelStop)))))
+	mux.HandleFunc("/api/tunnel/restart", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_restart", a.handleTunnelRestart)))))
+	mux.HandleFunc("/api/tunnel/delete", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_delete", a.handleTunnelDelete)))))
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
 	// Multi-point probing (Phase 4 · 4-B)
 	mux.HandleFunc("/api/probe", a.auth(a.handleProbeStatus))
-	mux.HandleFunc("/api/probe/targets", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("probe_targets_replace", a.handleProbeTargets)))))
-	mux.HandleFunc("/api/probe/now", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("probe_run", a.handleProbeNow)))))
+	mux.HandleFunc("/api/probe/targets", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("probe_targets_replace", a.handleProbeTargets)))))
+	mux.HandleFunc("/api/probe/now", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("probe_run", a.handleProbeNow)))))
 
-	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
-	mux.HandleFunc("/api/alerts/test", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
+	mux.HandleFunc("/api/alerts/telegram/test", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
+	mux.HandleFunc("/api/alerts/test", a.authAdmin(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
 	return a.harden(mux)
@@ -178,20 +183,38 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	return true
 }
 
-// auth wraps a handler with bearer-token authentication (constant time).
+func bearerToken(r *http.Request) string {
+	value := r.Header.Get("Authorization")
+	if len(value) > 7 && value[:7] == "Bearer " {
+		return value[7:]
+	}
+	return ""
+}
+
+func tokenMatches(presented, expected string) bool {
+	presentedHash := sha256.Sum256([]byte(presented))
+	expectedHash := sha256.Sum256([]byte(expected))
+	return subtle.ConstantTimeCompare(presentedHash[:], expectedHash[:]) == 1
+}
+
+// auth permits either role on read-only endpoints, so an administrator does
+// not need to retain both credentials for an interactive management action.
 func (a *API) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Bearer header only. Query-string tokens (?token=) were removed:
-		// they leak into proxy/access logs and browser history. The
-		// didban:// onboarding link still carries the token (one-time,
-		// user-initiated) — that is not an HTTP request.
-		tok := r.Header.Get("Authorization")
-		if len(tok) > 7 && tok[:7] == "Bearer " {
-			tok = tok[7:]
-		} else {
-			tok = ""
+		tok := bearerToken(r)
+		if !tokenMatches(tok, a.cfg.Token) && !tokenMatches(tok, a.cfg.AdminToken) {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
 		}
-		if subtle.ConstantTimeCompare([]byte(tok), []byte(a.cfg.Token)) != 1 {
+		next(w, r)
+	}
+}
+
+// authAdmin rejects the read-only token with the same response used for every
+// invalid credential, avoiding role/token enumeration.
+func (a *API) authAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !tokenMatches(bearerToken(r), a.cfg.AdminToken) {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}

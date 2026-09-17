@@ -139,6 +139,26 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 	}
 }
 
+func TestReadTokenCannotInvokeAdministrativeEndpoint(t *testing.T) {
+	api := hardeningAPI(t)
+	api.cfg.AdminToken = "admin-token-0123456789abcdef0123456789"
+
+	readReq := httptest.NewRequest(http.MethodPost, "/api/docker/stop", strings.NewReader(`{"id":"container"}`))
+	readReq.Header.Set("Authorization", "Bearer hard-token")
+	readReq.Header.Set("Content-Type", "application/json")
+	addTestOperationKey(readReq)
+	readRec := httptest.NewRecorder()
+	api.routes().ServeHTTP(readRec, readReq)
+	if readRec.Code != http.StatusUnauthorized {
+		t.Fatalf("read token mutation status=%d, want 401", readRec.Code)
+	}
+
+	adminRead := doAuth(t, api, http.MethodGet, "/api/metrics", api.cfg.AdminToken)
+	if adminRead.Code != http.StatusOK {
+		t.Fatalf("admin token read status=%d, want 200", adminRead.Code)
+	}
+}
+
 func TestHealthIsMinimalNonCacheableAndRateLimited(t *testing.T) {
 	api := hardeningAPI(t)
 	var last *httptest.ResponseRecorder

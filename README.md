@@ -73,7 +73,7 @@ If you use a firewall, open the port:
 sudo ufw allow 8686
 ```
 
-The installer downloads the binary from the latest GitHub Release, generates a token, installs a hardened systemd service, and prints the **URL**, **token** and **certificate fingerprint** — save these three for the Android app.
+The installer downloads the binary from the latest GitHub Release, generates separate read/admin tokens, installs a hardened systemd service, and prints the **URL**, **read token**, **admin token**, and **certificate fingerprint** — save these three for the Android app.
 
 Verify it works:
 
@@ -133,7 +133,7 @@ curl -sk -X POST https://YOUR_SERVER_IP:8686/api/alerts/test -H "Authorization: 
 
 ## API
 
-All `/api/*` endpoints require `Authorization: Bearer <token>`. The `?token=` query parameter is **no longer accepted** (it leaks into proxy logs and browser history). Requests are rate-limited per IP (10 req/s sustained, burst 20 — excess gets `429` with `Retry-After`), request bodies are capped at 2 MB, and an access log (IP, method, path, status, duration — never query strings, headers, or bodies) is written to the journal.
+All `/api/*` endpoints require `Authorization: Bearer <token>`. Read-only endpoints accept either role; process, Docker, tunnel, probe-mutation, and alert-test endpoints require the distinct admin token. The `?token=` query parameter is **no longer accepted** (it leaks into proxy logs and browser history). Requests are rate-limited per IP (10 req/s sustained, burst 20 — excess gets `429` with `Retry-After`), request bodies are capped at 2 MB, and an access log (IP, method, path, status, duration — never query strings, headers, or bodies) is written to the journal.
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -167,7 +167,7 @@ Tunnel apply endpoints are hardened against command-injection and path-traversal
 - **Audit trail.** Every deploy carrying a script records `tunnel_deploy_start` / `tunnel_deploy_ok` / `tunnel_deploy_failed` events (visible at `/api/events`) including the first 8 bytes of the script's SHA-256.
 - **Timeouts.** All `systemctl`/`journalctl` calls are bounded (10 s) so a hung D-Bus can never wedge an API handler.
 - **Proper status codes.** Unknown tunnel `status`/`start`/`stop` → `404`; invalid input → `400`; internal failure → `500`.
-- **Token hygiene.** The full token is printed only on the agent's first start; subsequent restarts show a prefix only, so the secret does not accumulate in the systemd journal. Custom Agent tokens must be 32–256 printable ASCII characters without whitespace; weak or header-ambiguous values fail startup.
+- **Token hygiene.** The full read/admin tokens are printed only on the agent's first start; subsequent restarts show prefixes only, so the secret does not accumulate in the systemd journal. Custom Agent tokens must be 32–256 printable ASCII characters without whitespace; weak or header-ambiguous values fail startup.
 
 ## Data & persistence
 

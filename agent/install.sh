@@ -177,6 +177,15 @@ main() {
     echo -n "$TOKEN" > "$CONF_DIR/token"
     chmod 0600 "$CONF_DIR/token"
   fi
+  local ADMIN_TOKEN=""
+  if [[ -f "$CONF_DIR/admin-token" ]]; then
+    ADMIN_TOKEN="$(cat "$CONF_DIR/admin-token")"
+  fi
+  if [[ -z "$ADMIN_TOKEN" ]]; then
+    ADMIN_TOKEN="$(head -c 32 /dev/urandom | xxd -ps 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    echo -n "$ADMIN_TOKEN" > "$CONF_DIR/admin-token"
+    chmod 0600 "$CONF_DIR/admin-token"
+  fi
 
 # On upgrade, the operator's existing agent.conf (custom thresholds, alert
 # settings, deploy mode, ...) is preserved; it is only generated on first install.
@@ -186,6 +195,7 @@ main() {
 cat > "$CONF_DIR/agent.conf" <<EOF
 # Didban agent configuration (read by systemd)
 DIDBAN_TOKEN=$TOKEN
+DIDBAN_ADMIN_TOKEN=$ADMIN_TOKEN
 DIDBAN_ADDR=:$PORT
 DIDBAN_DATA=$DATA_DIR
 # Secure default: authenticated API requests cannot execute shell scripts.
@@ -294,13 +304,14 @@ EOF
   echo "  Didban agent installed successfully! — نصب موفق"
   echo "══════════════════════════════════════════════════════════"
   echo "  URL:          https://${SERVER_IP}:${PORT}"
-  echo "  Token:        ${TOKEN}"
+  echo "  Read token:   ${TOKEN}"
+  echo "  Admin token:  ${ADMIN_TOKEN}"
   if [[ -n "$FINGERPRINT" ]]; then
     echo "  Cert SHA256:  ${FINGERPRINT}"
   fi
   echo ""
   echo "  📲 One-Click Mobile Import Link (کپی این خط برای اتصال فوری در اپ):"
-  echo "  didban://${SERVER_IP}:${PORT}?token=${TOKEN}&fp=${FINGERPRINT}&name=${SERVER_IP}"
+  echo "  didban://${SERVER_IP}:${PORT}?token=${TOKEN}&admin_token=${ADMIN_TOKEN}&fp=${FINGERPRINT}&name=${SERVER_IP}"
   echo ""
   echo "  Save these — you will enter them in the Didban Android app."
   echo "  این اطلاعات را در اپ اندروید دیدبان وارد کنید."

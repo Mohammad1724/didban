@@ -3,6 +3,8 @@ package org.didban.monitor
 internal enum class SecurityMessage {
     HTTP_DISABLED,
     WEAK_AGENT_TOKEN,
+    WEAK_ADMIN_TOKEN,
+    TOKENS_MUST_DIFFER,
     SERVER_SAVE_FAILED,
     SERVER_DELETE_FAILED,
     SERVER_READ_FAILED,
@@ -16,7 +18,9 @@ internal fun securityMessage(language: String, message: SecurityMessage): String
     val fa = language == "fa"
     return when (message) {
         SecurityMessage.HTTP_DISABLED -> if (fa) "اتصال HTTP ناامن غیرفعال است؛ TLS را فعال کنید." else "Insecure HTTP connections are disabled; enable TLS."
-        SecurityMessage.WEAK_AGENT_TOKEN -> if (fa) "توکن Agent باید بین ۳۲ تا ۲۵۶ نویسهٔ ASCII قابل چاپ و بدون فاصله باشد." else "Agent token must be 32–256 printable ASCII characters without whitespace."
+        SecurityMessage.WEAK_AGENT_TOKEN -> if (fa) "توکن خواندن Agent باید بین ۳۲ تا ۲۵۶ نویسهٔ ASCII قابل چاپ و بدون فاصله باشد." else "Agent read token must be 32–256 printable ASCII characters without whitespace."
+        SecurityMessage.WEAK_ADMIN_TOKEN -> if (fa) "توکن مدیریت Agent باید بین ۳۲ تا ۲۵۶ نویسهٔ ASCII قابل چاپ و بدون فاصله باشد." else "Agent admin token must be 32–256 printable ASCII characters without whitespace."
+        SecurityMessage.TOKENS_MUST_DIFFER -> if (fa) "توکن خواندن و مدیریت باید متفاوت باشند." else "Read and admin tokens must be different."
         SecurityMessage.SERVER_SAVE_FAILED -> if (fa) "ذخیره امن سرور ناموفق بود." else "Secure server storage failed."
         SecurityMessage.SERVER_DELETE_FAILED -> if (fa) "حذف امن سرور ناموفق بود." else "Secure server deletion failed."
         SecurityMessage.SERVER_READ_FAILED -> if (fa) "خواندن امن فهرست سرورها ناموفق بود؛ داده موجود با فهرست خالی جایگزین نشده است." else "Secure server data could not be read; existing data has not been replaced with an empty list."

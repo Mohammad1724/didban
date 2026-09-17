@@ -58,6 +58,7 @@ fun CommandManageServersScreen(
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("8686") }
     var token by remember { mutableStateOf("") }
+    var adminToken by remember { mutableStateOf("") }
     var useTls by remember { mutableStateOf(true) }
     var fingerprint by remember { mutableStateOf("") }
     var cpuAlert by remember { mutableStateOf("90") }
@@ -80,6 +81,7 @@ fun CommandManageServersScreen(
         host = ""
         port = "8686"
         token = ""
+        adminToken = ""
         useTls = true
         fingerprint = ""
         cpuAlert = "90"
@@ -95,6 +97,7 @@ fun CommandManageServersScreen(
         host = server.host
         port = server.port.toString()
         token = server.token
+        adminToken = server.adminToken
         // Plain HTTP records are upgraded in the editor; credentials are never
         // sent again until a valid HTTPS certificate fingerprint is supplied.
         useTls = true
@@ -112,6 +115,7 @@ fun CommandManageServersScreen(
         host = host.trim(),
         port = port.toIntOrNull()?.coerceIn(1, 65535) ?: 8686,
         token = token.trim(),
+        adminToken = adminToken.trim(),
         useTls = useTls,
         fingerprint = fingerprint.trim(),
         cpuAlert = cpuAlert.toIntOrNull()?.coerceIn(1, 100) ?: 90,
@@ -123,6 +127,8 @@ fun CommandManageServersScreen(
         !TunnelFieldValidation.isHost(server.host) -> copy.srvHostInvalid
         server.token.isBlank() -> copy.srvTokenRequired
         !AgentTokenPolicy.isValid(server.token) -> securityMessage(Prefs.getLanguage(context), SecurityMessage.WEAK_AGENT_TOKEN)
+        !AgentTokenPolicy.isValid(server.adminToken) -> securityMessage(Prefs.getLanguage(context), SecurityMessage.WEAK_ADMIN_TOKEN)
+        server.adminToken == server.token -> securityMessage(Prefs.getLanguage(context), SecurityMessage.TOKENS_MUST_DIFFER)
         !server.useTls -> securityMessage(Prefs.getLanguage(context), SecurityMessage.HTTP_DISABLED)
         !CertFingerprint.isValidSha256(server.fingerprint) -> copy.srvFingerprintInvalid
         else -> null
@@ -214,6 +220,7 @@ fun CommandManageServersScreen(
                     }
                     OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
                     OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(adminToken, { adminToken = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Admin token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Switch(checked = true, onCheckedChange = null, enabled = false)
                         Text(copy.srvUseTls, color = CommandColors.textSecondary, modifier = Modifier.weight(1f))

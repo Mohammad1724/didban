@@ -200,7 +200,7 @@ object BackupEngine {
             }
             val unsafeServer = incomingServers.firstOrNull {
                 it.id <= 0 || it.name.isBlank() || it.name.length > 200 || !AgentTokenPolicy.isValid(it.token) ||
-                    !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
+                    !AgentTokenPolicy.isValid(it.adminToken) || it.adminToken == it.token || !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
                     !CertFingerprint.isValidSha256(it.fingerprint)
             }
             require(unsafeServer == null) {
