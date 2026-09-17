@@ -253,8 +253,9 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
-    if (deleteRecord != null) {
-        val record = deleteRecord!!
+    val recordToDelete = deleteRecord
+    if (recordToDelete != null) {
+        val record = recordToDelete
         AlertDialog(
             onDismissRequest = { deleteRecord = null },
             title = { Text(copy.dnsDeleteTitle, fontWeight = FontWeight.Bold) },

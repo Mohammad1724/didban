@@ -155,8 +155,9 @@ fun CommandSshScreen(
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
-    if (prompt != null) {
-        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
+    val currentPrompt = prompt
+    if (currentPrompt != null) {
+        CommandHostKeyDialog(copy, currentPrompt, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })
@@ -238,8 +239,9 @@ fun CommandBatchScreen(
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
-    if (prompt != null) {
-        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
+    val currentPrompt = prompt
+    if (currentPrompt != null) {
+        CommandHostKeyDialog(copy, currentPrompt, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })

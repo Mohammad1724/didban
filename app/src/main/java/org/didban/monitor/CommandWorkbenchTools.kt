@@ -237,11 +237,12 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
     fun inspectConfig() {
         error = null
         probe = null
-        parsed = ProxyEngine.parseConfig(uri)
-        if (parsed == null) { error = copy.vaultConfigUnparseable; return }
+        val config = ProxyEngine.parseConfig(uri)
+        parsed = config
+        if (config == null) { error = copy.vaultConfigUnparseable; return }
         busy = true
         scope.launch {
-            probe = ProxyEngine.probeConfig(parsed!!)
+            probe = ProxyEngine.probeConfig(config)
             busy = false
         }
     }
@@ -271,7 +272,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     CommandPrimaryButton(if (busy) copy.waitingForData else copy.wtParseProbe, ::inspectConfig, enabled = !busy, icon = Icons.Rounded.Bolt)
                     parsed?.let { cfg ->
                         CommandStatusMark(if (probe?.second == true) "reachable" else if (probe != null) "unreachable" else "parsed", if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
-                        if (probe != null) Text("TCP/TLS latency: ${if (probe!!.first >= 0) "${probe!!.first} ms" else "failed"}", color = CommandColors.textSecondary)
+                        probe?.let { result -> Text("TCP/TLS latency: ${if (result.first >= 0) "${result.first} ms" else "failed"}", color = CommandColors.textSecondary) }
                         CommandTextButton(copy.wtCopyNormalized, { clipboard.setText(AnnotatedString(cfg.rawUri)) }, Icons.Rounded.ContentCopy)
                     }
                 }

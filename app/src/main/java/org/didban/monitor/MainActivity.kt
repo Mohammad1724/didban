@@ -96,9 +96,10 @@ class MainActivity : ComponentActivity() {
             var crashTrace by remember { mutableStateOf(CrashLog.loadTrace(this)) }
             val consecutiveCrashes = remember { CrashLog.readRecord(this)?.consecutiveCount ?: 0 }
 
-            if (crashTrace != null) {
+            val currentCrashTrace = crashTrace
+            if (currentCrashTrace != null) {
                 CrashRecoveryScreen(
-                    trace = crashTrace!!,
+                    trace = currentCrashTrace,
                     consecutiveCount = consecutiveCrashes,
                     onReset = {
                         CrashLog.clear(this)

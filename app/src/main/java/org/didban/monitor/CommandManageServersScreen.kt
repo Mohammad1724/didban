@@ -233,9 +233,10 @@ fun CommandManageServersScreen(
         }
         if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
         if (message != null) item { CommandStateBlock(copy.srvConnectionResult, message ?: "", CommandHealthTone.INFO) }
-        if (testResult != null) {
+        val currentTestResult = testResult
+        if (currentTestResult != null) {
             item {
-                val metrics = testResult!!
+                val metrics = currentTestResult
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandStatusMark(copy.srvAgentOnline, CommandHealthTone.HEALTHY, detail = "${metrics.hostname} · CPU ${Fmt.pct(metrics.cpuUsage)} · RAM ${Fmt.pct(metrics.memPct)}")
@@ -262,8 +263,9 @@ fun CommandManageServersScreen(
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
-    if (deleteServer != null) {
-        val server = deleteServer!!
+    val serverToDelete = deleteServer
+    if (serverToDelete != null) {
+        val server = serverToDelete
         AlertDialog(
             onDismissRequest = { deleteServer = null },
             title = { Text(copy.srvDeleteTitle, fontWeight = FontWeight.Bold) },

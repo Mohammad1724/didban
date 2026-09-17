@@ -216,8 +216,9 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
-    if (deleteTarget != null) {
-        val item = deleteTarget!!
+    val targetToDelete = deleteTarget
+    if (targetToDelete != null) {
+        val item = targetToDelete
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text(copy.upDeleteTitle, fontWeight = FontWeight.Bold) },

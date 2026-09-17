@@ -216,14 +216,16 @@ fun CommandServicesScreen(
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
-    if (prompt != null) {
-        CommandHostKeyDialog(copy, prompt!!, onDecision = { approved ->
+    val currentPrompt = prompt
+    if (currentPrompt != null) {
+        CommandHostKeyDialog(copy, currentPrompt, onDecision = { approved ->
             prompt = null
             scope.launch { promptChannel.send(approved) }
         })
     }
-    if (pendingAction != null) {
-        val action = pendingAction!!
+    val actionToConfirm = pendingAction
+    if (actionToConfirm != null) {
+        val action = actionToConfirm
         AlertDialog(
             onDismissRequest = { pendingAction = null },
             title = { Text(copy.svcConfirmTitle.replace("%1", action.action).replace("%2", action.unit), fontWeight = FontWeight.Bold) },

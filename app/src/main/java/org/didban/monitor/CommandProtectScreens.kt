@@ -279,8 +279,9 @@ fun CommandBackupScreen(
                         CommandSecondaryButton("Overwrite", { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
                         CommandSecondaryButton("Inspect", { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }) }, enabled = raw.isNotBlank())
                     }
-                    if (preview != null) {
-                        val p = preview!!
+                    val currentPreview = preview
+                    if (currentPreview != null) {
+                        val p = currentPreview
                         CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
                         CommandPrimaryButton(copy.backupRestoreAction.replace("%1", if (mode == RestoreMode.Merge) copy.backupModeMerge else copy.backupModeOverwrite), {
