@@ -24,13 +24,14 @@ type API struct {
 	wd          *TunnelWatchdog // nil when the watchdog is disabled
 	pm          *ProbeMonitor   // nil when the probe monitor is disabled
 	limiter     *rateLimiter
+	mutations   *mutationLimiter
 	idempotency *idempotencyGuard
 }
 
 func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog, pm *ProbeMonitor) *API {
 	return &API{
 		cfg: cfg, mon: mon, tm: tm, wd: wd, pm: pm,
-		limiter: newRateLimiter(), idempotency: newIdempotencyGuard(),
+		limiter: newRateLimiter(), mutations: newMutationLimiter(), idempotency: newIdempotencyGuard(),
 	}
 }
 
@@ -41,22 +42,22 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/status", a.handleStatusPage)
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
-	mux.HandleFunc("/api/processes/kill", a.auth(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill))))
+	mux.HandleFunc("/api/processes/kill", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("process_kill", a.handleProcessKill)))))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
 
 	// Real bandwidth test (streaming download / upload sink)
 	mux.HandleFunc("/api/bandwidth/download", a.auth(a.handleBandwidthDownload))
 	mux.HandleFunc("/api/bandwidth/upload", a.auth(a.handleBandwidthUpload))
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
-	mux.HandleFunc("/api/docker/restart", a.auth(a.idempotent(a.auditDestructive("docker_restart", a.handleDockerRestart))))
-	mux.HandleFunc("/api/docker/stop", a.auth(a.idempotent(a.auditDestructive("docker_stop", a.handleDockerStop))))
+	mux.HandleFunc("/api/docker/restart", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("docker_restart", a.handleDockerRestart)))))
+	mux.HandleFunc("/api/docker/stop", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("docker_stop", a.handleDockerStop)))))
 
 	// Tunnel Management APIs (Smite / Marzban style auto-orchestration)
-	mux.HandleFunc("/api/tunnel/apply", a.auth(a.idempotent(a.auditDestructive("tunnel_apply", a.handleTunnelApply))))
-	mux.HandleFunc("/api/tunnel/start", a.auth(a.idempotent(a.auditDestructive("tunnel_start", a.handleTunnelStart))))
-	mux.HandleFunc("/api/tunnel/stop", a.auth(a.idempotent(a.auditDestructive("tunnel_stop", a.handleTunnelStop))))
-	mux.HandleFunc("/api/tunnel/restart", a.auth(a.idempotent(a.auditDestructive("tunnel_restart", a.handleTunnelRestart))))
-	mux.HandleFunc("/api/tunnel/delete", a.auth(a.idempotent(a.auditDestructive("tunnel_delete", a.handleTunnelDelete))))
+	mux.HandleFunc("/api/tunnel/apply", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_apply", a.handleTunnelApply)))))
+	mux.HandleFunc("/api/tunnel/start", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_start", a.handleTunnelStart)))))
+	mux.HandleFunc("/api/tunnel/stop", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_stop", a.handleTunnelStop)))))
+	mux.HandleFunc("/api/tunnel/restart", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_restart", a.handleTunnelRestart)))))
+	mux.HandleFunc("/api/tunnel/delete", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("tunnel_delete", a.handleTunnelDelete)))))
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
