@@ -44,7 +44,7 @@ func (a *API) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", a.handleHealth)
 	if a.cfg.PublicStatus {
-		mux.HandleFunc("/status", a.handleStatusPage)
+		mux.HandleFunc("/status", a.handlePublicStatusPage)
 	} else {
 		mux.HandleFunc("/status", a.auth(a.handleStatusPage))
 	}
@@ -481,6 +481,10 @@ type killRequest struct {
 // handleTunnelWatchdog reports the watchdog's current per-tunnel
 // classification and recent transitions (Phase 4 · 4-A).
 func (a *API) handleTunnelWatchdog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
 	if a.wd == nil {
 		writeJSON(w, http.StatusOK, WatchdogSnapshot{Enabled: false})
 		return
@@ -491,6 +495,10 @@ func (a *API) handleTunnelWatchdog(w http.ResponseWriter, r *http.Request) {
 // handleProbeStatus reports the multi-point probe snapshot (Phase 4 · 4-B):
 // every registered target as seen from THIS host, with latency history.
 func (a *API) handleProbeStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
 	if a.pm == nil {
 		writeJSON(w, http.StatusOK, ProbeSnapshot{Enabled: false})
 		return

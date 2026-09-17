@@ -197,18 +197,45 @@ func TestDetailedStatusIsPrivateByDefault(t *testing.T) {
 	}
 }
 
-func TestDetailedStatusPublicOptInDoesNotExposeAPIStatus(t *testing.T) {
+func TestPublicStatusOptInIsMinimalAndDoesNotExposeAPIStatus(t *testing.T) {
 	api := hardeningAPI(t)
 	api.cfg.PublicStatus = true
+	api.mon.mu.Lock()
+	api.mon.snap.Hostname = "secret-internal-host"
+	api.mon.mu.Unlock()
 	public := httptest.NewRecorder()
 	api.routes().ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/status", nil))
 	if public.Code != http.StatusOK {
 		t.Fatalf("opt-in public status=%d, want 200", public.Code)
 	}
+	body := public.Body.String()
+	for _, forbidden := range []string{"secret-internal-host", "Listening Ports", "Recent Events", "CPU Usage", "Memory Usage"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("public status leaked %q", forbidden)
+		}
+	}
+	if !strings.Contains(body, "Operational") || public.Header().Get("Cache-Control") != "no-store" {
+		t.Fatal("minimal public status signal or no-store header missing")
+	}
+	wrongMethod := httptest.NewRecorder()
+	api.routes().ServeHTTP(wrongMethod, httptest.NewRequest(http.MethodPost, "/status", nil))
+	if wrongMethod.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("public status POST=%d, want 405", wrongMethod.Code)
+	}
 	privateAPI := httptest.NewRecorder()
 	api.routes().ServeHTTP(privateAPI, httptest.NewRequest(http.MethodGet, "/api/status", nil))
 	if privateAPI.Code != http.StatusUnauthorized {
 		t.Fatalf("API status without token=%d, want 401", privateAPI.Code)
+	}
+}
+
+func TestReadOnlySnapshotsRejectNonGETMethods(t *testing.T) {
+	api := hardeningAPI(t)
+	for _, path := range []string{"/api/status", "/api/probe", "/api/tunnel/watchdog"} {
+		rec := doAuth(t, api, http.MethodPost, path, "hard-token")
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("POST %s=%d, want 405", path, rec.Code)
+		}
 	}
 }
 

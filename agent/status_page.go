@@ -8,8 +8,31 @@ import (
 	"time"
 )
 
-// serveStatusPage renders an elegant, responsive HTML status page.
+// handlePublicStatusPage intentionally exposes only a coarse availability
+// signal. Hostnames, mounts, listening ports, process names, resource values,
+// and event details remain behind authenticated endpoints.
+func (a *API) handlePublicStatusPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
+	snap := a.mon.Snapshot()
+	label, class := "Operational", "ok"
+	if snap.CPU.Usage > 85 || snap.Memory.UsagePct > 90 {
+		label, class = "Degraded", "warn"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	fmt.Fprintf(w, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><title>Service status</title><style>body{margin:0;background:#090d16;color:#f1f5f9;font:16px system-ui;display:grid;place-items:center;min-height:100vh}.card{border:1px solid #24304d;border-radius:16px;padding:28px 36px;background:#121a2c;text-align:center}.dot{display:inline-block;width:10px;height:10px;border-radius:50%%;margin-right:9px}.ok{background:#4ade80}.warn{background:#facc15}small{display:block;color:#94a3b8;margin-top:12px}</style></head><body><main class="card"><strong><span class="dot %s"></span>%s</strong><small>Didban service status</small></main></body></html>`, class, label)
+}
+
+// handleStatusPage renders the detailed authenticated status page.
 func (a *API) handleStatusPage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		return
+	}
 	snap := a.mon.Snapshot()
 	events := a.mon.events.List(10)
 	sockets := GetNetworkSockets()
