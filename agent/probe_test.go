@@ -482,6 +482,7 @@ func doProbeAuth(t *testing.T, api *API, method, path string, body []byte) *http
 	req := httptest.NewRequest(method, path, bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer probe-token")
 	req.Header.Set("Content-Type", "application/json")
+	addTestOperationKey(req)
 	rec := httptest.NewRecorder()
 	api.routes().ServeHTTP(rec, req)
 	return rec
@@ -556,8 +557,8 @@ func TestProbeAPI_FullFlow(t *testing.T) {
 		t.Fatalf("unknown target: %d, want 404", rec.Code)
 	}
 
-	// Probe all (empty body) → snapshot.
-	rec = doProbeAuth(t, api, http.MethodPost, "/api/probe/now", nil)
+	// Probe all with an explicit empty JSON object → snapshot.
+	rec = doProbeAuth(t, api, http.MethodPost, "/api/probe/now", []byte(`{}`))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST now all: %d", rec.Code)
 	}
@@ -567,12 +568,45 @@ func TestProbeAPI_FullFlow(t *testing.T) {
 		t.Fatalf("probe-all snapshot = %+v", allSnap)
 	}
 
-	// Method enforcement.
+	// Method enforcement (fresh mutation budget; the flow above intentionally
+	// consumed the small destructive-operation burst).
+	api.mutations = newMutationLimiter()
 	if rec := doProbeAuth(t, api, http.MethodDelete, "/api/probe/targets", nil); rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("DELETE targets: %d, want 405", rec.Code)
 	}
 	if rec := doProbeAuth(t, api, http.MethodGet, "/api/probe/now", nil); rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("GET now: %d, want 405", rec.Code)
+	}
+}
+
+func TestProbeAPI_StrictMutationBodies(t *testing.T) {
+	pm, _ := newTestProbe(t, nil)
+	api := probeAPI(t, pm)
+	for _, tc := range []struct {
+		path string
+		body string
+	}{
+		{"/api/probe/targets", `{"targets":[],"unexpected":true}`},
+		{"/api/probe/targets", `{"targets":[]} {}`},
+		{"/api/probe/now", `{"target":"","unexpected":true}`},
+		{"/api/probe/now", `{not-json}`},
+	} {
+		rec := doProbeAuth(t, api, http.MethodPost, tc.path, []byte(tc.body))
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s accepted non-strict body %q: status=%d", tc.path, tc.body, rec.Code)
+		}
+	}
+}
+
+func TestAlertsTestIsPostOnlyAndStrictJSON(t *testing.T) {
+	api := probeAPI(t, nil)
+	get := doProbeAuth(t, api, http.MethodGet, "/api/alerts/test", nil)
+	if get.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET alert test=%d, want 405", get.Code)
+	}
+	unknown := doProbeAuth(t, api, http.MethodPost, "/api/alerts/test", []byte(`{"token":"must-not-be-accepted"}`))
+	if unknown.Code != http.StatusBadRequest {
+		t.Fatalf("alert test accepted unknown field: %d", unknown.Code)
 	}
 }
 

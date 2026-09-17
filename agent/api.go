@@ -69,11 +69,11 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))
 	// Multi-point probing (Phase 4 · 4-B)
 	mux.HandleFunc("/api/probe", a.auth(a.handleProbeStatus))
-	mux.HandleFunc("/api/probe/targets", a.auth(a.handleProbeTargets))
-	mux.HandleFunc("/api/probe/now", a.auth(a.handleProbeNow))
+	mux.HandleFunc("/api/probe/targets", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("probe_targets_replace", a.handleProbeTargets)))))
+	mux.HandleFunc("/api/probe/now", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("probe_run", a.handleProbeNow)))))
 
-	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.handleAlertsTest))
-	mux.HandleFunc("/api/alerts/test", a.auth(a.handleAlertsTest))
+	mux.HandleFunc("/api/alerts/telegram/test", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
+	mux.HandleFunc("/api/alerts/test", a.auth(a.limitMutation(a.idempotent(a.auditDestructive("alert_test", a.handleAlertsTest)))))
 	mux.HandleFunc("/api/events", a.auth(a.handleEvents))
 	mux.HandleFunc("/api/history", a.auth(a.handleHistory))
 	return a.harden(mux)
@@ -480,8 +480,7 @@ func (a *API) handleProbeTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req probeTargetsReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if err := a.pm.SetTargets(req.Targets); err != nil {
@@ -506,7 +505,9 @@ func (a *API) handleProbeNow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req probeNowReq
-	_ = json.NewDecoder(r.Body).Decode(&req) // empty body = probe all
+	if !decodeJSON(w, r, &req) {
+		return
+	}
 	if req.Target != "" {
 		pt, ok := a.pm.ProbeNow(req.Target)
 		if !ok {
@@ -546,8 +547,12 @@ func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleAlertsTest(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed (POST required)"})
+		return
+	}
+	var req struct{}
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
