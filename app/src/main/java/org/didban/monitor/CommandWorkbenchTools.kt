@@ -257,7 +257,9 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         scope.launch {
             try { subscriptionInfo = ProxyEngine.fetchSubscription(subscription) }
-            catch (e: Exception) { error = e.message ?: "Subscription failed" }
+            catch (e: Exception) {
+                error = SecretRedactor.redact(e.message ?: "Subscription failed", listOf(subscription)).take(300)
+            }
             finally { busy = false }
         }
     }

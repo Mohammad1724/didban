@@ -62,6 +62,9 @@ data class SubscriptionInfo(
 object ProxyEngine {
 
     private val httpClient = OkHttpClient.Builder()
+        .dns(PublicOnlyDns)
+        .followRedirects(false)
+        .followSslRedirects(false)
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(12, TimeUnit.SECONDS)
         .build()
@@ -230,16 +233,15 @@ object ProxyEngine {
      */
     suspend fun fetchSubscription(subUrl: String): SubscriptionInfo = withContext(Dispatchers.IO) {
         val cleanUrl = subUrl.trim()
-        require(cleanUrl.startsWith("https://", ignoreCase = true)) {
-            "Subscription URL must use HTTPS"
-        }
+        val validatedUrl = NetworkTargetPolicy.requirePublicHttps(cleanUrl).toASCIIString()
         val req = Request.Builder()
-            .url(cleanUrl)
+            .url(validatedUrl)
             .header("User-Agent", "v2rayNG/1.8.12 (Didban Sentinel)")
             .build()
 
         try {
             httpClient.newCall(req).execute().use { resp ->
+                require(resp.isSuccessful) { "Subscription request failed with HTTP ${resp.code}" }
                 val userInfoHeader = resp.header("Subscription-Userinfo") ?: resp.header("subscription-userinfo") ?: ""
                 var up = 0L
                 var down = 0L

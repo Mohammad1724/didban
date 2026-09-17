@@ -38,9 +38,21 @@ enum class AlertType {
 object AlertEngine {
 
     private val httpClient = OkHttpClient.Builder()
+        .dns(PublicOnlyDns)
+        .followRedirects(false)
+        .followSslRedirects(false)
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+
+    private fun validatedDiscordWebhook(raw: String): String {
+        val uri = NetworkTargetPolicy.requirePublicHttps(
+            raw.trim(),
+            setOf("discord.com", "canary.discord.com", "ptb.discord.com", "discordapp.com")
+        )
+        require(uri.rawPath.startsWith("/api/webhooks/")) { "Invalid Discord webhook path" }
+        return uri.toASCIIString()
+    }
 
     // 5-minute cooldown per target and alert type to prevent spamming
     private val alertCooldowns = ConcurrentHashMap<String, Long>()
@@ -110,8 +122,9 @@ object AlertEngine {
      */
     suspend fun testDiscord(webhookUrl: String): Pair<Boolean, String> =
         withContext(Dispatchers.IO) {
-            val url = webhookUrl.trim()
-            if (url.isEmpty() || !url.startsWith("http")) {
+            val url = try {
+                validatedDiscordWebhook(webhookUrl)
+            } catch (_: Exception) {
                 return@withContext Pair(false, "آدرس وبهوک دیسکورد نامعتبر است")
             }
 
@@ -250,7 +263,7 @@ object AlertEngine {
         // 3. Dispatch Discord Webhook
         if (discordEnabled) {
             val webhook = Prefs.getDiscordWebhookUrl(ctx)
-            if (webhook.isNotEmpty() && webhook.startsWith("http")) {
+            if (webhook.isNotEmpty()) {
                 val embed = JSONObject().apply {
                     put("title", "$levelEmoji Didban Alert — $eventTitle")
                     put("description", "**Target:** `$targetName`\n**Details:** $targetDetail")
@@ -279,8 +292,9 @@ object AlertEngine {
                 }
 
                 try {
+                    val validatedWebhook = validatedDiscordWebhook(webhook)
                     val reqBody = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val request = Request.Builder().url(webhook).post(reqBody).build()
+                    val request = Request.Builder().url(validatedWebhook).post(reqBody).build()
                     httpClient.newCall(request).execute().close()
                 } catch (_: Exception) {}
             }
