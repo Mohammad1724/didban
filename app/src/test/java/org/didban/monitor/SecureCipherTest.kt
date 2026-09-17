@@ -90,6 +90,20 @@ class SecureCipherTest {
     }
 
     @Test
+    fun `associated data prevents ciphertext substitution`() {
+        val key = randomKey()
+        val tokenSlot = "didban\u0000tg_bot_token".toByteArray()
+        val webhookSlot = "didban\u0000discord_webhook".toByteArray()
+        val enc = SecureCipher.encrypt(key, "secret", tokenSlot)
+        assertEquals("secret", SecureCipher.decrypt(key, enc, tokenSlot))
+        try {
+            SecureCipher.decrypt(key, enc, webhookSlot)
+            fail("ciphertext moved to another preference key must not decrypt")
+        } catch (expected: Exception) {
+        }
+    }
+
+    @Test
     fun `ciphertext is base64 and much longer than the plaintext`() {
         val key = randomKey()
         val enc = SecureCipher.encrypt(key, "short")

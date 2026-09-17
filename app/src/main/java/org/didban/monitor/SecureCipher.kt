@@ -17,22 +17,24 @@ object SecureCipher {
     private const val TAG_LENGTH_BIT = 128
 
     /** AES-256-GCM encrypt; output is base64(iv || ciphertext || tag). */
-    fun encrypt(key: SecretKey, plaintext: String): String {
+    fun encrypt(key: SecretKey, plaintext: String, associatedData: ByteArray = byteArrayOf()): String {
         val iv = ByteArray(IV_LENGTH).also { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BIT, iv))
+        if (associatedData.isNotEmpty()) cipher.updateAAD(associatedData)
         val ct = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
         return Base64.getEncoder().encodeToString(iv + ct)
     }
 
     /** Inverse of [encrypt]; throws on tampering or wrong key. */
-    fun decrypt(key: SecretKey, payload: String): String {
+    fun decrypt(key: SecretKey, payload: String, associatedData: ByteArray = byteArrayOf()): String {
         val raw = Base64.getDecoder().decode(payload)
         require(raw.size >= IV_LENGTH + TAG_LENGTH_BIT / 8) { "payload too short" }
         val iv = raw.copyOfRange(0, IV_LENGTH)
         val ct = raw.copyOfRange(IV_LENGTH, raw.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH_BIT, iv))
+        if (associatedData.isNotEmpty()) cipher.updateAAD(associatedData)
         return String(cipher.doFinal(ct), Charsets.UTF_8)
     }
 }

@@ -1,6 +1,8 @@
 package org.didban.monitor
 
 import android.content.Context
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -33,9 +35,11 @@ object SecureStorage {
     private const val KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "didban_app_secrets"
     private const val KEY_SIZE_BITS = 256
+    private const val FORMAT_V2 = "v2:"
 
-    private var key: SecretKey? = null
+    @Volatile private var key: SecretKey? = null
 
+    @Synchronized
     private fun getOrCreateKey(): SecretKey {
         key?.let { return it }
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
@@ -43,8 +47,17 @@ object SecureStorage {
         val k: SecretKey = if (existing is KeyStore.SecretKeyEntry) {
             existing.secretKey
         } else {
-            val gen = KeyGenerator.getInstance("AES", KEYSTORE)
-            gen.init(KEY_SIZE_BITS)
+            val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
+            val spec = KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            )
+                .setKeySize(KEY_SIZE_BITS)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build()
+            gen.init(spec)
             gen.generateKey()
         }
         key = k
@@ -55,28 +68,54 @@ object SecureStorage {
 
     fun decrypt(payload: String): String = SecureCipher.decrypt(getOrCreateKey(), payload)
 
+    private fun associatedData(prefsName: String, entryKey: String): ByteArray =
+        "$prefsName\u0000$entryKey".toByteArray(Charsets.UTF_8)
+
+    private fun encryptBound(prefsName: String, entryKey: String, plaintext: String): String =
+        FORMAT_V2 + SecureCipher.encrypt(getOrCreateKey(), plaintext, associatedData(prefsName, entryKey))
+
+    private fun decryptBound(prefsName: String, entryKey: String, payload: String): String =
+        SecureCipher.decrypt(
+            getOrCreateKey(),
+            payload.removePrefix(FORMAT_V2),
+            associatedData(prefsName, entryKey)
+        )
+
     /**
      * Reads a secret by [key]. Transparently migrates legacy plaintext
      * entries: on first access the old value is encrypted into
-     * "<key>_enc" and the plaintext copy is deleted. If encryption fails
-     * (should not happen), the legacy value is returned so data is never
-     * lost.
+     * "<key>_enc" and the plaintext copy is deleted. Existing unbound
+     * ciphertext is also migrated to the v2 format whose AEAD associated data
+     * binds it to both the preferences file and entry name. Corruption fails
+     * closed rather than being mistaken for a missing credential.
      */
     fun getSecret(ctx: Context, prefsName: String, key: String): String {
         val sp = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         val encKey = key + "_enc"
         sp.getString(encKey, null)?.let { enc ->
-            try {
-                return decrypt(enc)
-            } catch (_: Exception) {
-                // Corrupted ciphertext (e.g. storage anomaly) - fall through
-                // to the legacy value and re-migrate below.
+            if (enc.startsWith(FORMAT_V2)) {
+                try {
+                    return decryptBound(prefsName, key, enc)
+                } catch (e: Exception) {
+                    throw SecretStorageException("Encrypted secret is corrupted or misplaced", e)
+                }
             }
+            // One-time migration from the original unbound AES-GCM format.
+            val plaintext = try {
+                decrypt(enc)
+            } catch (e: Exception) {
+                throw SecretStorageException("Encrypted secret cannot be decrypted", e)
+            }
+            val migrated = encryptBound(prefsName, key, plaintext)
+            if (!sp.edit().putString(encKey, migrated).commit()) {
+                throw SecretStorageException("Could not migrate encrypted storage format")
+            }
+            return plaintext
         }
         val legacy = sp.getString(key, null) ?: return ""
         if (legacy.isEmpty()) return ""
         val encrypted = try {
-            encrypt(legacy)
+            encryptBound(prefsName, key, legacy)
         } catch (e: Exception) {
             throw SecretStorageException("Could not migrate legacy secret to secure storage", e)
         }
@@ -96,7 +135,7 @@ object SecureStorage {
     fun putSecret(ctx: Context, prefsName: String, key: String, plaintext: String) {
         val sp = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         val encrypted = try {
-            encrypt(plaintext)
+            encryptBound(prefsName, key, plaintext)
         } catch (e: Exception) {
             throw SecretStorageException("Secure storage is unavailable", e)
         }
@@ -117,7 +156,7 @@ object SecureStorage {
         values: Map<String, String> = emptyMap()
     ) {
         val encrypted = try {
-            secrets.mapValues { (_, plaintext) -> encrypt(plaintext) }
+            secrets.mapValues { (entryKey, plaintext) -> encryptBound(prefsName, entryKey, plaintext) }
         } catch (e: Exception) {
             throw SecretStorageException("Could not prepare secure transaction", e)
         }
