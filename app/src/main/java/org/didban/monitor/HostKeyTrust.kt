@@ -1,7 +1,6 @@
 package org.didban.monitor
 
 import java.security.MessageDigest
-import java.util.Base64
 
 /**
  * SSH host-key trust (Trust-On-First-Use).
@@ -103,41 +102,5 @@ class ConfirmingHostKeyPolicy(
             if (approved) store.storeFingerprint(host, port, fp)
             approved
         }
-    }
-}
-
-/**
- * Verifies a connected session's host key against [policy].
- * Returns null on success, or a human-readable error message on failure.
- * Fails closed: if JSch cannot report a host key, the session is rejected.
- */
-suspend fun verifySessionHostKey(
-    session: com.jcraft.jsch.Session,
-    host: String,
-    port: Int,
-    policy: HostKeyPolicy
-): String? {
-    val hostKey = try {
-        session.hostKey
-    } catch (_: Exception) {
-        null
-    }
-    // JSch's HostKey.getKey() returns the raw key blob base64-encoded
-    // (line-wrapped). Decode it back to the raw bytes we fingerprint.
-    val raw = try {
-        hostKey?.key?.let { encoded ->
-            Base64.getMimeDecoder().decode(encoded)
-        }
-    } catch (_: Exception) {
-        null
-    }
-    if (raw == null || raw.isEmpty()) {
-        return "could not retrieve the server host key; refusing to continue"
-    }
-    return try {
-        if (policy.verify(host, port, raw)) null
-        else "host key verification failed for $host:$port — possible MITM attack; connection aborted"
-    } catch (e: Exception) {
-        "host key verification error: ${e.message ?: e::class.simpleName}"
     }
 }

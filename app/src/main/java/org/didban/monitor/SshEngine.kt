@@ -1,7 +1,6 @@
 package org.didban.monitor
 
 import com.jcraft.jsch.ChannelExec
-import com.jcraft.jsch.JSch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -51,36 +50,21 @@ object SshEngine {
         var session: com.jcraft.jsch.Session? = null
         try {
             CryptoSecurity.ensureInitialized()
-            val jsch = JSch()
-            session = jsch.getSession(user.trim(), host.trim(), if (sshPort > 0) sshPort else 22)
-            session.setPassword(password)
-            session.setConfig("StrictHostKeyChecking", "no")
-            session.setConfig("PreferredAuthentications", "password,keyboard-interactive")
-
-            // H10: the modern algorithm whitelist lives in SshAlgorithms —
-            // one shared set for every engine (no CBC/arcfour/3DES, no
-            // SHA-1 kex, no ssh-dss/ssh-rsa host keys).
-            session.setConfig("kex", SshAlgorithms.kexConfig())
-            session.setConfig("server_host_key", SshAlgorithms.hostKeyConfig())
-            session.setConfig("PubkeyAcceptedAlgorithms", SshAlgorithms.hostKeyConfig())
-            session.setConfig("cipher.s2c", SshAlgorithms.cipherConfig())
-            session.setConfig("cipher.c2s", SshAlgorithms.cipherConfig())
-
-            session.connect(TimeUnit.SECONDS.toMillis(12).toInt())
-
-            // TOFU: verify the host key before any command is sent.
-            val portForTrust = if (sshPort > 0) sshPort else 22
-            val hostKeyError = verifySessionHostKey(session, host, portForTrust, hostKeyPolicy)
-            if (hostKeyError != null) {
-                session.disconnect()
-                return@withContext SshExecResult(
-                    exitCode = -1,
-                    stdout = "",
-                    stderr = hostKeyError,
-                    durationMs = System.currentTimeMillis() - t0,
-                    isSuccess = false,
-                    errorMessage = hostKeyError
-                )
+            session = connectVerifiedSshSession(
+                host = host.trim(),
+                port = sshPort,
+                user = user.trim(),
+                password = password,
+                timeoutMs = TimeUnit.SECONDS.toMillis(12).toInt(),
+                policy = hostKeyPolicy
+            ) { candidate ->
+                // One modern algorithm policy is applied to both the
+                // credential-free discovery and authenticated connections.
+                candidate.setConfig("kex", SshAlgorithms.kexConfig())
+                candidate.setConfig("server_host_key", SshAlgorithms.hostKeyConfig())
+                candidate.setConfig("PubkeyAcceptedAlgorithms", SshAlgorithms.hostKeyConfig())
+                candidate.setConfig("cipher.s2c", SshAlgorithms.cipherConfig())
+                candidate.setConfig("cipher.c2s", SshAlgorithms.cipherConfig())
             }
 
             val channel = session.openChannel("exec") as ChannelExec

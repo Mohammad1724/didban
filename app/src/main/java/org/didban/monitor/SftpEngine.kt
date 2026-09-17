@@ -1,7 +1,6 @@
 package org.didban.monitor
 
 import com.jcraft.jsch.ChannelSftp
-import com.jcraft.jsch.JSch
 import com.jcraft.jsch.SftpProgressMonitor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -99,34 +98,21 @@ object SftpEngine {
         hostKeyPolicy: HostKeyPolicy = StoredHostKeyPolicy(HostKeyTrustStore)
     ): com.jcraft.jsch.Session {
         CryptoSecurity.ensureInitialized()
-        val jsch = JSch()
-        val session = jsch.getSession(user.trim().ifBlank { "root" }, host.trim(), if (port > 0) port else 22)
-        session.setPassword(pass)
-        session.setConfig("StrictHostKeyChecking", "no")
-        session.setConfig("PreferredAuthentications", "password,keyboard-interactive")
-
-        // H10: shared modern whitelist (see SshAlgorithms) — the old local
-        // lists still offered arcfour/3DES/CBC ciphers and SHA-1 kex even
-        // though CheckCiphers rejected them at verification time.
-        session.setConfig("kex", SshAlgorithms.kexConfig())
-        session.setConfig("server_host_key", SshAlgorithms.hostKeyConfig())
-        session.setConfig("PubkeyAcceptedAlgorithms", SshAlgorithms.hostKeyConfig())
-        session.setConfig("cipher.s2c", SshAlgorithms.cipherConfig())
-        session.setConfig("cipher.c2s", SshAlgorithms.cipherConfig())
-        // Defense in depth: if a weak cipher were ever negotiated it fails
-        // the session instead of being silently accepted.
-        session.setConfig("CheckCiphers", SshAlgorithms.cipherConfig())
-
-        session.connect(TimeUnit.SECONDS.toMillis(15).toInt())
-
-        // TOFU: verify the host key before any SFTP operation.
-        val portForTrust = if (port > 0) port else 22
-        val hostKeyError = verifySessionHostKey(session, host, portForTrust, hostKeyPolicy)
-        if (hostKeyError != null) {
-            session.disconnect()
-            throw Exception(hostKeyError)
+        return connectVerifiedSshSession(
+            host = host.trim(),
+            port = port,
+            user = user.trim().ifBlank { "root" },
+            password = pass,
+            timeoutMs = TimeUnit.SECONDS.toMillis(15).toInt(),
+            policy = hostKeyPolicy
+        ) { candidate ->
+            candidate.setConfig("kex", SshAlgorithms.kexConfig())
+            candidate.setConfig("server_host_key", SshAlgorithms.hostKeyConfig())
+            candidate.setConfig("PubkeyAcceptedAlgorithms", SshAlgorithms.hostKeyConfig())
+            candidate.setConfig("cipher.s2c", SshAlgorithms.cipherConfig())
+            candidate.setConfig("cipher.c2s", SshAlgorithms.cipherConfig())
+            candidate.setConfig("CheckCiphers", SshAlgorithms.cipherConfig())
         }
-        return session
     }
 
     /**
