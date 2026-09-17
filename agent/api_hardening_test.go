@@ -19,6 +19,7 @@ func hardeningAPI(t *testing.T) *API {
 func doAuth(t *testing.T, api *API, method, path, token string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(method, path, nil)
+	addTestOperationKey(req)
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -89,6 +90,7 @@ func TestRateLimit_DistinctClientsAreIndependent(t *testing.T) {
 	var last *httptest.ResponseRecorder
 	for i := 0; i < rateLimitBurst+5; i++ {
 		req := httptest.NewRequest(http.MethodGet, "/api/metrics", nil)
+		addTestOperationKey(req)
 		req.Header.Set("Authorization", "Bearer hard-token")
 		req.RemoteAddr = "10.0.0.1:5555"
 		last = httptest.NewRecorder()
@@ -99,6 +101,7 @@ func TestRateLimit_DistinctClientsAreIndependent(t *testing.T) {
 	}
 	// Client B is unaffected.
 	req := httptest.NewRequest(http.MethodGet, "/api/metrics", nil)
+	addTestOperationKey(req)
 	req.Header.Set("Authorization", "Bearer hard-token")
 	req.RemoteAddr = "10.0.0.2:5555"
 	rec := httptest.NewRecorder()
@@ -115,6 +118,7 @@ func TestGlobalBodyCap_AppliesToAllEndpoints(t *testing.T) {
 
 	big := bytes.Repeat([]byte("a"), maxRequestBodyBytes+1)
 	req := httptest.NewRequest(http.MethodPost, "/api/processes/kill", bytes.NewReader(big))
+	addTestOperationKey(req)
 	req.Header.Set("Authorization", "Bearer hard-token")
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()

@@ -18,16 +18,20 @@ import (
 
 // API serves the authenticated JSON endpoints and public status page.
 type API struct {
-	cfg     *Config
-	mon     *Monitor
-	tm      *TunnelManager
-	wd      *TunnelWatchdog // nil when the watchdog is disabled
-	pm      *ProbeMonitor   // nil when the probe monitor is disabled
-	limiter *rateLimiter
+	cfg         *Config
+	mon         *Monitor
+	tm          *TunnelManager
+	wd          *TunnelWatchdog // nil when the watchdog is disabled
+	pm          *ProbeMonitor   // nil when the probe monitor is disabled
+	limiter     *rateLimiter
+	idempotency *idempotencyGuard
 }
 
 func newAPI(cfg *Config, mon *Monitor, tm *TunnelManager, wd *TunnelWatchdog, pm *ProbeMonitor) *API {
-	return &API{cfg: cfg, mon: mon, tm: tm, wd: wd, pm: pm, limiter: newRateLimiter()}
+	return &API{
+		cfg: cfg, mon: mon, tm: tm, wd: wd, pm: pm,
+		limiter: newRateLimiter(), idempotency: newIdempotencyGuard(),
+	}
 }
 
 func (a *API) routes() http.Handler {
@@ -37,22 +41,22 @@ func (a *API) routes() http.Handler {
 	mux.HandleFunc("/api/status", a.handleStatusPage)
 	mux.HandleFunc("/api/metrics", a.auth(a.handleMetrics))
 	mux.HandleFunc("/api/processes", a.auth(a.handleProcesses))
-	mux.HandleFunc("/api/processes/kill", a.auth(a.handleProcessKill))
+	mux.HandleFunc("/api/processes/kill", a.auth(a.idempotent(a.handleProcessKill)))
 	mux.HandleFunc("/api/network/sockets", a.auth(a.handleNetworkSockets))
 
 	// Real bandwidth test (streaming download / upload sink)
 	mux.HandleFunc("/api/bandwidth/download", a.auth(a.handleBandwidthDownload))
 	mux.HandleFunc("/api/bandwidth/upload", a.auth(a.handleBandwidthUpload))
 	mux.HandleFunc("/api/docker/containers", a.auth(a.handleDockerContainers))
-	mux.HandleFunc("/api/docker/restart", a.auth(a.handleDockerRestart))
-	mux.HandleFunc("/api/docker/stop", a.auth(a.handleDockerStop))
+	mux.HandleFunc("/api/docker/restart", a.auth(a.idempotent(a.handleDockerRestart)))
+	mux.HandleFunc("/api/docker/stop", a.auth(a.idempotent(a.handleDockerStop)))
 
 	// Tunnel Management APIs (Smite / Marzban style auto-orchestration)
-	mux.HandleFunc("/api/tunnel/apply", a.auth(a.handleTunnelApply))
-	mux.HandleFunc("/api/tunnel/start", a.auth(a.handleTunnelStart))
-	mux.HandleFunc("/api/tunnel/stop", a.auth(a.handleTunnelStop))
-	mux.HandleFunc("/api/tunnel/restart", a.auth(a.handleTunnelRestart))
-	mux.HandleFunc("/api/tunnel/delete", a.auth(a.handleTunnelDelete))
+	mux.HandleFunc("/api/tunnel/apply", a.auth(a.idempotent(a.handleTunnelApply)))
+	mux.HandleFunc("/api/tunnel/start", a.auth(a.idempotent(a.handleTunnelStart)))
+	mux.HandleFunc("/api/tunnel/stop", a.auth(a.idempotent(a.handleTunnelStop)))
+	mux.HandleFunc("/api/tunnel/restart", a.auth(a.idempotent(a.handleTunnelRestart)))
+	mux.HandleFunc("/api/tunnel/delete", a.auth(a.idempotent(a.handleTunnelDelete)))
 	mux.HandleFunc("/api/tunnel/status", a.auth(a.handleTunnelStatus))
 	mux.HandleFunc("/api/tunnel/list", a.auth(a.handleTunnelList))
 	mux.HandleFunc("/api/tunnel/watchdog", a.auth(a.handleTunnelWatchdog))

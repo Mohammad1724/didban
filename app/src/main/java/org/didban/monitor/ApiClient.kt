@@ -100,6 +100,9 @@ class ApiClient {
         val request = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer ${server.token}")
+            // OkHttp retries reuse this immutable Request and therefore the
+            // same key; a separate user action builds a fresh key.
+            .header("X-Idempotency-Key", java.util.UUID.randomUUID().toString())
             .post(reqBody)
             .build()
         val pooled = HttpClientPool.standardClient(server)
