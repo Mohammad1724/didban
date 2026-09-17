@@ -96,12 +96,12 @@ func getDockerClient() (*http.Client, string, error) {
 func GetDockerContainers() DockerSummary {
 	client, _, err := getDockerClient()
 	if err != nil {
-		return DockerSummary{Installed: false, Error: err.Error(), Containers: []ContainerInfo{}}
+		return DockerSummary{Installed: false, Error: "docker API unavailable", Containers: []ContainerInfo{}}
 	}
 
 	resp, err := client.Get("http://localhost/v1.41/containers/json?all=1")
 	if err != nil {
-		return DockerSummary{Installed: true, Error: err.Error(), Containers: []ContainerInfo{}}
+		return DockerSummary{Installed: true, Error: "docker API unavailable", Containers: []ContainerInfo{}}
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -110,7 +110,7 @@ func GetDockerContainers() DockerSummary {
 
 	var rawList []rawDockerContainer
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDockerListBytes)).Decode(&rawList); err != nil {
-		return DockerSummary{Installed: true, Error: err.Error(), Containers: []ContainerInfo{}}
+		return DockerSummary{Installed: true, Error: "docker API unavailable", Containers: []ContainerInfo{}}
 	}
 
 	out := make([]ContainerInfo, 0, len(rawList))

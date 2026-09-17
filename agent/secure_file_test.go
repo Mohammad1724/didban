@@ -88,6 +88,28 @@ func TestSecureAppendFileRejectsSymlinkAndSecuresExistingMode(t *testing.T) {
 	}
 }
 
+func TestSecureWritersRejectSymlinkParent(t *testing.T) {
+	root := t.TempDir()
+	realDir := filepath.Join(root, "real")
+	if err := os.Mkdir(realDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(root, "linked")
+	if err := os.Symlink(realDir, linkDir); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	path := filepath.Join(linkDir, "state")
+	if err := secureWriteFileAtomic(path, []byte("bad"), 0o600); err == nil {
+		t.Fatal("atomic writer accepted a symlink parent")
+	}
+	if _, err := secureAppendFile(path, []byte("bad"), 0o600); err == nil {
+		t.Fatal("append writer accepted a symlink parent")
+	}
+	if _, err := os.Stat(filepath.Join(realDir, "state")); !os.IsNotExist(err) {
+		t.Fatalf("symlink target was modified: %v", err)
+	}
+}
+
 func TestSecureWriteFileAtomicLeavesNoTempFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "credential")

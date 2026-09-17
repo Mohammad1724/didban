@@ -87,7 +87,22 @@ func secureMkdirAllWithin(root, dir string, mode os.FileMode) error {
 
 // secureAppendFile appends without following a destination symlink and
 // tightens an existing file's mode before writing.
+func requireRealParent(path string) error {
+	parent := filepath.Dir(path)
+	info, err := os.Lstat(parent)
+	if err != nil {
+		return fmt.Errorf("inspect destination directory: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("destination parent is not a real directory")
+	}
+	return nil
+}
+
 func secureAppendFile(path string, data []byte, mode os.FileMode) (int64, error) {
+	if err := requireRealParent(path); err != nil {
+		return 0, err
+	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW, mode)
 	if err != nil {
 		return 0, err
@@ -111,6 +126,9 @@ func secureAppendFile(path string, data []byte, mode os.FileMode) (int64, error)
 }
 
 func secureWriteFileAtomic(path string, data []byte, mode os.FileMode) error {
+	if err := requireRealParent(path); err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	f, err := os.CreateTemp(dir, ".didban-write-*")
 	if err != nil {

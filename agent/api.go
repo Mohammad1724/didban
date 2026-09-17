@@ -191,6 +191,17 @@ func bearerToken(r *http.Request) string {
 	return ""
 }
 
+func publicError(err error) string {
+	if err == nil {
+		return "operation failed"
+	}
+	message := sanitizeTunnelLog(err.Error())
+	if len(message) > 256 {
+		message = message[:256] + "…"
+	}
+	return message
+}
+
 func tokenMatches(presented, expected string) bool {
 	presentedHash := sha256.Sum256([]byte(presented))
 	expectedHash := sha256.Sum256([]byte(expected))
@@ -280,7 +291,7 @@ func (a *API) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := RestartDockerContainer(req.ID); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": publicError(err)})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Container restarted"})
@@ -296,7 +307,7 @@ func (a *API) handleDockerStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := StopDockerContainer(req.ID); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": publicError(err)})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Container stopped"})
@@ -350,13 +361,13 @@ func (a *API) handleTunnelApply(w http.ResponseWriter, r *http.Request) {
 func writeTunnelError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errTunnelNotFound):
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": publicError(err)})
 	case errors.Is(err, errInvalidTunnelID),
 		errors.Is(err, errInvalidServiceName),
 		errors.Is(err, errConfigPathOutside):
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": publicError(err)})
 	default:
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal operation failed"})
 	}
 }
 
@@ -507,7 +518,7 @@ func (a *API) handleProbeTargets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := a.pm.SetTargets(req.Targets); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": publicError(err)})
 		return
 	}
 	writeJSON(w, http.StatusOK, a.pm.Snapshot())
@@ -562,7 +573,7 @@ func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {
 
 	res, err := KillProcess(req.PID, req.Signal)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": publicError(err)})
 		return
 	}
 
@@ -589,7 +600,7 @@ func (a *API) handleAlertsTest(w http.ResponseWriter, r *http.Request) {
 	a.mon.mu.RUnlock()
 
 	if err := a.mon.dispatcher.SendTest(host); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal operation failed"})
 		return
 	}
 

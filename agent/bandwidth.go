@@ -80,7 +80,7 @@ func (a *API) handleBandwidthUpload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, bandwidthMaxBytes+1024*1024)
 	n, err := io.Copy(io.Discard, r.Body)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read body: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "failed to read request body"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"received_bytes": n})
