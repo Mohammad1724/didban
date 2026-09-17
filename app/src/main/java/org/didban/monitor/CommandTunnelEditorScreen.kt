@@ -182,20 +182,25 @@ fun CommandTunnelEditorScreen(
         isEnabled = enabled
     )
 
-    fun persist(cfg: TunnelConfig) {
+    fun persist(cfg: TunnelConfig): Boolean {
         val next = records.toMutableList()
         val index = next.indexOfFirst { it.id == cfg.id }
         if (index >= 0) next[index] = cfg else next.add(cfg)
-        records = next
-        selectedId = cfg.id
-        Prefs.saveTunnels(context, next)
+        return runCatching { Prefs.saveTunnels(context, next) }
+            .onSuccess {
+                records = next
+                selectedId = cfg.id
+            }
+            .onFailure {
+                error = SecretRedactor.redact(it.message ?: copy.tunCodeFailed, listOf(cfg.token)).take(300)
+            }
+            .isSuccess
     }
 
     fun saveOnly() {
         val cfg = buildConfig()
-        persist(cfg)
-        message = copy.tunSaved
         error = null
+        if (persist(cfg)) message = copy.tunSaved
     }
 
     fun generate() {
@@ -205,28 +210,31 @@ fun CommandTunnelEditorScreen(
         runCatching { TunnelEngine.generateCode(cfg) }
             .onSuccess {
                 token = cfg.token
-                persist(cfg)
-                generated = it
-                message = copy.tunCodeGenerated
+                if (persist(cfg)) {
+                    generated = it
+                    message = copy.tunCodeGenerated
+                }
             }
-            .onFailure { error = it.message ?: copy.tunCodeFailed }
+            .onFailure { error = SecretRedactor.redact(it.message ?: copy.tunCodeFailed, listOf(cfg.token)).take(300) }
     }
 
     fun deploy() {
         val cfg = buildConfig()
-        persist(cfg)
+        error = null
+        if (!persist(cfg)) return
         busy = true
         error = null
         message = copy.tunDeploying
         scope.launch {
             runCatching { TunnelEngine.autoDeployTunnel(context, cfg) }
-                .onSuccess {
+                .onSuccess { result ->
                     token = cfg.token
-                    persist(cfg)
-                    message = it.summaryMessage
-                    generated = null
+                    if (persist(cfg)) {
+                        message = SecretRedactor.redact(result.summaryMessage, listOf(cfg.token)).take(500)
+                        generated = null
+                    }
                 }
-                .onFailure { error = it.message ?: copy.tunDeployFailed }
+                .onFailure { error = SecretRedactor.redact(it.message ?: copy.tunDeployFailed, listOf(cfg.token)).take(300) }
             busy = false
         }
     }
@@ -240,7 +248,7 @@ fun CommandTunnelEditorScreen(
                 .onSuccess { result ->
                     message = if (result.first) "Tunnel reachable · ${result.second} ms" else "Tunnel unreachable"
                 }
-                .onFailure { error = it.message ?: copy.tunProbeFailed }
+                .onFailure { error = SecretRedactor.redact(it.message ?: copy.tunProbeFailed, listOf(cfg.token)).take(300) }
             busy = false
         }
     }
@@ -252,7 +260,7 @@ fun CommandTunnelEditorScreen(
         scope.launch {
             runCatching { TunnelEngine.controlRemoteTunnel(context, cfg, action) }
                 .onSuccess { ok -> message = if (ok) copy.tunActionDone.replace("%1", action) else copy.tunActionFailed.replace("%1", action) }
-                .onFailure { error = it.message ?: copy.tunActionFailedGeneric }
+                .onFailure { error = SecretRedactor.redact(it.message ?: copy.tunActionFailedGeneric, listOf(cfg.token)).take(300) }
             busy = false
         }
     }

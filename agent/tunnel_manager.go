@@ -31,12 +31,16 @@ var (
 	tunnelIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 	// Systemd unit names we manage must be conservative: no dots, no slashes.
 	serviceNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+	secretAssignmentPattern = regexp.MustCompile(`(?i)(token|password|secret|key|auth)([[:space:]]*[:=][[:space:]]*["']?)([^[:space:]"',]+)`)
+	commandAuthPattern       = regexp.MustCompile(`(?i)(--auth[[:space:]]+)([^[:space:]]+)`)
+	urlCredentialPattern     = regexp.MustCompile(`(://[^:/[:space:]@]+:)([^@/[:space:]]+)(@)`)
 )
 
 const (
 	maxConfigContentLen = 1024 * 1024 // 1 MB per config file
 	maxDeployScriptLen  = 64 * 1024   // 64 KB per install script
 	maxFieldNameLen     = 128         // name/core/role metadata cap
+	maxReturnedLogLen   = 16 * 1024   // bounded, redacted diagnostic tail
 
 	// systemCommandTimeout bounds external systemctl/journalctl calls so a hung
 	// D-Bus can never wedge an API handler.
@@ -58,6 +62,17 @@ const (
 
 func (m DeployMode) valid() bool {
 	return m == DeployModeScripts || m == DeployModeConfigOnly
+}
+
+func sanitizeTunnelLog(raw string) string {
+	safe := secretAssignmentPattern.ReplaceAllString(raw, `${1}${2}[REDACTED]`)
+	safe = commandAuthPattern.ReplaceAllString(safe, `${1}[REDACTED]`)
+	safe = urlCredentialPattern.ReplaceAllString(safe, `${1}[REDACTED]${3}`)
+	if len(safe) > maxReturnedLogLen {
+		safe = safe[len(safe)-maxReturnedLogLen:]
+		safe = "[truncated] " + safe
+	}
+	return strings.TrimSpace(safe)
 }
 
 // ValidateTunnelID ensures the id is safe to embed in file names and unit names.
@@ -251,8 +266,13 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 		if err := os.MkdirAll(filepath.Dir(cleanPath), 0o755); err != nil {
 			return nil, fmt.Errorf("failed to prepare config directory %s: %w", filepath.Dir(cleanPath), err)
 		}
-		if err := os.WriteFile(cleanPath, []byte(req.ConfigContent), 0o644); err != nil {
+		// Tunnel configs contain tokens/keys. WriteFile's mode does not tighten
+		// an existing file, so chmod explicitly after every write.
+		if err := os.WriteFile(cleanPath, []byte(req.ConfigContent), 0o600); err != nil {
 			return nil, fmt.Errorf("failed to write config file %s: %w", cleanPath, err)
+		}
+		if err := os.Chmod(cleanPath, 0o600); err != nil {
+			return nil, fmt.Errorf("failed to secure config file %s: %w", cleanPath, err)
 		}
 	}
 
@@ -276,7 +296,7 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 			base.Active = false
 			base.Status = "failed"
 			base.Success = false
-			base.Logs = string(out)
+			base.Logs = sanitizeTunnelLog(string(out))
 			base.Error = fmt.Sprintf("exec script failed: %v", err)
 			return base, nil
 		}
@@ -515,7 +535,7 @@ func (tm *TunnelManager) queryServiceStatusLocked(id, name, core, role, serviceN
 	var logs string
 	cmdLogs := exec.CommandContext(ctx, "journalctl", "-u", serviceName, "-n", "20", "--no-pager")
 	if outLogs, err := cmdLogs.Output(); err == nil {
-		logs = strings.TrimSpace(string(outLogs))
+		logs = sanitizeTunnelLog(string(outLogs))
 	}
 
 	msg := "Tunnel service is running"
