@@ -7,19 +7,25 @@ import org.json.JSONArray
 object Prefs {
     private const val FILE = "didban"
 
-    fun loadServers(ctx: Context): MutableList<ServerConfig> {
-        val raw = SecureStorage.getSecret(ctx, FILE, "servers").ifEmpty { return mutableListOf() }
+    data class ServerLoadResult(
+        val servers: MutableList<ServerConfig>,
+        val error: Throwable? = null
+    )
+
+    /** Detailed form for user-facing screens: corruption/decryption is not disguised as an empty fleet. */
+    fun loadServersResult(ctx: Context): ServerLoadResult = try {
+        val raw = SecureStorage.getSecret(ctx, FILE, "servers")
+        if (raw.isEmpty()) return ServerLoadResult(mutableListOf())
+        val arr = JSONArray(raw)
         val list = mutableListOf<ServerConfig>()
-        return try {
-            val arr = JSONArray(raw)
-            for (i in 0 until arr.length()) {
-                list.add(ServerConfig.fromJson(arr.getJSONObject(i)))
-            }
-            list
-        } catch (e: Exception) {
-            mutableListOf()
-        }
+        for (i in 0 until arr.length()) list.add(ServerConfig.fromJson(arr.getJSONObject(i)))
+        ServerLoadResult(list)
+    } catch (e: Exception) {
+        ServerLoadResult(mutableListOf(), e)
     }
+
+    /** Compatibility form for background workers; UI should prefer [loadServersResult]. */
+    fun loadServers(ctx: Context): MutableList<ServerConfig> = loadServersResult(ctx).servers
 
     fun saveServers(ctx: Context, servers: List<ServerConfig>) {
         val arr = JSONArray()

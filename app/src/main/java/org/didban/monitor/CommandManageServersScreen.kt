@@ -50,7 +50,8 @@ fun CommandManageServersScreen(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    var records by remember { mutableStateOf<List<ServerConfig>>(Prefs.loadServers(context)) }
+    val initialLoad = remember { Prefs.loadServersResult(context) }
+    var records by remember { mutableStateOf<List<ServerConfig>>(initialLoad.servers) }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
@@ -62,7 +63,13 @@ fun CommandManageServersScreen(
     var memAlert by remember { mutableStateOf("90") }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var error by remember {
+        mutableStateOf(
+            initialLoad.error?.let {
+                if (Prefs.getLanguage(context) == "fa") "خواندن امن فهرست سرورها ناموفق بود؛ داده موجود با فهرست خالی جایگزین نشده است." else "Secure server data could not be read; existing data has not been replaced with an empty list."
+            }
+        )
+    }
     var testResult by remember { mutableStateOf<Metrics?>(null) }
     var deleteServer by remember { mutableStateOf<ServerConfig?>(null) }
 
@@ -120,6 +127,10 @@ fun CommandManageServersScreen(
     }
 
     fun save() {
+        if (initialLoad.error != null) {
+            error = if (Prefs.getLanguage(context) == "fa") "تا رفع خطای حافظه امن، ذخیره‌سازی برای جلوگیری از بازنویسی داده متوقف است." else "Saving is blocked until secure-storage access is restored, preventing data overwrite."
+            return
+        }
         val server = buildServer()
         val validation = validate(server)
         if (validation != null) {
@@ -129,12 +140,18 @@ fun CommandManageServersScreen(
         val next = records.toMutableList()
         val index = next.indexOfFirst { it.id == server.id }
         if (index >= 0) next[index] = server else next.add(server)
-        records = next
-        selectedId = server.id
-        Prefs.saveServers(context, next)
-        PollingCoordinator.requestNow(server.id)
-        message = copy.srvSavedPolled
-        error = null
+        runCatching { Prefs.saveServers(context, next) }
+            .onSuccess {
+                records = next
+                selectedId = server.id
+                PollingCoordinator.requestNow(server.id)
+                message = copy.srvSavedPolled
+                error = null
+            }
+            .onFailure {
+                error = it.message ?: if (Prefs.getLanguage(context) == "fa") "ذخیره امن سرور ناموفق بود." else "Secure server storage failed."
+                message = null
+            }
     }
 
     fun test(server: ServerConfig) {
@@ -253,11 +270,24 @@ fun CommandManageServersScreen(
             text = { Text(copy.srvDeleteBody.replace("%1", server.name)) },
             confirmButton = {
                 TextButton(onClick = {
-                    records = records.filterNot { it.id == server.id }
-                    Prefs.saveServers(context, records)
-                    deleteServer = null
-                    reset()
-                    message = copy.srvLocalDeleted
+                    if (initialLoad.error != null) {
+                        deleteServer = null
+                        error = if (Prefs.getLanguage(context) == "fa") "حذف تا رفع خطای حافظه امن متوقف است." else "Deletion is blocked until secure storage is available."
+                        return@TextButton
+                    }
+                    val next = records.filterNot { it.id == server.id }
+                    runCatching { Prefs.saveServers(context, next) }
+                        .onSuccess {
+                            HttpClientPool.evictForServer(server)
+                            records = next
+                            deleteServer = null
+                            reset()
+                            message = copy.srvLocalDeleted
+                        }
+                        .onFailure {
+                            deleteServer = null
+                            error = it.message ?: if (Prefs.getLanguage(context) == "fa") "حذف امن سرور ناموفق بود." else "Secure server deletion failed."
+                        }
                 }) { Text(copy.delete, color = CommandColors.danger) }
             },
             dismissButton = { TextButton(onClick = { deleteServer = null }) { Text(copy.cancel) } }

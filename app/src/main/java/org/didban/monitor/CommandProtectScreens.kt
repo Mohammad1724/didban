@@ -301,18 +301,28 @@ fun CommandAlertsScreen(
     var spikeTrigger by remember { mutableStateOf(Prefs.isAlertTriggerSpike(context)) }
     var tunnelTrigger by remember { mutableStateOf(Prefs.isAlertTriggerTunnel(context)) }
     var message by remember { mutableStateOf<String?>(null) }
+    var messageIsError by remember { mutableStateOf(false) }
     var testing by remember { mutableStateOf(false) }
 
     fun save() {
-        Prefs.setTelegramBotToken(context, telegramToken)
-        Prefs.setTelegramChatId(context, telegramChat)
-        Prefs.setTelegramAlertsEnabled(context, telegramEnabled)
-        Prefs.setDiscordWebhookUrl(context, discordUrl)
-        Prefs.setDiscordAlertsEnabled(context, discordEnabled)
-        Prefs.setAlertTriggerDown(context, downTrigger)
-        Prefs.setAlertTriggerSpike(context, spikeTrigger)
-        Prefs.setAlertTriggerTunnel(context, tunnelTrigger)
-        message = copy.saved
+        runCatching {
+            // Persist secrets first. If secure storage is unavailable, do not
+            // misleadingly report success or enable channels with missing credentials.
+            Prefs.setTelegramBotToken(context, telegramToken)
+            Prefs.setDiscordWebhookUrl(context, discordUrl)
+            Prefs.setTelegramChatId(context, telegramChat)
+            Prefs.setTelegramAlertsEnabled(context, telegramEnabled)
+            Prefs.setDiscordAlertsEnabled(context, discordEnabled)
+            Prefs.setAlertTriggerDown(context, downTrigger)
+            Prefs.setAlertTriggerSpike(context, spikeTrigger)
+            Prefs.setAlertTriggerTunnel(context, tunnelTrigger)
+        }.onSuccess {
+            message = copy.saved
+            messageIsError = false
+        }.onFailure {
+            message = it.message ?: copy.operationFailed
+            messageIsError = true
+        }
     }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
@@ -371,7 +381,7 @@ fun CommandAlertsScreen(
             CommandPrimaryButton(copy.save, ::save)
             if (message != null) {
                 Spacer(Modifier.height(CommandSpacing.sm))
-                Text(message ?: "", color = CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                Text(message ?: "", color = if (messageIsError) CommandColors.danger else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }

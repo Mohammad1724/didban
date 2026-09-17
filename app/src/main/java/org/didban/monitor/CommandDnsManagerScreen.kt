@@ -162,9 +162,16 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsApiToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandPrimaryButton(copy.dnsSaveToken, {
-                            apiToken = tokenDraft.trim()
-                            Prefs.setCfToken(context, tokenDraft)
-                            message = copy.dnsTokenSaved
+                            runCatching { Prefs.setCfToken(context, tokenDraft) }
+                                .onSuccess {
+                                    apiToken = tokenDraft.trim()
+                                    message = copy.dnsTokenSaved
+                                    error = null
+                                }
+                                .onFailure {
+                                    error = it.message ?: copy.operationFailed
+                                    message = null
+                                }
                         }, icon = Icons.Rounded.Save)
                         CommandSecondaryButton(if (busy) copy.waitingForData else copy.dnsLoadZones, ::loadZones, enabled = !busy, icon = Icons.Rounded.Refresh)
                     }
