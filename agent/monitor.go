@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -570,12 +571,9 @@ func (m *Monitor) appendHistoryFileLocked(p HistPoint) {
 	if err != nil {
 		return
 	}
-	f, err := os.OpenFile(m.histPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
-	if err != nil {
+	if _, err := secureAppendFile(m.histPath, append(line, '\n'), 0o600); err != nil {
 		return
 	}
-	_, _ = f.Write(append(line, '\n'))
-	f.Close()
 	m.histLines++
 	if m.histLines > histFileMaxLines {
 		m.compactHistoryLocked()
@@ -585,37 +583,23 @@ func (m *Monitor) appendHistoryFileLocked(p HistPoint) {
 // compactHistoryLocked rewrites the history file from the in-memory points
 // (atomic temp + rename) and resyncs the line counter. Caller must hold m.mu.
 func (m *Monitor) compactHistoryLocked() {
-	tmp := m.histPath + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-	if err != nil {
-		return
-	}
-	w := bufio.NewWriter(f)
+	var data bytes.Buffer
 	for _, p := range m.hist {
 		if line, err := json.Marshal(p); err == nil {
-			w.Write(append(line, '\n'))
+			data.Write(append(line, '\n'))
 		}
 	}
-	if err := w.Flush(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return
+	if err := secureWriteFileAtomic(m.histPath, data.Bytes(), 0o600); err == nil {
+		m.histLines = len(m.hist)
 	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return
-	}
-	if err := os.Rename(tmp, m.histPath); err != nil {
-		os.Remove(tmp)
-	}
-	m.histLines = len(m.hist)
 }
 
 // loadHistory restores the persisted chart so the 7-day history survives a
 // restart (H12). Points older than the window are pruned; at most
 // histMaxPoints are kept.
 func (m *Monitor) loadHistory() {
-	os.Remove(m.histPath + ".tmp")
+	// Remove a pre-hardening fixed-name compaction file if one remains.
+	_ = os.Remove(m.histPath + ".tmp")
 	f, err := os.Open(m.histPath)
 	if err != nil {
 		return

@@ -59,6 +59,35 @@ func TestSecureMkdirAllWithinRejectsOutsidePath(t *testing.T) {
 	}
 }
 
+func TestSecureAppendFileRejectsSymlinkAndSecuresExistingMode(t *testing.T) {
+	dir := t.TempDir()
+	victim := filepath.Join(dir, "victim")
+	link := filepath.Join(dir, "events")
+	if err := os.WriteFile(victim, []byte("safe"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := secureAppendFile(link, []byte("bad"), 0o600); err == nil {
+		t.Fatal("append followed a symlink")
+	}
+	got, _ := os.ReadFile(victim)
+	if string(got) != "safe" {
+		t.Fatalf("symlink target changed: %q", got)
+	}
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := secureAppendFile(victim, []byte("-event"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(victim)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("append mode=%v err=%v", info.Mode(), err)
+	}
+}
+
 func TestSecureWriteFileAtomicLeavesNoTempFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "credential")

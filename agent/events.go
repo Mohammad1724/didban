@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"os"
 	"sync"
@@ -38,9 +39,9 @@ func NewEventLog(path string) *EventLog {
 		path: path,
 		max:  500,
 	}
-	// Remove a temp file left behind if a previous compaction crashed
-	// between write and rename.
-	os.Remove(path + ".tmp")
+	// Clean up the legacy fixed-name temporary file. New compactions use a
+	// random same-directory temporary file via secureWriteFileAtomic.
+	_ = os.Remove(path + ".tmp")
 	el.load()
 	// Reclaim disk on upgrade: files written by older versions (no
 	// rotation) may already be over budget.
@@ -73,17 +74,11 @@ func (e *EventLog) Add(ev Event) {
 	if err != nil {
 		return
 	}
-	f, err := os.OpenFile(e.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	size, err := secureAppendFile(e.path, append(line, '\n'), 0o600)
 	if err != nil {
 		return
 	}
-	wrote, _ := f.Write(append(line, '\n'))
-	var size int64
-	if fi, err := f.Stat(); err == nil {
-		size = fi.Size()
-	}
-	f.Close()
-	if wrote > 0 && size > eventFileMaxBytes {
+	if size > eventFileMaxBytes {
 		e.compactLocked()
 	}
 }
@@ -91,29 +86,13 @@ func (e *EventLog) Add(ev Event) {
 // compactLocked rewrites the JSONL file with the current (capped) in-memory
 // events, atomically (temp file + rename). Caller must hold e.mu.
 func (e *EventLog) compactLocked() {
-	tmp := e.path + ".tmp"
-	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
-	if err != nil {
-		return
-	}
-	w := bufio.NewWriter(f)
+	var data bytes.Buffer
 	for _, ev := range e.events {
 		if line, err := json.Marshal(ev); err == nil {
-			w.Write(append(line, '\n'))
+			data.Write(append(line, '\n'))
 		}
 	}
-	if err := w.Flush(); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return
-	}
-	if err := f.Close(); err != nil {
-		os.Remove(tmp)
-		return
-	}
-	if err := os.Rename(tmp, e.path); err != nil {
-		os.Remove(tmp)
-	}
+	_ = secureWriteFileAtomic(e.path, data.Bytes(), 0o600)
 }
 
 // List returns up to limit events, newest first.

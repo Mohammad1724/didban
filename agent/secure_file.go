@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // secureWriteFileAtomic writes in the destination directory, fsyncs, applies
@@ -49,6 +50,31 @@ func secureMkdirAllWithin(root, dir string, mode os.FileMode) error {
 		}
 	}
 	return nil
+}
+
+// secureAppendFile appends without following a destination symlink and
+// tightens an existing file's mode before writing.
+func secureAppendFile(path string, data []byte, mode os.FileMode) (int64, error) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW, mode)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("append destination is not a regular file")
+	}
+	if err := f.Chmod(mode); err != nil {
+		return 0, err
+	}
+	if _, err := f.Write(data); err != nil {
+		return 0, err
+	}
+	info, err = f.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
 }
 
 func secureWriteFileAtomic(path string, data []byte, mode os.FileMode) error {
