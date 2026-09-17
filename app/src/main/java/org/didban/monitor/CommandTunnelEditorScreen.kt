@@ -33,9 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +54,6 @@ fun CommandTunnelEditorScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var records by remember { mutableStateOf(Prefs.loadTunnels(context)) }
     var selectedId by remember { mutableStateOf<Long?>(null) }
@@ -428,7 +425,7 @@ fun CommandTunnelEditorScreen(
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(artifact, Modifier.weight(1f), color = CommandColors.textSecondary)
-                            CommandTextButton("Copy", { clipboard.setText(AnnotatedString(artifactText)) }, icon = Icons.Rounded.ContentCopy, enabled = artifactText.isNotBlank())
+                            CommandTextButton("Copy", { SensitiveClipboard.copy(context, "Didban tunnel configuration", artifactText) }, icon = Icons.Rounded.ContentCopy, enabled = artifactText.isNotBlank())
                         }
                         Text(artifactText.ifBlank { copy.noOutput }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 60, overflow = TextOverflow.Ellipsis)
                     }

@@ -229,7 +229,7 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
 
 @Composable
 fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var uri by remember { mutableStateOf("") }
     var subscription by remember { mutableStateOf("") }
@@ -278,7 +278,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     parsed?.let { cfg ->
                         CommandStatusMark(if (probe?.second == true) "reachable" else if (probe != null) "unreachable" else "parsed", if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
                         probe?.let { result -> Text("TCP/TLS latency: ${if (result.first >= 0) "${result.first} ms" else "failed"}", color = CommandColors.textSecondary) }
-                        CommandTextButton(copy.wtCopyNormalized, { clipboard.setText(AnnotatedString(cfg.rawUri)) }, Icons.Rounded.ContentCopy)
+                        CommandTextButton(copy.wtCopyNormalized, { SensitiveClipboard.copy(context, "Didban proxy configuration", cfg.rawUri) }, Icons.Rounded.ContentCopy)
                     }
                 }
             }

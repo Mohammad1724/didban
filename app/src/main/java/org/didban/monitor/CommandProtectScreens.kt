@@ -36,9 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,7 +58,6 @@ fun CommandVaultScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     var password by remember { mutableStateOf("") }
     var unlocked by remember { mutableStateOf(false) }
     var notes by remember { mutableStateOf<List<VaultNote>>(emptyList()) }
@@ -170,7 +167,7 @@ fun CommandVaultScreen(
                                 }
                                 CommandIconButton(if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, if (revealed) copy.hide else copy.revealTemporarily, { revealedId = if (revealed) null else note.id })
                                 CommandIconButton(Icons.Rounded.ContentCopy, copy.copySecret, {
-                                    clipboard.setText(AnnotatedString(note.content))
+                                    SensitiveClipboard.copy(context, note.title, note.content)
                                 })
                                 CommandIconButton(Icons.Rounded.DeleteOutline, copy.deleteSecret, {
                                     if (!mutating) deleteNote = note
@@ -252,7 +249,6 @@ fun CommandBackupScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var createPassword by remember { mutableStateOf("") }
     var restorePassword by remember { mutableStateOf("") }
@@ -304,7 +300,7 @@ fun CommandBackupScreen(
                     Column(Modifier.padding(CommandSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(copy.backupOutput, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                            CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(raw)) }, Icons.Rounded.ContentCopy)
+                            CommandTextButton(copy.copyAction, { SensitiveClipboard.copy(context, "Didban encrypted backup", raw) }, Icons.Rounded.ContentCopy)
                         }
                         Spacer(Modifier.height(CommandSpacing.sm))
                         Text(raw, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 8, overflow = TextOverflow.Ellipsis)
