@@ -23,17 +23,20 @@ import (
 // The companion Android app pins this fingerprint (trust-on-first-use,
 // like SSH host keys).
 func ensureSelfSigned(certPath, keyPath string) (string, error) {
-	if _, err := os.Stat(certPath); err == nil {
-		if _, err := os.Stat(keyPath); err == nil {
-			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-			if err == nil {
-				leaf, err2 := x509.ParseCertificate(cert.Certificate[0])
-				if err2 == nil && time.Now().Before(leaf.NotAfter) {
-					if err := os.Chmod(keyPath, 0o600); err != nil {
-						return "", err
-					}
-					return fingerprintDER(leaf.Raw), nil
-				}
+	certExists, err := validateCredentialFile(certPath, 0o644)
+	if err != nil {
+		return "", err
+	}
+	keyExists, err := validateCredentialFile(keyPath, 0o600)
+	if err != nil {
+		return "", err
+	}
+	if certExists && keyExists {
+		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err == nil {
+			leaf, err2 := x509.ParseCertificate(cert.Certificate[0])
+			if err2 == nil && time.Now().Before(leaf.NotAfter) {
+				return fingerprintDER(leaf.Raw), nil
 			}
 		}
 	}

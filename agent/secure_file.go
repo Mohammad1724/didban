@@ -11,6 +11,39 @@ import (
 // secureWriteFileAtomic writes in the destination directory, fsyncs, applies
 // the exact mode, then atomically renames. It never follows a destination
 // symlink and does not expose partially-written credentials after a crash.
+func ensurePrivateDirectory(path string) error {
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		return err
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return fmt.Errorf("private data path is not a real directory")
+	}
+	return os.Chmod(path, 0o700)
+}
+
+// validateCredentialFile rejects symlinks and special files before any caller
+// reads credential material. A missing path is reported as exists=false.
+func validateCredentialFile(path string, mode os.FileMode) (exists bool, err error) {
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return false, fmt.Errorf("credential path %s is not a regular file", path)
+	}
+	if err := os.Chmod(path, mode); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // secureMkdirAllWithin creates a directory chain without accepting symlinks or
 // non-directory components. root and dir must be absolute, and dir must remain
 // within root after lexical cleaning.

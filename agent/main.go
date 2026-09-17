@@ -163,8 +163,8 @@ func main() {
 		return
 	}
 
-	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
-		fatal("cannot create data directory %s: %v", cfg.DataDir, err)
+	if err := ensurePrivateDirectory(cfg.DataDir); err != nil {
+		fatal("cannot secure data directory %s: %v", cfg.DataDir, err)
 	}
 
 	// Resolve or generate the auth token.
