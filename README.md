@@ -169,7 +169,7 @@ Tunnel apply endpoints are hardened against command-injection and path-traversal
 - **Audit trail.** Every deploy carrying a script records `tunnel_deploy_start` / `tunnel_deploy_ok` / `tunnel_deploy_failed` events (visible at `/api/events`) including the first 8 bytes of the script's SHA-256.
 - **Timeouts.** All `systemctl`/`journalctl` calls are bounded (10 s) so a hung D-Bus can never wedge an API handler.
 - **Proper status codes.** Unknown tunnel `status`/`start`/`stop` → `404`; invalid input → `400`; internal failure → `500`.
-- **Token hygiene.** The full read/admin tokens are printed only on the agent's first start; subsequent restarts show prefixes only, so the secret does not accumulate in the systemd journal. Custom Agent tokens must be 32–256 printable ASCII characters without whitespace; weak or header-ambiguous values fail startup.
+- **Token hygiene.** The full read/admin tokens are printed only on the agent's first start; subsequent restarts show prefixes only. To revoke both existing credentials during an upgrade, rerun the installer with `DIDBAN_ROTATE_TOKENS=1`; it atomically replaces both values, restarts the service, and prints the new credentials for immediate Android update, so the secret does not accumulate in the systemd journal. Custom Agent tokens must be 32–256 printable ASCII characters without whitespace; weak or header-ambiguous values fail startup.
 
 ## Data & persistence
 

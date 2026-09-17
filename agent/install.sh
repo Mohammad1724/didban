@@ -169,7 +169,7 @@ main() {
   chmod 0700 "$DATA_DIR"
 
   local TOKEN=""
-  if [[ -f "$CONF_DIR/token" ]]; then
+  if [[ -f "$CONF_DIR/token" && "${DIDBAN_ROTATE_TOKENS:-0}" != "1" ]]; then
     TOKEN="$(cat "$CONF_DIR/token")"
   fi
   if [[ -z "$TOKEN" ]]; then
@@ -178,7 +178,7 @@ main() {
     chmod 0600 "$CONF_DIR/token"
   fi
   local ADMIN_TOKEN=""
-  if [[ -f "$CONF_DIR/admin-token" ]]; then
+  if [[ -f "$CONF_DIR/admin-token" && "${DIDBAN_ROTATE_TOKENS:-0}" != "1" ]]; then
     ADMIN_TOKEN="$(cat "$CONF_DIR/admin-token")"
   fi
   if [[ -z "$ADMIN_TOKEN" ]]; then
@@ -189,8 +189,29 @@ main() {
 
 # On upgrade, the operator's existing agent.conf (custom thresholds, alert
 # settings, deploy mode, ...) is preserved; it is only generated on first install.
+  if [[ -L "$CONF_DIR/agent.conf" ]]; then
+    echo "ERROR: refusing symlinked configuration: $CONF_DIR/agent.conf" >&2
+    exit 1
+  fi
   if [[ -f "$CONF_DIR/agent.conf" ]]; then
-    echo ">> Existing $CONF_DIR/agent.conf preserved (upgrade). Edit it to change settings."
+    if [[ "${DIDBAN_ROTATE_TOKENS:-0}" == "1" ]]; then
+      local CONF_TMP="$CONF_DIR/.agent.conf.rotate.$$"
+      awk -v read_token="$TOKEN" -v admin_token="$ADMIN_TOKEN" '
+        BEGIN { read_seen=0; admin_seen=0 }
+        /^DIDBAN_TOKEN=/ { print "DIDBAN_TOKEN=" read_token; read_seen=1; next }
+        /^DIDBAN_ADMIN_TOKEN=/ { print "DIDBAN_ADMIN_TOKEN=" admin_token; admin_seen=1; next }
+        { print }
+        END {
+          if (!read_seen) print "DIDBAN_TOKEN=" read_token
+          if (!admin_seen) print "DIDBAN_ADMIN_TOKEN=" admin_token
+        }
+      ' "$CONF_DIR/agent.conf" > "$CONF_TMP"
+      chmod 0600 "$CONF_TMP"
+      mv -f "$CONF_TMP" "$CONF_DIR/agent.conf"
+      echo ">> Read/admin tokens rotated; update Android server credentials after restart."
+    else
+      echo ">> Existing $CONF_DIR/agent.conf preserved (upgrade). Edit it to change settings."
+    fi
   else
 cat > "$CONF_DIR/agent.conf" <<EOF
 # Didban agent configuration (read by systemd)

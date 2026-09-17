@@ -311,8 +311,8 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
 
 @Composable
 fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectServer: () -> Unit, onBack: () -> Unit) {
+    SecureWindowEffect()
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val servers = remember { Prefs.loadServers(context) }
     var selectedId by rememberSaveable(initialServer?.id) {
@@ -432,7 +432,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(activeFile ?: "", Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            CommandTextButton("Copy", { clipboard.setText(AnnotatedString(content)) }, Icons.Rounded.ContentCopy)
+                            CommandTextButton("Copy", { if (content.isNotEmpty()) SensitiveClipboard.copy(context, "Didban remote file", content) }, Icons.Rounded.ContentCopy)
                         }
                         OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(280.dp), textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
                         CommandPrimaryButton(copy.wtSaveRemoteFile, ::save, enabled = !loading, icon = Icons.Rounded.Security)
