@@ -37,6 +37,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
+private data class PendingTunnelOperation(
+    val tunnel: TunnelConfig,
+    val server: ServerConfig,
+    val action: String
+)
+
 private fun tunnelTone(tunnel: TunnelConfig): CommandHealthTone = when {
     !tunnel.isEnabled -> CommandHealthTone.UNKNOWN
     tunnel.lastStatus == 1 -> CommandHealthTone.HEALTHY
@@ -64,6 +70,7 @@ fun CommandTunnelsScreen(
     var tunnels by remember(reloadTick) { mutableStateOf(Prefs.loadTunnels(context)) }
     var selectedId by remember { mutableStateOf<Long?>(null) }
     var busyId by remember { mutableStateOf<Long?>(null) }
+    var pendingOperation by remember { mutableStateOf<PendingTunnelOperation?>(null) }
     var operationMessage by remember { mutableStateOf<String?>(null) }
     val selected = selectedId?.let { id -> tunnels.firstOrNull { it.id == id } }
 
@@ -137,34 +144,56 @@ fun CommandTunnelsScreen(
         if (selected != null) {
             item {
                 CommandTunnelDetail(copy, selected, selectedServer, busyId == selected.id, operationMessage, onOpenEditor, onAction = { action ->
-                    busyId = selected.id
-                    operationMessage = null
-                    scope.launch {
-                        val server = selectedServer
-                        if (server == null) {
-                            operationMessage = copy.selectServer
-                            busyId = null
-                            return@launch
-                        }
-                        runCatching {
-                            val api = ApiClient()
-                            when (action) {
-                                "start" -> api.tunnelStart(server, selected.id.toString())
-                                "stop" -> api.tunnelStop(server, selected.id.toString())
-                                else -> api.tunnelRestart(server, selected.id.toString())
-                            }
-                        }.onSuccess {
-                            operationMessage = copy.operationDone
-                            refresh()
-                        }.onFailure {
-                            operationMessage = "${copy.operationFailed}: ${it.message ?: copy.unknownState}"
-                        }
-                        busyId = null
+                    val server = selectedServer
+                    if (server == null) operationMessage = copy.selectServer
+                    else if (busyId == null && action in setOf("start", "stop", "restart")) {
+                        pendingOperation = PendingTunnelOperation(selected, server, action)
                     }
                 })
             }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+
+    val operation = pendingOperation
+    if (operation != null) {
+        AlertDialog(
+            onDismissRequest = { if (busyId == null) pendingOperation = null },
+            title = { Text(operation.action, fontWeight = FontWeight.Bold) },
+            text = { Text("${operation.server.name} · ${operation.server.host}:${operation.server.port}\n${operation.tunnel.name} · #${operation.tunnel.id}\n${operation.action}") },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (busyId != null) return@TextButton
+                    pendingOperation = null
+                    busyId = operation.tunnel.id
+                    operationMessage = null
+                    scope.launch {
+                        runCatching {
+                            val current = Prefs.loadTunnels(context).firstOrNull { it.id == operation.tunnel.id }
+                            check(current != null && current.name == operation.tunnel.name && current.iranHost == operation.tunnel.iranHost && current.foreignHost == operation.tunnel.foreignHost) {
+                                copy.tunActionFailedGeneric
+                            }
+                            check(selectedServer?.id == operation.server.id) { copy.selectServer }
+                            val api = ApiClient()
+                            api.tunnelStatus(operation.server, operation.tunnel.id.toString())
+                            when (operation.action) {
+                                "start" -> api.tunnelStart(operation.server, operation.tunnel.id.toString())
+                                "stop" -> api.tunnelStop(operation.server, operation.tunnel.id.toString())
+                                "restart" -> api.tunnelRestart(operation.server, operation.tunnel.id.toString())
+                                else -> error("Unsupported tunnel action")
+                            }
+                        }.onSuccess {
+                            operationMessage = copy.operationDone
+                            refresh()
+                        }.onFailure {
+                            operationMessage = "${copy.operationFailed}: ${SecretRedactor.redact(it.message ?: copy.unknownState, listOf(operation.server.token, operation.tunnel.token)).take(300)}"
+                        }
+                        busyId = null
+                    }
+                }, enabled = busyId == null) { Text(copy.run, color = if (operation.action == "stop") CommandColors.danger else CommandColors.accent) }
+            },
+            dismissButton = { TextButton(onClick = { pendingOperation = null }, enabled = busyId == null) { Text(copy.close) } }
+        )
     }
 }
 

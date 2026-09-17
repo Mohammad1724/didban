@@ -1770,6 +1770,9 @@ services:
         } else if (cfg.core == TunnelCore.IPTABLES) {
             foreignRes = AutoDeployServerResult("سرور خارج", cfg.foreignHost, "foreign", true, "not_required", "سرور خارج برای IPTables نیاز به ایجنت ندارد")
             cfg.syncStatusForeign = "active"
+        } else if (cfg.foreignHost.isNotBlank()) {
+            foreignRes = AutoDeployServerResult("سرور خارج", cfg.foreignHost, "foreign", false, "unmatched", "هیچ Agent دقیقی برای سرور خارج پیدا نشد")
+            cfg.syncStatusForeign = "failed"
         }
 
         // 2. Deploy to Iran Server
@@ -1799,13 +1802,22 @@ services:
                 iranRes = AutoDeployServerResult(iranServer.name, iranServer.host, "iran", false, "unreachable", "عدم برقراری ارتباط با ایجنت سرور ایران: ${e.message}")
                 cfg.syncStatusIran = "failed"
             }
+        } else if (cfg.iranHost.isNotBlank()) {
+            iranRes = AutoDeployServerResult("سرور ایران", cfg.iranHost, "iran", false, "unmatched", "هیچ Agent دقیقی برای سرور ایران پیدا نشد")
+            cfg.syncStatusIran = "failed"
         }
 
         // Persist the materialized secret + final sync status so a later
         // reload (refreshTunnels) or redeploy reuses the same credential (H3).
         persistTunnel(ctx, cfg)
 
-        val overall = (iranRes?.success != false) && (foreignRes?.success != false)
+        // A missing result is not success when that endpoint was requested.
+        // This prevents a no-op or half-deploy from being presented as active.
+        val iranRequired = cfg.iranHost.isNotBlank()
+        val foreignRequired = cfg.foreignHost.isNotBlank() || cfg.core == TunnelCore.IPTABLES
+        val overall = (!iranRequired || iranRes?.success == true) &&
+            (!foreignRequired || foreignRes?.success == true) &&
+            (iranRequired || foreignRequired)
         val summary = when {
             iranRes != null && foreignRes != null && overall -> "✅ تانل با موفقیت روی هر دو سرور ایران و خارج راه‌اندازی و روشن شد!"
             iranRes != null && overall -> "✅ تانل روی سرور ایران با موفقیت فعال شد!"
@@ -1823,6 +1835,7 @@ services:
         action: String, // "start", "stop", "restart", "delete"
         apiClient: ApiClient = ApiClient()
     ): Boolean = withContext(Dispatchers.IO) {
+        require(action in setOf("start", "stop", "restart", "delete")) { "Unsupported tunnel action" }
         val servers = Prefs.loadServers(ctx)
         // H16: same strict matcher as autoDeploy — start/stop/delete must
         // resolve to the machine the tunnel was actually deployed on.
