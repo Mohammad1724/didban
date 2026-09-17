@@ -32,8 +32,9 @@ var (
 	// Systemd unit names we manage must be conservative: no dots, no slashes.
 	serviceNamePattern      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 	secretAssignmentPattern = regexp.MustCompile(`(?i)(token|password|secret|key|auth)([[:space:]]*[:=][[:space:]]*["']?)([^[:space:]"',]+)`)
-	commandAuthPattern      = regexp.MustCompile(`(?i)(--auth[[:space:]]+)([^[:space:]]+)`)
+	commandAuthPattern      = regexp.MustCompile(`(?i)(--(?:auth|password|token|secret|api[_-]?key)[[:space:]]+)([^[:space:]]+)`)
 	urlCredentialPattern    = regexp.MustCompile(`(://[^:/[:space:]@]+:)([^@/[:space:]]+)(@)`)
+	queryCredentialPattern  = regexp.MustCompile(`(?i)([?&](?:access[_-]?token|token|password|secret|api[_-]?key)=)([^&[:space:]]+)`)
 )
 
 const (
@@ -69,6 +70,7 @@ func sanitizeTunnelLog(raw string) string {
 	safe := secretAssignmentPattern.ReplaceAllString(raw, `${1}${2}[REDACTED]`)
 	safe = commandAuthPattern.ReplaceAllString(safe, `${1}[REDACTED]`)
 	safe = urlCredentialPattern.ReplaceAllString(safe, `${1}[REDACTED]${3}`)
+	safe = queryCredentialPattern.ReplaceAllString(safe, `${1}[REDACTED]`)
 	if len(safe) > maxReturnedLogLen {
 		safe = safe[len(safe)-maxReturnedLogLen:]
 		safe = "[truncated] " + safe

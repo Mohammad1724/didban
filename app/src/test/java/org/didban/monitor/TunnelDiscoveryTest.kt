@@ -3,7 +3,6 @@ package org.didban.monitor
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,55 +13,11 @@ import org.junit.Test
  * The old discovery path stamped every auto-detected tunnel with the literal
  * "auto-detected", which [TunnelSecrets.ensureToken] treated as a real token —
  * so a deploy silently used a secret the live process does not know. Now:
- * discovery recovers the real token when it is visible on the command line
- * (Chisel), otherwise the token stays blank and the deploy gate blocks
+ * discovery never imports credentials from process or container metadata;
+ * the token stays blank and the deploy gate blocks
  * generation/deploy until the user enters the actual token.
  */
 class TunnelDiscoveryTest {
-
-    // ── real-token extraction from live cmdlines ─────────────────────────────
-
-    @Test
-    fun `chisel server cmdline yields the real token`() {
-        val cmd = "/usr/local/bin/chisel server --port 8443 --auth admin:RealSecret123 --reverse"
-        assertEquals("RealSecret123", TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, cmd))
-    }
-
-    @Test
-    fun `chisel client cmdline yields the real token`() {
-        val cmd = "/usr/local/bin/chisel client --auth admin:RealSecret123 http://5.6.7.8:8443 R:443:127.0.0.1:80"
-        assertEquals("RealSecret123", TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, cmd))
-    }
-
-    @Test
-    fun `quoted auth and colon-in-password forms`() {
-        assertEquals("ab:cd", TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --auth \"admin:ab:cd\""))
-        assertEquals("tok-only", TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --auth tok-only"))
-    }
-
-    @Test
-    fun `truncated cmdline (agent ellipsis) is not trusted`() {
-        // agent truncates cmdlines to 100 chars and appends "…" — an auth
-        // value that is the last token may have its tail cut: refuse.
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --port 8443 --auth admin:RealSecr…"))
-        // …but if more tokens follow the value, the value itself is intact.
-        assertEquals("RealSec", TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --auth admin:RealSec --reverse"))
-    }
-
-    @Test
-    fun `no auth flag or non-chisel cores yield null`() {
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --port 8443"))
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --port 8443 --auth"))
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.BACKPACK, "backpack server -c /etc/didban/tunnels/1/server.toml"))
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.GOST, "gost -L tcp://:8443"))
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.FRP, "frpc -c /etc/frp/frpc.toml"))
-    }
-
-    @Test
-    fun `empty or oversized password yields null`() {
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --auth admin:"))
-        assertNull(TunnelSecrets.extractTokenFromCmd(TunnelCore.CHISEL, "chisel server --auth admin:" + "a".repeat(300)))
-    }
 
     // ── "auto-detected" placeholder migration ────────────────────────────────
 
@@ -154,62 +109,26 @@ class TunnelDiscoveryTest {
         assertTrue("token must be minted into the model", c.token.length >= 24)
     }
 
-    // ── Item 29: container env token recovery ───────────────────────────────
-
     @Test
-    fun `narnia container PASSWORD env yields the real token`() {
-        val env = mapOf("PASSWORD" to "RealNarniaKey123", "MTU" to "1400")
-        assertEquals("RealNarniaKey123", TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, env))
+    fun `model ignores legacy container environment credentials`() {
+        val container = JSONObject()
+            .put("id", "abc123def456789")
+            .put("name", "didban-tunnel-42")
+            .put("image", "stormotron/narnia:0.0.3")
+            .put("state", "running")
+            .put("status", "Up 2 hours")
+            .put("created", 1700000000L)
+            // Older agents may still return this field. The current model has
+            // no destination for it and must parse topology without secrets.
+            .put("env", JSONObject().put("PASSWORD", "must-not-enter-model"))
+        val payload = JSONObject()
+            .put("installed", true)
+            .put("containers", org.json.JSONArray().put(container))
+
+        val parsed = JsonParse.docker(payload)
+        assertEquals(1, parsed.containers.size)
+        assertEquals("didban-tunnel-42", parsed.containers[0].name)
+        assertEquals("stormotron/narnia:0.0.3", parsed.containers[0].image)
     }
 
-    @Test
-    fun `env tokens are core-specific and sanity-checked`() {
-        val env = mapOf("PASSWORD" to "RealNarniaKey123")
-        // only Narnia reads PASSWORD — other cores never leak it
-        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.BACKPACK, env))
-        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.GOST, env))
-        // missing / blank / oversized
-        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, emptyMap()))
-        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, mapOf("PASSWORD" to "  ")))
-        assertNull(TunnelSecrets.tokenFromEnv(TunnelCore.NARNIA, mapOf("PASSWORD" to "a".repeat(300))))
-    }
-
-    @Test
-    fun `model parses allowlisted container env`() {
-        val o = JSONObject()
-        o.put("installed", true)
-        o.put(
-            "containers",
-            org.json.JSONArray().put(
-                JSONObject()
-                    .put("id", "abc123def456789")
-                    .put("name", "didban-tunnel-42")
-                    .put("image", "stormotron/narnia:0.0.3")
-                    .put("state", "running")
-                    .put("status", "Up 2 hours")
-                    .put("created", 1700000000L)
-                    .put("env", JSONObject().put("PASSWORD", "RealNarniaKey123"))
-            )
-        )
-        val s = JsonParse.docker(o)
-        assertEquals(1, s.containers.size)
-        assertEquals(mapOf("PASSWORD" to "RealNarniaKey123"), s.containers[0].env)
-
-        // no env field → empty map (older agents)
-        val o2 = JSONObject()
-        o2.put("installed", true)
-        o2.put(
-            "containers",
-            org.json.JSONArray().put(
-                JSONObject()
-                    .put("id", "x")
-                    .put("name", "x")
-                    .put("image", "gost")
-                    .put("state", "running")
-                    .put("status", "Up")
-                    .put("created", 1L)
-            )
-        )
-        assertTrue(JsonParse.docker(o2).containers[0].env.isEmpty())
-    }
 }

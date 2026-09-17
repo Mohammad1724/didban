@@ -8,9 +8,9 @@ import (
 )
 
 func TestSanitizeTunnelLogRedactsCredentials(t *testing.T) {
-	raw := "token = \"alpha123\"\npassword: beta456\nchisel --auth user:gamma789 https://u:delta@example.com"
+	raw := "token = \"alpha123\"\npassword: beta456\nchisel --auth user:gamma789 https://u:delta@example.com --password epsilon https://host/path?access_token=zeta&ok=1"
 	safe := sanitizeTunnelLog(raw)
-	for _, secret := range []string{"alpha123", "beta456", "gamma789", "delta"} {
+	for _, secret := range []string{"alpha123", "beta456", "gamma789", "delta", "epsilon", "zeta"} {
 		if strings.Contains(safe, secret) {
 			t.Fatalf("secret %q leaked in %q", secret, safe)
 		}

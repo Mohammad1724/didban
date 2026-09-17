@@ -31,10 +31,6 @@ type ContainerInfo struct {
 	Status  string          `json:"status"` // "Up 2 hours", "Exited (1) 5 mins ago"
 	Created int64           `json:"created"`
 	Ports   []ContainerPort `json:"ports"`
-	// Env holds ONLY the allowlisted env keys (see dockerEnvAllowlist) from
-	// the container's Config.Env — the full env of unrelated containers
-	// (and its secrets) must never reach the API surface.
-	Env map[string]string `json:"env,omitempty"`
 }
 
 // DockerSummary is returned to the API.
@@ -64,20 +60,9 @@ type rawDockerContainer struct {
 // dockerSockPath is overridable in tests (fake daemon on a temp socket).
 var dockerSockPath = "/var/run/docker.sock"
 
-// dockerEnvAllowlist: the only env keys exposed through the API. The app's
-// tunnel discovery reads core credentials from these (Narnia ships its key
-// as PASSWORD, mirroring upstream Narnia.sh).
-var dockerEnvAllowlist = map[string]bool{
-	"PASSWORD": true,
-}
-
 // Bounds protect the agent if the privileged local Docker socket is replaced
 // by a broken or malicious peer.
-const (
-	maxEnvInspect         = 50
-	maxDockerListBytes    = 4 << 20
-	maxDockerInspectBytes = 1 << 20
-)
+const maxDockerListBytes = 4 << 20
 
 var dockerIdentifierPattern = regexp.MustCompile(`^(?:[a-fA-F0-9]{12,64}|[A-Za-z0-9][A-Za-z0-9_.-]{0,127})$`)
 
@@ -87,52 +72,6 @@ func validateDockerIdentifier(value string) (string, error) {
 		return "", fmt.Errorf("invalid container ID or name")
 	}
 	return value, nil
-}
-
-// filterEnv keeps only non-empty allowlisted keys from a raw docker
-// env list ("KEY=VALUE" strings). Matching is EXACT — DB_PASSWORD must
-// never leak through as PASSWORD.
-func filterEnv(raw []string) map[string]string {
-	out := map[string]string{}
-	for _, kv := range raw {
-		key, val, ok := strings.Cut(kv, "=")
-		if !ok || key == "" || val == "" {
-			continue
-		}
-		if dockerEnvAllowlist[key] {
-			out[key] = val
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// inspectEnv fetches one container's Config.Env and returns the filtered
-// subset (nil on any error — enrichment is best effort).
-func inspectEnv(client *http.Client, id string) map[string]string {
-	id, err := validateDockerIdentifier(id)
-	if err != nil {
-		return nil
-	}
-	resp, err := client.Get("http://localhost/v1.41/containers/" + url.PathEscape(id) + "/inspect")
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil
-	}
-	var raw struct {
-		Config struct {
-			Env []string `json:"Env"`
-		} `json:"Config"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxDockerInspectBytes)).Decode(&raw); err != nil {
-		return nil
-	}
-	return filterEnv(raw.Config.Env)
 }
 
 func getDockerClient() (*http.Client, string, error) {
@@ -175,15 +114,7 @@ func GetDockerContainers() DockerSummary {
 	}
 
 	out := make([]ContainerInfo, 0, len(rawList))
-	for i, r := range rawList {
-		// Item 29: enrich with allowlisted env keys so tunnel discovery can
-		// recover the REAL credential of container-deployed tunnels (e.g.
-		// Narnia's PASSWORD). Best effort, bounded to the first N.
-		var env map[string]string
-		if i < maxEnvInspect {
-			env = inspectEnv(client, r.ID)
-		}
-
+	for _, r := range rawList {
 		name := r.ID
 		if len(r.Names) > 0 {
 			name = strings.TrimPrefix(r.Names[0], "/")
@@ -212,7 +143,6 @@ func GetDockerContainers() DockerSummary {
 			Status:  r.Status,
 			Created: r.Created,
 			Ports:   ports,
-			Env:     env,
 		})
 	}
 

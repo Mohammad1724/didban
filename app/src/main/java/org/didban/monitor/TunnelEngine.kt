@@ -1980,10 +1980,10 @@ services:
                                 iranPort = detectedPort,
                                 foreignPort = detectedPort,
                                 corePort = if (detectedPort != 443) detectedPort else 3080,
-                                // M17: never fabricate a credential — recover the real
-                                // one when it is visible on the command line (Chisel),
-                                // otherwise the token stays blank (unknown).
-                                token = TunnelSecrets.extractTokenFromCmd(detectedCore, proc.cmd) ?: "",
+                                // Process command lines are server-redacted.
+                                // Discovery never imports credentials; the user
+                                // supplies the actual token through secure input.
+                                token = "",
                                 autoSync = false,
                                 isEnabled = true,
                                 lastStatus = 1,
@@ -2020,9 +2020,8 @@ services:
                         "chisel" in cImage || "chisel" in cName -> TunnelCore.CHISEL
                         "frp" in cImage || "frp" in cName -> TunnelCore.FRP
                         "paqet" in cImage || "paqet" in cName -> TunnelCore.PAQET
-                        // Item 29: Narnia deploys as a container (image
-                        // stormotron/narnia) — its key arrives via the
-                        // allowlisted PASSWORD env, not the cmdline.
+                        // Narnia containers are identified by image/name;
+                        // credentials are never retrieved from Docker inspect.
                         "narnia" in cImage || "narnia" in cName -> TunnelCore.NARNIA
                         else -> null
                     }
@@ -2045,11 +2044,9 @@ services:
                                 iranPort = port,
                                 foreignPort = port,
                                 corePort = port,
-                                // M17/Item 29: recover the real token from the
-                                // agent's allowlisted env when the core uses one
-                                // (Narnia: PASSWORD); otherwise blank (unknown) —
-                                // never a fake one.
-                                token = TunnelSecrets.tokenFromEnv(detectedCore, container.env) ?: "",
+                                // Discovery reports topology only. The user
+                                // must supply credentials through secure input.
+                                token = "",
                                 autoSync = false,
                                 isEnabled = true,
                                 lastStatus = 1,

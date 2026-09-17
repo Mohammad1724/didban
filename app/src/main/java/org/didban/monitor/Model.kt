@@ -83,10 +83,7 @@ data class DockerContainerItem(
     val state: String,
     val status: String,
     val created: Long,
-    val ports: List<DockerPortItem>,
-    // Item 29: allowlisted env keys only (agent filters the rest — the full
-    // env of unrelated containers must never reach the app).
-    val env: Map<String, String> = emptyMap()
+    val ports: List<DockerPortItem>
 )
 
 data class DockerSummaryData(
@@ -292,10 +289,6 @@ object JsonParse {
                         )
                     }
                 }
-                val envMap = mutableMapOf<String, String>()
-                c.optJSONObject("env")?.let { eo ->
-                    eo.keys().forEach { k -> envMap[k] = eo.optString(k) }
-                }
                 containers.add(
                     DockerContainerItem(
                         id = c.optString("id"),
@@ -304,8 +297,7 @@ object JsonParse {
                         state = c.optString("state"),
                         status = c.optString("status"),
                         created = c.optLong("created"),
-                        ports = ports,
-                        env = envMap
+                        ports = ports
                     )
                 )
             }

@@ -79,7 +79,11 @@ func (m *Monitor) sampleProcs() {
 			}
 		}
 		if b, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline")); err == nil && len(b) > 0 {
-			a.cmd = truncate(string(bytes.ReplaceAll(b, []byte{0}, []byte(" "))), 100)
+			// Process arguments frequently contain passwords, auth tokens and
+			// credential-bearing URLs. Redact on the server before the command
+			// can enter snapshots or an API response.
+			rawCmd := string(bytes.ReplaceAll(b, []byte{0}, []byte(" ")))
+			a.cmd = truncate(sanitizeTunnelLog(rawCmd), 100)
 		}
 		if b, err := os.ReadFile(filepath.Join("/proc", e.Name(), "status")); err == nil {
 			for _, line := range strings.Split(string(b), "\n") {
