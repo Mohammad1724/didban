@@ -169,99 +169,82 @@ object BackupEngine {
 
         return try {
             val root = JSONObject(jsonStr)
-            val sp = ctx.getSharedPreferences("didban", Context.MODE_PRIVATE)
-            val editor = sp.edit()
 
-            // 1. Restore Servers
+            // Parse and validate the complete document before touching storage.
             val serversArr = root.optJSONArray("servers") ?: JSONArray()
-            val incomingServers = mutableListOf<ServerConfig>()
-            for (i in 0 until serversArr.length()) {
-                incomingServers.add(ServerConfig.fromJson(serversArr.getJSONObject(i)))
+            val incomingServers = MutableList(serversArr.length()) { i ->
+                ServerConfig.fromJson(serversArr.getJSONObject(i))
             }
             val unsafeServer = incomingServers.firstOrNull {
                 !it.useTls || it.token.isBlank() || !TunnelFieldValidation.isHost(it.host) ||
                     !CertFingerprint.isValidSha256(it.fingerprint)
             }
-            if (unsafeServer != null) {
-                return RestoreResult(
-                    success = false,
-                    message = "Backup contains an insecure or invalid server connection: ${unsafeServer.name}"
-                )
+            require(unsafeServer == null) {
+                "Backup contains an insecure or invalid server connection: ${unsafeServer?.name}"
             }
-            val finalServers = if (mode == RestoreMode.Merge) {
-                val existing = Prefs.loadServers(ctx)
-                val existingIds = existing.map { it.id }.toSet()
-                val existingHosts = existing.map { "${it.host}:${it.port}" }.toSet()
-                val toAdd = incomingServers.filter { it.id !in existingIds && "${it.host}:${it.port}" !in existingHosts }
-                existing + toAdd
-            } else {
-                incomingServers
-            }
-            Prefs.saveServers(ctx, finalServers)
 
-            // 2. Restore Tunnels
             val tunnelsArr = root.optJSONArray("tunnels") ?: JSONArray()
-            val incomingTunnels = mutableListOf<TunnelConfig>()
-            for (i in 0 until tunnelsArr.length()) {
-                incomingTunnels.add(TunnelConfig.fromJson(tunnelsArr.getJSONObject(i)))
+            val incomingTunnels = MutableList(tunnelsArr.length()) { i ->
+                TunnelConfig.fromJson(tunnelsArr.getJSONObject(i))
             }
-            val finalTunnels = if (mode == RestoreMode.Merge) {
-                val existing = Prefs.loadTunnels(ctx)
-                val existingIds = existing.map { it.id }.toSet()
-                val toAdd = incomingTunnels.filter { it.id !in existingIds }
-                existing + toAdd
-            } else {
-                incomingTunnels
-            }
-            Prefs.saveTunnels(ctx, finalTunnels)
-
-            // 3. Restore Uptime Monitors
             val uptimeArr = root.optJSONArray("uptime_targets") ?: JSONArray()
-            val incomingUptime = mutableListOf<UptimeTarget>()
-            for (i in 0 until uptimeArr.length()) {
-                incomingUptime.add(UptimeTarget.fromJson(uptimeArr.getJSONObject(i)))
+            val incomingUptime = MutableList(uptimeArr.length()) { i ->
+                UptimeTarget.fromJson(uptimeArr.getJSONObject(i))
             }
-            val finalUptime = if (mode == RestoreMode.Merge) {
-                val existing = Prefs.loadUptimeTargets(ctx)
-                val existingIds = existing.map { it.id }.toSet()
-                val toAdd = incomingUptime.filter { it.id !in existingIds }
-                existing + toAdd
-            } else {
-                incomingUptime
-            }
-            Prefs.saveUptimeTargets(ctx, finalUptime)
 
-            // 4. Restore Vault (if present)
+            val currentServerResult = Prefs.loadServersResult(ctx)
+            check(currentServerResult.error == null) { "Existing secure server data cannot be read" }
+            val currentServers = currentServerResult.servers
+            val finalServers = if (mode == RestoreMode.Merge) {
+                val ids = currentServers.map { it.id }.toSet()
+                val hosts = currentServers.map { "${it.host}:${it.port}" }.toSet()
+                currentServers + incomingServers.filter { it.id !in ids && "${it.host}:${it.port}" !in hosts }
+            } else incomingServers
+
+            val currentTunnels = Prefs.loadTunnels(ctx)
+            val finalTunnels = if (mode == RestoreMode.Merge) {
+                val ids = currentTunnels.map { it.id }.toSet()
+                currentTunnels + incomingTunnels.filter { it.id !in ids }
+            } else incomingTunnels
+
+            val currentUptime = Prefs.loadUptimeTargets(ctx)
+            val finalUptime = if (mode == RestoreMode.Merge) {
+                val ids = currentUptime.map { it.id }.toSet()
+                currentUptime + incomingUptime.filter { it.id !in ids }
+            } else incomingUptime
+
+            val serverJson = JSONArray().apply { finalServers.forEach { put(it.toJson()) } }.toString()
+            val tunnelJson = JSONArray().apply { finalTunnels.forEach { put(it.toJson()) } }.toString()
+            val uptimeJson = JSONArray().apply { finalUptime.forEach { put(it.toJson()) } }.toString()
+
+            val secrets = mutableMapOf(
+                "servers" to serverJson,
+                "didban_tunnels" to tunnelJson
+            )
+            val values = mutableMapOf("uptime_targets" to uptimeJson)
+
             var vaultRestored = false
             val canary = root.optString("vault_canary_enc", "")
             val notes = root.optString("vault_notes_enc", "")
-            if (canary.isNotEmpty() && notes.isNotEmpty()) {
-                if (mode == RestoreMode.Overwrite || !Prefs.isVaultInitialized(ctx)) {
-                    editor.putString("vault_canary_enc", canary)
-                    editor.putString("vault_notes_enc", notes)
-                    vaultRestored = true
-                }
+            if (canary.isNotEmpty() && notes.isNotEmpty() &&
+                (mode == RestoreMode.Overwrite || !Prefs.isVaultInitialized(ctx))) {
+                values["vault_canary_enc"] = canary
+                values["vault_notes_enc"] = notes
+                vaultRestored = true
             }
 
-            // 5. Restore Cloudflare & Preferences
             val cfToken = root.optString("cf_token", "")
             if (cfToken.isNotEmpty() && (mode == RestoreMode.Overwrite || Prefs.getCfToken(ctx).isEmpty())) {
-                // Prefs.setCfToken stores the token encrypted (item 4 / C4).
-                Prefs.setCfToken(ctx, cfToken)
+                secrets["cf_token"] = cfToken
             }
-
             if (mode == RestoreMode.Overwrite) {
-                val theme = root.optString("theme_mode", "")
-                val lang = root.optString("lang", "")
-                val poll = root.optLong("poll_sec", 0L)
-                if (theme.isNotEmpty()) editor.putString("theme_mode", theme)
-                if (lang.isNotEmpty()) editor.putString("lang", lang)
-                if (poll > 0) editor.putString("poll_sec", poll.toString())
+                root.optString("theme_mode", "").takeIf { it.isNotEmpty() }?.let { values["theme_mode"] = it }
+                root.optString("lang", "").takeIf { it.isNotEmpty() }?.let { values["lang"] = it }
+                root.optLong("poll_sec", 0L).takeIf { it > 0 }?.let { values["poll_sec"] = it.toString() }
             }
 
-            editor.apply()
-
-            val msg = "✅ بازیابی با موفقیت انجام شد: ${incomingServers.size} سرور، ${incomingTunnels.size} تانل، ${incomingUptime.size} مانیتور آپ‌تایم."
+            // One commit: no partially-restored servers/tunnels/settings.
+            SecureStorage.putTransaction(ctx, "didban", secrets, values)
 
             RestoreResult(
                 success = true,
@@ -269,7 +252,7 @@ object BackupEngine {
                 tunnelsRestored = incomingTunnels.size,
                 uptimeRestored = incomingUptime.size,
                 vaultRestored = vaultRestored,
-                message = msg
+                message = "✅ بازیابی با موفقیت انجام شد: ${incomingServers.size} سرور، ${incomingTunnels.size} تانل، ${incomingUptime.size} مانیتور آپ‌تایم."
             )
         } catch (e: Exception) {
             RestoreResult(success = false, message = "خطا در پردازش اطلاعات بکاپ: ${e.message}")

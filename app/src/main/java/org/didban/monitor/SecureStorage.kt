@@ -105,6 +105,32 @@ object SecureStorage {
         }
     }
 
+    /**
+     * Encrypts every secret first, then commits secrets and ordinary preference
+     * values in one SharedPreferences transaction. If any encryption or the
+     * final commit fails, none of the supplied values is applied.
+     */
+    fun putTransaction(
+        ctx: Context,
+        prefsName: String,
+        secrets: Map<String, String>,
+        values: Map<String, String> = emptyMap()
+    ) {
+        val encrypted = try {
+            secrets.mapValues { (_, plaintext) -> encrypt(plaintext) }
+        } catch (e: Exception) {
+            throw SecretStorageException("Could not prepare secure transaction", e)
+        }
+        val editor = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit()
+        encrypted.forEach { (key, payload) ->
+            editor.putString(key + "_enc", payload).remove(key)
+        }
+        values.forEach { (key, value) -> editor.putString(key, value) }
+        if (!editor.commit()) {
+            throw SecretStorageException("Could not commit secure transaction")
+        }
+    }
+
     fun removeSecret(ctx: Context, prefsName: String, key: String) {
         ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
             .edit().remove(key + "_enc").remove(key).apply()
