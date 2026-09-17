@@ -58,7 +58,7 @@ object CloudflareService {
             .header("Authorization", "Bearer ${apiToken.trim()}")
             .build()
         client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
+            val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
             if (!resp.isSuccessful) {
                 val msg = try {
                     val errs = JSONObject(body).optJSONArray("errors")
@@ -190,7 +190,7 @@ object CloudflareService {
         }
 
         client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
+            val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
             val j = JSONObject(body)
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")
@@ -209,7 +209,7 @@ object CloudflareService {
             .build()
 
         client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
+            val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
             val j = JSONObject(body)
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")

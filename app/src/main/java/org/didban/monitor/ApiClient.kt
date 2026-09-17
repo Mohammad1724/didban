@@ -73,9 +73,11 @@ class ApiClient {
             .header("Authorization", "Bearer ${server.token}")
             .build()
         val pooled = HttpClientPool.standardClient(server)
+        val responseLimit = if (path.startsWith("/api/events") || path.startsWith("/api/history"))
+            BoundedResponseReader.LARGE_BYTES else BoundedResponseReader.STANDARD_BYTES
         try {
             pooled.client.newCall(request).execute().use { resp ->
-                val body = resp.body?.string() ?: ""
+                val body = BoundedResponseReader.readUtf8(resp.body, responseLimit)
                 // Agent/proxy bodies are untrusted and may echo request data;
                 // never propagate the raw body into UI errors or crash traces.
                 if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}")
@@ -103,7 +105,7 @@ class ApiClient {
         val pooled = HttpClientPool.standardClient(server)
         try {
             pooled.client.newCall(request).execute().use { resp ->
-                val body = resp.body?.string() ?: ""
+                val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
                 if (!resp.isSuccessful) {
                     var errMsg = "HTTP ${resp.code}"
                     try {

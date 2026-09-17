@@ -310,7 +310,7 @@ object UptimeEngine {
                     }
                     val req = Request.Builder().url(url).build()
                     httpClient.newCall(req).execute().use { resp ->
-                        val body = resp.body?.string() ?: ""
+                        val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
                         if (resp.isSuccessful) {
                             if (target.type.uppercase() == "KEYWORD" && target.keyword.isNotBlank()) {
                                 if (body.contains(target.keyword)) {

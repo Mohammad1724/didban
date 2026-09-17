@@ -394,7 +394,7 @@ object IpInfoService {
                                 .build()
                             client.newCall(req).execute().use { resp ->
                                 if (resp.isSuccessful) {
-                                    val body = resp.body?.string() ?: ""
+                                    val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.SMALL_BYTES)
                                     val j = JSONObject(body)
                                     val ansArr = j.optJSONArray("Answer")
                                     if (ansArr != null) {
@@ -428,7 +428,7 @@ object IpInfoService {
             val req = Request.Builder().url(httpsUrl).header("User-Agent", "Didban/2.0").build()
             client.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) {
-                    val body = resp.body?.string() ?: ""
+                    val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.SMALL_BYTES)
                     val j = JSONObject(body)
                     if (j.optBoolean("success", true)) {
                         val cc = j.optString("country_code", "")
@@ -487,7 +487,7 @@ object IpInfoService {
             val req = Request.Builder().url(apiUrl).build()
             client.newCall(req).execute().use { resp ->
                 if (resp.isSuccessful) {
-                    val body = resp.body?.string() ?: ""
+                    val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.SMALL_BYTES)
                     val j = JSONObject(body)
                     if (j.optString("status") != "fail") {
                         val cc = j.optString("countryCode", "")

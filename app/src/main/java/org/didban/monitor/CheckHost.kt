@@ -59,7 +59,7 @@ object CheckHostService {
             .build()
 
         client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
+            val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
             if (!resp.isSuccessful) throw Exception("Check-Host HTTP ${resp.code}")
 
             val json = JSONObject(body)
@@ -119,7 +119,7 @@ object CheckHostService {
             .build()
 
         client.newCall(req).execute().use { resp ->
-            val body = resp.body?.string() ?: ""
+            val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.STANDARD_BYTES)
             if (!resp.isSuccessful) return@withContext false
 
             val json = JSONObject(body)

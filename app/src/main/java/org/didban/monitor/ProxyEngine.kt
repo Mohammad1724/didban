@@ -260,7 +260,7 @@ object ProxyEngine {
                     }
                 }
 
-                val bodyStr = resp.body?.string() ?: ""
+                val bodyStr = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.LARGE_BYTES)
                 val decoded = try {
                     String(Base64.decode(bodyStr.trim(), Base64.DEFAULT), Charsets.UTF_8)
                 } catch (_: Exception) {
