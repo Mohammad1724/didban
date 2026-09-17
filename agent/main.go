@@ -47,8 +47,9 @@ type Config struct {
 	WatchdogEnabled     bool
 	WatchdogIntervalSec int
 	// Multi-point probing (Phase 4 · 4-B)
-	ProbeEnabled     bool
-	ProbeIntervalSec int
+	ProbeEnabled       bool
+	ProbeIntervalSec   int
+	AllowPrivateProbes bool
 
 	// Alerts
 	TelegramToken        string
@@ -132,6 +133,7 @@ func main() {
 	flag.StringVar(&cfg.GenericWebhook, "webhook-url", os.Getenv("DIDBAN_WEBHOOK_URL"), "Generic Webhook URL for alerts")
 	flag.BoolVar(&cfg.EnableAlerts, "alerts", os.Getenv("DIDBAN_ALERTS") != "0", "Enable outbound alerts")
 	flag.BoolVar(&cfg.AllowPrivateWebhooks, "allow-private-webhooks", os.Getenv("DIDBAN_ALLOW_PRIVATE_WEBHOOKS") == "1", "allow alert webhooks/proxies to reach private networks")
+	flag.BoolVar(&cfg.AllowPrivateProbes, "allow-private-probes", os.Getenv("DIDBAN_ALLOW_PRIVATE_PROBES") == "1", "allow explicitly marked probe targets to reach private networks")
 	flag.StringVar((*string)(&cfg.DeployMode), "deploy-mode", envOr("DIDBAN_DEPLOY_MODE", string(defaultDeployMode)), "tunnel deploy mode: 'config-only' (default, no shell scripts) or explicit 'scripts'")
 	flag.StringVar(&cfg.ConfigDir, "config-dir", envOr("DIDBAN_TUNNEL_CONFIG_DIR", "/etc/didban/tunnels"), "sandboxed directory for tunnel configuration files")
 	// Tunnel watchdog: enabled by default; interval 5..600s. A set-but-invalid
@@ -223,7 +225,7 @@ func main() {
 
 	var pm *ProbeMonitor
 	if cfg.ProbeEnabled {
-		pm = NewProbeMonitor(cfg.DataDir, mon, time.Duration(cfg.ProbeIntervalSec)*time.Second)
+		pm = NewProbeMonitor(cfg.DataDir, mon, time.Duration(cfg.ProbeIntervalSec)*time.Second, cfg.AllowPrivateProbes)
 		go pm.Run(ctx)
 	}
 

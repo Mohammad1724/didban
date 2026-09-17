@@ -238,7 +238,7 @@ func (r *recordingSink) types() []string {
 func newTestProbe(t *testing.T, sink EventSink) (*ProbeMonitor, func()) {
 	t.Helper()
 	dir := t.TempDir()
-	pm := NewProbeMonitor(dir, sink, time.Minute)
+	pm := NewProbeMonitor(dir, sink, time.Minute, true)
 	return pm, func() {}
 }
 

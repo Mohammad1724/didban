@@ -133,7 +133,9 @@ curl -sk -X POST https://YOUR_SERVER_IP:8686/api/alerts/test -H "Authorization: 
 
 ## API
 
-All `/api/*` endpoints require `Authorization: Bearer <token>`. Read-only endpoints accept either role; process, Docker, tunnel, probe-mutation, and alert-test endpoints require the distinct admin token. The `?token=` query parameter is **no longer accepted** (it leaks into proxy logs and browser history). Requests are rate-limited per IP (10 req/s sustained, burst 20 — excess gets `429` with `Retry-After`), request bodies are capped at 2 MB, and an access log (IP, method, path, status, duration — never query strings, headers, or bodies) is written to the journal.
+All `/api/*` endpoints require `Authorization: Bearer <token>`. Read-only endpoints accept either role; process, Docker, tunnel, probe-mutation, and alert-test endpoints require the distinct admin token.
+
+Private/reserved probe destinations require two explicit approvals: the operator must set `DIDBAN_ALLOW_PRIVATE_PROBES=1`, and that individual target must set `allow_private=true`. Private webhook/proxy destinations similarly remain disabled unless `DIDBAN_ALLOW_PRIVATE_WEBHOOKS=1` is set. The `?token=` query parameter is **no longer accepted** (it leaks into proxy logs and browser history). Requests are rate-limited per IP (10 req/s sustained, burst 20 — excess gets `429` with `Retry-After`), request bodies are capped at 2 MB, and an access log (IP, method, path, status, duration — never query strings, headers, or bodies) is written to the journal.
 
 | Method | Endpoint | Description |
 |---|---|---|

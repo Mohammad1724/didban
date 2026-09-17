@@ -287,10 +287,11 @@ type probeRec struct {
 
 // ProbeMonitor runs the per-host probe loop and owns the target set.
 type ProbeMonitor struct {
-	hostname string
-	interval time.Duration
-	sink     EventSink
-	dataDir  string
+	hostname     string
+	interval     time.Duration
+	sink         EventSink
+	dataDir      string
+	allowPrivate bool
 
 	mu      sync.Mutex
 	targets []ProbeTargetSpec
@@ -299,13 +300,15 @@ type ProbeMonitor struct {
 
 // NewProbeMonitor builds the monitor and loads any persisted target set.
 // interval is clamped by the caller (main.go enforces 10..3600s).
-func NewProbeMonitor(dataDir string, sink EventSink, interval time.Duration) *ProbeMonitor {
+func NewProbeMonitor(dataDir string, sink EventSink, interval time.Duration, privateOptIn ...bool) *ProbeMonitor {
+	allowPrivate := len(privateOptIn) > 0 && privateOptIn[0]
 	pm := &ProbeMonitor{
-		hostname: probeHostname(),
-		interval: interval,
-		sink:     sink,
-		dataDir:  dataDir,
-		recs:     make(map[string]*probeRec),
+		hostname:     probeHostname(),
+		interval:     interval,
+		sink:         sink,
+		dataDir:      dataDir,
+		allowPrivate: allowPrivate,
+		recs:         make(map[string]*probeRec),
 	}
 	pm.loadTargets()
 	return pm
@@ -329,6 +332,9 @@ func (pm *ProbeMonitor) SetTargets(raw []ProbeTargetSpec) error {
 		spec, err := normalizeProbeSpec(r)
 		if err != nil {
 			return fmt.Errorf("target %d (%q): %w", i+1, r.Name, err)
+		}
+		if spec.AllowPrivate && !pm.allowPrivate {
+			return fmt.Errorf("target %d (%q): private probes require agent-level opt-in", i+1, r.Name)
 		}
 		if seen[spec.Name] {
 			return fmt.Errorf("duplicate target name %q", spec.Name)
@@ -542,7 +548,7 @@ func (pm *ProbeMonitor) loadTargets() {
 	seen := make(map[string]bool, len(specs))
 	for _, s := range specs {
 		s2, err := normalizeProbeSpec(s)
-		if err != nil || seen[s2.Name] {
+		if err != nil || seen[s2.Name] || (s2.AllowPrivate && !pm.allowPrivate) {
 			continue
 		}
 		seen[s2.Name] = true

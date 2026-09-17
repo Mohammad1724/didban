@@ -216,6 +216,10 @@ DIDBAN_DEPLOY_MODE=config-only
 ${TG_TOKEN:+DIDBAN_TG_TOKEN=$TG_TOKEN}
 ${TG_CHAT_ID:+DIDBAN_TG_CHAT_ID=$TG_CHAT_ID}
 ${TG_PROXY:+DIDBAN_TG_PROXY=$TG_PROXY}
+# Private network destinations remain blocked unless the operator explicitly
+# enables them here. Probe targets must additionally set allow_private=true.
+# DIDBAN_ALLOW_PRIVATE_PROBES=0
+# DIDBAN_ALLOW_PRIVATE_WEBHOOKS=0
 # DIDBAN_TG_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 # DIDBAN_TG_CHAT_ID=-100123456789
 # DIDBAN_TG_PROXY=socks5://127.0.0.1:1080

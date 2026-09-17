@@ -4,6 +4,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPublicProbeIPRejectsLocalAndMetadataRanges(t *testing.T) {
@@ -17,6 +18,18 @@ func TestPublicProbeIPRejectsLocalAndMetadataRanges(t *testing.T) {
 		if !publicProbeIP(net.ParseIP(raw)) {
 			t.Errorf("%s rejected as non-public", raw)
 		}
+	}
+}
+
+func TestProbeMonitorRequiresGlobalAndPerTargetPrivateOptIn(t *testing.T) {
+	spec := ProbeTargetSpec{Name: "internal", Mode: ProbeTCP, Host: "127.0.0.1", Port: 80, AllowPrivate: true}
+	blocked := NewProbeMonitor(t.TempDir(), nil, time.Minute)
+	if err := blocked.SetTargets([]ProbeTargetSpec{spec}); err == nil || !strings.Contains(err.Error(), "agent-level opt-in") {
+		t.Fatalf("private target accepted without global opt-in: %v", err)
+	}
+	allowed := NewProbeMonitor(t.TempDir(), nil, time.Minute, true)
+	if err := allowed.SetTargets([]ProbeTargetSpec{spec}); err != nil {
+		t.Fatalf("double opt-in rejected: %v", err)
 	}
 }
 
