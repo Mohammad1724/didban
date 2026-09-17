@@ -12,12 +12,9 @@ import java.io.BufferedReader
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.security.cert.X509Certificate
 import javax.net.ssl.SNIHostName
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
@@ -334,16 +331,12 @@ data class CfScanProgress(
 /** Low-level socket/TLS helpers used by the scanner. */
 object CfTransport {
 
-    private val insecureContext: SSLContext by lazy {
-        val tm = arrayOf<TrustManager>(object : X509TrustManager {
-            // We dial a literal IP while presenting an unrelated SNI, so the
-            // certificate cannot be hostname-verified here; the point of the
-            // probe is whether the handshake completes at all.
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-        })
-        SSLContext.getInstance("TLS").apply { init(null, tm, java.security.SecureRandom()) }
+    private val trustedContext: SSLContext by lazy {
+        // The scanner still dials the candidate IP directly, but a reachable
+        // endpoint only counts when it presents a publicly trusted certificate
+        // for the requested Cloudflare SNI. This prevents a captive portal or
+        // active interceptor from being reported as a clean edge.
+        SSLContext.getDefault()
     }
 
     fun dial(ip: String, port: Int, connectTimeoutMs: Int): Socket {
@@ -357,11 +350,13 @@ object CfTransport {
     }
 
     fun handshake(plain: Socket, ip: String, port: Int, sni: String, alpn: List<String>, timeoutMs: Int): SSLSocket {
-        val ssl = insecureContext.socketFactory.createSocket(plain, ip, port, true) as SSLSocket
+        require(sni.isNotBlank()) { "a verified TLS probe requires an SNI hostname" }
+        val ssl = trustedContext.socketFactory.createSocket(plain, sni, port, true) as SSLSocket
         ssl.soTimeout = timeoutMs
         ssl.useClientMode = true
         val params = ssl.sslParameters
-        if (sni.isNotBlank()) params.serverNames = listOf(SNIHostName(sni))
+        params.endpointIdentificationAlgorithm = "HTTPS"
+        params.serverNames = listOf(SNIHostName(sni))
         if (alpn.isNotEmpty()) TlsCapability.applyAlpn(params, alpn.toTypedArray())
         ssl.sslParameters = params
         ssl.startHandshake()

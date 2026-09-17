@@ -16,9 +16,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
-import java.security.cert.X509Certificate
 
 data class ParsedProxyConfig(
     val rawUri: String,
@@ -204,17 +201,17 @@ object ProxyEngine {
             socket.connect(InetSocketAddress(cfg.host.trim(), cfg.port), 4000)
 
             if (cfg.security.equals("tls", ignoreCase = true) || cfg.port == 443) {
-                val sslContext = SSLContext.getInstance("TLS")
-                val tm = object : X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-                    override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
-                }
-                sslContext.init(null, arrayOf<TrustManager>(tm), null)
-                val factory = sslContext.socketFactory
+                val tlsHost = cfg.sni.trim().ifBlank { cfg.host.trim() }
+                val factory = SSLContext.getDefault().socketFactory
 
-                tlsSocket = factory.createSocket(socket, cfg.host.trim(), cfg.port, true) as SSLSocket
+                tlsSocket = factory.createSocket(socket, tlsHost, cfg.port, true) as SSLSocket
                 tlsSocket.soTimeout = 4000
+                val parameters = tlsSocket.sslParameters
+                parameters.endpointIdentificationAlgorithm = "HTTPS"
+                runCatching { javax.net.ssl.SNIHostName(tlsHost) }.getOrNull()?.let {
+                    parameters.serverNames = listOf(it)
+                }
+                tlsSocket.sslParameters = parameters
                 tlsSocket.startHandshake()
             }
 

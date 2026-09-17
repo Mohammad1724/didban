@@ -477,54 +477,8 @@ object IpInfoService {
             }
         } catch (_: Exception) {}
 
-        // Attempt 2: Fallback to ip-api.com
-        try {
-            val apiUrl = if (resolvedIp.isEmpty()) {
-                "http://ip-api.com/json/?fields=66846719"
-            } else {
-                "http://ip-api.com/json/$resolvedIp?fields=66846719"
-            }
-            val req = Request.Builder().url(apiUrl).build()
-            client.newCall(req).execute().use { resp ->
-                if (resp.isSuccessful) {
-                    val body = BoundedResponseReader.readUtf8(resp.body, BoundedResponseReader.SMALL_BYTES)
-                    val j = JSONObject(body)
-                    if (j.optString("status") != "fail") {
-                        val cc = j.optString("countryCode", "")
-                        val asStr = j.optString("as", "")
-                        val asnPart = asStr.substringBefore(" ")
-
-                        return@withContext GeoIpData(
-                            ip = j.optString("query", resolvedIp),
-                            isDomain = isDomain,
-                            domainName = clean,
-                            reverseDns = ptr.ifBlank { j.optString("reverse", "") },
-                            ipVersion = ipVer,
-                            continent = j.optString("continent", ""),
-                            country = j.optString("country", "Unknown"),
-                            countryCode = cc,
-                            flag = CheckHostService.flagForCountry(cc),
-                            region = j.optString("regionName", ""),
-                            city = j.optString("city", ""),
-                            postalCode = j.optString("zip", ""),
-                            isp = j.optString("isp", ""),
-                            org = j.optString("org", ""),
-                            asn = asnPart,
-                            asOrg = asStr.removePrefix(asnPart).trim(),
-                            timezone = j.optString("timezone", ""),
-                            utcOffset = "UTC " + (j.optInt("offset", 0) / 3600),
-                            currency = j.optString("currency", ""),
-                            lat = j.optDouble("lat", 0.0),
-                            lon = j.optDouble("lon", 0.0),
-                            isHosting = j.optBoolean("hosting", false),
-                            isVpnProxy = j.optBoolean("proxy", false),
-                            dnsRecords = fetchedDnsRecords,
-                            provider = "ip-api (Pro)"
-                        )
-                    }
-                }
-            }
-        } catch (_: Exception) {}
+        // No cleartext fallback: Android blocks plaintext traffic and geo-IP
+        // metadata must not be exposed to an on-path observer.
 
         throw Exception("امکان دریافت موقعیت و اطلاعات کامل برای این آدرس مقدور نبود (بررسی کنید اینترنت متصل باشد)")
     }
