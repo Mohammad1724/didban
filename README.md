@@ -137,7 +137,7 @@ All `/api/*` endpoints require `Authorization: Bearer <token>`. The `?token=` qu
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/health` | liveness & alert status (no auth) |
+| `GET` | `/health` | minimal rate-limited liveness (`{"status":"ok"}`, no auth) |
 | `GET` | `/status` | authenticated responsive HTML status board (public only with explicit opt-in) |
 | `GET` | `/api/metrics` | CPU (usage/user/system/iowait/**steal**), memory, swap, disks, network rates, load, uptime |
 | `GET` | `/api/docker/containers` | list all Docker containers, health, state, image, and exposed ports |

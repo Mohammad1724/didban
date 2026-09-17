@@ -139,6 +139,28 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 	}
 }
 
+func TestHealthIsMinimalNonCacheableAndRateLimited(t *testing.T) {
+	api := hardeningAPI(t)
+	var last *httptest.ResponseRecorder
+	for i := 0; i < rateLimitBurst+1; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		req.RemoteAddr = "198.51.100.9:4321"
+		last = httptest.NewRecorder()
+		api.routes().ServeHTTP(last, req)
+		if i == 0 {
+			if last.Code != http.StatusOK || strings.TrimSpace(last.Body.String()) != `{"status":"ok"}` {
+				t.Fatalf("health response=%d %q", last.Code, last.Body.String())
+			}
+			if last.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("health response is cacheable")
+			}
+		}
+	}
+	if last == nil || last.Code != http.StatusTooManyRequests {
+		t.Fatalf("health flood last status=%v, want 429", last)
+	}
+}
+
 func TestDetailedStatusIsPrivateByDefault(t *testing.T) {
 	api := hardeningAPI(t)
 	unauthorized := httptest.NewRecorder()

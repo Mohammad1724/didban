@@ -114,18 +114,18 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
-// harden wraps the mux with: a global body cap, per-IP rate limiting (except
-// the trivial /health liveness probe) and an access log that never writes
-// query strings, headers or bodies (no secrets in logs).
+// harden wraps the mux with a global body cap, per-IP rate limiting and an
+// access log that never writes query strings, headers or bodies (no secrets in
+// logs). Health is intentionally included to prevent unauthenticated log spam.
 func (a *API) harden(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/status" {
-			w.Header().Set("Cache-Control", "no-store")
-			w.Header().Set("Pragma", "no-cache")
-		}
+		// Agent responses contain either operational data or authentication
+		// failures and must not be retained by browsers or intermediaries.
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Pragma", "no-cache")
 		if r.URL.Path == "/status" || r.URL.Path == "/api/status" {
 			w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 		}
@@ -138,7 +138,9 @@ func (a *API) harden(next http.Handler) http.Handler {
 		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		start := time.Now()
 
-		if r.URL.Path != "/health" && !a.limiter.allow(clientIP(r)) {
+		// The unauthenticated health endpoint is also limited. Exempting it
+		// allowed remote callers to amplify access-log and scheduler work.
+		if !a.limiter.allow(clientIP(r)) {
 			w.Header().Set("Retry-After", "1")
 			writeJSON(rec, http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
 			logAccess(clientIP(r), r, rec.status, time.Since(start))
@@ -202,14 +204,9 @@ func (a *API) handleHealth(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status":          "ok",
-		"version":         version,
-		"agent":           "didban",
-		"alerts_active":   a.mon.dispatcher.HasActiveProviders(),
-		"telegram_active": a.mon.dispatcher.IsTelegramEnabled(),
-		"timestamp":       time.Now().Unix(),
-	})
+	// Keep unauthenticated liveness deliberately content-free. Version and
+	// alert-provider posture are available only through authenticated APIs.
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (a *API) handleMetrics(w http.ResponseWriter, r *http.Request) {
