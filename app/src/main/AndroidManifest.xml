@@ -13,6 +13,9 @@
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.Didban"
         android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:hasFragileUserData="false"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false">
 

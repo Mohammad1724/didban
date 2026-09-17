@@ -47,6 +47,7 @@ fun CommandManageServersScreen(
     onOpenServer: (ServerConfig) -> Unit,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()

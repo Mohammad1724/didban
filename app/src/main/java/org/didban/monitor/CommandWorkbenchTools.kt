@@ -229,6 +229,7 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
 
 @Composable
 fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var uri by remember { mutableStateOf("") }

@@ -53,6 +53,7 @@ fun CommandTunnelEditorScreen(
     copy: CommandCopy,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var records by remember { mutableStateOf(Prefs.loadTunnels(context)) }

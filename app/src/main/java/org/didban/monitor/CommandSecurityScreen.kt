@@ -68,6 +68,7 @@ fun CommandSecurityScreen(
     onSelectServer: () -> Unit,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val servers = remember { Prefs.loadServers(context) }

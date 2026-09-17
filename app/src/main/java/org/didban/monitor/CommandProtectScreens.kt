@@ -57,6 +57,7 @@ fun CommandVaultScreen(
     copy: CommandCopy,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     var password by remember { mutableStateOf("") }
     var unlocked by remember { mutableStateOf(false) }
@@ -248,6 +249,7 @@ fun CommandBackupScreen(
     copy: CommandCopy,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var createPassword by remember { mutableStateOf("") }
@@ -378,6 +380,7 @@ fun CommandAlertsScreen(
     copy: CommandCopy,
     onBack: () -> Unit
 ) {
+    SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var telegramToken by remember { mutableStateOf(Prefs.getTelegramBotToken(context)) }
