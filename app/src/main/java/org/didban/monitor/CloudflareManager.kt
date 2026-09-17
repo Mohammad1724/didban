@@ -66,13 +66,19 @@ object CloudflareService {
                 } catch (_: Exception) {
                     null
                 }
-                throw Exception(msg ?: "HTTP ${resp.code}: $body")
+                // Never expose the raw provider body; it is untrusted and may
+                // echo request/account metadata. Keep only Cloudflare's
+                // structured message, redacted and bounded.
+                throw Exception(
+                    msg?.let { SecretRedactor.redact(it, listOf(apiToken)).take(300) }
+                        ?: "Cloudflare HTTP ${resp.code}"
+                )
             }
             val j = JSONObject(body)
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")
                 val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Cloudflare API error"
-                throw Exception(msg)
+                throw Exception(SecretRedactor.redact(msg, listOf(apiToken)).take(300))
             }
             return j
         }
@@ -189,7 +195,7 @@ object CloudflareService {
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")
                 val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Failed to save record"
-                throw Exception(msg)
+                throw Exception(SecretRedactor.redact(msg, listOf(apiToken)).take(300))
             }
             true
         }
@@ -208,7 +214,7 @@ object CloudflareService {
             if (!j.optBoolean("success", false)) {
                 val errs = j.optJSONArray("errors")
                 val msg = if (errs != null && errs.length() > 0) errs.getJSONObject(0).optString("message") else "Failed to delete record"
-                throw Exception(msg)
+                throw Exception(SecretRedactor.redact(msg, listOf(apiToken)).take(300))
             }
             true
         }

@@ -254,8 +254,10 @@ object BackupEngine {
                 vaultRestored = vaultRestored,
                 message = "✅ بازیابی با موفقیت انجام شد: ${incomingServers.size} سرور، ${incomingTunnels.size} تانل، ${incomingUptime.size} مانیتور آپ‌تایم."
             )
-        } catch (e: Exception) {
-            RestoreResult(success = false, message = "خطا در پردازش اطلاعات بکاپ: ${e.message}")
+        } catch (_: Exception) {
+            // JSON/crypto exceptions can quote the malformed source, which may
+            // contain credentials from a legacy plaintext backup.
+            RestoreResult(success = false, message = "خطا در پردازش یا ذخیره امن اطلاعات بکاپ")
         }
     }
 

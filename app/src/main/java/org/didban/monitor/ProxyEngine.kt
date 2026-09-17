@@ -229,8 +229,12 @@ object ProxyEngine {
      * Inspects a subscription URL (Marzban / X-UI / Panel Sub Link).
      */
     suspend fun fetchSubscription(subUrl: String): SubscriptionInfo = withContext(Dispatchers.IO) {
+        val cleanUrl = subUrl.trim()
+        require(cleanUrl.startsWith("https://", ignoreCase = true)) {
+            "Subscription URL must use HTTPS"
+        }
         val req = Request.Builder()
-            .url(subUrl.trim())
+            .url(cleanUrl)
             .header("User-Agent", "v2rayNG/1.8.12 (Didban Sentinel)")
             .build()
 
@@ -275,7 +279,9 @@ object ProxyEngine {
                 )
             }
         } catch (e: Exception) {
-            throw Exception("خطا در دریافت ساب‌سکریپشن: ${e.message}")
+            // Subscription URLs commonly carry the account token in their
+            // path/query; never propagate the URL through an exception.
+            throw Exception("خطا در دریافت ساب‌سکریپشن: ${SecretRedactor.redact(e.message ?: "network error", listOf(cleanUrl)).take(300)}")
         }
     }
 }

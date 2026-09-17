@@ -60,7 +60,7 @@ object CheckHostService {
 
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string() ?: ""
-            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}: $body")
+            if (!resp.isSuccessful) throw Exception("Check-Host HTTP ${resp.code}")
 
             val json = JSONObject(body)
             if (json.optInt("ok", 0) != 1) {
@@ -211,8 +211,8 @@ object CheckHostService {
 
                 else -> return Pair("OK", 1)
             }
-        } catch (e: Exception) {
-            return Pair("err: ${e.message}", 2)
+        } catch (_: Exception) {
+            return Pair("invalid response", 2)
         }
     }
 }
