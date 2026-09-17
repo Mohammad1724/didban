@@ -61,6 +61,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var deleteRecord by remember { mutableStateOf<CfRecord?>(null) }
+    var deleteZoneId by remember { mutableStateOf<String?>(null) }
 
     fun loadZones() {
         if (apiToken.isBlank()) {
@@ -205,7 +206,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 CommandStatusMark(record.type, CommandHealthTone.INFO, Modifier.weight(1f), "${record.name} → ${record.content}")
                                 CommandTextButton("Edit", { chooseRecord(record) })
-                                CommandTextButton("Delete", { deleteRecord = record }, icon = Icons.Rounded.DeleteOutline)
+                                CommandTextButton("Delete", { deleteRecord = record; deleteZoneId = selectedZone?.id }, icon = Icons.Rounded.DeleteOutline)
                             }
                         }
                     }
@@ -259,23 +260,34 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { deleteRecord = null },
             title = { Text(copy.dnsDeleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(copy.dnsDeleteBody.replace("%1", record.type).replace("%2", record.name)) },
+            text = { Text("${copy.dnsDeleteBody.replace("%1", record.type).replace("%2", record.name)}\n\n${selectedZone?.name.orEmpty()} · ${record.type} ${record.name} · ${record.id}") },
             confirmButton = {
                 TextButton(onClick = {
                     val zone = selectedZone
                     deleteRecord = null
-                    if (zone != null) {
+                    if (zone != null && zone.id == deleteZoneId && !busy) {
                         busy = true
                         scope.launch {
-                            runCatching { CloudflareService.deleteRecord(apiToken, zone.id, record.id) }
-                                .onSuccess { message = copy.dnsRecordDeleted; loadRecords(zone) }
-                                .onFailure { error = it.message ?: copy.dnsRecordDeleteFailed }
+                            runCatching {
+                                val current = CloudflareService.listRecords(apiToken, zone.id)
+                                    .firstOrNull { it.id == record.id }
+                                check(current != null && current.type == record.type && current.name == record.name) {
+                                    copy.dnsRecordDeleteFailed
+                                }
+                                CloudflareService.deleteRecord(apiToken, zone.id, current.id)
+                            }.onSuccess { message = copy.dnsRecordDeleted; loadRecords(zone) }
+                                .onFailure {
+                                    error = SecretRedactor.redact(
+                                        it.message ?: copy.dnsRecordDeleteFailed,
+                                        listOf(apiToken)
+                                    ).take(300)
+                                }
                             busy = false
                         }
                     }
-                }) { Text(copy.delete, color = CommandColors.danger) }
+                }, enabled = !busy && selectedZone?.id == deleteZoneId) { Text(copy.delete, color = CommandColors.danger) }
             },
-            dismissButton = { TextButton(onClick = { deleteRecord = null }) { Text(copy.cancel) } }
+            dismissButton = { TextButton(onClick = { deleteRecord = null }, enabled = !busy) { Text(copy.cancel) } }
         )
     }
 }
