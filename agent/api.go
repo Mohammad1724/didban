@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -132,6 +134,27 @@ func logAccess(ip string, r *http.Request, status int, d time.Duration) {
 	log.Printf("access %s %s %s %d %s", ip, r.Method, r.URL.Path, status, d.Round(time.Microsecond))
 }
 
+// decodeJSON accepts exactly one JSON object with the declared media type.
+// Unknown/trailing fields are rejected so typos cannot silently change the
+// target or semantics of a destructive request.
+func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "application/json") {
+		writeJSON(w, http.StatusUnsupportedMediaType, map[string]string{"error": "application/json required"})
+		return false
+	}
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return false
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "exactly one json object required"})
+		return false
+	}
+	return true
+}
+
 // auth wraps a handler with bearer-token authentication (constant time).
 func (a *API) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -212,9 +235,8 @@ func (a *API) handleDockerRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req dockerActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 	if err := RestartDockerContainer(req.ID); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -229,9 +251,8 @@ func (a *API) handleDockerStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req dockerActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 	if err := StopDockerContainer(req.ID); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -248,9 +269,8 @@ func (a *API) handleTunnelApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelApplyReq
-	// (Body is globally capped by the hardening middleware: 2 MB.)
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json: " + err.Error()})
+	// Body is globally capped; strict decoding also rejects unknown/trailing data.
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -305,9 +325,8 @@ func (a *API) handleTunnelStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 
 	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
@@ -324,9 +343,8 @@ func (a *API) handleTunnelStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 
 	res, err := a.tm.StopTunnel(req.ID, req.ServiceName)
@@ -343,9 +361,8 @@ func (a *API) handleTunnelRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 
 	res, err := a.tm.StartTunnel(req.ID, req.ServiceName)
@@ -362,9 +379,8 @@ func (a *API) handleTunnelDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req TunnelActionReq
-	_ = json.NewDecoder(r.Body).Decode(&req)
-	if req.ID == "" {
-		req.ID = r.URL.Query().Get("id")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 
 	if err := a.tm.DeleteTunnel(req.ID, req.ServiceName); err != nil {
@@ -487,23 +503,14 @@ func (a *API) handleProbeNow(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleProcessKill(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed (POST or DELETE required)"})
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed (POST required)"})
 		return
 	}
 
 	var req killRequest
-	if r.Header.Get("Content-Type") == "application/json" || r.Body != nil {
-		_ = json.NewDecoder(r.Body).Decode(&req)
-	}
-
-	if req.PID == 0 {
-		if p, err := strconv.Atoi(r.URL.Query().Get("pid")); err == nil {
-			req.PID = p
-		}
-	}
-	if req.Signal == "" {
-		req.Signal = r.URL.Query().Get("signal")
+	if !decodeJSON(w, r, &req) {
+		return
 	}
 
 	if req.PID <= 0 {

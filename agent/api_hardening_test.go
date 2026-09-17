@@ -116,6 +116,7 @@ func TestGlobalBodyCap_AppliesToAllEndpoints(t *testing.T) {
 	big := bytes.Repeat([]byte("a"), maxRequestBodyBytes+1)
 	req := httptest.NewRequest(http.MethodPost, "/api/processes/kill", bytes.NewReader(big))
 	req.Header.Set("Authorization", "Bearer hard-token")
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	api.routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {

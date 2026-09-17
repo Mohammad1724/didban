@@ -535,6 +535,9 @@ func doJSON(t *testing.T, h http.Handler, method, path, token string, body any) 
 		r = bytes.NewReader(nil)
 	}
 	req := httptest.NewRequest(method, path, r)
+	if body != nil || method == http.MethodPost || method == http.MethodDelete {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -621,6 +624,7 @@ func TestAPI_TunnelApplyBodyCap(t *testing.T) {
 	big := strings.Repeat("a", 3*1024*1024)
 	req := httptest.NewRequest(http.MethodPost, "/api/tunnel/apply", strings.NewReader(big))
 	req.Header.Set("Authorization", "Bearer test-token")
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	api.routes().ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
