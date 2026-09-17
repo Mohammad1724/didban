@@ -279,7 +279,9 @@ func tokenFirstShow(dataDir string) bool {
 	if _, err := os.Stat(marker); err == nil {
 		return false
 	}
-	_ = os.WriteFile(marker, []byte(time.Now().UTC().Format(time.RFC3339)), 0o600)
+	if err := secureWriteFileAtomic(marker, []byte(time.Now().UTC().Format(time.RFC3339)), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not persist startup marker: %v\n", err)
+	}
 	return true
 }
 

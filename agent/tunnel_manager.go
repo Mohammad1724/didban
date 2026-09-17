@@ -263,16 +263,13 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 		// The config path may include per-tunnel subdirectories
 		// (<configRoot>/<id>/file — the Item 26 layout), so create the
 		// parent chain, not just the sandbox root.
-		if err := os.MkdirAll(filepath.Dir(cleanPath), 0o755); err != nil {
+		if err := secureMkdirAllWithin(tm.configRoot, filepath.Dir(cleanPath), 0o755); err != nil {
 			return nil, fmt.Errorf("failed to prepare config directory %s: %w", filepath.Dir(cleanPath), err)
 		}
-		// Tunnel configs contain tokens/keys. WriteFile's mode does not tighten
-		// an existing file, so chmod explicitly after every write.
-		if err := os.WriteFile(cleanPath, []byte(req.ConfigContent), 0o600); err != nil {
+		// Tunnel configs contain tokens/keys. Atomic replacement prevents
+		// partial credentials and does not follow a destination symlink.
+		if err := secureWriteFileAtomic(cleanPath, []byte(req.ConfigContent), 0o600); err != nil {
 			return nil, fmt.Errorf("failed to write config file %s: %w", cleanPath, err)
-		}
-		if err := os.Chmod(cleanPath, 0o600); err != nil {
-			return nil, fmt.Errorf("failed to secure config file %s: %w", cleanPath, err)
 		}
 	}
 
@@ -320,7 +317,7 @@ func (tm *TunnelManager) ApplyTunnel(req TunnelApplyReq) (*TunnelStatusResp, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode tunnel metadata: %w", err)
 	}
-	if err := os.WriteFile(metaPath, encoded, 0o644); err != nil {
+	if err := secureWriteFileAtomic(metaPath, encoded, 0o600); err != nil {
 		return nil, fmt.Errorf("failed to write tunnel metadata %s: %w", metaPath, err)
 	}
 

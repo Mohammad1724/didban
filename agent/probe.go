@@ -522,7 +522,7 @@ func (pm *ProbeMonitor) saveTargets() error {
 	if err := os.MkdirAll(pm.dataDir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, encoded, 0o644)
+	return secureWriteFileAtomic(path, encoded, 0o600)
 }
 
 func (pm *ProbeMonitor) loadTargets() {

@@ -29,6 +29,36 @@ func TestSecureWriteFileAtomicReplacesSymlinkWithoutFollowingIt(t *testing.T) {
 	}
 }
 
+func TestSecureMkdirAllWithinRejectsSymlinkComponent(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "root")
+	outside := filepath.Join(base, "outside")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(outside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "tunnel")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := secureMkdirAllWithin(root, filepath.Join(link, "nested"), 0o755); err == nil {
+		t.Fatal("symlinked directory component accepted")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "nested")); !os.IsNotExist(err) {
+		t.Fatalf("directory created outside root: %v", err)
+	}
+}
+
+func TestSecureMkdirAllWithinRejectsOutsidePath(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "root")
+	if err := secureMkdirAllWithin(root, filepath.Join(base, "root-evil"), 0o755); err == nil {
+		t.Fatal("prefix-confusion path accepted")
+	}
+}
+
 func TestSecureWriteFileAtomicLeavesNoTempFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "credential")

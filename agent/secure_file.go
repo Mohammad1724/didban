@@ -4,11 +4,53 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // secureWriteFileAtomic writes in the destination directory, fsyncs, applies
 // the exact mode, then atomically renames. It never follows a destination
 // symlink and does not expose partially-written credentials after a crash.
+// secureMkdirAllWithin creates a directory chain without accepting symlinks or
+// non-directory components. root and dir must be absolute, and dir must remain
+// within root after lexical cleaning.
+func secureMkdirAllWithin(root, dir string, mode os.FileMode) error {
+	root = filepath.Clean(root)
+	dir = filepath.Clean(dir)
+	if !filepath.IsAbs(root) || !filepath.IsAbs(dir) ||
+		(dir != root && !strings.HasPrefix(dir, root+string(os.PathSeparator))) {
+		return fmt.Errorf("directory %q is outside secure root %q", dir, root)
+	}
+
+	current := root
+	parts := []string{}
+	if dir != root {
+		rel, err := filepath.Rel(root, dir)
+		if err != nil {
+			return err
+		}
+		parts = strings.Split(rel, string(os.PathSeparator))
+	}
+	for i := -1; i < len(parts); i++ {
+		if i >= 0 {
+			current = filepath.Join(current, parts[i])
+		}
+		info, err := os.Lstat(current)
+		if os.IsNotExist(err) {
+			if err := os.Mkdir(current, mode); err != nil && !os.IsExist(err) {
+				return fmt.Errorf("create secure directory %s: %w", current, err)
+			}
+			info, err = os.Lstat(current)
+		}
+		if err != nil {
+			return fmt.Errorf("inspect secure directory %s: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("secure directory component %s is not a real directory", current)
+		}
+	}
+	return nil
+}
+
 func secureWriteFileAtomic(path string, data []byte, mode os.FileMode) error {
 	dir := filepath.Dir(path)
 	f, err := os.CreateTemp(dir, ".didban-write-*")
