@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -213,6 +214,13 @@ func main() {
 		Addr:              cfg.Addr,
 		Handler:           newAPI(cfg, mon, tm, wd, pm).routes(),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Minute, // permits the bounded bandwidth upload
+		WriteTimeout:      5 * time.Minute, // permits the bounded bandwidth download
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    32 * 1024,
+		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
 	}
 
 	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), cfg.WatchdogEnabled, cfg.WatchdogIntervalSec, cfg.ProbeEnabled, cfg.ProbeIntervalSec, tokenFirstShow(cfg.DataDir))
@@ -239,9 +247,17 @@ func main() {
 }
 
 func loadOrCreateToken(path string) string {
-	if b, err := os.ReadFile(path); err == nil {
-		if t := strings.TrimSpace(string(b)); t != "" {
-			return t
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+			fatal("refusing non-regular token file %s", path)
+		}
+		if err := os.Chmod(path, 0o600); err != nil {
+			fatal("cannot secure token file %s: %v", path, err)
+		}
+		if b, err := os.ReadFile(path); err == nil {
+			if t := strings.TrimSpace(string(b)); t != "" {
+				return t
+			}
 		}
 	}
 	b := make([]byte, 24)
@@ -249,7 +265,7 @@ func loadOrCreateToken(path string) string {
 		fatal("cannot generate token: %v", err)
 	}
 	tok := hex.EncodeToString(b)
-	if err := os.WriteFile(path, []byte(tok), 0o600); err != nil {
+	if err := secureWriteFileAtomic(path, []byte(tok), 0o600); err != nil {
 		fatal("cannot write token file %s: %v", path, err)
 	}
 	return tok

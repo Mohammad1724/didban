@@ -29,6 +29,9 @@ func ensureSelfSigned(certPath, keyPath string) (string, error) {
 			if err == nil {
 				leaf, err2 := x509.ParseCertificate(cert.Certificate[0])
 				if err2 == nil && time.Now().Before(leaf.NotAfter) {
+					if err := os.Chmod(keyPath, 0o600); err != nil {
+						return "", err
+					}
 					return fingerprintDER(leaf.Raw), nil
 				}
 			}
@@ -87,10 +90,10 @@ func ensureSelfSigned(certPath, keyPath string) (string, error) {
 
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
-	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+	if err := secureWriteFileAtomic(keyPath, keyPEM, 0o600); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+	if err := secureWriteFileAtomic(certPath, certPEM, 0o644); err != nil {
 		return "", err
 	}
 
