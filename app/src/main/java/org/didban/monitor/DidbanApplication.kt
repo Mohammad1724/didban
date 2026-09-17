@@ -13,7 +13,10 @@ class DidbanApplication : Application() {
         // process (see PollingCoordinator for the gating semantics).
         PollingCoordinator.start(this)
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e("DidbanCrash", "Uncaught exception in thread: ${thread.name}", throwable)
+            // Never pass Throwable to Logcat: exception messages may contain a
+            // request URL, command, or credential. The encrypted crash record
+            // below keeps a redacted diagnostic trace for the user.
+            Log.e("DidbanCrash", "Uncaught ${throwable.javaClass.simpleName} in thread ${thread.name}")
             // H8: record the crash (encrypted trace + loop counter, synchronous
             // commits) before doing anything else, since the process may die
             // milliseconds later.

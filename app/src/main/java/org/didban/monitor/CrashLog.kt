@@ -50,7 +50,7 @@ object CrashLog {
         } catch (_: Throwable) {
         }
         try {
-            val trace = throwable.stackTraceToString()
+            val trace = SecretRedactor.redact(throwable.stackTraceToString())
                 .take(CrashPolicy.MAX_TRACE_CHARS)
             val payload = try {
                 SecureStorage.encrypt(trace)
@@ -71,11 +71,14 @@ object CrashLog {
         val raw = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_TRACE, null) ?: return null
         if (raw == ENCRYPTION_FAILED) return raw
-        return try {
+        val trace = try {
             SecureStorage.decrypt(raw)
         } catch (_: Throwable) {
             raw // legacy plaintext from before the encryption fix
         }
+        // Redact again on read so legacy traces and future pattern additions
+        // are protected before display or clipboard export.
+        return SecretRedactor.redact(trace).take(CrashPolicy.MAX_TRACE_CHARS)
     }
 
     /**

@@ -92,15 +92,16 @@ object AlertEngine {
                 val reqBody = json.toString().toRequestBody(mediaType)
                 val request = Request.Builder().url(url).post(reqBody).build()
                 httpClient.newCall(request).execute().use { resp ->
-                    val respBody = resp.body?.string() ?: ""
+                    // Do not surface the provider's raw body: gateways may
+                    // echo request metadata and it is not needed for diagnosis.
                     if (resp.isSuccessful) {
                         Pair(true, "پیام تست تلگرام با موفقیت ارسال شد! 🚀")
                     } else {
-                        Pair(false, "خطای تلگرام: HTTP ${resp.code} - $respBody")
+                        Pair(false, "خطای تلگرام: HTTP ${resp.code}")
                     }
                 }
             } catch (e: Exception) {
-                Pair(false, "خطا در اتصال به سرور تلگرام: ${e.message}")
+                Pair(false, "خطا در اتصال به سرور تلگرام: ${SecretRedactor.redact(e.message ?: "network error", listOf(token))}")
             }
         }
 
@@ -153,7 +154,7 @@ object AlertEngine {
                     }
                 }
             } catch (e: Exception) {
-                Pair(false, "خطا در اتصال به دیسکورد: ${e.message}")
+                Pair(false, "خطا در اتصال به دیسکورد: ${SecretRedactor.redact(e.message ?: "network error", listOf(url))}")
             }
         }
 

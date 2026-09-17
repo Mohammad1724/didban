@@ -76,13 +76,15 @@ class ApiClient {
         try {
             pooled.client.newCall(request).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
-                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}: $body")
+                // Agent/proxy bodies are untrusted and may echo request data;
+                // never propagate the raw body into UI errors or crash traces.
+                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}")
                 return JSONObject(body)
             }
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(e.message ?: "network error")
+            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
@@ -108,14 +110,14 @@ class ApiClient {
                         val j = JSONObject(body)
                         if (j.has("error")) errMsg = j.getString("error")
                     } catch (_: Exception) {}
-                    throw ApiException(errMsg)
+                    throw ApiException(SecretRedactor.redact(errMsg, listOf(server.token)).take(300))
                 }
                 return JSONObject(body)
             }
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(e.message ?: "network error")
+            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
