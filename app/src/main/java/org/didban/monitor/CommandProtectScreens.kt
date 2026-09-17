@@ -248,7 +248,7 @@ fun CommandBackupScreen(
                                 result = copy.backupCreated
                             }
                             .onFailure {
-                                result = if (Prefs.getLanguage(context) == "fa") "برای جلوگیری از افشای توکن‌ها، واردکردن رمز بکاپ الزامی است." else "A backup password is required to prevent credential exposure."
+                                result = securityMessage(Prefs.getLanguage(context), SecurityMessage.BACKUP_PASSWORD_REQUIRED)
                             }
                     }, icon = Icons.Rounded.Security, enabled = createPassword.isNotBlank())
                 }

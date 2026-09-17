@@ -66,7 +66,7 @@ fun CommandManageServersScreen(
     var error by remember {
         mutableStateOf(
             initialLoad.error?.let {
-                if (Prefs.getLanguage(context) == "fa") "خواندن امن فهرست سرورها ناموفق بود؛ داده موجود با فهرست خالی جایگزین نشده است." else "Secure server data could not be read; existing data has not been replaced with an empty list."
+                securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_READ_FAILED)
             }
         )
     }
@@ -121,14 +121,14 @@ fun CommandManageServersScreen(
         server.name.isBlank() -> copy.srvNameRequired
         !TunnelFieldValidation.isHost(server.host) -> copy.srvHostInvalid
         server.token.isBlank() -> copy.srvTokenRequired
-        !server.useTls -> if (Prefs.getLanguage(context) == "fa") "اتصال HTTP ناامن غیرفعال است؛ TLS را فعال کنید." else "Insecure HTTP connections are disabled; enable TLS."
+        !server.useTls -> securityMessage(Prefs.getLanguage(context), SecurityMessage.HTTP_DISABLED)
         !CertFingerprint.isValidSha256(server.fingerprint) -> copy.srvFingerprintInvalid
         else -> null
     }
 
     fun save() {
         if (initialLoad.error != null) {
-            error = if (Prefs.getLanguage(context) == "fa") "تا رفع خطای حافظه امن، ذخیره‌سازی برای جلوگیری از بازنویسی داده متوقف است." else "Saving is blocked until secure-storage access is restored, preventing data overwrite."
+            error = securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_WRITE_BLOCKED)
             return
         }
         val server = buildServer()
@@ -149,7 +149,7 @@ fun CommandManageServersScreen(
                 error = null
             }
             .onFailure {
-                error = it.message ?: if (Prefs.getLanguage(context) == "fa") "ذخیره امن سرور ناموفق بود." else "Secure server storage failed."
+                error = it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_SAVE_FAILED)
                 message = null
             }
     }
@@ -272,7 +272,7 @@ fun CommandManageServersScreen(
                 TextButton(onClick = {
                     if (initialLoad.error != null) {
                         deleteServer = null
-                        error = if (Prefs.getLanguage(context) == "fa") "حذف تا رفع خطای حافظه امن متوقف است." else "Deletion is blocked until secure storage is available."
+                        error = securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
                         return@TextButton
                     }
                     val next = records.filterNot { it.id == server.id }
@@ -286,7 +286,7 @@ fun CommandManageServersScreen(
                         }
                         .onFailure {
                             deleteServer = null
-                            error = it.message ?: if (Prefs.getLanguage(context) == "fa") "حذف امن سرور ناموفق بود." else "Secure server deletion failed."
+                            error = it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED)
                         }
                 }) { Text(copy.delete, color = CommandColors.danger) }
             },

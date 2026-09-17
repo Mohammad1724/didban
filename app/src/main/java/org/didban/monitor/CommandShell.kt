@@ -737,7 +737,7 @@ private fun CommandScopeBar(
         )
         CommandIconButton(
             Icons.Rounded.HelpOutline,
-            if (language == "fa") "راهنمای این صفحه" else "Page guide",
+            securityMessage(language, SecurityMessage.PAGE_GUIDE),
             onHelp
         )
         CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
