@@ -45,7 +45,8 @@ import kotlinx.coroutines.withContext
 
 private data class PendingServiceAction(
     val unit: String,
-    val action: String
+    val action: String,
+    val serverId: Long?
 )
 
 @Composable
@@ -105,12 +106,17 @@ fun CommandServicesScreen(
             )
             loading = false
             operation = null
-            evidence = buildString {
+            evidence = SecretRedactor.redact(buildString {
                 if (result.stdout.isNotBlank()) append(result.stdout.trimEnd()).append('\n')
                 if (result.stderr.isNotBlank()) append(result.stderr.trimEnd()).append('\n')
                 append("\nExit ${result.exitCode} · ${result.durationMs} ms")
+            }, listOf(password)).take(16_384)
+            if (!result.isSuccess) {
+                error = SecretRedactor.redact(
+                    result.errorMessage ?: result.stderr.ifBlank { "SSH operation failed" },
+                    listOf(password)
+                ).take(300)
             }
-            if (!result.isSuccess) error = result.errorMessage ?: result.stderr.ifBlank { "SSH operation failed" }
             after(result)
         }
     }
@@ -126,11 +132,25 @@ fun CommandServicesScreen(
     }
 
     fun runAction(action: PendingServiceAction) {
+        if (server?.id != action.serverId) {
+            error = copy.noServerSelected
+            return
+        }
+        if (action.action !in setOf("start", "stop", "restart", "logs")) {
+            error = copy.operationFailed
+            return
+        }
         val unit = SecurityValidation.shellQuote(action.unit)
         if (action.action == "logs") {
             execute("journalctl -u $unit -n 40 --no-pager", copy.svcReadingJournal)
         } else {
-            execute("systemctl ${action.action} $unit && systemctl is-active $unit", copy.svcRunningAction.replace("%s", action.action)) {
+            // Validate the unit again in the same remote command immediately
+            // before mutating it; never act on a stale or fabricated UI row.
+            execute(
+                "test \"$(systemctl show --property=LoadState --value $unit)\" = loaded && " +
+                    "systemctl ${action.action} $unit && systemctl is-active $unit",
+                copy.svcRunningAction.replace("%s", action.action)
+            ) {
                 if (it.isSuccess) refresh()
             }
         }
@@ -189,10 +209,10 @@ fun CommandServicesScreen(
                                 detail = "${service.active} (${service.sub}) · ${service.description}"
                             )
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                                CommandSecondaryButton("Start", { pendingAction = PendingServiceAction(service.unit, "start") }, enabled = !loading, icon = Icons.Rounded.PlayArrow)
-                                CommandSecondaryButton("Stop", { pendingAction = PendingServiceAction(service.unit, "stop") }, enabled = !loading, icon = Icons.Rounded.Stop)
-                                CommandSecondaryButton("Restart", { pendingAction = PendingServiceAction(service.unit, "restart") }, enabled = !loading, icon = Icons.Rounded.Refresh)
-                                CommandSecondaryButton("Logs", { runAction(PendingServiceAction(service.unit, "logs")) }, enabled = !loading, icon = Icons.Rounded.Terminal)
+                                CommandSecondaryButton("Start", { pendingAction = PendingServiceAction(service.unit, "start", server?.id) }, enabled = !loading, icon = Icons.Rounded.PlayArrow)
+                                CommandSecondaryButton("Stop", { pendingAction = PendingServiceAction(service.unit, "stop", server?.id) }, enabled = !loading, icon = Icons.Rounded.Stop)
+                                CommandSecondaryButton("Restart", { pendingAction = PendingServiceAction(service.unit, "restart", server?.id) }, enabled = !loading, icon = Icons.Rounded.Refresh)
+                                CommandSecondaryButton("Logs", { runAction(PendingServiceAction(service.unit, "logs", server?.id)) }, enabled = !loading, icon = Icons.Rounded.Terminal)
                             }
                         }
                     }
@@ -229,14 +249,16 @@ fun CommandServicesScreen(
         AlertDialog(
             onDismissRequest = { pendingAction = null },
             title = { Text(copy.svcConfirmTitle.replace("%1", action.action).replace("%2", action.unit), fontWeight = FontWeight.Bold) },
-            text = { Text(copy.svcConfirmBody) },
+            text = {
+                Text("${copy.svcConfirmBody}\n\n${server?.name ?: copy.noServerSelected} · ${server?.host.orEmpty()}\n${action.unit} · ${action.action}", fontFamily = FontFamily.Monospace)
+            },
             confirmButton = {
                 TextButton(onClick = {
                     pendingAction = null
                     runAction(action)
-                }) { Text(copy.run, color = if (action.action == "stop") CommandColors.danger else CommandColors.accent) }
+                }, enabled = !loading && server?.id == action.serverId) { Text(copy.run, color = if (action.action == "stop") CommandColors.danger else CommandColors.accent) }
             },
-            dismissButton = { TextButton(onClick = { pendingAction = null }) { Text(copy.cancel) } }
+            dismissButton = { TextButton(onClick = { pendingAction = null }, enabled = !loading) { Text(copy.cancel) } }
         )
     }
 }

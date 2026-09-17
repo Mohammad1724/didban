@@ -15,9 +15,11 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -85,6 +87,10 @@ fun CommandSecurityScreen(
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
+    var pendingPort by remember { mutableStateOf<Int?>(null) }
+    var pendingPortServerId by remember { mutableStateOf<Long?>(null) }
+    var pendingUnban by remember { mutableStateOf<BannedIpItem?>(null) }
+    var pendingUnbanServerId by remember { mutableStateOf<Long?>(null) }
 
     val banned = remember { mutableStateListOf<BannedIpItem>() }
     var bannedFetched by remember { mutableStateOf(false) }
@@ -102,6 +108,9 @@ fun CommandSecurityScreen(
             }
         }
     }
+
+    fun safeError(value: String): String =
+        SecretRedactor.redact(value, listOf(password)).take(300)
 
     fun guard(): Boolean {
         if (server == null) {
@@ -131,15 +140,15 @@ fun CommandSecurityScreen(
             busy = false
             firewallOutput = res.stdout.ifBlank { res.stderr }
             if (!res.isSuccess && firewallOutput.isBlank()) {
-                error = res.errorMessage ?: res.stderr
+                error = safeError(res.errorMessage ?: res.stderr)
             }
         }
     }
 
-    fun allowPort() {
+    fun allowPort(confirmedPort: Int) {
         if (!guard() || busy) return
         val target = server ?: return
-        val port = SecurityValidation.validatePort(portToAllow)
+        val port = SecurityValidation.validatePort(confirmedPort.toString())
         if (port == null) {
             error = copy.securityBadPort
             return
@@ -162,7 +171,7 @@ fun CommandSecurityScreen(
                 portToAllow = ""
                 inspectFirewall()
             } else {
-                error = res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" }
+                error = safeError(res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" })
             }
         }
     }
@@ -187,7 +196,7 @@ fun CommandSecurityScreen(
                 error = if (out.contains("not found") || jailsRes.stdout.isBlank()) {
                     copy.securityNoFail2ban
                 } else {
-                    out.take(160)
+                    safeError(out)
                 }
                 return@launch
             }
@@ -233,7 +242,7 @@ fun CommandSecurityScreen(
                 notice = copy.securityUnbanned.replace("%s", item.ip)
                 refreshBans()
             } else {
-                error = res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" }
+                error = safeError(res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" })
             }
         }
     }
@@ -297,7 +306,10 @@ fun CommandSecurityScreen(
                                 modifier = Modifier.weight(1f), singleLine = true,
                                 label = { Text(copy.securityPortToAllow) }
                             )
-                            CommandSecondaryButton(copy.securityAllow, ::allowPort, enabled = !busy, icon = Icons.Rounded.Add)
+                            CommandSecondaryButton(copy.securityAllow, {
+                                val port = SecurityValidation.validatePort(portToAllow)
+                                if (port == null) error = copy.securityBadPort else { pendingPort = port; pendingPortServerId = server?.id }
+                            }, enabled = !busy, icon = Icons.Rounded.Add)
                         }
                         if (firewallOutput.isNotBlank()) {
                             CommandRule()
@@ -336,7 +348,7 @@ fun CommandSecurityScreen(
                                 Modifier.weight(1f),
                                 detail = entry.jail
                             )
-                            CommandTextButton(copy.securityUnban, { unban(entry) }, Icons.Rounded.LockOpen, enabled = !busy)
+                            CommandTextButton(copy.securityUnban, { pendingUnban = entry; pendingUnbanServerId = server?.id }, Icons.Rounded.LockOpen, enabled = !busy)
                         }
                     }
                 }
@@ -346,6 +358,38 @@ fun CommandSecurityScreen(
             if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
         }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
+    }
+
+    val portToConfirm = pendingPort
+    if (portToConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { if (!busy) pendingPort = null },
+            title = { Text(copy.securityAllow) },
+            text = { Text("${server?.name ?: copy.noServerSelected} · ${server?.host.orEmpty()}\nTCP $portToConfirm") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingPort = null
+                    allowPort(portToConfirm)
+                }, enabled = !busy && server?.id == pendingPortServerId) { Text(copy.run, color = CommandColors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { pendingPort = null }, enabled = !busy) { Text(copy.cancel) } }
+        )
+    }
+
+    val unbanToConfirm = pendingUnban
+    if (unbanToConfirm != null) {
+        AlertDialog(
+            onDismissRequest = { if (!busy) pendingUnban = null },
+            title = { Text(copy.securityUnban) },
+            text = { Text("${server?.name ?: copy.noServerSelected} · ${server?.host.orEmpty()}\n${unbanToConfirm.ip} · ${unbanToConfirm.jail}") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingUnban = null
+                    unban(unbanToConfirm)
+                }, enabled = !busy && server?.id == pendingUnbanServerId) { Text(copy.run, color = CommandColors.danger) }
+            },
+            dismissButton = { TextButton(onClick = { pendingUnban = null }, enabled = !busy) { Text(copy.cancel) } }
+        )
     }
 
     val currentPrompt = prompt
