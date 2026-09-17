@@ -30,10 +30,10 @@ var (
 	// Tunnel ids are used in file names (meta-<id>.json) and must stay path-safe.
 	tunnelIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 	// Systemd unit names we manage must be conservative: no dots, no slashes.
-	serviceNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+	serviceNamePattern      = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 	secretAssignmentPattern = regexp.MustCompile(`(?i)(token|password|secret|key|auth)([[:space:]]*[:=][[:space:]]*["']?)([^[:space:]"',]+)`)
-	commandAuthPattern       = regexp.MustCompile(`(?i)(--auth[[:space:]]+)([^[:space:]]+)`)
-	urlCredentialPattern     = regexp.MustCompile(`(://[^:/[:space:]@]+:)([^@/[:space:]]+)(@)`)
+	commandAuthPattern      = regexp.MustCompile(`(?i)(--auth[[:space:]]+)([^[:space:]]+)`)
+	urlCredentialPattern    = regexp.MustCompile(`(://[^:/[:space:]@]+:)([^@/[:space:]]+)(@)`)
 )
 
 const (
