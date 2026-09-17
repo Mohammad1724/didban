@@ -139,7 +139,8 @@ object SftpEngine {
         pass: String,
         remotePath: String = "/etc",
         showHidden: Boolean = true,
-        sortMode: SftpSortMode = SftpSortMode.NAME_ASC
+        sortMode: SftpSortMode = SftpSortMode.NAME_ASC,
+        hostKeyPolicy: HostKeyPolicy = AutoTrustPolicy(HostKeyTrustStore)
     ): List<SftpFileItem> = withContext(Dispatchers.IO) {
         var session: com.jcraft.jsch.Session? = null
         var sftp: ChannelSftp? = null
