@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,6 +84,44 @@ func secureMkdirAllWithin(root, dir string, mode os.FileMode) error {
 		}
 	}
 	return nil
+}
+
+// secureOpenRegularRead opens a persistent file without following a final
+// symlink and rejects devices, directories, sockets, and other special files.
+func secureOpenRegularRead(path string) (*os.File, error) {
+	if err := requireRealParent(path); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		_ = f.Close()
+		return nil, fmt.Errorf("read source is not a regular file")
+	}
+	return f, nil
+}
+
+func secureReadFile(path string, maxBytes int64) ([]byte, error) {
+	if maxBytes < 1 {
+		return nil, fmt.Errorf("invalid read limit")
+	}
+	f, err := secureOpenRegularRead(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	limited := io.LimitReader(f, maxBytes+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("persistent file exceeds read limit")
+	}
+	return data, nil
 }
 
 // secureAppendFile appends without following a destination symlink and

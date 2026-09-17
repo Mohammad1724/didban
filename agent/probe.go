@@ -536,7 +536,7 @@ func (pm *ProbeMonitor) loadTargets() {
 	if path == "" {
 		return
 	}
-	data, err := os.ReadFile(path)
+	data, err := secureReadFile(path, 1<<20)
 	if err != nil {
 		return // missing/corrupt file = start with no targets
 	}

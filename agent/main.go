@@ -303,7 +303,7 @@ func loadOrCreateToken(path string) string {
 		if err := os.Chmod(path, 0o600); err != nil {
 			fatal("cannot secure token file %s: %v", path, err)
 		}
-		if b, err := os.ReadFile(path); err == nil {
+		if b, err := secureReadFile(path, 256); err == nil {
 			if t := strings.TrimSpace(string(b)); t != "" {
 				return t
 			}

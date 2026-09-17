@@ -214,7 +214,7 @@ func (tm *TunnelManager) resolveConfigPath(p string) (string, error) {
 // whether the tunnel was actually registered on this node.
 func (tm *TunnelManager) loadMetaChecked(id string) (TunnelMeta, bool) {
 	metaPath := filepath.Join(tm.tunnelsDir, "meta-"+id+".json")
-	data, err := os.ReadFile(metaPath)
+	data, err := secureReadFile(metaPath, 1<<20)
 	if err != nil {
 		return TunnelMeta{ID: id}, false
 	}
@@ -481,7 +481,7 @@ func (tm *TunnelManager) ListTunnels() []*TunnelStatusResp {
 
 	res := make([]*TunnelStatusResp, 0, len(files))
 	for _, f := range files {
-		data, err := os.ReadFile(f)
+		data, err := secureReadFile(f, 4<<20)
 		if err != nil {
 			continue
 		}
@@ -758,7 +758,7 @@ func (tm *TunnelManager) otherMetaCount(id, core string, roleOnly bool, role str
 	n := 0
 	files, _ := filepath.Glob(filepath.Join(tm.tunnelsDir, "meta-*.json"))
 	for _, f := range files {
-		data, err := os.ReadFile(f)
+		data, err := secureReadFile(f, 4<<20)
 		if err != nil {
 			continue
 		}

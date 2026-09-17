@@ -600,7 +600,7 @@ func (m *Monitor) compactHistoryLocked() {
 func (m *Monitor) loadHistory() {
 	// Remove a pre-hardening fixed-name compaction file if one remains.
 	_ = os.Remove(m.histPath + ".tmp")
-	f, err := os.Open(m.histPath)
+	f, err := secureOpenRegularRead(m.histPath)
 	if err != nil {
 		return
 	}

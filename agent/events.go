@@ -112,7 +112,7 @@ func (e *EventLog) List(limit int) []Event {
 
 // load restores previous events from the JSONL file (keeps the newest max).
 func (e *EventLog) load() {
-	f, err := os.Open(e.path)
+	f, err := secureOpenRegularRead(e.path)
 	if err != nil {
 		return
 	}

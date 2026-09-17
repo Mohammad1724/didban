@@ -88,6 +88,28 @@ func TestSecureAppendFileRejectsSymlinkAndSecuresExistingMode(t *testing.T) {
 	}
 }
 
+func TestSecureReadRejectsSymlinkAndOversizedFiles(t *testing.T) {
+	dir := t.TempDir()
+	realPath := filepath.Join(dir, "real")
+	if err := os.WriteFile(realPath, []byte("secret-state"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkPath := filepath.Join(dir, "link")
+	if err := os.Symlink(realPath, linkPath); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := secureReadFile(linkPath, 1024); err == nil {
+		t.Fatal("secure read followed a symlink")
+	}
+	if _, err := secureReadFile(realPath, 4); err == nil {
+		t.Fatal("secure read accepted an oversized file")
+	}
+	got, err := secureReadFile(realPath, 1024)
+	if err != nil || string(got) != "secret-state" {
+		t.Fatalf("regular secure read=%q err=%v", got, err)
+	}
+}
+
 func TestSecureWritersRejectSymlinkParent(t *testing.T) {
 	root := t.TempDir()
 	realDir := filepath.Join(root, "real")
