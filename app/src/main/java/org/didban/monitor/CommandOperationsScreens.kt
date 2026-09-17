@@ -213,6 +213,7 @@ fun CommandProcessesScreen(
     var selected by remember { mutableStateOf<ProcInfo?>(null) }
     var killSignal by remember { mutableStateOf("SIGTERM") }
     var killConfirm by remember { mutableStateOf<ProcInfo?>(null) }
+    var acting by remember(server?.id) { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
     fun load() {
@@ -275,7 +276,10 @@ fun CommandProcessesScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(selected?.cmd ?: "", style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
-                    OutlinedTextField(killSignal, { killSignal = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(12) }, label = { Text("Signal") }, singleLine = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        CommandSecondaryButton("SIGTERM", { killSignal = "SIGTERM" }, enabled = killSignal != "SIGTERM" && !acting)
+                        CommandSecondaryButton("SIGKILL", { killSignal = "SIGKILL" }, enabled = killSignal != "SIGKILL" && !acting)
+                    }
                 }
             },
             confirmButton = { TextButton(onClick = { killConfirm = selected; selected = null }) { Text(copy.stop) } },
@@ -292,16 +296,28 @@ fun CommandProcessesScreen(
                     val target = server
                     val process = killConfirm
                     killConfirm = null
-                    if (target != null && process != null) {
+                    if (target != null && process != null && !acting) {
+                        acting = true
                         scope.launch {
-                            runCatching { ApiClient().killProcess(target, process.pid, killSignal) }
-                                .onSuccess { result = it.message; load() }
-                                .onFailure { result = "${copy.operationFailed}: ${it.message}" }
+                            runCatching {
+                                require(killSignal == "SIGTERM" || killSignal == "SIGKILL") { "Unsupported signal" }
+                                // Re-fetch immediately before signalling. This prevents a stale
+                                // row from killing an unrelated process after PID reuse.
+                                val current = ApiClient().processes(target).firstOrNull { it.pid == process.pid }
+                                check(current != null && current.name == process.name && current.user == process.user) {
+                                    "Process changed or exited; refresh before retrying"
+                                }
+                                ApiClient().killProcess(target, process.pid, killSignal)
+                            }.onSuccess { result = it.message; load() }
+                                .onFailure {
+                                    result = "${copy.operationFailed}: ${SecretRedactor.redact(it.message ?: copy.operationFailed, listOf(target.token)).take(300)}"
+                                }
+                            acting = false
                         }
                     }
-                }) { Text(copy.run) }
+                }, enabled = !acting) { Text(copy.run) }
             },
-            dismissButton = { TextButton(onClick = { killConfirm = null }) { Text(copy.close) } }
+            dismissButton = { TextButton(onClick = { killConfirm = null }, enabled = !acting) { Text(copy.close) } }
         )
     }
 }
@@ -320,6 +336,7 @@ fun CommandDockerScreen(
     var selected by remember { mutableStateOf<DockerContainerItem?>(null) }
     var confirmAction by remember { mutableStateOf<String?>(null) }
     var pendingContainerId by remember { mutableStateOf<String?>(null) }
+    var operating by remember(server?.id) { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
     fun load() {
@@ -371,34 +388,44 @@ fun CommandDockerScreen(
             onDismissRequest = { selected = null },
             title = { Text(selected?.name ?: copy.docker) },
             text = { Text("${selected?.status}\n${selected?.image}\n${selected?.ports?.joinToString { "${it.publicPort}:${it.privatePort}" } ?: ""}", fontFamily = Telemetry) },
-            confirmButton = { TextButton(onClick = { pendingContainerId = selected?.id; confirmAction = "restart"; selected = null }) { Text(copy.restart) } },
-            dismissButton = { TextButton(onClick = { pendingContainerId = selected?.id; confirmAction = "stop"; selected = null }) { Text(copy.stop) } }
+            confirmButton = { TextButton(onClick = { pendingContainerId = selected?.id; confirmAction = "restart"; selected = null }, enabled = !operating) { Text(copy.restart) } },
+            dismissButton = { TextButton(onClick = { pendingContainerId = selected?.id; confirmAction = "stop"; selected = null }, enabled = !operating) { Text(copy.stop) } }
         )
     }
     if (confirmAction != null) {
         val action = confirmAction
+        val pendingContainer = data?.containers?.firstOrNull { it.id == pendingContainerId }
         AlertDialog(
-            onDismissRequest = { confirmAction = null },
+            onDismissRequest = { if (!operating) confirmAction = null },
             title = { Text(action ?: copy.docker) },
-            text = { Text("${copy.docker} · ${action ?: ""}") },
+            text = { Text("${server?.name ?: copy.noServerSelected}\n${pendingContainer?.name ?: pendingContainerId.orEmpty()} · ${pendingContainer?.id.orEmpty()}\n${action ?: ""}", fontFamily = Telemetry) },
             confirmButton = {
                 TextButton(onClick = {
                     val target = server
                     val container = data?.containers?.firstOrNull { it.id == pendingContainerId }
                     confirmAction = null
                     pendingContainerId = null
-                    if (target != null && container != null) {
+                    if (target != null && container != null && !operating) {
+                        operating = true
                         scope.launch {
                             runCatching {
-                                if (action == "restart") ApiClient().dockerRestart(target, container.id)
-                                else ApiClient().dockerStop(target, container.id)
+                                val api = ApiClient()
+                                val current = api.dockerContainers(target).containers.firstOrNull { it.id == container.id }
+                                check(current != null && current.name == container.name) {
+                                    "Container changed or disappeared; refresh before retrying"
+                                }
+                                if (action == "restart") api.dockerRestart(target, current.id)
+                                else api.dockerStop(target, current.id)
                             }.onSuccess { result = copy.operationDone; load() }
-                                .onFailure { result = "${copy.operationFailed}: ${it.message}" }
+                                .onFailure {
+                                    result = "${copy.operationFailed}: ${SecretRedactor.redact(it.message ?: copy.operationFailed, listOf(target.token)).take(300)}"
+                                }
+                            operating = false
                         }
                     }
-                }) { Text(copy.run) }
+                }, enabled = !operating && pendingContainer != null) { Text(copy.run) }
             },
-            dismissButton = { TextButton(onClick = { confirmAction = null }) { Text(copy.close) } }
+            dismissButton = { TextButton(onClick = { confirmAction = null }, enabled = !operating) { Text(copy.close) } }
         )
     }
 }

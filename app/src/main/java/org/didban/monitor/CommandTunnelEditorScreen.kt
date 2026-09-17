@@ -439,12 +439,30 @@ fun CommandTunnelEditorScreen(
                     confirmAction = null
                     if (action == TunnelConfirmAction.DELETE) {
                         val id = selectedId
-                        if (id != null) {
-                            scope.launch { runCatching { TunnelEngine.controlRemoteTunnel(context, buildConfig(), "delete") } }
-                            records = records.filterNot { it.id == id }
-                            Prefs.saveTunnels(context, records)
-                            resetForm()
-                            message = copy.tunDeleted
+                        val cfg = buildConfig()
+                        if (id != null && !busy) {
+                            busy = true
+                            error = null
+                            scope.launch {
+                                runCatching {
+                                    check(TunnelEngine.controlRemoteTunnel(context, cfg, "delete")) {
+                                        copy.tunActionFailedGeneric
+                                    }
+                                    val next = records.filterNot { it.id == id }
+                                    Prefs.saveTunnels(context, next)
+                                    next
+                                }.onSuccess { next ->
+                                    records = next
+                                    resetForm()
+                                    message = copy.tunDeleted
+                                }.onFailure {
+                                    error = SecretRedactor.redact(
+                                        it.message ?: copy.tunActionFailedGeneric,
+                                        listOf(cfg.token)
+                                    ).take(300)
+                                }
+                                busy = false
+                            }
                         }
                     } else deploy()
                 }) { Text(if (action == TunnelConfirmAction.DELETE) copy.delete else copy.deploy, color = if (action == TunnelConfirmAction.DELETE) CommandColors.danger else CommandColors.accent) }
