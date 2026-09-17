@@ -227,14 +227,24 @@ func main() {
 
 	banner(cfg, fingerprint, mon.dispatcher.HasActiveProviders(), cfg.WatchdogEnabled, cfg.WatchdogIntervalSec, cfg.ProbeEnabled, cfg.ProbeIntervalSec, tokenFirstShow(cfg.DataDir))
 
-	errCh := make(chan error, 1)
-	go func() {
-		if cfg.PlainHTTP {
-			errCh <- srv.ListenAndServe()
-		} else {
-			errCh <- srv.ListenAndServeTLS(certPath, keyPath)
+	listener, err := net.Listen("tcp", cfg.Addr)
+	if err != nil {
+		fatal("cannot listen on %s: %v", cfg.Addr, err)
+	}
+	listener = newLimitedListener(listener, maxActiveConnections)
+	if !cfg.PlainHTTP {
+		pair, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			_ = listener.Close()
+			fatal("cannot load TLS credentials: %v", err)
 		}
-	}()
+		tlsConfig := srv.TLSConfig.Clone()
+		tlsConfig.Certificates = []tls.Certificate{pair}
+		listener = tls.NewListener(listener, tlsConfig)
+	}
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve(listener) }()
 
 	select {
 	case err := <-errCh:
