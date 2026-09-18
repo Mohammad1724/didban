@@ -76,14 +76,14 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "اگر هنوز سروری ندارید، با SSH یا کنسول وب وارد سرور شوید و اجرا کنید:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "در صورت فعال‌بودن UFW اجرا کنید: sudo ufw allow 8686/tcp",
                 "خروجی نصب شامل URL، دو توکن Read و Admin و اثر انگشت SHA256 را نگه دارید.",
-                "به «مدیریت سرورها» بروید، «افزودن» را بزنید، اطلاعات را وارد کنید و ابتدا «آزمایش Agent» و سپس «ذخیره» را بزنید.",
+                "به «مدیریت سرورها» بروید و کل خط didban:// را در «کد اتصال فوری» بچسبانید؛ یا اطلاعات را دستی وارد کنید. سپس «آزمایش Agent» و «ذخیره» را بزنید.",
                 "به این صفحه برگردید؛ Online بودن و تأخیر را بررسی کنید و برای جزئیات روی کارت سرور بزنید."
             ),
             listOf(
                 "If no server exists, connect over SSH or web console and run:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "If UFW is enabled, run: sudo ufw allow 8686/tcp",
                 "Save the installer output: URL, Read and Admin tokens, and SHA-256 fingerprint.",
-                "Open Manage servers, tap Add, enter those values, then tap Test Agent before Save.",
+                "Open Manage servers and paste the complete didban:// line into Quick-connect code, or enter values manually. Then tap Test Agent before Save.",
                 "Return here, verify Online state and latency, and tap the server card for details."
             ),
             faWarning = "توکن‌ها محرمانه‌اند؛ آن‌ها را در پیام‌رسان یا تصویر صفحه منتشر نکنید.",
@@ -106,7 +106,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "این دستور را کامل در ترمینال کپی و اجرا کنید:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "اگر فایروال UFW فعال است، این دستور را اجرا کنید:\nsudo ufw allow 8686/tcp",
                 "در پایان نصب، چهار مقدار Server URL، Read token، Admin token و Cert SHA256 نمایش داده می‌شود؛ آن‌ها را در جای امن نگه دارید.",
-                "در دیدبان روی «افزودن» بزنید؛ نام دلخواه، IP یا دامنه سرور، پورت 8686، Read token، Admin token و اثر انگشت SHA256 را وارد کنید.",
+                "در دیدبان روی «افزودن» بزنید و کل خط didban:// را در «کد اتصال فوری» بچسبانید تا فرم خودکار پر شود؛ در صورت تمایل می‌توانید مقادیر را دستی وارد کنید.",
                 "TLS را روشن نگه دارید. اثر انگشت را بدون فاصله و دقیقاً مطابق خروجی نصب وارد کنید.",
                 "«آزمایش Agent» را بزنید. فقط اگر وضعیت اتصال موفق بود، «ذخیره» را بزنید.",
                 "اگر اتصال نشد، روی سرور اجرا کنید: sudo systemctl status didban-agent --no-pager و بازبودن پورت 8686 در فایروال سرور و پنل میزبان را بررسی کنید."
@@ -116,7 +116,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "Copy and run this complete command:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "If UFW is enabled, run:\nsudo ufw allow 8686/tcp",
                 "At the end, save the Server URL, Read token, Admin token, and Cert SHA256 shown by the installer.",
-                "In Didban tap Add, then enter a friendly name, server IP/domain, port 8686, both tokens, and the SHA-256 fingerprint.",
+                "In Didban tap Add and paste the complete didban:// line into Quick-connect code to fill the form automatically, or enter the values manually.",
                 "Keep TLS enabled and copy the fingerprint exactly, without spaces.",
                 "Tap Test Agent. Save only after the connection succeeds.",
                 "If it fails, run sudo systemctl status didban-agent --no-pager and verify port 8686 in both server and provider firewalls."

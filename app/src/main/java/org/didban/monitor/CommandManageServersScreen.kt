@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -59,6 +60,7 @@ fun CommandManageServersScreen(
     var port by remember { mutableStateOf("8686") }
     var token by remember { mutableStateOf("") }
     var adminToken by remember { mutableStateOf("") }
+    var quickConnectCode by remember { mutableStateOf("") }
     var useTls by remember { mutableStateOf(true) }
     var fingerprint by remember { mutableStateOf("") }
     var cpuAlert by remember { mutableStateOf("90") }
@@ -82,6 +84,7 @@ fun CommandManageServersScreen(
         port = "8686"
         token = ""
         adminToken = ""
+        quickConnectCode = ""
         useTls = true
         fingerprint = ""
         cpuAlert = "90"
@@ -121,6 +124,34 @@ fun CommandManageServersScreen(
         cpuAlert = cpuAlert.toIntOrNull()?.coerceIn(1, 100) ?: 90,
         memAlert = memAlert.toIntOrNull()?.coerceIn(1, 100) ?: 90
     )
+
+    fun importQuickConnect() {
+        runCatching { QuickConnectCodeParser.parse(quickConnectCode) }
+            .onSuccess { code ->
+                selectedId = null
+                name = code.name
+                host = code.host
+                port = code.port.toString()
+                token = code.readToken
+                adminToken = code.adminToken
+                fingerprint = code.fingerprint
+                useTls = true
+                quickConnectCode = ""
+                error = null
+                message = if (Prefs.getLanguage(context) == "fa") {
+                    "کد اتصال وارد شد؛ اکنون «آزمایش Agent» و سپس «ذخیره» را بزنید."
+                } else {
+                    "Quick-connect code imported. Tap Test Agent, then Save."
+                }
+            }
+            .onFailure {
+                error = if (Prefs.getLanguage(context) == "fa") {
+                    "کد اتصال فوری معتبر نیست. کل خطی را که با didban:// شروع می‌شود کپی کنید."
+                } else {
+                    "Invalid quick-connect code. Copy the complete line beginning with didban://."
+                }
+            }
+    }
 
     fun validate(server: ServerConfig): String? = when {
         server.name.isBlank() -> copy.srvNameRequired
@@ -214,6 +245,29 @@ fun CommandManageServersScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(if (selectedId == null) copy.srvNewConnection else copy.srvEditConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    if (selectedId == null) {
+                        Text(
+                            if (Prefs.getLanguage(context) == "fa") "اتصال فوری: کل کد didban:// نمایش‌داده‌شده در پایان نصب را اینجا بچسبانید." else "Quick connect: paste the complete didban:// code printed after installation.",
+                            color = CommandColors.textSecondary,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                        )
+                        OutlinedTextField(
+                            quickConnectCode,
+                            { quickConnectCode = it.take(2048) },
+                            Modifier.fillMaxWidth(),
+                            minLines = 2,
+                            maxLines = 4,
+                            label = { Text(if (Prefs.getLanguage(context) == "fa") "کد اتصال فوری" else "Quick-connect code") },
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        )
+                        CommandSecondaryButton(
+                            if (Prefs.getLanguage(context) == "fa") "واردکردن خودکار اطلاعات" else "Import connection details",
+                            ::importQuickConnect,
+                            icon = Icons.Rounded.Bolt,
+                            enabled = quickConnectCode.isNotBlank() && !busy
+                        )
+                        CommandRule()
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(name, { name = it }, Modifier.weight(1f), singleLine = true, label = { Text("Name") })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
