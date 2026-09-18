@@ -138,18 +138,10 @@ fun CommandManageServersScreen(
                 useTls = true
                 quickConnectCode = ""
                 error = null
-                message = if (Prefs.getLanguage(context) == "fa") {
-                    "کد اتصال وارد شد؛ اکنون «آزمایش Agent» و سپس «ذخیره» را بزنید."
-                } else {
-                    "Quick-connect code imported. Tap Test Agent, then Save."
-                }
+                message = copy.srvQuickConnectImported
             }
             .onFailure {
-                error = if (Prefs.getLanguage(context) == "fa") {
-                    "کد اتصال فوری معتبر نیست. کل خطی را که با didban:// شروع می‌شود کپی کنید."
-                } else {
-                    "Invalid quick-connect code. Copy the complete line beginning with didban://."
-                }
+                error = copy.srvQuickConnectInvalid
             }
     }
 
@@ -247,7 +239,7 @@ fun CommandManageServersScreen(
                     Text(if (selectedId == null) copy.srvNewConnection else copy.srvEditConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     if (selectedId == null) {
                         Text(
-                            if (Prefs.getLanguage(context) == "fa") "اتصال فوری: کل کد didban:// نمایش‌داده‌شده در پایان نصب را اینجا بچسبانید." else "Quick connect: paste the complete didban:// code printed after installation.",
+                            copy.srvQuickConnectHint,
                             color = CommandColors.textSecondary,
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                         )
@@ -257,11 +249,11 @@ fun CommandManageServersScreen(
                             Modifier.fillMaxWidth(),
                             minLines = 2,
                             maxLines = 4,
-                            label = { Text(if (Prefs.getLanguage(context) == "fa") "کد اتصال فوری" else "Quick-connect code") },
+                            label = { Text(copy.srvQuickConnectLabel) },
                             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                         )
                         CommandSecondaryButton(
-                            if (Prefs.getLanguage(context) == "fa") "واردکردن خودکار اطلاعات" else "Import connection details",
+                            copy.srvQuickConnectImport,
                             ::importQuickConnect,
                             icon = Icons.Rounded.Bolt,
                             enabled = quickConnectCode.isNotBlank() && !busy
@@ -274,7 +266,7 @@ fun CommandManageServersScreen(
                     }
                     OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
                     OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                    OutlinedTextField(adminToken, { adminToken = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Admin token") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(adminToken, { adminToken = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAdminToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         Switch(checked = true, onCheckedChange = null, enabled = false)
                         Text(copy.srvUseTls, color = CommandColors.textSecondary, modifier = Modifier.weight(1f))

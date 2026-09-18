@@ -521,6 +521,12 @@ interface CommandCopy {
     val srvEditConnection: String
     val srvAgentHost: String
     val srvAgentToken: String
+    val srvAdminToken: String
+    val srvQuickConnectHint: String
+    val srvQuickConnectLabel: String
+    val srvQuickConnectImport: String
+    val srvQuickConnectImported: String
+    val srvQuickConnectInvalid: String
     val srvUseTls: String
     val srvFingerprintPinning: String
     val srvTlsFingerprint: String
@@ -1036,7 +1042,13 @@ internal object CommandCopyFa : CommandCopy {
     override val srvNewConnection = "اتصال جدید"
     override val srvEditConnection = "ویرایش اتصال"
     override val srvAgentHost = "آدرس ایجنت"
-    override val srvAgentToken = "توکن ایجنت"
+    override val srvAgentToken = "توکن خواندن ایجنت"
+    override val srvAdminToken = "توکن مدیریت ایجنت"
+    override val srvQuickConnectHint = "اتصال فوری: کل کد didban:// نمایش‌داده‌شده در پایان نصب را اینجا بچسبانید."
+    override val srvQuickConnectLabel = "کد اتصال فوری"
+    override val srvQuickConnectImport = "واردکردن خودکار اطلاعات"
+    override val srvQuickConnectImported = "کد اتصال وارد شد؛ اکنون «آزمایش ایجنت» و سپس «ذخیره» را بزنید."
+    override val srvQuickConnectInvalid = "کد اتصال فوری معتبر نیست. کل خطی را که با didban:// شروع می‌شود کپی کنید."
     override val srvUseTls = "استفاده از TLS"
     override val srvFingerprintPinning = "پین‌کردن fingerprint"
     override val srvTlsFingerprint = "fingerprint SHA-256 از TLS (اختیاری، TOFU)"
@@ -1545,7 +1557,13 @@ internal object CommandCopyEn : CommandCopy {
     override val srvNewConnection = "New connection"
     override val srvEditConnection = "Edit connection"
     override val srvAgentHost = "Agent host"
-    override val srvAgentToken = "Agent token"
+    override val srvAgentToken = "Agent read token"
+    override val srvAdminToken = "Agent admin token"
+    override val srvQuickConnectHint = "Quick connect: paste the complete didban:// code printed after installation."
+    override val srvQuickConnectLabel = "Quick-connect code"
+    override val srvQuickConnectImport = "Import connection details"
+    override val srvQuickConnectImported = "Quick-connect code imported. Tap Test Agent, then Save."
+    override val srvQuickConnectInvalid = "Invalid quick-connect code. Copy the complete line beginning with didban://."
     override val srvUseTls = "Use TLS"
     override val srvFingerprintPinning = "Fingerprint pinning"
     override val srvTlsFingerprint = "TLS SHA-256 fingerprint (optional TOFU)"
