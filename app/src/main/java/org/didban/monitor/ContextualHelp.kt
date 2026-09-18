@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
@@ -44,12 +45,58 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
     fun h(faSummary: String, enSummary: String, faSteps: List<String>, enSteps: List<String>, faTip: String? = null, enTip: String? = null, faWarning: String? = null, enWarning: String? = null) =
         CommandHelpContent(if (fa) faSummary else enSummary, if (fa) faSteps else enSteps, if (fa) faTip else enTip, if (fa) faWarning else enWarning)
 
-    return when (this) {
+    val base = when (this) {
         CommandRoute.OVERVIEW -> h("نمای کلی سلامت، مصرف منابع و رخدادهای همه سرورها.", "A fleet-wide view of health, resource usage, and incidents.", listOf("سرورها را اضافه کنید.", "برای دریافت تازه‌ترین داده، نوسازی را بزنید.", "برای جزئیات روی هر سرور یا رخداد بزنید."), listOf("Add your servers.", "Refresh to fetch the latest data.", "Open a server or incident for details."), "نمودارها فقط بر اساس داده‌های ثبت‌شده Agent هستند.", "Charts use data recorded by the Agent only.")
         CommandRoute.INCIDENTS -> h("رخدادهای CPU، حافظه، کانتینر و تونل را بررسی کنید.", "Review CPU, memory, container, and tunnel incidents.", listOf("بازه و سرور را انتخاب کنید.", "رخداد را باز کنید و فرایندهای عامل را ببینید.", "پس از رفع علت، وضعیت زنده را دوباره بررسی کنید."), listOf("Choose a server and time range.", "Open an incident to inspect culprit processes.", "After remediation, verify live health again."))
-        CommandRoute.FLEET -> h("فهرست سرورها و وضعیت اتصال آن‌ها.", "Your servers and their connection state.", listOf("یک سرور اضافه کنید.", "وضعیت Online و تأخیر را بررسی کنید.", "برای پرونده کامل روی سرور بزنید."), listOf("Add a server.", "Check online state and latency.", "Open a server for its full dossier."))
+        CommandRoute.FLEET -> h(
+            "اینجا فهرست سرورهاست. برای اولین استفاده باید Agent را روی سرور نصب و سپس اطلاعاتش را در دیدبان ثبت کنید.",
+            "This is your server list. First install the Agent on a server, then register its details in Didban.",
+            listOf(
+                "اگر هنوز سروری ندارید، با SSH یا کنسول وب وارد سرور شوید و اجرا کنید:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
+                "در صورت فعال‌بودن UFW اجرا کنید: sudo ufw allow 8686/tcp",
+                "خروجی نصب شامل URL، دو توکن Read و Admin و اثر انگشت SHA256 را نگه دارید.",
+                "به «مدیریت سرورها» بروید، «افزودن» را بزنید، اطلاعات را وارد کنید و ابتدا «آزمایش Agent» و سپس «ذخیره» را بزنید.",
+                "به این صفحه برگردید؛ Online بودن و تأخیر را بررسی کنید و برای جزئیات روی کارت سرور بزنید."
+            ),
+            listOf(
+                "If no server exists, connect over SSH or web console and run:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
+                "If UFW is enabled, run: sudo ufw allow 8686/tcp",
+                "Save the installer output: URL, Read and Admin tokens, and SHA-256 fingerprint.",
+                "Open Manage servers, tap Add, enter those values, then tap Test Agent before Save.",
+                "Return here, verify Online state and latency, and tap the server card for details."
+            ),
+            faWarning = "توکن‌ها محرمانه‌اند؛ آن‌ها را در پیام‌رسان یا تصویر صفحه منتشر نکنید.",
+            enWarning = "Tokens are secrets; never publish them in messages or screenshots."
+        )
         CommandRoute.SERVER_DOSSIER -> h("اطلاعات و عملیات یک سرور انتخاب‌شده.", "Metrics and operations for the selected server.", listOf("از نوار بالا سرور را انتخاب کنید.", "متریک‌ها و اتصال Agent را بررسی کنید.", "بخش فرایند، Docker یا تونل را باز کنید."), listOf("Select a server from the scope bar.", "Review metrics and Agent connectivity.", "Open processes, Docker, or tunnels."))
-        CommandRoute.MANAGE_SERVERS -> h("اتصال امن سرورها را اضافه، ویرایش یا حذف کنید.", "Add, edit, or remove secure server connections.", listOf("آدرس HTTPS و پورت Agent را وارد کنید.", "توکن Bearer را از نصب Agent بردارید.", "اثر انگشت گواهی را تطبیق دهید و اتصال را آزمایش کنید."), listOf("Enter the Agent HTTPS address and port.", "Paste the Bearer token from Agent installation.", "Verify the certificate fingerprint and test the connection."), faWarning = "توکن و اثر انگشت را فقط از منبع مورد اعتماد دریافت کنید.", enWarning = "Only accept tokens and fingerprints from a trusted source.")
+        CommandRoute.MANAGE_SERVERS -> h(
+            "برای اضافه‌کردن سرور، ابتدا Agent دیدبان را در ترمینال همان سرور نصب کنید؛ سپس اطلاعات چاپ‌شده را دقیقاً در فرم وارد کنید.",
+            "To add a server, first install the Didban Agent in that server's terminal, then enter the printed values in the form.",
+            listOf(
+                "با SSH وارد سرور Ubuntu/Debian شوید. اگر SSH ندارید، کنسول وب شرکت میزبان را باز کنید.",
+                "این دستور را کامل در ترمینال کپی و اجرا کنید:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
+                "اگر فایروال UFW فعال است، این دستور را اجرا کنید:\nsudo ufw allow 8686/tcp",
+                "در پایان نصب، چهار مقدار Server URL، Read token، Admin token و Cert SHA256 نمایش داده می‌شود؛ آن‌ها را در جای امن نگه دارید.",
+                "در دیدبان روی «افزودن» بزنید؛ نام دلخواه، IP یا دامنه سرور، پورت 8686، Read token، Admin token و اثر انگشت SHA256 را وارد کنید.",
+                "TLS را روشن نگه دارید. اثر انگشت را بدون فاصله و دقیقاً مطابق خروجی نصب وارد کنید.",
+                "«آزمایش Agent» را بزنید. فقط اگر وضعیت اتصال موفق بود، «ذخیره» را بزنید.",
+                "اگر اتصال نشد، روی سرور اجرا کنید: sudo systemctl status didban-agent --no-pager و بازبودن پورت 8686 در فایروال سرور و پنل میزبان را بررسی کنید."
+            ),
+            listOf(
+                "Connect to the Ubuntu/Debian server over SSH, or open your provider's web console.",
+                "Copy and run this complete command:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
+                "If UFW is enabled, run:\nsudo ufw allow 8686/tcp",
+                "At the end, save the Server URL, Read token, Admin token, and Cert SHA256 shown by the installer.",
+                "In Didban tap Add, then enter a friendly name, server IP/domain, port 8686, both tokens, and the SHA-256 fingerprint.",
+                "Keep TLS enabled and copy the fingerprint exactly, without spaces.",
+                "Tap Test Agent. Save only after the connection succeeds.",
+                "If it fails, run sudo systemctl status didban-agent --no-pager and verify port 8686 in both server and provider firewalls."
+            ),
+            faTip = "Read token فقط برای مشاهده است؛ Admin token برای توقف، راه‌اندازی مجدد و تغییرات مدیریتی استفاده می‌شود.",
+            enTip = "The Read token is for monitoring; the Admin token authorizes stop, restart, and configuration actions.",
+            faWarning = "توکن‌ها و اثر انگشت را برای کسی نفرستید و از منابع ناشناس دستور نصب نگیرید.",
+            enWarning = "Never share tokens or fingerprints, and do not run installer commands from untrusted sources."
+        )
         CommandRoute.TUNNELS -> h("تونل‌های سرور را مشاهده و مدیریت کنید.", "View and manage tunnels on a server.", listOf("سرور را انتخاب کنید.", "سلامت و تأخیر هر تونل را بررسی کنید.", "برای ساخت یا ویرایش، فرم تونل را باز کنید."), listOf("Select a server.", "Check each tunnel's health and latency.", "Open the tunnel editor to create or edit one."), faWarning = "توقف یا حذف تونل می‌تواند ترافیک فعال را قطع کند.", enWarning = "Stopping or deleting a tunnel can interrupt active traffic.")
         CommandRoute.TUNNELS_EDITOR -> h("موتور، نقش نود و نگاشت پورت‌های تونل را تنظیم کنید.", "Configure tunnel engine, node role, and port mappings.", listOf("موتور و نقش ایران/خارج را انتخاب کنید.", "آدرس طرف مقابل، توکن و پورت‌ها را وارد کنید.", "پیش‌نمایش را بررسی و سپس اعمال کنید."), listOf("Choose the engine and Iran/foreign node role.", "Enter peer address, token, and port mappings.", "Review the preview before applying."), "نگاشت نمونه: 443:8443, 80:8080", "Example mapping: 443:8443, 80:8080", "تنظیم اشتباه فایروال یا مسیر می‌تواند دسترسی SSH را مختل کند.", "Incorrect firewall or routing changes can disrupt SSH access.")
         CommandRoute.DOCKER -> h("کانتینرهای Docker را پایش، متوقف یا راه‌اندازی مجدد کنید.", "Monitor, stop, or restart Docker containers.", listOf("سرور را انتخاب کنید.", "State و Health کانتینر را بررسی کنید.", "فقط در صورت نیاز Stop یا Restart را اجرا کنید."), listOf("Select a server.", "Review container state and health.", "Use Stop or Restart only when needed."), faWarning = "توقف کانتینر ممکن است سرویس عمومی را از دسترس خارج کند.", enWarning = "Stopping a container may take a public service offline.")
@@ -79,6 +126,26 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
         CommandRoute.BACKUP -> h("تنظیمات و داده‌های برنامه را خروجی یا بازیابی کنید.", "Export or restore app settings and data.", listOf("Vault را باز کنید.", "پشتیبان رمزگذاری‌شده بگیرید و امن نگه دارید.", "برای بازیابی، فایل را انتخاب و پیش‌نمایش را تأیید کنید."), listOf("Unlock the Vault.", "Create an encrypted backup and store it safely.", "For restore, select the file and confirm the preview."), faWarning = "بازیابی ممکن است داده‌های فعلی را جایگزین کند.", enWarning = "Restore may replace current data.")
         CommandRoute.SETTINGS -> h("زبان، تم، Vault و رفتار عمومی برنامه را تنظیم کنید.", "Configure language, theme, Vault, and app behavior.", listOf("زبان و تم را انتخاب کنید.", "وضعیت Vault و تنظیمات امنیتی را بررسی کنید.", "پس از تغییرات، صفحات اصلی را دوباره بررسی کنید."), listOf("Choose language and theme.", "Review Vault and security settings.", "Recheck key screens after changes."))
     }
+
+    // A beginner must never land on an operational page without knowing the
+    // shared prerequisite. Keep this centralized so new help pages cannot
+    // silently omit the server/Agent setup contract.
+    val serverRequired = this in setOf(
+        CommandRoute.OVERVIEW, CommandRoute.INCIDENTS, CommandRoute.FLEET,
+        CommandRoute.SERVER_DOSSIER, CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR,
+        CommandRoute.DOCKER, CommandRoute.PROCESSES, CommandRoute.SERVICES,
+        CommandRoute.RADAR, CommandRoute.BANDWIDTH, CommandRoute.SSH,
+        CommandRoute.BATCH, CommandRoute.SFTP, CommandRoute.SECURITY,
+        CommandRoute.ALERTS
+    )
+    if (!serverRequired || this == CommandRoute.MANAGE_SERVERS || this == CommandRoute.FLEET) return base
+
+    val prerequisite = if (fa) {
+        "پیش‌نیاز: باید حداقل یک سرورِ آزمایش‌شده داشته باشید. اگر ندارید، از منوی «سرورها ← مدیریت سرورها ← افزودن» وارد شوید و راهنمای نصب Agent همان صفحه را قدم‌به‌قدم انجام دهید."
+    } else {
+        "Prerequisite: you need at least one tested server. If none exists, open Servers → Manage servers → Add and follow that page's Agent installation guide step by step."
+    }
+    return base.copy(steps = listOf(prerequisite) + base.steps)
 }
 
 @Composable
@@ -110,7 +177,9 @@ fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, 
                     itemsIndexed(content.steps) { index, step ->
                         Row(verticalAlignment = Alignment.Top) {
                             Text("${index + 1}", color = CommandColors.onAccent, modifier = Modifier.padding(end = CommandSpacing.sm), fontWeight = FontWeight.Bold)
-                            Text(step, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                            SelectionContainer {
+                                Text(step, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                     content.tip?.let { tip -> item { HelpNote(Icons.Rounded.Lightbulb, if (fa) "نکته" else "Tip", tip, CommandColors.info) } }
