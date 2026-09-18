@@ -34,6 +34,17 @@ die() {
   exit 1
 }
 
+write_secret_atomic() {
+  local path="$1" value="$2" dir tmp
+  dir="$(dirname "$path")"
+  [[ ! -L "$dir" ]] || die "refusing symlinked credential directory: $dir"
+  [[ ! -L "$path" ]] || die "refusing symlinked credential file: $path"
+  tmp="$(mktemp "$dir/.didban-secret.XXXXXX")"
+  chmod 0600 "$tmp"
+  printf '%s' "$value" > "$tmp"
+  mv -f "$tmp" "$path"
+}
+
 # ── Checksum verification (H13) ──────────────────────────────────────────────
 # sha256_of FILE — print the SHA-256 hex digest of FILE using whatever tool
 # the target system provides.
@@ -168,14 +179,16 @@ main() {
   mkdir -p "$CONF_DIR" "$DATA_DIR"
   chmod 0700 "$DATA_DIR"
 
+  [[ ! -L "$CONF_DIR" ]] || die "refusing symlinked credential directory: $CONF_DIR"
+  [[ ! -L "$CONF_DIR/token" ]] || die "refusing symlinked credential file: $CONF_DIR/token"
+  [[ ! -L "$CONF_DIR/admin-token" ]] || die "refusing symlinked credential file: $CONF_DIR/admin-token"
   local TOKEN=""
   if [[ -f "$CONF_DIR/token" && "${DIDBAN_ROTATE_TOKENS:-0}" != "1" ]]; then
     TOKEN="$(cat "$CONF_DIR/token")"
   fi
   if [[ -z "$TOKEN" ]]; then
     TOKEN="$(head -c 24 /dev/urandom | xxd -ps 2>/dev/null || head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-    echo -n "$TOKEN" > "$CONF_DIR/token"
-    chmod 0600 "$CONF_DIR/token"
+    write_secret_atomic "$CONF_DIR/token" "$TOKEN"
   fi
   local ADMIN_TOKEN=""
   if [[ -f "$CONF_DIR/admin-token" && "${DIDBAN_ROTATE_TOKENS:-0}" != "1" ]]; then
@@ -183,8 +196,7 @@ main() {
   fi
   if [[ -z "$ADMIN_TOKEN" ]]; then
     ADMIN_TOKEN="$(head -c 32 /dev/urandom | xxd -ps 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-    echo -n "$ADMIN_TOKEN" > "$CONF_DIR/admin-token"
-    chmod 0600 "$CONF_DIR/admin-token"
+    write_secret_atomic "$CONF_DIR/admin-token" "$ADMIN_TOKEN"
   fi
 
 # On upgrade, the operator's existing agent.conf (custom thresholds, alert

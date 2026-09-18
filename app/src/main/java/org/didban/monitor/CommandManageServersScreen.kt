@@ -306,7 +306,7 @@ fun CommandManageServersScreen(
                         deleteServer = null
                         error = SecretRedactor.redact(
                             it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED),
-                            listOf(server.token)
+                            listOf(server.token, server.adminToken)
                         ).take(300)
                     }
                     busy = false

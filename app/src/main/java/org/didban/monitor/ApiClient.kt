@@ -86,7 +86,7 @@ class ApiClient {
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token)).take(300))
+            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
@@ -115,14 +115,14 @@ class ApiClient {
                         val j = JSONObject(body)
                         if (j.has("error")) errMsg = j.getString("error")
                     } catch (_: Exception) {}
-                    throw ApiException(SecretRedactor.redact(errMsg, listOf(server.token)).take(300))
+                    throw ApiException(SecretRedactor.redact(errMsg, listOf(server.token, server.adminToken)).take(300))
                 }
                 return JSONObject(body)
             }
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token)).take(300))
+            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
