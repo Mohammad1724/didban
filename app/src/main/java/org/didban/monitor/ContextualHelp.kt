@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -26,24 +27,44 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /** Structured, bilingual help shown from every command route. */
+data class HelpCommand(val label: String, val value: String)
+
 data class CommandHelpContent(
     val summary: String,
     val steps: List<String>,
     val tip: String? = null,
-    val warning: String? = null
+    val warning: String? = null,
+    val commands: List<HelpCommand> = emptyList()
 )
 
 internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
     val fa = language == "fa"
-    fun h(faSummary: String, enSummary: String, faSteps: List<String>, enSteps: List<String>, faTip: String? = null, enTip: String? = null, faWarning: String? = null, enWarning: String? = null) =
-        CommandHelpContent(if (fa) faSummary else enSummary, if (fa) faSteps else enSteps, if (fa) faTip else enTip, if (fa) faWarning else enWarning)
+    fun h(
+        faSummary: String, enSummary: String,
+        faSteps: List<String>, enSteps: List<String>,
+        faTip: String? = null, enTip: String? = null,
+        faWarning: String? = null, enWarning: String? = null,
+        faCommands: List<HelpCommand> = emptyList(), enCommands: List<HelpCommand> = emptyList()
+    ) = CommandHelpContent(
+        if (fa) faSummary else enSummary,
+        if (fa) faSteps else enSteps,
+        if (fa) faTip else enTip,
+        if (fa) faWarning else enWarning,
+        if (fa) faCommands else enCommands
+    )
 
     val base = when (this) {
         CommandRoute.OVERVIEW -> h("نمای کلی سلامت، مصرف منابع و رخدادهای همه سرورها.", "A fleet-wide view of health, resource usage, and incidents.", listOf("سرورها را اضافه کنید.", "برای دریافت تازه‌ترین داده، نوسازی را بزنید.", "برای جزئیات روی هر سرور یا رخداد بزنید."), listOf("Add your servers.", "Refresh to fetch the latest data.", "Open a server or incident for details."), "نمودارها فقط بر اساس داده‌های ثبت‌شده Agent هستند.", "Charts use data recorded by the Agent only.")
@@ -66,7 +87,15 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "Return here, verify Online state and latency, and tap the server card for details."
             ),
             faWarning = "توکن‌ها محرمانه‌اند؛ آن‌ها را در پیام‌رسان یا تصویر صفحه منتشر نکنید.",
-            enWarning = "Tokens are secrets; never publish them in messages or screenshots."
+            enWarning = "Tokens are secrets; never publish them in messages or screenshots.",
+            faCommands = listOf(
+                HelpCommand("نصب Agent", "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh"),
+                HelpCommand("بازکردن پورت UFW", "sudo ufw allow 8686/tcp")
+            ),
+            enCommands = listOf(
+                HelpCommand("Install Agent", "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh"),
+                HelpCommand("Open UFW port", "sudo ufw allow 8686/tcp")
+            )
         )
         CommandRoute.SERVER_DOSSIER -> h("اطلاعات و عملیات یک سرور انتخاب‌شده.", "Metrics and operations for the selected server.", listOf("از نوار بالا سرور را انتخاب کنید.", "متریک‌ها و اتصال Agent را بررسی کنید.", "بخش فرایند، Docker یا تونل را باز کنید."), listOf("Select a server from the scope bar.", "Review metrics and Agent connectivity.", "Open processes, Docker, or tunnels."))
         CommandRoute.MANAGE_SERVERS -> h(
@@ -95,7 +124,17 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             faTip = "Read token فقط برای مشاهده است؛ Admin token برای توقف، راه‌اندازی مجدد و تغییرات مدیریتی استفاده می‌شود.",
             enTip = "The Read token is for monitoring; the Admin token authorizes stop, restart, and configuration actions.",
             faWarning = "توکن‌ها و اثر انگشت را برای کسی نفرستید و از منابع ناشناس دستور نصب نگیرید.",
-            enWarning = "Never share tokens or fingerprints, and do not run installer commands from untrusted sources."
+            enWarning = "Never share tokens or fingerprints, and do not run installer commands from untrusted sources.",
+            faCommands = listOf(
+                HelpCommand("نصب Agent", "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh"),
+                HelpCommand("بازکردن پورت UFW", "sudo ufw allow 8686/tcp"),
+                HelpCommand("بررسی وضعیت Agent", "sudo systemctl status didban-agent --no-pager")
+            ),
+            enCommands = listOf(
+                HelpCommand("Install Agent", "curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh"),
+                HelpCommand("Open UFW port", "sudo ufw allow 8686/tcp"),
+                HelpCommand("Check Agent status", "sudo systemctl status didban-agent --no-pager")
+            )
         )
         CommandRoute.TUNNELS -> h("تونل‌های سرور را مشاهده و مدیریت کنید.", "View and manage tunnels on a server.", listOf("سرور را انتخاب کنید.", "سلامت و تأخیر هر تونل را بررسی کنید.", "برای ساخت یا ویرایش، فرم تونل را باز کنید."), listOf("Select a server.", "Check each tunnel's health and latency.", "Open the tunnel editor to create or edit one."), faWarning = "توقف یا حذف تونل می‌تواند ترافیک فعال را قطع کند.", enWarning = "Stopping or deleting a tunnel can interrupt active traffic.")
         CommandRoute.TUNNELS_EDITOR -> h("موتور، نقش نود و نگاشت پورت‌های تونل را تنظیم کنید.", "Configure tunnel engine, node role, and port mappings.", listOf("موتور و نقش ایران/خارج را انتخاب کنید.", "آدرس طرف مقابل، توکن و پورت‌ها را وارد کنید.", "پیش‌نمایش را بررسی و سپس اعمال کنید."), listOf("Choose the engine and Iran/foreign node role.", "Enter peer address, token, and port mappings.", "Review the preview before applying."), "نگاشت نمونه: 443:8443, 80:8080", "Example mapping: 443:8443, 80:8080", "تنظیم اشتباه فایروال یا مسیر می‌تواند دسترسی SSH را مختل کند.", "Incorrect firewall or routing changes can disrupt SSH access.")
@@ -152,6 +191,8 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
 fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, onDismiss: () -> Unit) {
     val content = route.helpContent(language)
     val fa = language == "fa"
+    val clipboard = LocalClipboardManager.current
+    var copiedCommand by remember(route) { mutableStateOf<String?>(null) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth().fillMaxHeight(0.82f),
@@ -173,6 +214,33 @@ fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, 
                 CommandRule(Modifier.padding(vertical = CommandSpacing.md))
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
                     item { Text(content.summary, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge) }
+                    if (content.commands.isNotEmpty()) {
+                        item { Text(if (fa) "دستورهای آماده" else "Ready-to-copy commands", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
+                        itemsIndexed(content.commands) { _, command ->
+                            CommandSurface(Modifier.fillMaxWidth(), raised = true) {
+                                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(command.label, color = CommandColors.textPrimary, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
+                                        CommandTextButton(
+                                            if (copiedCommand == command.value) {
+                                                if (fa) "کپی شد" else "Copied"
+                                            } else {
+                                                if (fa) "کپی" else "Copy"
+                                            },
+                                            {
+                                                clipboard.setText(AnnotatedString(command.value))
+                                                copiedCommand = command.value
+                                            },
+                                            Icons.Rounded.ContentCopy
+                                        )
+                                    }
+                                    SelectionContainer {
+                                        Text(command.value, color = CommandColors.info, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                                    }
+                                }
+                            }
+                        }
+                    }
                     item { Text(if (fa) "مراحل استفاده" else "How to use", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
                     itemsIndexed(content.steps) { index, step ->
                         Row(verticalAlignment = Alignment.Top) {
