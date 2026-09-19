@@ -8,14 +8,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
 import java.util.WeakHashMap
 
-/** Prevents screenshots, screen recording, and sensitive Recent Apps previews. */
+/** Optional protection for sensitive surfaces. Ordinary screens never acquire this flag. */
 @Composable
 fun SecureWindowEffect(enabled: Boolean = true) {
     val view = LocalView.current
-    DisposableEffect(view, enabled) {
+    val preference = rememberScreenshotProtection()
+    val protected = enabled && preference
+    DisposableEffect(view, protected) {
         val activity = view.context.findActivity()
-        if (enabled && activity != null) SecureWindowRegistry.acquire(activity)
-        onDispose { if (enabled && activity != null) SecureWindowRegistry.release(activity) }
+        if (protected && activity != null) SecureWindowRegistry.acquire(activity)
+        onDispose { if (protected && activity != null) SecureWindowRegistry.release(activity) }
     }
 }
 

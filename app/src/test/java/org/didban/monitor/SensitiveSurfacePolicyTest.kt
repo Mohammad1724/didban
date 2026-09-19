@@ -27,7 +27,7 @@ class SensitiveSurfacePolicyTest {
     }
 
     @Test
-    fun `credential entry screens enable secure window policy`() {
+    fun `credential entry screens participate in optional secure window policy`() {
         val files = listOf(
             "CommandProtectScreens.kt",
             "CommandTunnelEditorScreen.kt",

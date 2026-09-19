@@ -588,6 +588,8 @@ interface CommandCopy {
     val setBody: String
     val setAppearanceBody: String
     val setPollBody: String
+    val setScreenshotProtection: String
+    val setScreenshotProtectionHint: String
     val setDangerBody: String
     val setPurge: String
     val setTrustEmpty: String
@@ -1137,6 +1139,8 @@ internal object CommandCopyFa : CommandCopy {
     override val setBody = "کنترل رفتار، مشاهده‌پذیری و سطح اعتماد دستگاه"
     override val setAppearanceBody = "تغییرات این بخش بلافاصله در Shell اعمال می‌شوند."
     override val setPollBody = "فاصلهٔ درخواست‌های واقعی Agent و محدودیت‌های آن."
+    override val setScreenshotProtection = "جلوگیری از اسکرین‌شات در صفحه‌های حساس"
+    override val setScreenshotProtectionHint = "پیش‌فرض خاموش است؛ می‌توانید اسکرین‌شات بگیرید. با روشن‌کردن، ثبت تصویر و پیش‌نمایش برنامه‌های اخیر برای صفحه‌های حساس مسدود می‌شود. توکن‌ها و رمزها همچنان پوشیده‌اند؛ پیش از اشتراک‌گذاری تصویر، اطلاعات حساس را بررسی کنید."
     override val setDangerBody = "این عملیات به داده‌های رمزنگاری‌شده یا trust anchorهای SSH دست می‌زنند."
     override val setPurge = "پاک‌سازی"
     override val setTrustEmpty = "Trust Store خالی است."
@@ -1679,6 +1683,8 @@ internal object CommandCopyEn : CommandCopy {
     override val setBody = "Controls behaviour, observability and this device's trust level."
     override val setAppearanceBody = "Changes in this section apply to the shell immediately."
     override val setPollBody = "The real agent request interval and its limits."
+    override val setScreenshotProtection = "Block screenshots on sensitive screens"
+    override val setScreenshotProtectionHint = "Off by default: screenshots are allowed. Turn on to block capture and Recent Apps previews on sensitive screens. Tokens and passwords stay masked; check for sensitive content before sharing images."
     override val setDangerBody = "These actions touch encrypted data or SSH trust anchors."
     override val setPurge = "Purge"
     override val setTrustEmpty = "The trust store is empty."

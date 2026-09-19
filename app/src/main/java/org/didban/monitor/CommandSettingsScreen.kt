@@ -1,5 +1,7 @@
 package org.didban.monitor
 
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -49,6 +51,7 @@ fun CommandSettingsScreen(
     onLanguageChange: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val protectScreenshots = rememberScreenshotProtection()
     var interval by remember { mutableStateOf((Prefs.getPollIntervalMs(context) / 1000L).toString()) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
     var confirmAction by remember { mutableStateOf<SettingsConfirmAction?>(null) }
@@ -111,6 +114,22 @@ fun CommandSettingsScreen(
         }
         item {
             SettingsSection(title = "Security", detail = copy.setDangerBody) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().toggleable(
+                        value = protectScreenshots, role = Role.Switch,
+                        onValueChange = { Prefs.setScreenshotProtectionEnabled(context, it) }
+                    ).padding(vertical = CommandSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(copy.setScreenshotProtection, color = CommandColors.textPrimary,
+                            style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                        Text(copy.setScreenshotProtectionHint, color = CommandColors.textSecondary,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(checked = protectScreenshots, onCheckedChange = null)
+                }
+                CommandRule()
                 CommandStatusMark(
                     if (vaultInitialized) "Vault initialized" else "Vault not initialized",
                     if (vaultInitialized) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN,

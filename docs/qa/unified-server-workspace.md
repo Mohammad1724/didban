@@ -15,7 +15,7 @@ This supersedes the five-page overview/incidents/fleet/dossier/connections flow 
 ## Credential and mutation safety
 
 - The editor uses the existing HTTPS, separate read/admin tokens and certificate-pin validation. Invalid ports and alert thresholds are rejected rather than silently clamped.
-- Credentials are masked and both the Activity and dialog are protected with secure-window flags.
+- Credentials remain masked. Screenshots are **allowed by default**, including the connection form. Settings → Security offers an optional sensitive-screen screenshot block (Persian/English). Activity flags, editor and discard-dialog policies follow the same reactive preference; switching it off releases active protection. Encryption, TLS/pinning, redaction and RAM-only drafts are unchanged.
 - Unsaved drafts live in an Activity ViewModel **in RAM only**. Rotation does not reset the draft. No secret is put into a Bundle, SavedStateHandle or `rememberSaveable`. Process death can discard an unsaved draft; the form explains this limitation.
 - Back, outside dismissal and Close on a dirty editor require discard confirmation. Notifications wait until editing finishes instead of replacing a credential form.
 - Before save/delete, the latest encrypted records are reloaded. Full original-record equality is checked: stale editors cannot overwrite a newer edit, recreate a deleted server, or erase another server added during editing. An ID collision on creation also fails closed.
@@ -30,7 +30,9 @@ gradle testDebugUnitTest lintDebug assembleDebug --no-daemon
 Relevant tests:
 - `CommandNavigationTest`: menu consolidation, old-route migration, panel/tool Back, save/cancel, deletion cleanup and bounded history.
 - `ServerWorkspaceTest`: live-health classification, filters/search, stable sorting, stale-write protection, validation, memory-only draft rebinding and storage-error handling.
-- `SensitiveSurfacePolicyTest`: secure editor surface.
+- `SensitiveSurfacePolicyTest`: sensitive surfaces participate in the optional protection policy.
+- `ServerEditorUiTest`: actual Compose name-entry/Save regression, Test action, sequential field edits, valid/invalid quick-connect button interactions and editor/discard-dialog secure flags.
+- `ScreenshotProtectionUiTest`: default-off policy, nested flag lifetime, live preference changes, ordinary screens and accessible/persistent Settings toggle (Robolectric API 33).
 - Existing refresh, socket cancellation, HTTP pinning, storage, parser and localization tests remain enabled.
 
 ## Device acceptance checklist — not executed in the workspace
@@ -39,7 +41,7 @@ Use Persian and English, portrait and landscape, small phones and a wide tablet:
 
 1. Launch with no servers: only one Servers destination, clear empty state and a working Add server action.
 2. Add via quick-connect and manually; Test Agent, Save, then verify the new server inspector and live polling. Invalid port/threshold/token/pin must not save.
-3. Edit server A. Back/Close/outside dismissal asks before discarding. Cancel dismissal keeps all input. Rotate during editing: draft remains. Save changes A only; secrets are not visible in screenshots or Recents.
+3. Edit server A. Back/Close/outside dismissal asks before discarding. Cancel dismissal keeps all input. Rotate during editing: draft remains. Save changes A only. With default settings, screenshots work and token fields remain masked. Enable the optional protection and verify sensitive Activity/dialog screenshots and Recents are blocked; disable it and verify capture works again, including after leaving/reopening the form.
 4. With A's form open, change/delete A using another local record source. Save must report a conflict rather than overwrite or resurrect it. If an unrelated server B was added, saving A preserves B.
 5. Search/filter, open A, launch Docker/SSH and press Back. A's inspector and the list's previous search/filter/scroll state remain. Closing the inspector returns to the list.
 6. Open A, then select B on a wide display. Close returns to the list, not a chain of inspectors.
@@ -53,3 +55,11 @@ Use Persian and English, portrait and landscape, small phones and a wide tablet:
 ## Build and signing
 
 Workspace APKs are debug-signed, not production releases. Do not uninstall an existing signed installation to bypass a signature mismatch; that can destroy its Keystore-backed data. Use an isolated test profile/device or the existing trusted CI signing pipeline.
+
+## 2026-09-19 regression repair
+
+The actual Compose dialog on base `52534a9` showed an entered name but Save still reported NAME required. An unchanged UI regression test failed before and passed after the fix. Local function references could retain the immutable draft from an earlier composition. Save, Test and Import now read the ViewModel at click time, and field callbacks transform its latest draft instead of copying a captured record. Import is now a filled, full-width button with an icon, distinct disabled colors and a minimum 48 dp height.
+
+Verification: 384 tests, 381 passed, 3 intentionally skipped, 0 failures/errors; all 11 new Robolectric/Compose tests passed. `lintDebug`: 0 errors, 51 pre-existing warnings, 5 information items. `assembleDebug` and APK v2 signature verification passed. Robolectric checks real Compose interactions and Android window flags, **not physical-device screenshot capture**. Successful end-to-end saving against device Keystore, live Agent Test/polling and physical rotation remain device acceptance items.
+
+On a memory-constrained runner, compile `compileDebugUnitTestKotlin` first, then run `testDebugUnitTest` in a separate Gradle process with a smaller daemon heap (256 MB here; test worker 384 MB). This avoids concurrent compiler and Robolectric memory pressure. CI may use its usual commands on a larger runner.

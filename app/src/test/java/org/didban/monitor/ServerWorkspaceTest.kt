@@ -109,13 +109,13 @@ class ServerWorkspaceTest {
         assertEquals("", model.draft!!.token)
         assertFalse(model.dirty)
     }
-    @Test fun `credential draft is never in saved-instance state and dialog is secure`() {
+    @Test fun `credential draft stays in RAM and dialog obeys screenshot preference`() {
         val dir = File("src/main/java/org/didban/monitor").takeIf { it.isDirectory }
             ?: File("app/src/main/java/org/didban/monitor")
         val source = File(dir, "CommandServerEditor.kt").readText()
         assertFalse(source.contains("rememberSaveable {"))
         assertFalse(source.contains("SavedStateHandle("))
-        assertTrue(source.contains("SecureFlagPolicy.SecureOn"))
+        assertTrue(source.contains("securePolicy = screenshotDialogPolicy(protectScreenshots)"))
         assertTrue(source.contains("SecureWindowEffect()"))
         assertTrue(source.contains("model.dirty"))
         val shell = File(dir, "CommandShell.kt").readText()

@@ -38,6 +38,26 @@ object Prefs {
         SecureStorage.putSecret(ctx, FILE, "servers", arr.toString())
     }
 
+    private const val SCREENSHOT_PROTECTION = "protect_sensitive_screenshots"
+
+    /** User choice: screenshots are allowed by default; secret fields remain masked. */
+    fun isScreenshotProtectionEnabled(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean(SCREENSHOT_PROTECTION, false)
+
+    fun setScreenshotProtectionEnabled(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit().putBoolean(SCREENSHOT_PROTECTION, enabled).apply()
+    }
+
+    internal fun observeScreenshotProtection(ctx: Context, changed: (Boolean) -> Unit): () -> Unit {
+        val prefs = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == SCREENSHOT_PROTECTION || key == null) changed(isScreenshotProtectionEnabled(ctx))
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        changed(isScreenshotProtectionEnabled(ctx))
+        return { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
     fun getLanguage(ctx: Context): String =
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("lang", "fa") ?: "fa"
 

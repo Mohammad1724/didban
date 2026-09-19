@@ -54,6 +54,14 @@ android {
             "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
         ]
     }
+    testOptions {
+        unitTests.includeAndroidResources = true
+        unitTests.all {
+            maxHeapSize = "384m"
+            jvmArgs "-XX:MaxMetaspaceSize=192m", "-XX:+UseSerialGC"
+            systemProperty "robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2"
+        }
+    }
     buildFeatures {
         compose true
         buildConfig true
@@ -79,6 +87,9 @@ android {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.12.2'
+    testImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
     testImplementation 'org.json:json:20240303'
     implementation platform('androidx.compose:compose-bom:2024.06.00')
     implementation 'androidx.activity:activity-compose:1.9.0'
