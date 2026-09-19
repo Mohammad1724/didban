@@ -33,6 +33,7 @@ class SensitiveSurfacePolicyTest {
             "CommandTunnelEditorScreen.kt",
             "CommandWorkbenchTools.kt",
             "CommandManageServersScreen.kt",
+            "CommandServerEditor.kt",
             "CommandServicesScreen.kt",
             "CommandSecurityScreen.kt"
         )

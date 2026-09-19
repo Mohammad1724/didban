@@ -76,15 +76,15 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "اگر هنوز سروری ندارید، با SSH یا کنسول وب وارد سرور شوید و اجرا کنید:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "در صورت فعال‌بودن UFW اجرا کنید: sudo ufw allow 8686/tcp",
                 "خروجی نصب شامل URL، دو توکن Read و Admin و اثر انگشت SHA256 را نگه دارید.",
-                "به «مدیریت سرورها» بروید و کل خط didban:// را در «کد اتصال فوری» بچسبانید؛ یا اطلاعات را دستی وارد کنید. سپس «آزمایش Agent» و «ذخیره» را بزنید.",
-                "به این صفحه برگردید؛ Online بودن و تأخیر را بررسی کنید و برای جزئیات روی کارت سرور بزنید."
+                "در همین صفحه «افزودن سرور» را بزنید و کل خط didban:// را در «کد اتصال فوری» بچسبانید؛ یا اطلاعات را دستی وارد کنید. سپس «آزمایش Agent» و «ذخیره» را بزنید.",
+                "بعد از ذخیره، جزئیات همان سرور باز می‌شود. برای ویرایش یا حذف، از همین پنل استفاده کنید؛ Docker و SSH نیز با همان سرور انتخاب‌شده باز می‌شوند."
             ),
             listOf(
                 "If no server exists, connect over SSH or web console and run:\ncurl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/install.sh -o didban-install.sh && sudo bash didban-install.sh",
                 "If UFW is enabled, run: sudo ufw allow 8686/tcp",
                 "Save the installer output: URL, Read and Admin tokens, and SHA-256 fingerprint.",
-                "Open Manage servers and paste the complete didban:// line into Quick-connect code, or enter values manually. Then tap Test Agent before Save.",
-                "Return here, verify Online state and latency, and tap the server card for details."
+                "On this page, choose Add server and paste the complete didban:// line into Quick-connect code, or enter values manually. Then tap Test Agent before Save.",
+                "After saving, the server details open here. Edit or delete in this panel; Docker and SSH open with this server selected."
             ),
             faWarning = "توکن‌ها محرمانه‌اند؛ آن‌ها را در پیام‌رسان یا تصویر صفحه منتشر نکنید.",
             enWarning = "Tokens are secrets; never publish them in messages or screenshots.",
@@ -180,9 +180,9 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
     if (!serverRequired || this == CommandRoute.MANAGE_SERVERS || this == CommandRoute.FLEET) return base
 
     val prerequisite = if (fa) {
-        "پیش‌نیاز: باید حداقل یک سرورِ آزمایش‌شده داشته باشید. اگر ندارید، از منوی «سرورها ← مدیریت سرورها ← افزودن» وارد شوید و راهنمای نصب Agent همان صفحه را قدم‌به‌قدم انجام دهید."
+        "پیش‌نیاز: باید حداقل یک سرورِ آزمایش‌شده داشته باشید. اگر ندارید، از منوی «سرورها ← افزودن سرور» وارد شوید و راهنمای نصب Agent همان صفحه را قدم‌به‌قدم انجام دهید."
     } else {
-        "Prerequisite: you need at least one tested server. If none exists, open Servers → Manage servers → Add and follow that page's Agent installation guide step by step."
+        "Prerequisite: you need at least one tested server. If none exists, open Servers → Add server and follow that page's Agent installation guide step by step."
     }
     return base.copy(steps = listOf(prerequisite) + base.steps)
 }

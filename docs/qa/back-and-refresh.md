@@ -1,5 +1,7 @@
 # Back navigation and refresh regression checks
 
+> Historical five-page flow: the unified workspace supersedes the overview-root/page-routing details below. See [unified-server-workspace.md](unified-server-workspace.md) for the current UI contract and acceptance checklist.
+
 ## Contract
 
 - Back pops actual visited destinations, including the selected server ID. It does not guess a workspace parent.

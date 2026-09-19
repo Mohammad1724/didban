@@ -332,6 +332,8 @@ object Repo {
 
     val states = MutableStateFlow<Map<Long, State>>(emptyMap())
 
+    fun remove(id: Long) { states.update { it - id } }
+
     fun set(id: Long, metrics: Metrics? = null, error: String? = null, latencyMs: Float = 0f) {
         states.update { current ->
             current + (id to State(metrics, error, System.currentTimeMillis(), latencyMs))

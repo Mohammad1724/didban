@@ -68,6 +68,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import android.os.SystemClock
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
@@ -104,17 +106,14 @@ enum class CommandWorkspace(val key: String) {
 enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     OVERVIEW("overview", CommandWorkspace.OBSERVE),
     INCIDENTS("incidents", CommandWorkspace.OBSERVE),
-
     FLEET("fleet", CommandWorkspace.FLEET),
     SERVER_DOSSIER("server-dossier", CommandWorkspace.FLEET),
     MANAGE_SERVERS("manage-servers", CommandWorkspace.FLEET),
-
     TUNNELS("tunnels", CommandWorkspace.OPERATE),
     TUNNELS_EDITOR("tunnels-editor", CommandWorkspace.OPERATE),
     DOCKER("docker", CommandWorkspace.OPERATE),
     PROCESSES("processes", CommandWorkspace.OPERATE),
     SERVICES("services", CommandWorkspace.OPERATE),
-
     RADAR("radar", CommandWorkspace.DIAGNOSE),
     BANDWIDTH("bandwidth", CommandWorkspace.DIAGNOSE),
     CF_SCANNER("cf-scanner", CommandWorkspace.DIAGNOSE),
@@ -125,7 +124,6 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     NETWORK_TOOLS_EDITOR("network-tools-editor", CommandWorkspace.DIAGNOSE),
     DNS("dns", CommandWorkspace.DIAGNOSE),
     DNS_EDITOR("dns-editor", CommandWorkspace.DIAGNOSE),
-
     WORKBENCH_HOME("workbench-home", CommandWorkspace.WORKBENCH),
     SSH("ssh", CommandWorkspace.WORKBENCH),
     BATCH("batch", CommandWorkspace.WORKBENCH),
@@ -133,7 +131,6 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     SINGLE_PORT("single-port", CommandWorkspace.WORKBENCH),
     PROXY("proxy", CommandWorkspace.WORKBENCH),
     DEVELOPER_LAB("developer-lab", CommandWorkspace.WORKBENCH),
-
     PROTECT_HOME("protect-home", CommandWorkspace.PROTECT),
     VAULT("vault", CommandWorkspace.PROTECT),
     SECURITY("security", CommandWorkspace.PROTECT),
@@ -148,7 +145,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
 
 private fun CommandWorkspace.label(copy: CommandCopy): String = when (this) {
     CommandWorkspace.OBSERVE -> copy.observe
-    CommandWorkspace.FLEET -> copy.fleet
+    CommandWorkspace.FLEET -> copy.servers
     CommandWorkspace.OPERATE -> copy.operate
     CommandWorkspace.DIAGNOSE -> copy.diagnose
     CommandWorkspace.WORKBENCH -> copy.workbench
@@ -228,14 +225,7 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
     CommandRoute.SETTINGS -> Icons.Rounded.Settings
 }
 
-private fun routesFor(workspace: CommandWorkspace): List<CommandRoute> =
-    CommandRoute.values().filter {
-    it.workspace == workspace &&
-        it != CommandRoute.TUNNELS_EDITOR &&
-        it != CommandRoute.UPTIME_EDITOR &&
-        it != CommandRoute.NETWORK_TOOLS_EDITOR &&
-        it != CommandRoute.DNS_EDITOR
-}
+private fun routesFor(workspace: CommandWorkspace): List<CommandRoute> = commandMenuRoutes(workspace)
 
 @Composable
 fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
@@ -246,6 +236,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         save = { it: CommandNavigation -> it.save() },
         restore = { CommandNavigation.restore(it) }
     )) { mutableStateOf(CommandNavigation.root()) }
+    val contentStateHolder = rememberSaveableStateHolder()
     var reloadTick by remember { mutableIntStateOf(0) }
     var mobileNavigationOpen by rememberSaveable { mutableStateOf(false) }
     var helpVisible by rememberSaveable { mutableStateOf(false) }
@@ -257,14 +248,14 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
     var lastBackPressAt by remember { mutableStateOf(0L) }
 
     val copy = remember(language) { CommandCopy.forLanguage(language) }
-    val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
+    val serverLoad = remember(reloadTick) { Prefs.loadServersResult(context) }
+    val servers = serverLoad.servers.toList()
     val route = navigation.current.route
     val selectedServer = navigation.current.serverId?.let { id -> servers.firstOrNull { it.id == id } }
     val states by Repo.states.collectAsState()
-    val refreshState by PollingCoordinator.refreshState.collectAsState()
 
     fun navigate(next: CommandRoute, server: ServerConfig? = null) {
-        navigation = navigation.navigate(next, server?.id ?: navigation.current.serverId)
+        navigation = navigation.navigate(next, if (next == CommandRoute.MANAGE_SERVERS) server?.id else server?.id ?: navigation.current.serverId)
         reloadTick++
         mobileNavigationOpen = false
         exitHintVisible = false
@@ -275,6 +266,10 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         when (navigation.backAction(mobileNavigationOpen, helpVisible)) {
             CommandBackAction.CLOSE_HELP -> helpVisible = false
             CommandBackAction.CLOSE_NAVIGATION -> mobileNavigationOpen = false
+            CommandBackAction.CLOSE_PANE -> {
+                navigation = navigation.closePane()
+                reloadTick++
+            }
             CommandBackAction.POP -> {
                 navigation = navigation.back()
                 reloadTick++
@@ -294,22 +289,15 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         lastBackPressAt = 0L
     }
 
-    fun refresh() {
-        if (refreshState.running) return
-        exitHintVisible = false
-        lastBackPressAt = 0L
-        reloadTick++
-        val targets = if (route == CommandRoute.SERVER_DOSSIER) listOfNotNull(selectedServer)
-            else Prefs.loadServers(context).toList()
-        PollingCoordinator.refresh(context, targets)
-    }
-
     val backLabel = navigation.previous?.let { destination ->
         val serverName = destination.serverId?.let { id -> servers.firstOrNull { it.id == id }?.name }
-        "${copy.backTo} ${destination.route.commandLabel(copy)}" + (serverName?.let { " · $it" } ?: "")
+        val destinationLabel = if (destination.route == CommandRoute.FLEET && destination.serverPane == ServerPane.DETAILS) copy.fleetDetails else destination.route.commandLabel(copy)
+        "${copy.backTo} $destinationLabel" + (serverName?.let { " · $it" } ?: "")
     }
 
-    LaunchedEffect(pendingServerId.value, servers) {
+    LaunchedEffect(pendingServerId.value, servers, navigation.current.serverPane) {
+        // Don't throw away an in-memory credential draft for a notification.
+        if (navigation.current.serverPane.editing) return@LaunchedEffect
         val id = pendingServerId.value ?: return@LaunchedEffect
         val server = servers.firstOrNull { it.id == id }
         if (server != null) navigate(CommandRoute.SERVER_DOSSIER, server)
@@ -368,7 +356,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         modifier = Modifier.width(if (availableWidth >= 920.dp) 224.dp else 86.dp)
                     )
                     Column(Modifier.weight(1f).fillMaxHeight()) {
-                        CommandScopeBar(
+                        if (route != CommandRoute.FLEET) CommandScopeBar(
                             copy = copy,
                             language = language,
                             route = route,
@@ -378,29 +366,40 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                                 if (server != null) {
                                     navigate(CommandRoute.SERVER_DOSSIER, server)
                                 } else {
-                                    if (route == CommandRoute.SERVER_DOSSIER) navigate(CommandRoute.FLEET)
-                                    else navigation = navigation.clearScope()
+                                    navigation = navigation.clearScope()
                                 }
                             },
-                            onRefresh = ::refresh,
                             onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                             backLabel = backLabel,
-                            onBack = ::goBack,
-                            refreshState = refreshState
+                            onBack = ::goBack
                         )
                         CommandRouteContent(
                             copy = copy,
                             route = route,
+                            destination = navigation.current,
+                            contentStateHolder = contentStateHolder,
+                            servers = servers,
+                            loadFailed = serverLoad.error != null,
+                            onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
+                            onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
+                            onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
+                            onSaved = { server ->
+                                reloadTick++
+                                navigation = navigation.finishEditing(server.id)
+                                android.widget.Toast.makeText(context, copy.srvSavedPolled, android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onDeleted = { id ->
+                                reloadTick++
+                                navigation = navigation.removeServer(id)
+                                android.widget.Toast.makeText(context, copy.srvLocalDeleted, android.widget.Toast.LENGTH_SHORT).show()
+                            },
                             selectedServer = selectedServer,
                             states = states,
                             onBack = ::goBack,
-                            refreshing = refreshState.running,
                             reloadTick = reloadTick,
                             themeMode = themeMode,
                             language = language,
                             onNavigate = ::navigate,
-                            onRefresh = ::refresh,
-                            onManageServers = { navigate(CommandRoute.MANAGE_SERVERS) },
                             onThemeChange = { mode ->
                                 themeMode = mode
                                 Prefs.setThemeMode(context, mode)
@@ -428,7 +427,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                     if (mobileNavigationOpen) {
                         CommandMobileNavigation(copy, route, ::navigate)
                     }
-                    CommandScopeBar(
+                    if (route != CommandRoute.FLEET) CommandScopeBar(
                         copy = copy,
                         language = language,
                         route = route,
@@ -438,29 +437,40 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                             if (server != null) {
                                 navigate(CommandRoute.SERVER_DOSSIER, server)
                             } else {
-                                if (route == CommandRoute.SERVER_DOSSIER) navigate(CommandRoute.FLEET)
-                                else navigation = navigation.clearScope()
+                                navigation = navigation.clearScope()
                             }
                         },
-                        onRefresh = ::refresh,
                         onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                         backLabel = backLabel,
-                        onBack = ::goBack,
-                        refreshState = refreshState
+                        onBack = ::goBack
                     )
                     CommandRouteContent(
                         copy = copy,
                         route = route,
+                        destination = navigation.current,
+                        contentStateHolder = contentStateHolder,
+                        servers = servers,
+                        loadFailed = serverLoad.error != null,
+                        onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
+                        onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
+                        onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
+                        onSaved = { server ->
+                            reloadTick++
+                            navigation = navigation.finishEditing(server.id)
+                            android.widget.Toast.makeText(context, copy.srvSavedPolled, android.widget.Toast.LENGTH_SHORT).show()
+                        },
+                        onDeleted = { id ->
+                            reloadTick++
+                            navigation = navigation.removeServer(id)
+                            android.widget.Toast.makeText(context, copy.srvLocalDeleted, android.widget.Toast.LENGTH_SHORT).show()
+                        },
                         selectedServer = selectedServer,
                         states = states,
                         onBack = ::goBack,
-                        refreshing = refreshState.running,
                         reloadTick = reloadTick,
                         themeMode = themeMode,
                         language = language,
                         onNavigate = ::navigate,
-                        onRefresh = ::refresh,
-                        onManageServers = { navigate(CommandRoute.MANAGE_SERVERS) },
                         onThemeChange = { mode ->
                             themeMode = mode
                             Prefs.setThemeMode(context, mode)
@@ -506,7 +516,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
 private const val EXIT_GUARD_WINDOW_MS = 2000L
 
 internal fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (workspace) {
-    CommandWorkspace.OBSERVE -> CommandRoute.OVERVIEW
+    CommandWorkspace.OBSERVE -> CommandRoute.FLEET
     CommandWorkspace.FLEET -> CommandRoute.FLEET
     CommandWorkspace.OPERATE -> CommandRoute.TUNNELS
     CommandWorkspace.DIAGNOSE -> CommandRoute.RADAR
@@ -556,7 +566,7 @@ private fun CommandRail(
         Spacer(Modifier.height(CommandSpacing.md))
         CommandRule()
         Spacer(Modifier.height(CommandSpacing.sm))
-        CommandWorkspace.values().forEach { workspace ->
+        CommandWorkspace.values().filter { routesFor(it).isNotEmpty() }.forEach { workspace ->
             val active = route.workspace == workspace
             Column(Modifier.fillMaxWidth()) {
                 Row(
@@ -575,7 +585,7 @@ private fun CommandRail(
                         Text(workspace.label(copy), color = if (active) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                if (active && expanded) {
+                if (active && expanded && workspace != CommandWorkspace.FLEET) {
                     routesFor(workspace).forEach { destination ->
                         val selected = destination == route
                         Row(
@@ -650,8 +660,8 @@ private fun CommandMobileNavigation(
             .padding(CommandSpacing.sm)
             .verticalScroll(rememberScrollState())
     ) {
-        CommandWorkspace.values().forEach { workspace ->
-            Text(workspace.label(copy), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.xs))
+        CommandWorkspace.values().filter { routesFor(it).isNotEmpty() }.forEach { workspace ->
+            if (workspace != CommandWorkspace.FLEET) Text(workspace.label(copy), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.xs))
             routesFor(workspace).forEach { destination ->
                 Row(
                     Modifier
@@ -679,11 +689,9 @@ private fun CommandScopeBar(
     selectedServer: ServerConfig?,
     servers: List<ServerConfig>,
     onSelectedServer: (ServerConfig?) -> Unit,
-    onRefresh: () -> Unit,
     onHelp: () -> Unit,
     backLabel: String?,
-    onBack: () -> Unit,
-    refreshState: RefreshState
+    onBack: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     Column {
@@ -736,12 +744,8 @@ private fun CommandScopeBar(
                 securityMessage(language, SecurityMessage.PAGE_GUIDE),
                 onHelp
             )
-            if (route.hasMetricsRefresh()) CommandRefreshButton(copy, refreshState.running, onRefresh, compact = true)
         }
-        if (route.hasMetricsRefresh()) {
-            val scopeName = refreshState.targets.singleOrNull()?.let { id -> servers.firstOrNull { it.id == id }?.name }
-            CommandRefreshFeedback(copy, refreshState, listOfNotNull(copy.refreshMetrics, scopeName).joinToString(" · "))
-        }
+
     }
 }
 
@@ -758,52 +762,60 @@ private fun CommandCopy.scopeLabel(route: CommandRoute): String = when (route.wo
 private fun CommandRouteContent(
     copy: CommandCopy,
     route: CommandRoute,
+    destination: CommandDestination,
+    contentStateHolder: SaveableStateHolder,
+    servers: List<ServerConfig>,
+    loadFailed: Boolean,
+    onReload: () -> Unit,
+    onHubHelp: () -> Unit,
+    onEdit: (Long?) -> Unit,
+    onSaved: (ServerConfig) -> Unit,
+    onDeleted: (Long) -> Unit,
     selectedServer: ServerConfig?,
     states: Map<Long, Repo.State>,
     onBack: () -> Unit,
-    refreshing: Boolean,
     reloadTick: Int,
     themeMode: String,
     language: String,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit,
-    onRefresh: () -> Unit,
-    onManageServers: () -> Unit,
     onThemeChange: (String) -> Unit,
     onLanguageChange: (String) -> Unit
 ) {
-    when (route) {
-        CommandRoute.OVERVIEW -> CommandOverviewScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, { onNavigate(CommandRoute.INCIDENTS, null) }, { onNavigate(CommandRoute.FLEET, null) }, onManageServers, onRefresh, refreshing = refreshing)
-        CommandRoute.INCIDENTS -> CommandIncidentsScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onRefresh, refreshing = refreshing)
-        CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh, refreshing = refreshing)
-        CommandRoute.MANAGE_SERVERS -> CommandManageServersScreen(copy, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }) { onBack() }
-        CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, onBack, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) }, refreshing = refreshing)
-        CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onBack() }
-        CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onBack() }
-        CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-        CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-        CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-        CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-        CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
-        CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
-        CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
-        CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
-        CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
-        CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
-        CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onBack() }
-        CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
-        CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }
-        CommandRoute.VAULT -> CommandVaultScreen(copy) { onBack() }
-        CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
-        CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onBack() }
-        CommandRoute.BACKUP -> CommandBackupScreen(copy) { onBack() }
-        CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-        CommandRoute.BATCH -> CommandBatchScreen(copy) { onBack() }
-        CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onBack() }
-        CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
-        CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
-        CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
-        CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
-        CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
-        CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
+    contentStateHolder.SaveableStateProvider(route.key) {
+        when (route) {
+            CommandRoute.OVERVIEW, CommandRoute.INCIDENTS, CommandRoute.FLEET,
+            CommandRoute.MANAGE_SERVERS, CommandRoute.SERVER_DOSSIER -> CommandServerHub(
+                copy, servers, loadFailed, states, destination, onReload, onHubHelp,
+                { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onEdit, onBack, onSaved, onDeleted, onNavigate
+            )
+            CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onBack() }
+            CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onBack() }
+            CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+            CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
+            CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
+            CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
+            CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
+            CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
+            CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onBack() }
+            CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
+            CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }
+            CommandRoute.VAULT -> CommandVaultScreen(copy) { onBack() }
+            CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+            CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onBack() }
+            CommandRoute.BACKUP -> CommandBackupScreen(copy) { onBack() }
+            CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.BATCH -> CommandBatchScreen(copy) { onBack() }
+            CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onBack() }
+            CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
+            CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
+            CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
+            CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
+            CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
+            CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
+        }
     }
 }

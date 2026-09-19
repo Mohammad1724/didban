@@ -4,95 +4,117 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CommandNavigationTest {
-    @Test fun `route keys are unique and round trip`() {
+    @Test fun `route keys remain readable for saved states and old callers`() {
         val routes = CommandRoute.values()
         assertEquals(routes.size, routes.map { it.key }.distinct().size)
         routes.forEach { assertEquals(it, CommandRoute.fromKey(it.key)) }
-        assertEquals(CommandRoute.OVERVIEW, CommandRoute.fromKey("unknown"))
     }
 
-    @Test fun `back returns to actual origin instead of workspace home`() {
-        val fromOverview = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 7)
-        assertEquals(CommandRoute.OVERVIEW, fromOverview.back().current.route)
-        val fromIncidents = CommandNavigation.root().navigate(CommandRoute.INCIDENTS)
-            .navigate(CommandRoute.SERVER_DOSSIER, 7)
-        assertEquals(CommandRoute.INCIDENTS, fromIncidents.back().current.route)
+    @Test fun `five old pages expose just one menu destination`() {
+        val menu = CommandWorkspace.values().flatMap(::commandMenuRoutes)
+        val old = setOf(CommandRoute.OVERVIEW, CommandRoute.INCIDENTS, CommandRoute.FLEET,
+            CommandRoute.SERVER_DOSSIER, CommandRoute.MANAGE_SERVERS)
+        assertEquals(listOf(CommandRoute.FLEET), menu.filter { it in old })
+        assertTrue(commandMenuRoutes(CommandWorkspace.OBSERVE).isEmpty())
+        assertTrue(CommandRoute.SSH in menu)
+        assertTrue(CommandRoute.DOCKER in menu)
     }
 
-    @Test fun `cross workspace trip restores server and each visited page`() {
-        var nav = CommandNavigation.root().navigate(CommandRoute.FLEET)
-            .navigate(CommandRoute.SERVER_DOSSIER, 9).navigate(CommandRoute.DOCKER)
-        nav = nav.back()
-        assertEquals(CommandDestination(CommandRoute.SERVER_DOSSIER, 9), nav.current)
-        assertEquals(CommandDestination(CommandRoute.FLEET), nav.back().current)
+    @Test fun `server workspace is the only root and only list root exits`() {
+        val root = CommandNavigation.root()
+        assertEquals(CommandRoute.FLEET, root.current.route)
+        assertEquals(ServerPane.LIST, root.current.serverPane)
+        assertEquals(root, root.back())
+        assertEquals(CommandBackAction.EXIT, root.backAction(false, false))
+        assertEquals(CommandBackAction.CLOSE_PANE, root.openServer(7).backAction(false, false))
     }
 
-    @Test fun `changing servers preserves original scope on back`() {
-        val nav = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 1)
-            .navigate(CommandRoute.SERVER_DOSSIER, 2)
-        assertEquals(1L, nav.back().current.serverId)
+    @Test fun `overview and incidents links normalize to same workspace`() {
+        val root = CommandNavigation.root()
+        assertEquals(root, root.navigate(CommandRoute.OVERVIEW))
+        assertEquals(root, root.navigate(CommandRoute.INCIDENTS))
+        assertEquals(root.openServer(7), root.navigate(CommandRoute.SERVER_DOSSIER, 7))
+        assertEquals(ServerPane.ADD, root.navigate(CommandRoute.MANAGE_SERVERS, null).current.serverPane)
     }
 
-    @Test fun `each editor returns to the page that opened it`() {
-        listOf(
-            CommandRoute.UPTIME to CommandRoute.UPTIME_EDITOR,
-            CommandRoute.DNS to CommandRoute.DNS_EDITOR,
-            CommandRoute.NETWORK_TOOLS to CommandRoute.NETWORK_TOOLS_EDITOR,
-            CommandRoute.TUNNELS to CommandRoute.TUNNELS_EDITOR
+    @Test fun `tool trip returns to same server inspector then list`() {
+        val details = CommandNavigation.root().openServer(9)
+        val tool = details.navigate(CommandRoute.DOCKER)
+        assertEquals(9L, tool.current.serverId)
+        assertEquals(details, tool.back())
+        assertEquals(CommandNavigation.root(), tool.back().closePane())
+    }
+
+    @Test fun `selecting another card replaces inspector rather than stacking pages`() {
+        val nav = CommandNavigation.root().openServer(1).openServer(2)
+        assertEquals(2, nav.entries.size)
+        assertEquals(2L, nav.current.serverId)
+        assertEquals(CommandNavigation.root(), nav.closePane())
+    }
+
+    @Test fun `edit cancel restores inspector and add cancel restores list`() {
+        val root = CommandNavigation.root()
+        val details = root.openServer(9)
+        assertEquals(details, details.editServer(9).closePane())
+        assertEquals(root, root.editServer(null).closePane())
+        assertEquals(details, details.editServer(null).closePane())
+    }
+
+    @Test fun `save opens saved server with no duplicate editor or panel`() {
+        val nav = CommandNavigation.root().openServer(9).editServer(null).finishEditing(12)
+        assertEquals(2, nav.entries.size)
+        assertEquals(CommandDestination(CommandRoute.FLEET, 12, ServerPane.DETAILS), nav.current)
+        assertEquals(CommandNavigation.root(), nav.closePane())
+    }
+
+    @Test fun `all other editors still return to their real origin`() {
+        listOf(CommandRoute.UPTIME to CommandRoute.UPTIME_EDITOR, CommandRoute.DNS to CommandRoute.DNS_EDITOR,
+            CommandRoute.NETWORK_TOOLS to CommandRoute.NETWORK_TOOLS_EDITOR, CommandRoute.TUNNELS to CommandRoute.TUNNELS_EDITOR
         ).forEach { (parent, editor) ->
-            val nav = CommandNavigation.root().navigate(parent).navigate(editor)
-            assertEquals(parent, nav.back().current.route)
+            assertEquals(parent, CommandNavigation.root().navigate(parent).navigate(editor).back().current.route)
         }
     }
 
-    @Test fun `repeated destination or done navigation never creates a back loop`() {
-        val start = CommandNavigation.root().navigate(CommandRoute.TUNNELS)
-        assertEquals(start, start.navigate(CommandRoute.TUNNELS))
-        assertEquals(start, start.navigate(CommandRoute.TUNNELS_EDITOR).navigate(CommandRoute.TUNNELS))
-        assertEquals(CommandNavigation.root(), start.navigate(CommandRoute.OVERVIEW))
-    }
-
-    @Test fun `menu and help close without popping the current page`() {
-        val nav = CommandNavigation.root().navigate(CommandRoute.SETTINGS)
+    @Test fun `menu and help close before server panel`() {
+        val nav = CommandNavigation.root().openServer(7)
         assertEquals(CommandBackAction.CLOSE_HELP, nav.backAction(true, true))
         assertEquals(CommandBackAction.CLOSE_NAVIGATION, nav.backAction(true, false))
-        assertEquals(CommandBackAction.POP, nav.backAction(false, false))
-        assertEquals(CommandBackAction.EXIT, nav.back().backAction(false, false))
+        assertEquals(CommandBackAction.CLOSE_PANE, nav.backAction(false, false))
     }
 
-    @Test fun `root back is stable and only root can exit`() {
-        val root = CommandNavigation.root()
-        assertEquals(root, root.back())
-        CommandRoute.values().filter { it != CommandRoute.OVERVIEW }.forEach {
-            assertEquals(CommandBackAction.POP, root.navigate(it).backAction(false, false))
-        }
+    @Test fun `v1 saved states migrate without phantom overview and fleet steps`() {
+        val restored = CommandNavigation.restore(listOf("overview|", "fleet|", "server-dossier|9", "docker|9"))
+        assertEquals(3, restored.entries.size)
+        assertEquals(CommandRoute.DOCKER, restored.current.route)
+        assertEquals(ServerPane.DETAILS, restored.back().current.serverPane)
+        assertEquals(CommandNavigation.root(), restored.back().closePane())
     }
 
-    @Test fun `history and server scope survive saved state round trip`() {
-        val nav = CommandNavigation.root().navigate(CommandRoute.FLEET)
-            .navigate(CommandRoute.SERVER_DOSSIER, Long.MAX_VALUE).navigate(CommandRoute.PROCESSES)
+    @Test fun `panel state round trips and malformed state falls back safely`() {
+        val nav = CommandNavigation.root().openServer(Long.MAX_VALUE).editServer(Long.MAX_VALUE)
         assertEquals(nav, CommandNavigation.restore(nav.save()))
         assertEquals(CommandNavigation.root(), CommandNavigation.restore(listOf("bad", "fleet|wrong", "unknown|5")))
+        assertEquals(CommandNavigation.root(), CommandNavigation.restore(listOf("fleet||EDIT")))
     }
 
-    @Test fun `deep link can return safely to overview`() {
-        val nav = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 42)
-        assertEquals(CommandNavigation.root(), nav.back())
+    @Test fun `deleting selected server removes stale scopes and panels`() {
+        val nav = CommandNavigation.root().openServer(7).navigate(CommandRoute.SSH)
+        assertEquals(CommandNavigation.root(), nav.removeServer(7))
+        assertEquals(nav, nav.removeServer(99))
     }
 
-    @Test fun `history is bounded but never loses the overview root`() {
+    @Test fun `repeated taps do not grow history`() {
+        val nav = CommandNavigation.root().openServer(7)
+        assertEquals(nav, nav.openServer(7))
+        assertEquals(nav.editServer(7), nav.editServer(7).editServer(7))
+        assertEquals(CommandNavigation.root(), nav.navigate(CommandRoute.FLEET))
+    }
+
+    @Test fun `bounded history always preserves server-list root`() {
         var nav = CommandNavigation.root()
-        repeat(100) { nav = nav.navigate(CommandRoute.SERVER_DOSSIER, it.toLong()) }
+        repeat(100) { nav = nav.navigate(CommandRoute.DOCKER, it.toLong()) }
         assertEquals(64, nav.entries.size)
         repeat(63) { nav = nav.back() }
         assertEquals(CommandNavigation.root(), nav)
-    }
-
-    @Test fun `unrelated tools do not pretend to refresh server metrics`() {
-        assertTrue(CommandRoute.OVERVIEW.hasMetricsRefresh())
-        assertTrue(CommandRoute.SERVER_DOSSIER.hasMetricsRefresh())
-        assertFalse(CommandRoute.DOCKER.hasMetricsRefresh())
-        assertFalse(CommandRoute.DNS_EDITOR.hasMetricsRefresh())
-        assertFalse(CommandRoute.SSH.hasMetricsRefresh())
     }
 }

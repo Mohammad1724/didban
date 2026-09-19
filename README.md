@@ -186,3 +186,15 @@ Both files survive restarts: the event list (last 500) and the full 7-day chart 
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## Unified server workspace
+
+Overview, live conditions, server list, details and connection forms now share one **Servers** workspace:
+- Compact live summary, search, and All / Offline / Needs attention filters.
+- An in-place details sheet on phones and side-by-side inspector on wide displays.
+- Add/edit forms with unsaved-change confirmation and memory-only drafts retained across rotation.
+- Scoped shortcuts to Docker, Processes, SSH, Tunnels, Services and SFTP.
+- Current conditions are explicitly distinguished from historical events.
+
+See [the regression checklist](docs/qa/unified-server-workspace.md) for navigation, refresh and credential-safety acceptance checks.

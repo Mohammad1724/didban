@@ -246,6 +246,23 @@ interface CommandCopy {
     val overview: String
     val incidents: String
     val servers: String
+    val fleetAll: String
+    val fleetSummary: String
+    val fleetLiveAlerts: String
+    val fleetAlertsHint: String
+    val fleetDetails: String
+    val fleetNoMatches: String
+    val fleetClearFilters: String
+    val fleetDiscardTitle: String
+    val fleetDiscardBody: String
+    val fleetDiscard: String
+    val fleetRecordChanged: String
+    val fleetMissing: String
+    val fleetPortInvalid: String
+    val fleetThresholdInvalid: String
+    val fleetName: String
+    val fleetDraftPrivacy: String
+    val fleetTestVerified: String
     val serverDossier: String
     val manageServers: String
     val tunnels: String
@@ -778,6 +795,23 @@ internal object CommandCopyFa : CommandCopy {
     override val overview = "نمای کلی"
     override val incidents = "رخدادها"
     override val servers = "سرورها"
+    override val fleetAll = "همه"
+    override val fleetSummary = "وضعیت زنده و کنترل سرورها در یک‌جا"
+    override val fleetLiveAlerts = "هشدارهای فعلی"
+    override val fleetAlertsHint = "برای بررسی و اقدام، روی سرور بزنید؛ این فهرست تاریخچهٔ رخدادها نیست."
+    override val fleetDetails = "جزئیات سرور"
+    override val fleetNoMatches = "سروری با این جست‌وجو یا فیلتر پیدا نشد."
+    override val fleetClearFilters = "پاک کردن جست‌وجو و فیلتر"
+    override val fleetDiscardTitle = "تغییرات ذخیره‌نشده بسته شوند؟"
+    override val fleetDiscardBody = "تغییرات این فرم هنوز ذخیره نشده‌اند. برای نگه‌داشتن آن‌ها به فرم برگردید."
+    override val fleetDiscard = "بستن بدون ذخیره"
+    override val fleetRecordChanged = "این اتصال تغییر کرده یا حذف شده است. فرم را ببندید و نسخهٔ تازه را باز کنید؛ چیزی بازنویسی نشد."
+    override val fleetMissing = "این سرور دیگر در فهرست وجود ندارد."
+    override val fleetPortInvalid = "پورت باید عددی بین ۱ و ۶۵۵۳۵ باشد."
+    override val fleetThresholdInvalid = "آستانه‌های CPU و RAM باید بین ۱ و ۱۰۰ باشند."
+    override val fleetName = "نام سرور"
+    override val fleetDraftPrivacy = "اطلاعات فرم تا زمان ذخیره فقط در حافظه می‌مانند؛ با چرخش صفحه حفظ می‌شوند، اما با بسته‌شدن فرایند اپ ممکن است از دست بروند."
+    override val fleetTestVerified = "Agent با اثر انگشت ثبت‌شده پاسخ داد؛ برای نگه‌داشتن تغییرات، ذخیره را بزنید."
     override val serverDossier = "پروندهٔ سرور"
     override val manageServers = "مدیریت اتصال‌ها"
     override val tunnels = "تونل‌ها"
@@ -1303,6 +1337,23 @@ internal object CommandCopyEn : CommandCopy {
     override val overview = "Overview"
     override val incidents = "Incidents"
     override val servers = "Servers"
+    override val fleetAll = "All"
+    override val fleetSummary = "Live health and server controls in one place"
+    override val fleetLiveAlerts = "Current alerts"
+    override val fleetAlertsHint = "Select a server to investigate. These are current conditions, not an event history."
+    override val fleetDetails = "Server details"
+    override val fleetNoMatches = "No servers match this search or filter."
+    override val fleetClearFilters = "Clear search and filter"
+    override val fleetDiscardTitle = "Discard unsaved changes?"
+    override val fleetDiscardBody = "Changes in this form have not been saved. Return to the form to keep editing."
+    override val fleetDiscard = "Discard and close"
+    override val fleetRecordChanged = "This connection changed or was deleted. Close and reopen the editor; nothing was overwritten."
+    override val fleetMissing = "This server is no longer in your list."
+    override val fleetPortInvalid = "Port must be a number from 1 to 65535."
+    override val fleetThresholdInvalid = "CPU and RAM thresholds must be from 1 to 100."
+    override val fleetName = "Server name"
+    override val fleetDraftPrivacy = "Drafts stay in memory until saved. They survive rotation, but may be lost if Android ends the app process."
+    override val fleetTestVerified = "The Agent responded using the supplied certificate pin. Save to keep your changes."
     override val serverDossier = "Server dossier"
     override val manageServers = "Manage connections"
     override val tunnels = "Tunnels"
