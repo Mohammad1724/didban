@@ -269,6 +269,16 @@ interface CommandCopy {
     val allSystems: String
     val sync: String
     val refresh: String
+    val backTo: String
+    val refreshing: String
+    val refreshComplete: String
+    val refreshFailed: String
+    val refreshPartial: String
+    val refreshTimedOut: String
+    val refreshInterrupted: String
+    val refreshEmpty: String
+    val refreshMetrics: String
+    val refreshPending: String
     val addServer: String
     val addTunnel: String
     val addMonitor: String
@@ -791,6 +801,16 @@ internal object CommandCopyFa : CommandCopy {
     override val allSystems = "همهٔ سامانه‌ها"
     override val sync = "همگام‌سازی"
     override val refresh = "تازه‌سازی"
+    override val backTo = "بازگشت به"
+    override val refreshing = "در حال تازه‌سازی…"
+    override val refreshComplete = "تازه‌سازی انجام شد"
+    override val refreshFailed = "تازه‌سازی ناموفق بود"
+    override val refreshPartial = "بخشی از داده‌ها تازه شد"
+    override val refreshTimedOut = "مهلت تازه‌سازی تمام شد؛ دوباره تلاش کنید"
+    override val refreshInterrupted = "تازه‌سازی متوقف شد؛ دوباره تلاش کنید"
+    override val refreshEmpty = "موردی برای تازه‌سازی وجود ندارد"
+    override val refreshMetrics = "تازه‌سازی وضعیت سرورها"
+    override val refreshPending = "بدون پاسخ"
     override val addServer = "افزودن سرور"
     override val addTunnel = "افزودن تونل"
     override val addMonitor = "افزودن Monitor"
@@ -1306,6 +1326,16 @@ internal object CommandCopyEn : CommandCopy {
     override val allSystems = "All systems"
     override val sync = "Sync"
     override val refresh = "Refresh"
+    override val backTo = "Back to"
+    override val refreshing = "Refreshing…"
+    override val refreshComplete = "Refresh complete"
+    override val refreshFailed = "Refresh failed"
+    override val refreshPartial = "Partially refreshed"
+    override val refreshTimedOut = "Refresh timed out; try again"
+    override val refreshInterrupted = "Refresh interrupted; try again"
+    override val refreshEmpty = "Nothing to refresh"
+    override val refreshMetrics = "Refresh server metrics"
+    override val refreshPending = "Not completed"
     override val addServer = "Add server"
     override val addTunnel = "Add tunnel"
     override val addMonitor = "Add monitor"

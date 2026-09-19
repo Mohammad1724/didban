@@ -296,6 +296,8 @@ fun CommandTextButton(
         Text(
             text,
             color = CommandColors.accent,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = androidx.compose.material3.MaterialTheme.typography.labelLarge
         )
     }
@@ -638,7 +640,7 @@ fun CommandTelemetryBar(
 
 @Composable
 fun CommandBackButton(text: String, onClick: () -> Unit) {
-    CommandTextButton(text = text, onClick = onClick, icon = if (LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl) Icons.AutoMirrored.Rounded.ArrowForward else Icons.AutoMirrored.Rounded.ArrowBack)
+    CommandTextButton(text = text, onClick = onClick, icon = Icons.AutoMirrored.Rounded.ArrowBack)
 }
 
 @Composable

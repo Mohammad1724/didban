@@ -24,6 +24,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,19 +78,27 @@ fun CommandTunnelsScreen(
     var operationMessage by remember { mutableStateOf<String?>(null) }
     val selected = selectedId?.let { id -> tunnels.firstOrNull { it.id == id } }
 
+    val refreshController = remember { ManualRefreshController(scope) }
+    val refreshState by refreshController.state.collectAsState()
+
     fun refresh() {
+        if (refreshState.running) return
         tunnels = Prefs.loadTunnels(context)
-        scope.launch {
-            tunnels.filter { it.isEnabled && (it.iranHost.isNotBlank() || it.foreignHost.isNotBlank()) }.forEach { tunnel ->
-                runCatching {
-                    val result = TunnelEngine.testTunnel(tunnel)
-                    tunnel.lastStatus = if (result.first) 1 else 0
-                    tunnel.lastLatencyMs = result.second
-                    tunnel.lastChecked = System.currentTimeMillis()
-                }
+        val targets = tunnels.filter { it.isEnabled && (it.iranHost.isNotBlank() || it.foreignHost.isNotBlank()) }
+            .associateBy { it.id }
+        refreshController.request(targets.keys.toList()) { id ->
+            val result = TunnelEngine.testTunnel(targets.getValue(id))
+            // Merge only health into the latest preferences; don't resurrect a
+            // deleted tunnel or overwrite an edit made while the probe was running.
+            val latest = Prefs.loadTunnels(context)
+            latest.firstOrNull { it.id == id }?.let {
+                it.lastStatus = if (result.first) 1 else 0
+                it.lastLatencyMs = result.second
+                it.lastChecked = System.currentTimeMillis()
             }
-            Prefs.saveTunnels(context, tunnels)
-            tunnels = Prefs.loadTunnels(context)
+            Prefs.saveTunnels(context, latest)
+            tunnels = latest
+            result.first
         }
     }
 
@@ -105,9 +117,10 @@ fun CommandTunnelsScreen(
                     Text(copy.tunnels, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
                     Text("${tunnels.size} · ${copy.operate}", style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                 }
-                CommandTextButton(copy.refresh, ::refresh, Icons.Rounded.Refresh)
+                CommandRefreshButton(copy, refreshState.running, ::refresh)
             }
         }
+        item { CommandRefreshFeedback(copy, refreshState, copy.tunnels) }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
@@ -245,15 +258,27 @@ fun CommandProcessesScreen(
     var acting by remember(server?.id) { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
+    var loadJob by remember(server?.id) { mutableStateOf<Job?>(null) }
+    var refreshedAt by remember(server?.id) { mutableStateOf(0L) }
+    DisposableEffect(server?.id) { onDispose { loadJob?.cancel() } }
+
     fun load() {
         val target = server ?: return
+        if (loading) return
         loading = true
         error = null
-        scope.launch {
-            runCatching { ApiClient().processes(target) }
-                .onSuccess { processes = it }
-                .onFailure { error = it.message ?: copy.operationFailed }
-            loading = false
+        loadJob = scope.launch {
+            try {
+                processes = ApiClient().processes(target)
+                refreshedAt = System.currentTimeMillis()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = e.message ?: copy.operationFailed
+                refreshedAt = System.currentTimeMillis()
+            } finally {
+                loading = false
+            }
         }
     }
 
@@ -263,8 +288,12 @@ fun CommandProcessesScreen(
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.processes, server?.name ?: copy.noServerSelected, copy.refresh, ::load, Modifier.weight(1f))
+                CommandSectionTitle(copy.processes, server?.name ?: copy.noServerSelected, modifier = Modifier.weight(1f))
+                CommandRefreshButton(copy, loading, ::load, enabled = server != null)
             }
+        }
+        item {
+            CommandRefreshFeedback(copy, commandLoadState(loading, error, refreshedAt, server?.id), copy.processes)
         }
         if (server == null) item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
         else if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: copy.operationFailed, CommandHealthTone.OFFLINE, copy.retry, ::load) }
@@ -368,25 +397,42 @@ fun CommandDockerScreen(
     var operating by remember(server?.id) { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
+    var loadJob by remember(server?.id) { mutableStateOf<Job?>(null) }
+    var refreshedAt by remember(server?.id) { mutableStateOf(0L) }
+    DisposableEffect(server?.id) { onDispose { loadJob?.cancel() } }
+
     fun load() {
         val target = server ?: return
+        if (loading) return
         loading = true
         error = null
-        scope.launch {
-            runCatching { ApiClient().dockerContainers(target) }
-                .onSuccess { data = it }
-                .onFailure { error = it.message ?: copy.operationFailed }
-            loading = false
+        loadJob = scope.launch {
+            try {
+                data = ApiClient().dockerContainers(target)
+                refreshedAt = System.currentTimeMillis()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = e.message ?: copy.operationFailed
+                refreshedAt = System.currentTimeMillis()
+            } finally {
+                loading = false
+            }
         }
     }
+
     LaunchedEffect(server?.id) { load() }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.docker, server?.name ?: copy.noServerSelected, copy.refresh, ::load, Modifier.weight(1f))
+                CommandSectionTitle(copy.docker, server?.name ?: copy.noServerSelected, modifier = Modifier.weight(1f))
+                CommandRefreshButton(copy, loading, ::load, enabled = server != null)
             }
+        }
+        item {
+            CommandRefreshFeedback(copy, commandLoadState(loading, error, refreshedAt, server?.id), copy.docker)
         }
         if (server == null) item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
         else if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: copy.operationFailed, CommandHealthTone.OFFLINE, copy.retry, ::load) }

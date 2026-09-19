@@ -1,5 +1,9 @@
 package org.didban.monitor
 
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -128,8 +132,44 @@ class ApiClient {
         }
     }
 
+    /** Metrics polling must release its socket when a manual batch times out. */
+    private suspend fun metricsJson(server: ServerConfig): JSONObject = suspendCancellableCoroutine { continuation ->
+        val scheme = if (server.useTls) "https" else "http"
+        val pooled = HttpClientPool.standardClient(server)
+        val request = Request.Builder()
+            .url("$scheme://${server.host}:${server.port}/api/metrics")
+            .header("Authorization", "Bearer ${server.token}")
+            .build()
+        val call = pooled.client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        fun fail(error: Exception) {
+            lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
+            if (continuation.isActive) continuation.resumeWithException(ApiException(
+                SecretRedactor.redact(error.message ?: "network error", listOf(server.token, server.adminToken)).take(300)
+            ))
+        }
+        call.enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) = fail(e)
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                try {
+                    response.use {
+                        if (!it.isSuccessful) throw ApiException("HTTP ${it.code}")
+                        val body = BoundedResponseReader.readUtf8(it.body, BoundedResponseReader.STANDARD_BYTES)
+                        val json = JSONObject(body)
+                        lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
+                        if (continuation.isActive) continuation.resume(json)
+                    }
+                } catch (e: Exception) {
+                    fail(e)
+                } finally {
+                    lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
+                }
+            }
+        })
+    }
+
     suspend fun metrics(server: ServerConfig): Metrics =
-        withContext(Dispatchers.IO) { Metrics.fromJson(get(server, "/api/metrics")) }
+        withContext(Dispatchers.IO) { Metrics.fromJson(metricsJson(server)) }
 
     suspend fun processes(server: ServerConfig): List<ProcInfo> =
         withContext(Dispatchers.IO) { JsonParse.processes(get(server, "/api/processes")) }

@@ -1,6 +1,5 @@
 package org.didban.monitor
 
-import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +41,6 @@ import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.NotificationsNone
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Router
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Shield
@@ -69,6 +67,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
+import android.os.SystemClock
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
@@ -242,8 +242,10 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var language by rememberSaveable { mutableStateOf(Prefs.getLanguage(context)) }
     var themeMode by rememberSaveable { mutableStateOf(Prefs.getThemeMode(context)) }
-    var routeKey by rememberSaveable { mutableStateOf(CommandRoute.OVERVIEW.key) }
-    var selectedServerId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var navigation by rememberSaveable(stateSaver = listSaver(
+        save = { it: CommandNavigation -> it.save() },
+        restore = { CommandNavigation.restore(it) }
+    )) { mutableStateOf(CommandNavigation.root()) }
     var reloadTick by remember { mutableIntStateOf(0) }
     var mobileNavigationOpen by rememberSaveable { mutableStateOf(false) }
     var helpVisible by rememberSaveable { mutableStateOf(false) }
@@ -256,18 +258,55 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
 
     val copy = remember(language) { CommandCopy.forLanguage(language) }
     val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
-    val route = CommandRoute.fromKey(routeKey)
-    val selectedServer = selectedServerId?.let { id -> servers.firstOrNull { it.id == id } }
+    val route = navigation.current.route
+    val selectedServer = navigation.current.serverId?.let { id -> servers.firstOrNull { it.id == id } }
     val states by Repo.states.collectAsState()
+    val refreshState by PollingCoordinator.refreshState.collectAsState()
 
     fun navigate(next: CommandRoute, server: ServerConfig? = null) {
-        routeKey = next.key
-        if (server != null) selectedServerId = server.id
-        if (next == CommandRoute.FLEET || next == CommandRoute.OVERVIEW || next == CommandRoute.INCIDENTS) {
-            if (next != CommandRoute.SERVER_DOSSIER) selectedServerId = null
-        }
+        navigation = navigation.navigate(next, server?.id ?: navigation.current.serverId)
         reloadTick++
         mobileNavigationOpen = false
+        exitHintVisible = false
+        lastBackPressAt = 0L
+    }
+
+    fun goBack() {
+        when (navigation.backAction(mobileNavigationOpen, helpVisible)) {
+            CommandBackAction.CLOSE_HELP -> helpVisible = false
+            CommandBackAction.CLOSE_NAVIGATION -> mobileNavigationOpen = false
+            CommandBackAction.POP -> {
+                navigation = navigation.back()
+                reloadTick++
+            }
+            CommandBackAction.EXIT -> {
+                val now = SystemClock.elapsedRealtime()
+                if (exitHintVisible && now - lastBackPressAt < EXIT_GUARD_WINDOW_MS) {
+                    context.findActivity()?.finish()
+                } else {
+                    lastBackPressAt = now
+                    exitHintVisible = true
+                }
+                return
+            }
+        }
+        exitHintVisible = false
+        lastBackPressAt = 0L
+    }
+
+    fun refresh() {
+        if (refreshState.running) return
+        exitHintVisible = false
+        lastBackPressAt = 0L
+        reloadTick++
+        val targets = if (route == CommandRoute.SERVER_DOSSIER) listOfNotNull(selectedServer)
+            else Prefs.loadServers(context).toList()
+        PollingCoordinator.refresh(context, targets)
+    }
+
+    val backLabel = navigation.previous?.let { destination ->
+        val serverName = destination.serverId?.let { id -> servers.firstOrNull { it.id == id }?.name }
+        "${copy.backTo} ${destination.route.commandLabel(copy)}" + (serverName?.let { " · $it" } ?: "")
     }
 
     LaunchedEffect(pendingServerId.value, servers) {
@@ -295,38 +334,14 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
             }
         }
 
-        // Back must always do something. The previous version had two holes:
-        // it was disabled at OVERVIEW, so a single accidental tap left the app
-        // with no confirmation; and on the five workspace home routes
-        // (FLEET, TUNNELS, RADAR, WORKBENCH_HOME, PROTECT_HOME) it navigated
-        // to their own workspace default, which is a no-op, so the press was
-        // consumed and swallowed — Back appeared broken there.
-        BackHandler {
-            when (val action = commandBackAction(route, mobileNavigationOpen)) {
-                CommandBackAction.CloseNavigation -> {
-                    mobileNavigationOpen = false
-                    exitHintVisible = false
-                }
-                is CommandBackAction.Navigate -> {
-                    navigate(action.to)
-                    exitHintVisible = false
-                }
-                CommandBackAction.ExitGuard -> {
-                    val now = System.currentTimeMillis()
-                    if (now - lastBackPressAt < EXIT_GUARD_WINDOW_MS) {
-                        context.findActivity()?.finish()
-                    } else {
-                        lastBackPressAt = now
-                        exitHintVisible = true
-                    }
-                }
-            }
-        }
+        // Hardware/gesture Back and every in-page Back use the same visit history.
+        BackHandler(onBack = ::goBack)
 
         LaunchedEffect(exitHintVisible) {
             if (exitHintVisible) {
                 delay(EXIT_GUARD_WINDOW_MS)
                 exitHintVisible = false
+                lastBackPressAt = 0L
             }
         }
 
@@ -342,6 +357,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         ) {
             val availableWidth = maxWidth
             val wide = availableWidth >= 680.dp
+            LaunchedEffect(wide) { if (wide) mobileNavigationOpen = false }
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
                     CommandRail(
@@ -360,30 +376,30 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                             servers = servers,
                             onSelectedServer = { server ->
                                 if (server != null) {
-                                    selectedServerId = server.id
                                     navigate(CommandRoute.SERVER_DOSSIER, server)
                                 } else {
-                                    selectedServerId = null
                                     if (route == CommandRoute.SERVER_DOSSIER) navigate(CommandRoute.FLEET)
+                                    else navigation = navigation.clearScope()
                                 }
                             },
-                            onRefresh = {
-                                servers.forEach { PollingCoordinator.requestNow(it.id) }
-                            },
-                            onHelp = { helpVisible = true }
+                            onRefresh = ::refresh,
+                            onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
+                            backLabel = backLabel,
+                            onBack = ::goBack,
+                            refreshState = refreshState
                         )
                         CommandRouteContent(
                             copy = copy,
                             route = route,
                             selectedServer = selectedServer,
                             states = states,
+                            onBack = ::goBack,
+                            refreshing = refreshState.running,
                             reloadTick = reloadTick,
                             themeMode = themeMode,
                             language = language,
                             onNavigate = ::navigate,
-                            onRefresh = {
-                                servers.forEach { PollingCoordinator.requestNow(it.id) }
-                            },
+                            onRefresh = ::refresh,
                             onManageServers = { navigate(CommandRoute.MANAGE_SERVERS) },
                             onThemeChange = { mode ->
                                 themeMode = mode
@@ -403,8 +419,11 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         route = route,
                         selectedServer = selectedServer,
                         navigationOpen = mobileNavigationOpen,
-                        onToggleNavigation = { mobileNavigationOpen = !mobileNavigationOpen },
-                        onRefresh = { servers.forEach { PollingCoordinator.requestNow(it.id) } }
+                        onToggleNavigation = {
+                            mobileNavigationOpen = !mobileNavigationOpen
+                            exitHintVisible = false
+                            lastBackPressAt = 0L
+                        }
                     )
                     if (mobileNavigationOpen) {
                         CommandMobileNavigation(copy, route, ::navigate)
@@ -417,26 +436,30 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         servers = servers,
                         onSelectedServer = { server ->
                             if (server != null) {
-                                selectedServerId = server.id
                                 navigate(CommandRoute.SERVER_DOSSIER, server)
                             } else {
-                                selectedServerId = null
                                 if (route == CommandRoute.SERVER_DOSSIER) navigate(CommandRoute.FLEET)
+                                else navigation = navigation.clearScope()
                             }
                         },
-                        onRefresh = { servers.forEach { PollingCoordinator.requestNow(it.id) } },
-                        onHelp = { helpVisible = true }
+                        onRefresh = ::refresh,
+                        onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
+                        backLabel = backLabel,
+                        onBack = ::goBack,
+                        refreshState = refreshState
                     )
                     CommandRouteContent(
                         copy = copy,
                         route = route,
                         selectedServer = selectedServer,
                         states = states,
+                        onBack = ::goBack,
+                        refreshing = refreshState.running,
                         reloadTick = reloadTick,
                         themeMode = themeMode,
                         language = language,
                         onNavigate = ::navigate,
-                        onRefresh = { servers.forEach { PollingCoordinator.requestNow(it.id) } },
+                        onRefresh = ::refresh,
                         onManageServers = { navigate(CommandRoute.MANAGE_SERVERS) },
                         onThemeChange = { mode ->
                             themeMode = mode
@@ -481,36 +504,6 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
 
 /** How long a first Back press stays armed before it is forgotten again. */
 private const val EXIT_GUARD_WINDOW_MS = 2000L
-
-/**
- * What a Back press does at a given route.
- *
- * Kept as a pure function outside the composable so every route can be
- * asserted in a plain JVM test — the previous inline `when` silently
- * swallowed the press on the five workspace home routes, and no test could
- * see it because the logic only existed inside a @Composable.
- *
- * The order matters:
- * 1. an open mobile navigation drawer absorbs the press;
- * 2. the server dossier steps back to the fleet;
- * 3. any other non-default route steps back to its workspace home;
- * 4. a workspace home steps back to the overview;
- * 5. only the overview arms the exit guard.
- */
-internal fun commandBackAction(route: CommandRoute, navigationOpen: Boolean): CommandBackAction = when {
-    navigationOpen -> CommandBackAction.CloseNavigation
-    route == CommandRoute.SERVER_DOSSIER -> CommandBackAction.Navigate(CommandRoute.FLEET)
-    route != workspaceDefault(route.workspace) -> CommandBackAction.Navigate(workspaceDefault(route.workspace))
-    route != CommandRoute.OVERVIEW -> CommandBackAction.Navigate(CommandRoute.OVERVIEW)
-    else -> CommandBackAction.ExitGuard
-}
-
-/** Result of [commandBackAction]. */
-internal sealed interface CommandBackAction {
-    data object CloseNavigation : CommandBackAction
-    data class Navigate(val to: CommandRoute) : CommandBackAction
-    data object ExitGuard : CommandBackAction
-}
 
 internal fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when (workspace) {
     CommandWorkspace.OBSERVE -> CommandRoute.OVERVIEW
@@ -615,8 +608,7 @@ private fun CommandMobileHeader(
     route: CommandRoute,
     selectedServer: ServerConfig?,
     navigationOpen: Boolean,
-    onToggleNavigation: () -> Unit,
-    onRefresh: () -> Unit
+    onToggleNavigation: () -> Unit
 ) {
     Row(
         Modifier
@@ -642,7 +634,6 @@ private fun CommandMobileHeader(
             Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
     }
 }
 
@@ -689,58 +680,68 @@ private fun CommandScopeBar(
     servers: List<ServerConfig>,
     onSelectedServer: (ServerConfig?) -> Unit,
     onRefresh: () -> Unit,
-    onHelp: () -> Unit
+    onHelp: () -> Unit,
+    backLabel: String?,
+    onBack: () -> Unit,
+    refreshState: RefreshState
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(copy.scopeLabel(route).uppercase(), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), maxLines = 1)
-            Box {
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(11.dp))
-                        .clickable { expanded = true }
-                        .background(CommandColors.surface.copy(alpha = 0.78f))
-                        .border(1.dp, CommandColors.borderStrong, RoundedCornerShape(11.dp))
-                        .padding(horizontal = CommandSpacing.sm, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(7.dp).clip(CircleShape).background(if (selectedServer == null) CommandColors.accent else CommandColors.success))
-                    Spacer(Modifier.width(CommandSpacing.xs))
-                    Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.width(CommandSpacing.xs))
-                    Text("⌄", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    DropdownMenuItem(
-                        text = { Text(copy.allSystems) },
-                        onClick = { expanded = false; onSelectedServer(null) }
-                    )
-                    servers.forEach { server ->
+    Column {
+        if (backLabel != null) CommandBackButton(backLabel, onBack)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(copy.scopeLabel(route).uppercase(), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), maxLines = 1)
+                Box {
+                    Row(
+                        Modifier
+                            .clip(RoundedCornerShape(11.dp))
+                            .clickable { expanded = true }
+                            .background(CommandColors.surface.copy(alpha = 0.78f))
+                            .border(1.dp, CommandColors.borderStrong, RoundedCornerShape(11.dp))
+                            .padding(horizontal = CommandSpacing.sm, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.size(7.dp).clip(CircleShape).background(if (selectedServer == null) CommandColors.accent else CommandColors.success))
+                        Spacer(Modifier.width(CommandSpacing.xs))
+                        Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.width(CommandSpacing.xs))
+                        Text("⌄", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         DropdownMenuItem(
-                            text = { Text(server.name) },
-                            onClick = { expanded = false; onSelectedServer(server) }
+                            text = { Text(copy.allSystems) },
+                            onClick = { expanded = false; onSelectedServer(null) }
                         )
+                        servers.forEach { server ->
+                            DropdownMenuItem(
+                                text = { Text(server.name) },
+                                onClick = { expanded = false; onSelectedServer(server) }
+                            )
+                        }
                     }
                 }
             }
+            CommandTelemetryPill(
+                text = "${servers.size} ${copy.servers}",
+                tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
+                modifier = Modifier.padding(end = CommandSpacing.xs)
+            )
+            CommandIconButton(
+                Icons.Rounded.HelpOutline,
+                securityMessage(language, SecurityMessage.PAGE_GUIDE),
+                onHelp
+            )
+            if (route.hasMetricsRefresh()) CommandRefreshButton(copy, refreshState.running, onRefresh, compact = true)
         }
-        CommandTelemetryPill(
-            text = "${servers.size} ${copy.servers}",
-            tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
-            modifier = Modifier.padding(end = CommandSpacing.xs)
-        )
-        CommandIconButton(
-            Icons.Rounded.HelpOutline,
-            securityMessage(language, SecurityMessage.PAGE_GUIDE),
-            onHelp
-        )
-        CommandIconButton(Icons.Rounded.Refresh, copy.refresh, onRefresh)
+        if (route.hasMetricsRefresh()) {
+            val scopeName = refreshState.targets.singleOrNull()?.let { id -> servers.firstOrNull { it.id == id }?.name }
+            CommandRefreshFeedback(copy, refreshState, listOfNotNull(copy.refreshMetrics, scopeName).joinToString(" · "))
+        }
     }
 }
 
@@ -759,6 +760,8 @@ private fun CommandRouteContent(
     route: CommandRoute,
     selectedServer: ServerConfig?,
     states: Map<Long, Repo.State>,
+    onBack: () -> Unit,
+    refreshing: Boolean,
     reloadTick: Int,
     themeMode: String,
     language: String,
@@ -769,36 +772,36 @@ private fun CommandRouteContent(
     onLanguageChange: (String) -> Unit
 ) {
     when (route) {
-        CommandRoute.OVERVIEW -> CommandOverviewScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, { onNavigate(CommandRoute.INCIDENTS, null) }, { onNavigate(CommandRoute.FLEET, null) }, onManageServers, onRefresh)
-        CommandRoute.INCIDENTS -> CommandIncidentsScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onRefresh)
-        CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh)
-        CommandRoute.MANAGE_SERVERS -> CommandManageServersScreen(copy, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }) { onNavigate(CommandRoute.FLEET, null) }
-        CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, { onNavigate(CommandRoute.FLEET, null) }, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) })
-        CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) }
-        CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onNavigate(CommandRoute.TUNNELS, selectedServer) }
-        CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
-        CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
-        CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(if (selectedServer == null) workspaceDefault(CommandWorkspace.OPERATE) else CommandRoute.SERVER_DOSSIER, selectedServer) })
-        CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) })
-        CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
-        CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
-        CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onNavigate(workspaceDefault(CommandWorkspace.DIAGNOSE), null) }
+        CommandRoute.OVERVIEW -> CommandOverviewScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, { onNavigate(CommandRoute.INCIDENTS, null) }, { onNavigate(CommandRoute.FLEET, null) }, onManageServers, onRefresh, refreshing = refreshing)
+        CommandRoute.INCIDENTS -> CommandIncidentsScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onRefresh, refreshing = refreshing)
+        CommandRoute.FLEET -> CommandFleetScreen(copy, reloadTick, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onManageServers, onRefresh, refreshing = refreshing)
+        CommandRoute.MANAGE_SERVERS -> CommandManageServersScreen(copy, { onNavigate(CommandRoute.SERVER_DOSSIER, it) }) { onBack() }
+        CommandRoute.SERVER_DOSSIER -> CommandServerDossierScreen(copy, selectedServer, selectedServer?.let { states[it.id] }, onBack, onRefresh, onManageServers, { onNavigate(CommandRoute.PROCESSES, selectedServer) }, { onNavigate(CommandRoute.DOCKER, selectedServer) }, { onNavigate(CommandRoute.TUNNELS, selectedServer) }, refreshing = refreshing)
+        CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onBack() }
+        CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onBack() }
+        CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+        CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+        CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+        CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+        CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+        CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
+        CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
         CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
-        CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onNavigate(CommandRoute.UPTIME, null) }
+        CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
         CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
-        CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) }
+        CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onBack() }
         CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
-        CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onNavigate(CommandRoute.DNS, null) }
-        CommandRoute.VAULT -> CommandVaultScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
-        CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onNavigate(CommandRoute.PROTECT_HOME, null) }
-        CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
-        CommandRoute.BACKUP -> CommandBackupScreen(copy) { onNavigate(CommandRoute.PROTECT_HOME, null) }
-        CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) })
-        CommandRoute.BATCH -> CommandBatchScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
-        CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
-        CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
-        CommandRoute.PROXY -> CommandProxyScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
-        CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onNavigate(CommandRoute.WORKBENCH_HOME, selectedServer) }
+        CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }
+        CommandRoute.VAULT -> CommandVaultScreen(copy) { onBack() }
+        CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+        CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onBack() }
+        CommandRoute.BACKUP -> CommandBackupScreen(copy) { onBack() }
+        CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+        CommandRoute.BATCH -> CommandBatchScreen(copy) { onBack() }
+        CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onBack() }
+        CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
+        CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
+        CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
         CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
         CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
         CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)

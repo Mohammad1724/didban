@@ -98,7 +98,8 @@ fun CommandOverviewScreen(
     onOpenIncidents: () -> Unit,
     onOpenFleet: () -> Unit,
     onAddServer: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    refreshing: Boolean = false
 ) {
     val context = LocalContext.current
     val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
@@ -151,7 +152,7 @@ fun CommandOverviewScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    CommandTextButton(copy.refresh, onRefresh, Icons.Rounded.Refresh)
+                    CommandRefreshButton(copy, refreshing, onRefresh)
                 }
             }
 
@@ -445,7 +446,8 @@ fun CommandIncidentsScreen(
     copy: CommandCopy,
     reloadTick: Int,
     onOpenServer: (ServerConfig) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    refreshing: Boolean = false
 ) {
     val context = LocalContext.current
     val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
@@ -479,8 +481,8 @@ fun CommandIncidentsScreen(
             CommandSectionTitle(
                 title = copy.incidents,
                 supporting = copy.incidentsFromLiveState,
-                actionLabel = copy.refresh,
-                onAction = onRefresh,
+                actionLabel = if (refreshing) copy.refreshing else copy.refresh,
+                onAction = if (refreshing) null else onRefresh,
                 modifier = Modifier.padding(top = CommandSpacing.sm)
             )
         }
@@ -526,7 +528,8 @@ fun CommandFleetScreen(
     reloadTick: Int,
     onOpenServer: (ServerConfig) -> Unit,
     onManageServers: () -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    refreshing: Boolean = false
 ) {
     val context = LocalContext.current
     val servers = remember(reloadTick) { Prefs.loadServers(context).toList() }
@@ -548,8 +551,8 @@ fun CommandFleetScreen(
                 CommandSectionTitle(
                     title = copy.fleet,
                     supporting = "${servers.size} ${copy.nodes}",
-                    actionLabel = copy.refresh,
-                    onAction = onRefresh,
+                    actionLabel = if (refreshing) copy.refreshing else copy.refresh,
+                    onAction = if (refreshing) null else onRefresh,
                     modifier = Modifier.padding(top = CommandSpacing.md)
                 )
             }
@@ -606,7 +609,8 @@ fun CommandServerDossierScreen(
     onManage: () -> Unit,
     onOpenProcesses: () -> Unit,
     onOpenDocker: () -> Unit,
-    onOpenTunnels: () -> Unit
+    onOpenTunnels: () -> Unit,
+    refreshing: Boolean = false
 ) {
     if (server == null) {
         CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.back, onBack)
@@ -625,7 +629,7 @@ fun CommandServerDossierScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 CommandBackButton(copy.back, onBack)
-                CommandTextButton(copy.refresh, onRefresh, Icons.Rounded.Refresh)
+                CommandRefreshButton(copy, refreshing, onRefresh)
             }
         }
         item {

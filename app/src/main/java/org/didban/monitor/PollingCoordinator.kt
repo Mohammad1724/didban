@@ -4,6 +4,9 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,7 +48,11 @@ object PollingCoordinator {
     private const val ALERT_COOLDOWN_MS = 10 * 60_000L
     private const val CHANNEL_ALERT = "didban_alerts" // same channel MonitorService creates
 
-    private var scope: CoroutineScope? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var started = false
+    private val manualRefresh = ManualRefreshController(scope)
+    val refreshState = manualRefresh.state
+    private val probeLocks = ConcurrentHashMap<Long, Mutex>()
     private var contextRef: Context? = null
 
     private val nextCheckAt = ConcurrentHashMap<Long, Long>()
@@ -53,16 +60,29 @@ object PollingCoordinator {
     private val lastAlertAt = ConcurrentHashMap<String, Long>()
 
     /** Idempotent: starts the polling loop for the life of the process. */
+    @Synchronized
     fun start(ctx: Context) {
-        if (scope != null) return
+        if (started) return
+        started = true
         contextRef = ctx.applicationContext
-        val s = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        scope = s
-        s.launch {
+        scope.launch {
             while (isActive) {
-                runCatching { tick() }
+                try {
+                    tick()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) { /* retry on the next tick */ }
                 delay(TICK_MS)
             }
+        }
+    }
+
+    /** Explicit refresh goes through the same per-server poll lock, not a second poller. */
+    fun refresh(ctx: Context, servers: List<ServerConfig>) {
+        start(ctx)
+        val targets = servers.associate { it.id to it.copy() }
+        manualRefresh.request(targets.keys.toList()) { id ->
+            probe(ctx.applicationContext, targets.getValue(id), Prefs.getPollIntervalMs(ctx))
         }
     }
 
@@ -81,23 +101,12 @@ object PollingCoordinator {
         val pollMs = Prefs.getPollIntervalMs(ctx)
         val now = System.currentTimeMillis()
 
-        // Server list / config changed → drop the stale client cache entry
-        // before any request goes out under the new config.
+        // Deleted servers lose their schedule/cache entry. Configuration changes
+        // are handled inside the per-server lock before making a request.
         val alive = servers.map { it.id }.toHashSet()
         for (id in nextCheckAt.keys) if (id !in alive) {
             nextCheckAt.remove(id)
             lastServerKey.remove(id)?.let { HttpClientPool.evict(it) }
-        }
-        for (s in servers) {
-            val key = HttpClientPool.keyFor(s)
-            val prev = lastServerKey[s.id]
-            if (prev != key) {
-                // First sighting (prev == null): just record. Otherwise the
-                // server's connection key changed (re-pin, port, TLS toggle)
-                // — the stale client must not serve it any more.
-                if (prev != null) HttpClientPool.evict(prev)
-                lastServerKey[s.id] = key
-            }
         }
 
         for (s in servers) {
@@ -106,7 +115,15 @@ object PollingCoordinator {
         }
     }
 
-    private suspend fun probe(ctx: Context, s: ServerConfig, pollMs: Long) {
+    private suspend fun probe(ctx: Context, s: ServerConfig, pollMs: Long): Boolean =
+        probeLocks.computeIfAbsent(s.id) { Mutex() }.withLock {
+            val key = HttpClientPool.keyFor(s)
+            val previous = lastServerKey.put(s.id, key)
+            if (previous != null && previous != key) HttpClientPool.evict(previous)
+            probeUnlocked(ctx, s, pollMs)
+        }
+
+    private suspend fun probeUnlocked(ctx: Context, s: ServerConfig, pollMs: Long): Boolean {
         val t0 = System.currentTimeMillis()
         val prevState = Repo.states.value[s.id]
         try {
@@ -116,7 +133,7 @@ object PollingCoordinator {
             nextCheckAt[s.id] = System.currentTimeMillis() + PollSchedule.nextDelayMs(true, pollMs)
             if (MonitorService.isRunning) {
                 if (prevState?.error != null) {
-                    scope?.launch {
+                    scope.launch {
                         AlertEngine.dispatchAlert(
                             ctx,
                             AlertType.SERVER_RECOVERED,
@@ -128,13 +145,16 @@ object PollingCoordinator {
                 }
                 checkThresholds(ctx, s, m)
             }
+            return true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
             nextCheckAt[s.id] = System.currentTimeMillis() + PollSchedule.nextDelayMs(false, pollMs)
             if (MonitorService.isRunning) {
                 alert(ctx, s, "${s.name}: ${e.message}")
                 if (Prefs.isAlertTriggerDown(ctx)) {
-                    scope?.launch {
+                    scope.launch {
                         AlertEngine.dispatchAlert(
                             ctx,
                             AlertType.SERVER_DOWN,
@@ -145,6 +165,7 @@ object PollingCoordinator {
                     }
                 }
             }
+            return false
         }
     }
 
@@ -154,7 +175,7 @@ object PollingCoordinator {
         if (m.cpuUsage >= s.cpuAlert) {
             alert(ctx, s, "${s.name}: CPU ${m.cpuUsage.toInt()}%")
             if (Prefs.isAlertTriggerSpike(ctx)) {
-                scope?.launch {
+                scope.launch {
                     AlertEngine.dispatchAlert(
                         ctx,
                         AlertType.CPU_SPIKE,
@@ -168,7 +189,7 @@ object PollingCoordinator {
         if (m.memPct >= s.memAlert) {
             alert(ctx, s, "${s.name}: RAM ${m.memPct.toInt()}%")
             if (Prefs.isAlertTriggerSpike(ctx)) {
-                scope?.launch {
+                scope.launch {
                     AlertEngine.dispatchAlert(
                         ctx,
                         AlertType.RAM_SPIKE,

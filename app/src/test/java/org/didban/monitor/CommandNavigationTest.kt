@@ -1,127 +1,98 @@
 package org.didban.monitor
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
-/**
- * Back-navigation contract for the Command shell.
- *
- * These tests exist because of a defect no build or lint check could see: the
- * inline `when` that handled Back consumed the press and navigated a workspace
- * home route to its own default, i.e. to itself. The UI looked fine, the app
- * compiled, and Back simply did nothing on five of the six workspaces.
- */
 class CommandNavigationTest {
-
-    private val routes = CommandRoute.values().toList()
-
-    @Test
-    fun `every route is reachable from its key and unknown keys fall back to overview`() {
-        routes.forEach { route ->
-            assertEquals(route, CommandRoute.fromKey(route.key))
-        }
-        assertEquals(CommandRoute.OVERVIEW, CommandRoute.fromKey("does-not-exist"))
-        // Keys are what gets persisted into saved instance state, so a
-        // duplicate would silently collapse two routes into one on restore.
+    @Test fun `route keys are unique and round trip`() {
+        val routes = CommandRoute.values()
         assertEquals(routes.size, routes.map { it.key }.distinct().size)
+        routes.forEach { assertEquals(it, CommandRoute.fromKey(it.key)) }
+        assertEquals(CommandRoute.OVERVIEW, CommandRoute.fromKey("unknown"))
     }
 
-    @Test
-    fun `an open navigation drawer absorbs the back press on every route`() {
-        routes.forEach { route ->
-            assertEquals(
-                "drawer open on $route",
-                CommandBackAction.CloseNavigation,
-                commandBackAction(route, navigationOpen = true)
-            )
+    @Test fun `back returns to actual origin instead of workspace home`() {
+        val fromOverview = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 7)
+        assertEquals(CommandRoute.OVERVIEW, fromOverview.back().current.route)
+        val fromIncidents = CommandNavigation.root().navigate(CommandRoute.INCIDENTS)
+            .navigate(CommandRoute.SERVER_DOSSIER, 7)
+        assertEquals(CommandRoute.INCIDENTS, fromIncidents.back().current.route)
+    }
+
+    @Test fun `cross workspace trip restores server and each visited page`() {
+        var nav = CommandNavigation.root().navigate(CommandRoute.FLEET)
+            .navigate(CommandRoute.SERVER_DOSSIER, 9).navigate(CommandRoute.DOCKER)
+        nav = nav.back()
+        assertEquals(CommandDestination(CommandRoute.SERVER_DOSSIER, 9), nav.current)
+        assertEquals(CommandDestination(CommandRoute.FLEET), nav.back().current)
+    }
+
+    @Test fun `changing servers preserves original scope on back`() {
+        val nav = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 1)
+            .navigate(CommandRoute.SERVER_DOSSIER, 2)
+        assertEquals(1L, nav.back().current.serverId)
+    }
+
+    @Test fun `each editor returns to the page that opened it`() {
+        listOf(
+            CommandRoute.UPTIME to CommandRoute.UPTIME_EDITOR,
+            CommandRoute.DNS to CommandRoute.DNS_EDITOR,
+            CommandRoute.NETWORK_TOOLS to CommandRoute.NETWORK_TOOLS_EDITOR,
+            CommandRoute.TUNNELS to CommandRoute.TUNNELS_EDITOR
+        ).forEach { (parent, editor) ->
+            val nav = CommandNavigation.root().navigate(parent).navigate(editor)
+            assertEquals(parent, nav.back().current.route)
         }
     }
 
-    @Test
-    fun `no back press is ever swallowed`() {
-        // The regression: navigating to a route's own workspace default is a
-        // no-op, so the press was consumed and nothing happened.
-        routes.forEach { route ->
-            val action = commandBackAction(route, navigationOpen = false)
-            if (action is CommandBackAction.Navigate) {
-                assertNotEquals("back on $route navigates to itself", route, action.to)
-            }
+    @Test fun `repeated destination or done navigation never creates a back loop`() {
+        val start = CommandNavigation.root().navigate(CommandRoute.TUNNELS)
+        assertEquals(start, start.navigate(CommandRoute.TUNNELS))
+        assertEquals(start, start.navigate(CommandRoute.TUNNELS_EDITOR).navigate(CommandRoute.TUNNELS))
+        assertEquals(CommandNavigation.root(), start.navigate(CommandRoute.OVERVIEW))
+    }
+
+    @Test fun `menu and help close without popping the current page`() {
+        val nav = CommandNavigation.root().navigate(CommandRoute.SETTINGS)
+        assertEquals(CommandBackAction.CLOSE_HELP, nav.backAction(true, true))
+        assertEquals(CommandBackAction.CLOSE_NAVIGATION, nav.backAction(true, false))
+        assertEquals(CommandBackAction.POP, nav.backAction(false, false))
+        assertEquals(CommandBackAction.EXIT, nav.back().backAction(false, false))
+    }
+
+    @Test fun `root back is stable and only root can exit`() {
+        val root = CommandNavigation.root()
+        assertEquals(root, root.back())
+        CommandRoute.values().filter { it != CommandRoute.OVERVIEW }.forEach {
+            assertEquals(CommandBackAction.POP, root.navigate(it).backAction(false, false))
         }
     }
 
-    @Test
-    fun `only the overview arms the exit guard`() {
-        routes.forEach { route ->
-            val expected = route == CommandRoute.OVERVIEW
-            assertEquals(
-                "exit guard on $route",
-                expected,
-                commandBackAction(route, navigationOpen = false) == CommandBackAction.ExitGuard
-            )
-        }
+    @Test fun `history and server scope survive saved state round trip`() {
+        val nav = CommandNavigation.root().navigate(CommandRoute.FLEET)
+            .navigate(CommandRoute.SERVER_DOSSIER, Long.MAX_VALUE).navigate(CommandRoute.PROCESSES)
+        assertEquals(nav, CommandNavigation.restore(nav.save()))
+        assertEquals(CommandNavigation.root(), CommandNavigation.restore(listOf("bad", "fleet|wrong", "unknown|5")))
     }
 
-    @Test
-    fun `every non-overview route steps up instead of exiting`() {
-        routes.filter { it != CommandRoute.OVERVIEW }.forEach { route ->
-            val action = commandBackAction(route, navigationOpen = false)
-            assertTrue("$route should navigate up, got $action", action is CommandBackAction.Navigate)
-        }
+    @Test fun `deep link can return safely to overview`() {
+        val nav = CommandNavigation.root().navigate(CommandRoute.SERVER_DOSSIER, 42)
+        assertEquals(CommandNavigation.root(), nav.back())
     }
 
-    @Test
-    fun `a workspace home steps back to the overview`() {
-        CommandWorkspace.values().forEach { workspace ->
-            val home = workspaceDefault(workspace)
-            if (home != CommandRoute.OVERVIEW) {
-                assertEquals(
-                    "back from $home",
-                    CommandBackAction.Navigate(CommandRoute.OVERVIEW),
-                    commandBackAction(home, navigationOpen = false)
-                )
-            }
-        }
+    @Test fun `history is bounded but never loses the overview root`() {
+        var nav = CommandNavigation.root()
+        repeat(100) { nav = nav.navigate(CommandRoute.SERVER_DOSSIER, it.toLong()) }
+        assertEquals(64, nav.entries.size)
+        repeat(63) { nav = nav.back() }
+        assertEquals(CommandNavigation.root(), nav)
     }
 
-    @Test
-    fun `a sub-route steps back to its own workspace home first`() {
-        routes.forEach { route ->
-            val home = workspaceDefault(route.workspace)
-            if (route != home && route != CommandRoute.SERVER_DOSSIER) {
-                assertEquals(
-                    "back from $route",
-                    CommandBackAction.Navigate(home),
-                    commandBackAction(route, navigationOpen = false)
-                )
-            }
-        }
-    }
-
-    @Test
-    fun `the server dossier steps back to the fleet even though the fleet is its home`() {
-        assertEquals(
-            CommandBackAction.Navigate(CommandRoute.FLEET),
-            commandBackAction(CommandRoute.SERVER_DOSSIER, navigationOpen = false)
-        )
-    }
-
-    @Test
-    fun `back from any route reaches the overview within two presses`() {
-        // Guards against a route chain that could trap the user: home -> default
-        // -> overview, so two presses is always enough.
-        routes.forEach { start ->
-            var route = start
-            var presses = 0
-            while (route != CommandRoute.OVERVIEW && presses < 3) {
-                val action = commandBackAction(route, navigationOpen = false)
-                assertTrue("dead end at $route", action is CommandBackAction.Navigate)
-                route = (action as CommandBackAction.Navigate).to
-                presses++
-            }
-            assertEquals("$start needed $presses presses", CommandRoute.OVERVIEW, route)
-            assertTrue("$start took $presses presses", presses <= 2)
-        }
+    @Test fun `unrelated tools do not pretend to refresh server metrics`() {
+        assertTrue(CommandRoute.OVERVIEW.hasMetricsRefresh())
+        assertTrue(CommandRoute.SERVER_DOSSIER.hasMetricsRefresh())
+        assertFalse(CommandRoute.DOCKER.hasMetricsRefresh())
+        assertFalse(CommandRoute.DNS_EDITOR.hasMetricsRefresh())
+        assertFalse(CommandRoute.SSH.hasMetricsRefresh())
     }
 }
