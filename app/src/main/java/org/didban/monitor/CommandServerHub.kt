@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -76,7 +75,7 @@ internal fun CommandServerHub(
         } else key(selected.id) {
             CommandServerDetails(copy, selected, states[selected.id], now, refreshState, refreshScope,
                 mutationError, onClosePane, { refresh(selected) }, { onEdit(selected.id) },
-                { deleteTarget = selected.copy() }, { route -> onTool(route, selected) }, modifier)
+                { deleteTarget = selected.copy() }, { route -> onTool(route, selected) }, onHelp, modifier)
         }
     }
 
@@ -94,8 +93,7 @@ internal fun CommandServerHub(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                         CommandPrimaryButton(copy.addServer, { onEdit(null) }, enabled = !loadFailed)
                         CommandRefreshButton(copy, refreshState.running, { refresh() }, enabled = !loadFailed)
-                        CommandIconButton(Icons.AutoMirrored.Rounded.HelpOutline,
-                            securityMessage(Prefs.getLanguage(context), SecurityMessage.PAGE_GUIDE), onHelp)
+                        CommandHelpButton(Prefs.getLanguage(context), onHelp)
                     }
                     if (!loadFailed) {
                         Text("${servers.size} ${copy.servers} · ${health.values.count { it == FleetHealth.HEALTHY }} ${copy.healthy} · " +
@@ -235,12 +233,13 @@ private fun CommandServerDetails(
     copy: CommandCopy, server: ServerConfig, state: Repo.State?, now: Long,
     refreshState: RefreshState, refreshScope: String, mutationError: String?,
     onClose: () -> Unit, onRefresh: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit,
-    onTool: (CommandRoute) -> Unit, modifier: Modifier = Modifier
+    onTool: (CommandRoute) -> Unit, onHelp: () -> Unit, modifier: Modifier = Modifier
 ) {
     val health = fleetHealth(server, state, now)
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
             Text(copy.fleetDetails, Modifier.weight(1f), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
+            CommandHelpButton(Prefs.getLanguage(LocalContext.current), onHelp)
             CommandCloseButton(copy.close, onClose)
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {

@@ -34,7 +34,6 @@ import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Hub
-import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.MonitorHeart
@@ -498,7 +497,7 @@ fun CommandCenterApp(
             }
 
             if (helpVisible) {
-                CommandHelpDialog(route = route, language = language, copy = copy, onDismiss = { helpVisible = false })
+                CommandHelpDialog(route = navigation.current.helpRoute(), language = language, copy = copy, onDismiss = { helpVisible = false })
             }
 
             AnimatedVisibility(
@@ -753,11 +752,7 @@ private fun CommandScopeBar(
                 tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
                 modifier = Modifier.padding(end = CommandSpacing.xs)
             )
-            CommandIconButton(
-                Icons.Rounded.HelpOutline,
-                securityMessage(language, SecurityMessage.PAGE_GUIDE),
-                onHelp
-            )
+            CommandHelpButton(language, onHelp)
         }
 
     }

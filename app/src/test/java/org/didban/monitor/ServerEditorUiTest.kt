@@ -52,7 +52,9 @@ class ServerEditorUiTest {
     }
 
     private fun assertError(text: String) {
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.operationFailed))
+        // Scroll to the actual message, not just its card heading: the pinned 48dp
+        // help control and large fonts can leave the body below the viewport.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(text))
         compose.onNodeWithText(text).assertIsDisplayed()
     }
 
@@ -127,7 +129,7 @@ class ServerEditorUiTest {
             assertEquals("", draft.quickConnect)
             assertNull(connectionValidation(model.serverForAction()!!))
         }
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.srvConnectionResult))
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.srvQuickConnectImported))
         compose.onNodeWithText(copy.srvQuickConnectImported).assertIsDisplayed()
         field(copy.fleetName).assertTextContains("Imported Node")
         field(copy.srvQuickConnectLabel)

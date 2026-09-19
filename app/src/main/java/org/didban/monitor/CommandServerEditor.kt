@@ -63,6 +63,7 @@ internal fun CommandServerEditor(
     onSaved: (ServerConfig) -> Unit,
     onClose: () -> Unit
 ) {
+    var helpVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context.findActivity() as? androidx.activity.ComponentActivity ?: return
     val model = remember(activity) { ViewModelProvider(activity)[ServerEditorViewModel::class.java] }
@@ -161,7 +162,9 @@ internal fun CommandServerEditor(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(if (serverId == null) copy.addServer else copy.srvEditConnection,
                         Modifier.weight(1f), color = CommandColors.textPrimary,
-                        style = MaterialTheme.typography.titleLarge)
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    CommandHelpButton(language) { helpVisible = true }
                     CommandCloseButton(copy.close, ::requestClose)
                 }
                 if (model.blocked || model.missing) {
@@ -209,6 +212,7 @@ internal fun CommandServerEditor(
             }
         }
     }
+    if (helpVisible) CommandHelpDialog(CommandRoute.MANAGE_SERVERS, language, copy) { helpVisible = false }
     if (discard) AlertDialog(
         onDismissRequest = { discard = false },
         title = { Text(copy.fleetDiscardTitle) }, text = { Text(copy.fleetDiscardBody) },
