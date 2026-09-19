@@ -36,21 +36,26 @@ object SecureStorage {
     private const val KEY_ALIAS = "didban_app_secrets"
     private const val KEY_SIZE_BITS = 256
     private const val FORMAT_V2 = "v2:"
+    private val KEYSTORE_BACKED_PREF_KEYS = setOf(
+        "servers_enc", "cf_token_enc", "didban_tunnels_enc",
+        "tg_bot_token_enc", "discord_webhook_enc"
+    )
 
     @Volatile private var key: SecretKey? = null
 
-    private fun generateAesKey(sizeBits: Int): SecretKey {
+    private fun generateAesKey(sizeBits: Int?): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
-        val spec = KeyGenParameterSpec.Builder(
+        val builder = KeyGenParameterSpec.Builder(
             KEY_ALIAS,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
         )
-            .setKeySize(sizeBits)
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setRandomizedEncryptionRequired(true)
-            .build()
-        generator.init(spec)
+        // Some vendor providers reject any explicit size but safely choose
+        // their own AES default. The final attempt therefore omits key size.
+        if (sizeBits != null) builder.setKeySize(sizeBits)
+        generator.init(builder.build())
         return generator.generateKey()
     }
 
@@ -72,9 +77,15 @@ object SecureStorage {
                 runCatching { ks.deleteEntry(KEY_ALIAS) }
                 try {
                     generateAesKey(128)
-                } catch (fallback: Exception) {
-                    fallback.addSuppressed(primary)
-                    throw fallback
+                } catch (secondary: Exception) {
+                    runCatching { ks.deleteEntry(KEY_ALIAS) }
+                    try {
+                        generateAesKey(null)
+                    } catch (fallback: Exception) {
+                        fallback.addSuppressed(primary)
+                        fallback.addSuppressed(secondary)
+                        throw fallback
+                    }
                 }
             }
         }
@@ -87,6 +98,12 @@ object SecureStorage {
         key = null
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
+    }
+
+    private fun storageUnavailableMessage(error: Throwable): String {
+        var root = error
+        while (root.cause != null && root.cause !== root) root = root.cause!!
+        return "Secure storage is unavailable (${root.javaClass.simpleName})"
     }
 
     fun encrypt(plaintext: String): String = SecureCipher.encrypt(getOrCreateKey(), plaintext)
@@ -166,16 +183,16 @@ object SecureStorage {
             // before any encrypted app data exists. It is safe to recreate it
             // only for an empty secure store; never discard a key that protects
             // existing ciphertext.
-            val hasEncryptedData = sp.all.keys.any { it.endsWith("_enc") }
+            val hasEncryptedData = sp.all.keys.any { it in KEYSTORE_BACKED_PREF_KEYS }
             if (hasEncryptedData) {
-                throw SecretStorageException("Secure storage is unavailable", first)
+                throw SecretStorageException(storageUnavailableMessage(first), first)
             }
             try {
                 resetKeyAlias()
                 encryptBound(prefsName, key, plaintext)
             } catch (retry: Exception) {
                 retry.addSuppressed(first)
-                throw SecretStorageException("Secure storage is unavailable", retry)
+                throw SecretStorageException(storageUnavailableMessage(retry), retry)
             }
         }
         if (!sp.edit().putString(key + "_enc", encrypted).remove(key).commit()) {
