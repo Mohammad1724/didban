@@ -130,7 +130,7 @@ fun CommandNetworkToolsScreen(
                     Text(copy.netProbeInput, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.netHostDomain) })
-                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                     }
                     Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     CommandPrimaryButton(if (loading) copy.waitingForData else "Run ${mode.label}", ::run, enabled = !loading, icon = Icons.Rounded.PlayArrow)

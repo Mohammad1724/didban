@@ -338,11 +338,11 @@ fun CommandTunnelEditorScreen(
                     Text("Endpoints", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(iranHost, { iranHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunIranHost) })
-                        OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                        OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunForeignHost) })
-                        OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                        OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunCorePort) })

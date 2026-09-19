@@ -1,6 +1,6 @@
 package org.didban.monitor
 
-internal enum class FleetFilter { ALL, OFFLINE, ATTENTION }
+internal enum class FleetFilter { ALL, OFFLINE, ATTENTION, UNKNOWN }
 internal enum class FleetHealth { OFFLINE, ATTENTION, UNKNOWN, HEALTHY }
 
 internal fun fleetHealth(server: ServerConfig, state: Repo.State?, now: Long): FleetHealth = when {
@@ -16,6 +16,7 @@ internal fun visibleFleet(
 ): List<ServerConfig> = servers.filter { server ->
     val health = fleetHealth(server, states[server.id], now)
     val matchesFilter = when (filter) {
+        FleetFilter.UNKNOWN -> health == FleetHealth.UNKNOWN
         FleetFilter.ALL -> true
         FleetFilter.OFFLINE -> health == FleetHealth.OFFLINE
         FleetFilter.ATTENTION -> health == FleetHealth.OFFLINE || health == FleetHealth.ATTENTION

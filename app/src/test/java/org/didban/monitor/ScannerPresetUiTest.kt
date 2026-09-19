@@ -48,7 +48,12 @@ class ScannerPresetUiTest {
         click(copy.scannerClearSelection)
         compose.onNodeWithText("104.16.0.0/13").performScrollTo().assertIsOff().performClick().assertIsOn()
         click(copy.scannerHideList)
+        click(copy.uiAdvanced)
         field(copy.cfCount).performTextReplacement("5")
+        click(copy.uiAdvanced)
+        click(copy.uiAdvanced)
+        field(copy.cfCount).assertTextContains("5")
+        click(copy.uiAdvanced)
         click(copy.cfStart)
         compose.runOnIdle {
             assertEquals(5, scanned.size)
@@ -89,6 +94,7 @@ class ScannerPresetUiTest {
         click("${copy.scannerCategory}: ${copy.scannerCategoryAll}")
         val group = ScannerCatalog.Group.DEVELOPMENT
         compose.onNodeWithText("${group.label(copy)} (${ScannerCatalog.domains(group).size})").performClick()
+        click(copy.uiAdvanced)
         field(copy.scannerLimit).performTextReplacement("3")
         field(copy.port).performTextReplacement("8443")
         click(copy.realityCheckAll)

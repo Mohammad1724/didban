@@ -67,7 +67,7 @@ object Prefs {
     }
 
     fun getThemeMode(ctx: Context): String =
-        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("theme_mode", "dark") ?: "dark"
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString("theme_mode", "light") ?: "light"
 
     fun setThemeMode(ctx: Context, mode: String) {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)

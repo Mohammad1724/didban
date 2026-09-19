@@ -73,6 +73,7 @@ import androidx.compose.runtime.saveable.SaveableStateHolder
 import android.os.SystemClock
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -193,7 +194,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.SETTINGS -> copy.settings
 }
 
-private fun CommandRoute.icon(): ImageVector = when (this) {
+internal fun CommandRoute.navIcon(): ImageVector = when (this) {
     CommandRoute.OVERVIEW -> Icons.Rounded.MonitorHeart
     CommandRoute.INCIDENTS -> Icons.Rounded.Timeline
     CommandRoute.FLEET -> Icons.Rounded.Groups
@@ -356,143 +357,72 @@ fun CommandCenterApp(
             onAdd = { serverPickerOpen = false; navigation = navigation.editServer(null) }
         )
 
-        BoxWithConstraints(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(CommandColors.infoSurface.copy(alpha = 0.16f), CommandColors.canvas),
-                        radius = 1100f
-                    )
-                )
-        ) {
-            val availableWidth = maxWidth
-            val wide = availableWidth >= 680.dp
-            LaunchedEffect(wide) { if (wide) mobileNavigationOpen = false }
-            if (wide) {
-                Row(Modifier.fillMaxSize()) {
-                    CommandRail(
-                        copy = copy,
-                        route = route,
-                        expanded = availableWidth >= 920.dp,
-                        onNavigate = ::navigate,
-                        modifier = Modifier.width(if (availableWidth >= 920.dp) 224.dp else 86.dp)
-                    )
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
-                        if (route != CommandRoute.FLEET) CommandScopeBar(
-                            copy = copy,
-                            language = language,
-                            route = route,
-                            selectedServer = selectedServer,
-                            servers = servers,
-                            onSelectedServer = ::selectScope,
-                            onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
-                            backLabel = backLabel,
-                            onBack = ::goBack
-                        )
-                        CommandRouteContent(
-                            copy = copy,
-                            route = route,
-                            destination = navigation.current,
-                            contentStateHolder = contentStateHolder,
-                            servers = servers,
-                            loadFailed = serverLoad.error != null,
-                            onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
-                            onSelectServer = { reloadTick++; serverPickerOpen = true },
-                            onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
-                            onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
-                            onSaved = { server ->
-                                reloadTick++
-                                navigation = navigation.finishEditing(server.id)
-                                android.widget.Toast.makeText(context, copy.srvSavedPolled, android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            onDeleted = { id ->
-                                reloadTick++
-                                navigation = navigation.removeServer(id)
-                                android.widget.Toast.makeText(context, copy.srvLocalDeleted, android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            selectedServer = selectedServer,
-                            states = states,
+        BoxWithConstraints(Modifier.fillMaxSize().background(CommandColors.canvas)) {
+            val wide = maxWidth >= 840.dp
+            @Composable fun page() {
+                Column(Modifier.fillMaxSize()) {
+                    if (route != CommandRoute.FLEET) {
+                        CommandPageChrome(route.commandLabel(copy), copy, language,
+                            showBack = route !in CommandPrimary.values().map { it.root },
                             onBack = ::goBack,
-                            reloadTick = reloadTick,
-                            themeMode = themeMode,
-                            language = language,
-                            onNavigate = ::navigate,
-                            onThemeChange = { mode ->
-                                themeMode = mode
-                                Prefs.setThemeMode(context, mode)
-                            },
-                            onLanguageChange = { next ->
-                                language = next
-                                Prefs.setLanguage(context, next)
+                            onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L })
+                        if (route == CommandRoute.RADAR && selectedServer != null) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                CommandSecondaryButton(selectedServer.name, { serverPickerOpen = true })
                             }
-                        )
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth().then(
+                        if (route == CommandRoute.FLEET || route == CommandRoute.CF_SCANNER || route == CommandRoute.REALITY_SNI)
+                            Modifier else Modifier.padding(horizontal = 16.dp)
+                    )) {
+                        CompositionLocalProvider(LocalCommandHeader provides if (route == CommandRoute.FLEET) null else route.commandLabel(copy)) {
+        CommandRouteContent(
+            copy = copy,
+            route = route,
+            destination = navigation.current,
+            contentStateHolder = contentStateHolder,
+            servers = servers,
+            loadFailed = serverLoad.error != null,
+            onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
+            onSelectServer = { reloadTick++; serverPickerOpen = true },
+            onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
+            onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
+            onSaved = { server ->
+                reloadTick++
+                navigation = navigation.finishEditing(server.id)
+                android.widget.Toast.makeText(context, copy.srvSavedPolled, android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDeleted = { id ->
+                reloadTick++
+                navigation = navigation.removeServer(id)
+                android.widget.Toast.makeText(context, copy.srvLocalDeleted, android.widget.Toast.LENGTH_SHORT).show()
+            },
+            selectedServer = selectedServer,
+            states = states,
+            onBack = ::goBack,
+            reloadTick = reloadTick,
+            themeMode = themeMode,
+            language = language,
+            onNavigate = ::navigate,
+            onThemeChange = { mode ->
+                themeMode = mode
+                Prefs.setThemeMode(context, mode)
+            },
+            onLanguageChange = { next ->
+                language = next
+                Prefs.setLanguage(context, next)
+            }
+        )
+                        }
                     }
                 }
-            } else {
-                Column(Modifier.fillMaxSize()) {
-                    CommandMobileHeader(
-                        copy = copy,
-                        route = route,
-                        selectedServer = selectedServer,
-                        navigationOpen = mobileNavigationOpen,
-                        onToggleNavigation = {
-                            mobileNavigationOpen = !mobileNavigationOpen
-                            exitHintVisible = false
-                            lastBackPressAt = 0L
-                        }
-                    )
-                    if (mobileNavigationOpen) {
-                        CommandMobileNavigation(copy, route, ::navigate)
-                    }
-                    if (route != CommandRoute.FLEET) CommandScopeBar(
-                        copy = copy,
-                        language = language,
-                        route = route,
-                        selectedServer = selectedServer,
-                        servers = servers,
-                        onSelectedServer = ::selectScope,
-                        onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
-                        backLabel = backLabel,
-                        onBack = ::goBack
-                    )
-                    CommandRouteContent(
-                        copy = copy,
-                        route = route,
-                        destination = navigation.current,
-                        contentStateHolder = contentStateHolder,
-                        servers = servers,
-                        loadFailed = serverLoad.error != null,
-                        onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
-                        onSelectServer = { reloadTick++; serverPickerOpen = true },
-                        onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
-                        onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
-                        onSaved = { server ->
-                            reloadTick++
-                            navigation = navigation.finishEditing(server.id)
-                            android.widget.Toast.makeText(context, copy.srvSavedPolled, android.widget.Toast.LENGTH_SHORT).show()
-                        },
-                        onDeleted = { id ->
-                            reloadTick++
-                            navigation = navigation.removeServer(id)
-                            android.widget.Toast.makeText(context, copy.srvLocalDeleted, android.widget.Toast.LENGTH_SHORT).show()
-                        },
-                        selectedServer = selectedServer,
-                        states = states,
-                        onBack = ::goBack,
-                        reloadTick = reloadTick,
-                        themeMode = themeMode,
-                        language = language,
-                        onNavigate = ::navigate,
-                        onThemeChange = { mode ->
-                            themeMode = mode
-                            Prefs.setThemeMode(context, mode)
-                        },
-                        onLanguageChange = { next ->
-                            language = next
-                            Prefs.setLanguage(context, next)
-                        }
-                    )
+            }
+            Row(Modifier.fillMaxSize()) {
+                if (wide && !navigation.current.serverPane.editing) CommandPrimaryNavigation(copy, route, true) { navigate(it) }
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Box(Modifier.weight(1f)) { page() }
+                    if (!wide && !navigation.current.serverPane.editing) CommandPrimaryNavigation(copy, route, false) { navigate(it) }
                 }
             }
 
@@ -538,236 +468,6 @@ internal fun workspaceDefault(workspace: CommandWorkspace): CommandRoute = when 
 }
 
 @Composable
-private fun CommandRail(
-    copy: CommandCopy,
-    route: CommandRoute,
-    expanded: Boolean,
-    onNavigate: (CommandRoute, ServerConfig?) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier
-            .fillMaxHeight()
-            .background(CommandColors.surface.copy(alpha = 0.92f))
-            .border(1.dp, CommandColors.border)
-            .padding(horizontal = if (expanded) CommandSpacing.sm else CommandSpacing.xs, vertical = CommandSpacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
-        ) {
-            Box(
-                Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CommandColors.accent.copy(alpha = 0.10f))
-                    .border(1.dp, CommandColors.accent.copy(alpha = 0.42f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("D", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
-            if (expanded) {
-                Spacer(Modifier.width(CommandSpacing.sm))
-                Column {
-                    Text("DIDBAN", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(copy.shellSentinelConsole, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
-                }
-            }
-        }
-        Spacer(Modifier.height(CommandSpacing.md))
-        CommandRule()
-        Spacer(Modifier.height(CommandSpacing.sm))
-        CommandWorkspace.values().filter { routesFor(it).isNotEmpty() }.forEach { workspace ->
-            val active = route.workspace == workspace
-            Column(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(11.dp))
-                        .clickable { onNavigate(workspaceDefault(workspace), null) }
-                        .background(if (active) CommandColors.infoSurface.copy(alpha = 0.78f) else Color.Transparent)
-                        .padding(horizontal = if (expanded) CommandSpacing.sm else CommandSpacing.xs, vertical = CommandSpacing.sm),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (expanded) Arrangement.Start else Arrangement.Center
-                ) {
-                    Icon(workspace.icon(), contentDescription = workspace.label(copy), tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(20.dp))
-                    if (expanded) {
-                        Spacer(Modifier.width(CommandSpacing.sm))
-                        Text(workspace.label(copy), color = if (active) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                if (active && expanded && workspace != CommandWorkspace.FLEET) {
-                    routesFor(workspace).forEach { destination ->
-                        val selected = destination == route
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onNavigate(destination, null) }
-                                .background(if (selected) CommandColors.accent.copy(alpha = 0.08f) else Color.Transparent)
-                                .padding(start = CommandSpacing.lg, end = CommandSpacing.xs, top = 6.dp, bottom = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier.size(if (selected) 5.dp else 4.dp).clip(CircleShape).background(if (selected) CommandColors.accent else CommandColors.textTertiary))
-                            Spacer(Modifier.width(CommandSpacing.xs))
-                            Text(destination.commandLabel(copy), color = if (selected) CommandColors.textPrimary else CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        if (expanded) {
-            Text(copy.shellLiveState, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
-        }
-    }
-}
-
-@Composable
-private fun CommandMobileHeader(
-    copy: CommandCopy,
-    route: CommandRoute,
-    selectedServer: ServerConfig?,
-    navigationOpen: Boolean,
-    onToggleNavigation: () -> Unit
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .background(CommandColors.surface.copy(alpha = 0.96f))
-            .border(1.dp, CommandColors.border)
-            .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        CommandIconButton(Icons.Rounded.Menu, if (navigationOpen) copy.close else copy.observe, onToggleNavigation)
-        Box(
-            Modifier
-                .size(30.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .background(CommandColors.accent.copy(alpha = 0.10f))
-                .border(1.dp, CommandColors.accent.copy(alpha = 0.38f), RoundedCornerShape(9.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("D", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.width(CommandSpacing.sm))
-        Column(Modifier.weight(1f)) {
-            Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-    }
-}
-
-@Composable
-private fun CommandMobileNavigation(
-    copy: CommandCopy,
-    route: CommandRoute,
-    onNavigate: (CommandRoute, ServerConfig?) -> Unit
-) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(CommandColors.surfaceRaised)
-            .padding(CommandSpacing.sm)
-            .verticalScroll(rememberScrollState())
-    ) {
-        CommandWorkspace.values().filter { routesFor(it).isNotEmpty() }.forEach { workspace ->
-            if (workspace != CommandWorkspace.FLEET) Text(workspace.label(copy), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.xs))
-            routesFor(workspace).forEach { destination ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigate(destination, null) }
-                        .background(if (route == destination) CommandColors.infoSurface else Color.Transparent)
-                        .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(destination.icon(), contentDescription = destination.commandLabel(copy), tint = if (route == destination) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(19.dp))
-                    Spacer(Modifier.width(CommandSpacing.sm))
-                    Text(destination.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
-                }
-            }
-            Spacer(Modifier.height(CommandSpacing.xs))
-        }
-    }
-}
-
-@Composable
-private fun CommandScopeBar(
-    copy: CommandCopy,
-    language: String,
-    route: CommandRoute,
-    selectedServer: ServerConfig?,
-    servers: List<ServerConfig>,
-    onSelectedServer: (ServerConfig?) -> Unit,
-    onHelp: () -> Unit,
-    backLabel: String?,
-    onBack: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    Column {
-        if (backLabel != null) CommandBackButton(backLabel, onBack)
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(copy.scopeLabel(route).uppercase(), color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), maxLines = 1)
-                Box {
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(11.dp))
-                            .clickable { expanded = true }
-                            .background(CommandColors.surface.copy(alpha = 0.78f))
-                            .border(1.dp, CommandColors.borderStrong, RoundedCornerShape(11.dp))
-                            .padding(horizontal = CommandSpacing.sm, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(Modifier.size(7.dp).clip(CircleShape).background(if (selectedServer == null) CommandColors.accent else CommandColors.success))
-                        Spacer(Modifier.width(CommandSpacing.xs))
-                        Text(selectedServer?.name ?: if (route == CommandRoute.RADAR) copy.selectServer else copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Spacer(Modifier.width(CommandSpacing.xs))
-                        Text("⌄", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                    }
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        if (route != CommandRoute.RADAR) DropdownMenuItem(
-                            text = { Text(copy.allSystems) },
-                            onClick = { expanded = false; onSelectedServer(null) }
-                        )
-                        servers.forEach { server ->
-                            DropdownMenuItem(
-                                text = { Text(server.name) },
-                                onClick = { expanded = false; onSelectedServer(server) }
-                            )
-                        }
-                    }
-                }
-            }
-            CommandTelemetryPill(
-                text = "${servers.size} ${copy.servers}",
-                tone = if (servers.isEmpty()) CommandHealthTone.UNKNOWN else CommandHealthTone.INFO,
-                modifier = Modifier.padding(end = CommandSpacing.xs)
-            )
-            CommandHelpButton(language, onHelp)
-        }
-
-    }
-}
-
-private fun CommandCopy.scopeLabel(route: CommandRoute): String = when (route.workspace) {
-    CommandWorkspace.OBSERVE -> observe
-    CommandWorkspace.FLEET -> fleet
-    CommandWorkspace.OPERATE -> operate
-    CommandWorkspace.DIAGNOSE -> diagnose
-    CommandWorkspace.WORKBENCH -> workbench
-    CommandWorkspace.PROTECT -> protect
-}
-
-@Composable
 private fun CommandRouteContent(
     copy: CommandCopy,
     route: CommandRoute,
@@ -807,7 +507,7 @@ private fun CommandRouteContent(
             CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer, onBack = onBack) }
             CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy, onBack = onBack)
             CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy, onBack = onBack)
-            CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
+            CommandRoute.UPTIME -> CommandUptimeScreen(copy, onOpenEditor = { onNavigate(CommandRoute.UPTIME_EDITOR, null) }, onOpenRadar = { onNavigate(CommandRoute.RADAR, selectedServer) })
             CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
             CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
             CommandRoute.NETWORK_TOOLS_EDITOR -> key(selectedServer) { CommandNetworkToolsScreen(copy, selectedServer) { onBack() } }
@@ -825,7 +525,7 @@ private fun CommandRouteContent(
             CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
             CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
             CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
-            CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange)
+            CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange, onNavigate)
         }
     }
 }

@@ -360,7 +360,8 @@ private fun CommandRadarContent(
 @Composable
 fun CommandUptimeScreen(
     copy: CommandCopy,
-    onOpenEditor: () -> Unit
+    onOpenEditor: () -> Unit,
+    onOpenRadar: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val targets by UptimeEngine.liveTargets.collectAsState()
@@ -368,10 +369,11 @@ fun CommandUptimeScreen(
     val scope = rememberCoroutineScope()
     var testingId by remember { mutableStateOf<Long?>(null) }
     var result by remember { mutableStateOf<String?>(null) }
+    var resultFailed by remember { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
-            CommandSectionTitle(copy.uptime, copy.incidentsFromLiveState, copy.refresh, { UptimeEngine.ensureLoaded(context) }, Modifier.padding(top = CommandSpacing.sm))
+            CommandSectionTitle(copy.uptime, copy.uiMonitoringIntro, copy.refresh, { UptimeEngine.ensureLoaded(context) }, Modifier.padding(top = CommandSpacing.sm))
         }
         item(key = "monitoring-control") {
             CommandMonitoringControl(copy, targets.count { !it.isPaused })
@@ -387,8 +389,11 @@ fun CommandUptimeScreen(
                 }
             }
         }
+        if (onOpenRadar != null) item(key = "compare-access") {
+            CommandToolLink(copy, CommandRoute.RADAR, copy.uiComparisonHint, onOpenRadar)
+        }
         if (targets.isEmpty()) {
-            item { CommandEmptyState(copy.uptime, copy.noServersBody, copy.addMonitor, onOpenEditor) }
+            item { CommandEmptyState(copy.uiNoData, copy.monitorNoTargets) }
         } else {
             items(targets, key = { it.id }) { target ->
                 CommandSurface(Modifier.fillMaxWidth()) {
@@ -404,21 +409,21 @@ fun CommandUptimeScreen(
                                 testingId = target.id
                                 scope.launch {
                                     runCatching { UptimeEngine.checkNow(context, target) }
-                                        .onSuccess { result = copy.operationDone }
-                                        .onFailure { result = "${copy.operationFailed}: ${it.message}" }
+                                        .onSuccess { resultFailed = false; result = copy.operationDone }
+                                        .onFailure { resultFailed = true; result = "${copy.operationFailed}: ${it.message}" }
                                     testingId = null
                                 }
                             }, Icons.Rounded.PlayArrow)
                         }
                         Spacer(Modifier.height(CommandSpacing.xs))
                         Text("${target.type} · ${target.target}:${target.port}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
-                        Text("${target.uptimePct.toInt()}% · ${target.lastLatencyMs} ms · ${target.intervalSec}s", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                        Text(if (target.lastChecked == 0L) copy.uiNoData else "${target.uptimePct.toInt()}% · ${target.lastLatencyMs} ms · ${target.intervalSec}s", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                         if (testingId == target.id) CircularLoadingLine()
                     }
                 }
             }
         }
-        if (result != null) item { Text(result ?: "", color = CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+        if (result != null) item { Text(result ?: "", color = if (resultFailed) CommandColors.danger else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 }

@@ -171,9 +171,19 @@ internal fun CommandRealitySniScreen(
                             color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
                     }
                     CommandScannerImport(copy, !running) { if (!running) { customDomains = it; customSource = true } }
+                    CommandDisclosure(copy) {
                     OutlinedTextField(limitText, { limitText = it.filter(Char::isDigit).take(3) },
                         Modifier.fillMaxWidth(), enabled = !running, singleLine = true,
                         label = { Text("${copy.scannerLimit} (1–${ScannerCatalog.MAX_SNI_TARGETS})") })
+                        OutlinedTextField(
+                            value = port,
+                            onValueChange = { port = it.filter(Char::isDigit).take(5) },
+                            label = { Text(copy.port) },
+                            singleLine = true,
+                            enabled = !running,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     CommandPrimaryButton(copy.realityCheckAll, ::startBatch, enabled = !running, modifier = Modifier.fillMaxWidth(), icon = Icons.Rounded.PlayArrow)
                     if (running) CommandSecondaryButton(copy.stop, { job?.cancel() }, modifier = Modifier.fillMaxWidth())
                 }
@@ -193,14 +203,7 @@ internal fun CommandRealitySniScreen(
                             enabled = !running,
                             modifier = Modifier.weight(1f)
                         )
-                        OutlinedTextField(
-                            value = port,
-                            onValueChange = { port = it.filter(Char::isDigit).take(5) },
-                            label = { Text(copy.port) },
-                            singleLine = true,
-                            enabled = !running,
-                            modifier = Modifier.width(120.dp)
-                        )
+
                     }
                     CommandPrimaryButton(copy.realityCheck, ::startSingle, icon = Icons.Rounded.PlayArrow, enabled = !running)
 
@@ -208,11 +211,11 @@ internal fun CommandRealitySniScreen(
             }
         }
 
-        // ── discouraged donors, shown before results so it is not missed ───
+        // Discouraged donor reference remains available without burying scan results.
         item {
             CommandSurface(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                    CommandSectionTitle(copy.realityDiscouraged)
+                    CommandDisclosure(copy, title = copy.realityDiscouraged) {
                     RealitySniScanner.DISCOURAGED.forEach { (name, why) ->
                         Row(Modifier.fillMaxWidth().clickable { target = name }) {
                             Text(
@@ -223,6 +226,7 @@ internal fun CommandRealitySniScreen(
                             )
                         }
                         Text(why, color = CommandColors.textTertiary, style = MaterialTheme.typography.bodySmall)
+                    }
                     }
                 }
             }

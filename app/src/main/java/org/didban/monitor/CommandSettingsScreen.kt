@@ -48,7 +48,8 @@ fun CommandSettingsScreen(
     themeMode: String,
     language: String,
     onThemeChange: (String) -> Unit,
-    onLanguageChange: (String) -> Unit
+    onLanguageChange: (String) -> Unit,
+    onNavigate: ((CommandRoute, ServerConfig?) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val protectScreenshots = rememberScreenshotProtection()
@@ -82,22 +83,21 @@ fun CommandSettingsScreen(
             )
         }
         item {
-            SettingsSection(title = "Appearance", detail = copy.setAppearanceBody) {
+            SettingsSection(title = copy.uiAppearance, detail = copy.setAppearanceBody) {
                 Text(copy.language, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                    CommandSecondaryButton(copy.persian, { onLanguageChange("fa") }, enabled = language != "fa", modifier = Modifier.weight(1f))
-                    CommandSecondaryButton(copy.english, { onLanguageChange("en") }, enabled = language != "en", modifier = Modifier.weight(1f))
-                }
+                CommandChipRow(listOf(copy.persian to "fa", copy.english to "en"), language, onLanguageChange, true)
                 Text(copy.theme, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                    CommandSecondaryButton(copy.light, { onThemeChange("light") }, enabled = themeMode != "light", modifier = Modifier.weight(1f))
-                    CommandSecondaryButton(copy.dark, { onThemeChange("dark") }, enabled = themeMode != "dark", modifier = Modifier.weight(1f))
-                    CommandSecondaryButton(copy.automatic, { onThemeChange("auto") }, enabled = themeMode != "auto", modifier = Modifier.weight(1f))
-                }
+                CommandChipRow(listOf(copy.light to "light", copy.dark to "dark", copy.automatic to "auto"), themeMode, onThemeChange, true)
             }
         }
+        if (onNavigate != null) {
+            item { CommandSectionTitle(copy.uiDataSafety) }
+            settingsToolRoutes.forEach { route -> item(key = route.key) {
+                CommandToolLink(copy, route, onClick = { onNavigate(route, null) })
+            } }
+        }
         item {
-            SettingsSection(title = "Monitoring", detail = copy.setPollBody) {
+            SettingsSection(title = copy.uiPreferences, detail = copy.setPollBody) {
                 OutlinedTextField(
                     value = interval,
                     onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null },
@@ -113,7 +113,7 @@ fun CommandSettingsScreen(
             }
         }
         item {
-            SettingsSection(title = "Security", detail = copy.setDangerBody) {
+            SettingsSection(title = copy.uiSecuritySettings, detail = copy.setDangerBody) {
                 Row(
                     modifier = Modifier.fillMaxWidth().toggleable(
                         value = protectScreenshots, role = Role.Switch,
@@ -131,7 +131,7 @@ fun CommandSettingsScreen(
                 }
                 CommandRule()
                 CommandStatusMark(
-                    if (vaultInitialized) "Vault initialized" else "Vault not initialized",
+                    if (vaultInitialized) copy.uiVaultInitialized else copy.uiVaultNotInitialized,
                     if (vaultInitialized) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN,
                     detail = if (vaultInitialized) copy.setVaultReady else copy.setVaultLockedHint
                 )
@@ -159,7 +159,7 @@ fun CommandSettingsScreen(
             }
         }
         item {
-            SettingsSection(title = "Diagnostics", detail = copy.setRuntimeBody) {
+            SettingsSection(title = copy.uiAdvanced, detail = copy.setRuntimeBody) {
                 CommandStatusMark("Didban ${BuildConfig.VERSION_NAME}", CommandHealthTone.INFO, detail = copy.setHostKeyStoreInit.replace("%1", HostKeyTrustStore.initialized.toString()))
                 Text(copy.setConnectivityBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             }

@@ -53,51 +53,51 @@ data class CommandPalette(
 )
 
 val CommandLightPalette = CommandPalette(
-    canvas = Color(0xFFF8FAFC),
+    canvas = Color(0xFFF2F5FA),
     surface = Color(0xFFFFFFFF),
-    surfaceRaised = Color(0xFFF1F5F9),
-    border = Color(0xFFE2E8F0),
-    borderStrong = Color(0xFFCBD5E1),
-    textPrimary = Color(0xFF0F172A),
-    textSecondary = Color(0xFF475569),
-    textTertiary = Color(0xFF94A3B8),
-    accent = Color(0xFF0284C7),
+    surfaceRaised = Color(0xFFFFFFFF),
+    border = Color(0xFFE2E8F1),
+    borderStrong = Color(0xFFB9C5D6),
+    textPrimary = Color(0xFF19263C),
+    textSecondary = Color(0xFF5C6B81),
+    textTertiary = Color(0xFF5C6B81),
+    accent = Color(0xFF245BDB),
     onAccent = Color(0xFFFFFFFF),
-    success = Color(0xFF059669),
-    successSurface = Color(0xFFE7F7F0),
-    warning = Color(0xFFD97706),
-    warningSurface = Color(0xFFFFF7E6),
-    danger = Color(0xFFDC2626),
-    dangerSurface = Color(0xFFFFECEC),
-    info = Color(0xFF2563EB),
-    infoSurface = Color(0xFFEFF6FF),
-    violet = Color(0xFF7C3AED),
-    track = Color(0xFFE2E8F0),
-    focus = Color(0xFF2563EB)
+    success = Color(0xFF167653),
+    successSurface = Color(0xFFEAF6EF),
+    warning = Color(0xFF996000),
+    warningSurface = Color(0xFFFFF5DF),
+    danger = Color(0xFFBA3747),
+    dangerSurface = Color(0xFFFCEEF0),
+    info = Color(0xFF245BDB),
+    infoSurface = Color(0xFFEAF0FF),
+    violet = Color(0xFF245BDB),
+    track = Color(0xFFE9EEF6),
+    focus = Color(0xFF245BDB)
 )
 
 val CommandDarkPalette = CommandPalette(
-    canvas = Color(0xFF07090E),
-    surface = Color(0xFF0F131D),
-    surfaceRaised = Color(0xFF151C28),
-    border = Color(0xFF171F2C),
-    borderStrong = Color(0xFF26334A),
-    textPrimary = Color(0xFFF1F5F9),
-    textSecondary = Color(0xFF94A3B8),
-    textTertiary = Color(0xFF54627A),
-    accent = Color(0xFF00E5FF),
-    onAccent = Color(0xFF001318),
-    success = Color(0xFF10B981),
-    successSurface = Color(0xFF0C2926),
-    warning = Color(0xFFF59E0B),
-    warningSurface = Color(0xFF30230D),
-    danger = Color(0xFFEF4444),
-    dangerSurface = Color(0xFF32161D),
-    info = Color(0xFF3B82F6),
-    infoSurface = Color(0xFF101F3A),
-    violet = Color(0xFFA855F7),
-    track = Color(0xFF151C28),
-    focus = Color(0xFF00E5FF)
+    canvas = Color(0xFF101724),
+    surface = Color(0xFF182234),
+    surfaceRaised = Color(0xFF182234),
+    border = Color(0xFF2D3B52),
+    borderStrong = Color(0xFF63748E),
+    textPrimary = Color(0xFFEDF2FA),
+    textSecondary = Color(0xFFACBAD0),
+    textTertiary = Color(0xFFACBAD0),
+    accent = Color(0xFF9ABAFF),
+    onAccent = Color(0xFF111E34),
+    success = Color(0xFF81D4B0),
+    successSurface = Color(0xFF193C33),
+    warning = Color(0xFFF4C66B),
+    warningSurface = Color(0xFF3E321F),
+    danger = Color(0xFFFFA1AF),
+    dangerSurface = Color(0xFF442B37),
+    info = Color(0xFF9ABAFF),
+    infoSurface = Color(0xFF243957),
+    violet = Color(0xFF9ABAFF),
+    track = Color(0xFF2D3B52),
+    focus = Color(0xFF9ABAFF)
 )
 
 val LocalCommandPalette = staticCompositionLocalOf { CommandLightPalette }
@@ -140,9 +140,19 @@ private fun CommandPalette.materialColors(dark: Boolean): ColorScheme = if (dark
     darkColorScheme(
         primary = accent,
         onPrimary = onAccent,
-        primaryContainer = successSurface,
+        primaryContainer = infoSurface,
         onPrimaryContainer = textPrimary,
         secondary = info,
+        secondaryContainer = infoSurface,
+        onSecondaryContainer = textPrimary,
+        tertiary = info,
+        onTertiary = onAccent,
+        tertiaryContainer = infoSurface,
+        onTertiaryContainer = textPrimary,
+        error = danger,
+        onError = if (dark) canvas else Color.White,
+        errorContainer = dangerSurface,
+        onErrorContainer = textPrimary,
         onSecondary = canvas,
         background = canvas,
         onBackground = textPrimary,
@@ -160,6 +170,16 @@ private fun CommandPalette.materialColors(dark: Boolean): ColorScheme = if (dark
         primaryContainer = infoSurface,
         onPrimaryContainer = textPrimary,
         secondary = info,
+        secondaryContainer = infoSurface,
+        onSecondaryContainer = textPrimary,
+        tertiary = info,
+        onTertiary = onAccent,
+        tertiaryContainer = infoSurface,
+        onTertiaryContainer = textPrimary,
+        error = danger,
+        onError = if (dark) canvas else Color.White,
+        errorContainer = dangerSurface,
+        onErrorContainer = textPrimary,
         onSecondary = Color.White,
         background = canvas,
         onBackground = textPrimary,
@@ -237,6 +257,40 @@ fun CommandTheme(
  * table is a compile error here instead of a silent Persian fallback.
  */
 interface CommandCopy {
+    val uiVaultInitialized: String
+    val uiVaultNotInitialized: String
+    val uiServers: String
+    val uiMyServers: String
+    val uiMonitoringIntro: String
+    val uiMonitoring: String
+    val uiTools: String
+    val uiServerIntro: String
+    val uiToolsIntro: String
+    val uiPathTools: String
+    val uiNetworkTools: String
+    val uiMoreTools: String
+    val uiServerTools: String
+    val uiScopedTools: String
+    val uiResources: String
+    val uiAdvanced: String
+    val uiAppearance: String
+    val uiPreferences: String
+    val uiDataSafety: String
+    val uiSecuritySettings: String
+    val uiComparison: String
+    val uiComparisonHint: String
+    val uiServerToolsHint: String
+    val uiUnknown: String
+    val uiSourceSelection: String
+    val uiReadyScan: String
+    val uiName: String
+    val uiUser: String
+    val uiSshPassword: String
+    val uiCommand: String
+    val uiInput: String
+    val uiManualFields: String
+    val uiNoData: String
+
     val observe: String
     val fleet: String
     val operate: String
@@ -248,8 +302,6 @@ interface CommandCopy {
     val servers: String
     val fleetAll: String
     val fleetSummary: String
-    val fleetLiveAlerts: String
-    val fleetAlertsHint: String
     val fleetDetails: String
     val fleetNoMatches: String
     val fleetClearFilters: String
@@ -322,7 +374,6 @@ interface CommandCopy {
     val selectServer: String
     val back: String
     val close: String
-    val openExistingTool: String
     val language: String
     val theme: String
     val light: String
@@ -391,7 +442,6 @@ interface CommandCopy {
     val scannerEditList: String
     val scannerSnapshot: String
     val cfScannerBody: String
-    val cfSource: String
     val cfRandom: String
     val cfCustomList: String
     val cfCustomListHint: String
@@ -512,8 +562,6 @@ interface CommandCopy {
     val svcRawSsh: String
     val setPollIntervalSec: String
     val setResetVault: String
-    val shellSentinelConsole: String
-    val shellLiveState: String
     val monitorDetails: String
     val monitorTitle: String
     val monitorOff: String
@@ -779,10 +827,6 @@ interface CommandCopy {
     val svcConfirmTitle: String
     val svcConfirmBody: String
     val cancel: String
-    val hubObserveBody: String
-    val hubFileTransfer: String
-    val hubInspectGenerate: String
-    val hubDevTools: String
     val hubProtectBody: String
     val hubSecretTrust: String
     val hubAlertDelivery: String
@@ -841,19 +885,51 @@ interface CommandCopy {
 
 /** Persian (default). */
 internal object CommandCopyFa : CommandCopy {
+    override val uiVaultInitialized = "راه‌اندازی شده"
+    override val uiVaultNotInitialized = "راه‌اندازی نشده"
+    override val uiServers = "سرورها"
+    override val uiMyServers = "سرورهای من"
+    override val uiMonitoringIntro = "وضعیت سایت‌ها و سرویس‌ها را بررسی کن و دسترسی را از گوشی و سرورها مقایسه کن."
+    override val uiMonitoring = "پایش"
+    override val uiTools = "ابزارها"
+    override val uiServerIntro = "همهٔ سرورها، یک جای مشخص."
+    override val uiToolsIntro = "ابزار مناسب را برای کاری که داری انتخاب کن."
+    override val uiPathTools = "پیداکردن مسیر مناسب"
+    override val uiNetworkTools = "عیب‌یابی شبکه"
+    override val uiMoreTools = "ابزارهای تخصصی"
+    override val uiServerTools = "مدیریت این سرور"
+    override val uiScopedTools = "همهٔ ابزارهای زیر برای «%1» هستند."
+    override val uiResources = "وضعیت منابع"
+    override val uiAdvanced = "تنظیمات پیشرفته"
+    override val uiAppearance = "ظاهر و زبان"
+    override val uiPreferences = "تنظیمات برنامه"
+    override val uiDataSafety = "هشدار و نگهداری اطلاعات"
+    override val uiSecuritySettings = "امنیت برنامه"
+    override val uiComparison = "مقایسهٔ دسترسی از سرورها"
+    override val uiComparisonHint = "نتیجهٔ یک مقصد را از گوشی و سرورهای خودت مقایسه کن."
+    override val uiServerToolsHint = "Docker، SSH و فایل‌ها را از جزئیات سرور موردنظر باز کن."
+    override val uiUnknown = "بررسی نشده"
+    override val uiSourceSelection = "چه آدرس‌هایی بررسی شوند؟"
+    override val uiReadyScan = "فهرست را انتخاب کن و شروع را بزن؛ نتیجه‌ها همین‌جا نمایش داده می‌شوند."
+    override val uiName = "نام"
+    override val uiUser = "نام کاربری SSH"
+    override val uiSshPassword = "رمز SSH"
+    override val uiCommand = "فرمان"
+    override val uiInput = "ورودی"
+    override val uiManualFields = "ورود دستی اطلاعات اتصال"
+    override val uiNoData = "هنوز داده‌ای نداریم"
+
     override val observe = "پایش"
     override val fleet = "ناوگان"
     override val operate = "عملیات"
     override val diagnose = "تشخیص"
-    override val workbench = "کارگاه"
+    override val workbench = "ابزارها"
     override val protect = "حفاظت"
     override val overview = "نمای کلی"
     override val incidents = "رخدادها"
     override val servers = "سرورها"
     override val fleetAll = "همه"
     override val fleetSummary = "وضعیت زنده و کنترل سرورها در یک‌جا"
-    override val fleetLiveAlerts = "هشدارهای فعلی"
-    override val fleetAlertsHint = "برای بررسی و اقدام، روی سرور بزنید؛ این فهرست تاریخچهٔ رخدادها نیست."
     override val fleetDetails = "جزئیات سرور"
     override val fleetNoMatches = "سروری با این جست‌وجو یا فیلتر پیدا نشد."
     override val fleetClearFilters = "پاک کردن جست‌وجو و فیلتر"
@@ -873,19 +949,19 @@ internal object CommandCopyFa : CommandCopy {
     override val docker = "Docker"
     override val processes = "پردازش‌ها"
     override val services = "سرویس‌ها"
-    override val radar = "Radar سرور"
-    override val uptime = "پایش دسترس‌پذیری"
+    override val radar = "رادار و مقایسهٔ دسترسی"
+    override val uptime = "پایش سایت و سرویس"
     override val networkTools = "ابزارهای شبکه"
     override val dns = "DNS و Cloudflare"
     override val ssh = "SSH"
     override val batch = "اجرای گروهی"
-    override val sftp = "SFTP"
+    override val sftp = "فایل‌ها (SFTP)"
     override val singlePort = "Single-Port"
     override val proxy = "Proxy Inspector"
     override val developerLab = "Developer Lab"
-    override val vault = "Vault"
+    override val vault = "خزانه (Vault)"
     override val alerts = "کانال‌های هشدار"
-    override val backup = "Backup و Restore"
+    override val backup = "پشتیبان‌گیری و بازیابی"
     override val settings = "تنظیمات"
     override val allSystems = "همهٔ سامانه‌ها"
     override val sync = "همگام‌سازی"
@@ -902,14 +978,14 @@ internal object CommandCopyFa : CommandCopy {
     override val refreshPending = "بدون پاسخ"
     override val addServer = "افزودن سرور"
     override val addTunnel = "افزودن تونل"
-    override val addMonitor = "افزودن Monitor"
+    override val addMonitor = "افزودن مقصد"
     override val attention = "نیازمند توجه"
     override val healthy = "سالم"
     override val offline = "آفلاین"
     override val waitingForData = "در انتظار دادهٔ واقعی"
     override val noServersTitle = "هنوز سروری متصل نیست"
     override val noServersBody = "برای شروع، یک Agent واقعی را به ناوگان اضافه کنید. دادهٔ نمونه نمایش داده نمی‌شود."
-    override val openServer = "باز کردن پرونده"
+    override val openServer = "جزئیات و مدیریت"
     override val activeAttention = "صف انتظار عملیات"
     override val noAttention = "مورد فوری وجود ندارد"
     override val noAttentionBody = "در دادهٔ فعلی، وضعیت نیازمند توجهی از Agentها دریافت نشده است."
@@ -926,7 +1002,6 @@ internal object CommandCopyFa : CommandCopy {
     override val selectServer = "انتخاب سرور"
     override val back = "بازگشت"
     override val close = "بستن"
-    override val openExistingTool = "باز کردن قابلیت موجود"
     override val language = "زبان"
     override val theme = "تم"
     override val light = "روشن"
@@ -994,8 +1069,7 @@ internal object CommandCopyFa : CommandCopy {
     override val scannerChooseRange = "حداقل یک رنج انتخاب کنید."
     override val scannerEditList = "کپی در فهرست شخصی"
     override val scannerSnapshot = "فهرست داخلی: %1؛ بدون به‌روزرسانی خودکار"
-    override val cfScannerBody = "کدام لبهٔ کلودفلر از شبکهٔ شما واقعاً TLS را کامل می‌کند و به /cdn-cgi/trace پاسخ می‌دهد."
-    override val cfSource = "منبع آدرس‌ها"
+    override val cfScannerBody = "IPهای کلودفلر را روی اینترنت فعلی‌ات آزمایش کن؛ نتیجه روی شبکه‌های دیگر ممکن است متفاوت باشد."
     override val cfRandom = "رنج‌های آمادهٔ کلودفلر"
     override val cfCustomList = "فهرست دلخواه"
     override val cfCustomListHint = "هر خط یک IP یا CIDR؛ # برای توضیح"
@@ -1116,8 +1190,6 @@ internal object CommandCopyFa : CommandCopy {
     override val svcRawSsh = "نتیجهٔ خام SSH"
     override val setPollIntervalSec = "فاصلهٔ polling (ثانیه)"
     override val setResetVault = "بازنشانی Vault"
-    override val shellSentinelConsole = "کنسول دیدبانی"
-    override val shellLiveState = "وضعیت زنده"
     override val monitorDetails = "نکات اجرا و توقف"
     override val monitorTitle = "پایش خودکار"
     override val monitorOff = "پایش خودکار خاموش است"
@@ -1141,8 +1213,8 @@ internal object CommandCopyFa : CommandCopy {
     override val monitorSettingsError = "تنظیمات اعلان باز نشد؛ از تنظیمات اندروید، برنامهٔ دیدبان را باز کنید."
     override val upNewMonitor = "پایش جدید"
     override val upSavedMonitors = "پایش‌های ذخیره‌شده"
-    override val upMonitorContract = "قرارداد پایش"
-    override val upProbeType = "نوع probe"
+    override val upMonitorContract = "چه چیزی بررسی شود؟"
+    override val upProbeType = "نوع بررسی"
     override val upTargetUrlHost = "هدف / نشانی / میزبان"
     override val upIntervalSeconds = "فاصله (ثانیه)"
     override val upKeywordHint = "کلیدواژه، فقط برای KEYWORD"
@@ -1234,8 +1306,8 @@ internal object CommandCopyFa : CommandCopy {
     override val dnsDeleteBody = "%1 %2 حذف واقعی از Cloudflare خواهد شد."
     override val setPollRange = "Poll interval باید بین ۵ تا ۳۶۰۰ ثانیه باشد."
     override val setPollSaved = "Poll interval ذخیره شد؛ از Poll بعدی اعمال می‌شود."
-    override val setBody = "کنترل رفتار، مشاهده‌پذیری و سطح اعتماد دستگاه"
-    override val setAppearanceBody = "تغییرات این بخش بلافاصله در Shell اعمال می‌شوند."
+    override val setBody = "زبان، ظاهر، پایش و امنیت برنامه را از اینجا تنظیم کن."
+    override val setAppearanceBody = "تغییرات ظاهر و زبان بلافاصله اعمال می‌شوند."
     override val setPollBody = "فاصلهٔ درخواست‌های واقعی Agent و محدودیت‌های آن."
     override val setScreenshotProtection = "جلوگیری از اسکرین‌شات در صفحه‌های حساس"
     override val setScreenshotProtectionHint = "پیش‌فرض خاموش است؛ می‌توانید اسکرین‌شات بگیرید. با روشن‌کردن، ثبت تصویر و پیش‌نمایش برنامه‌های اخیر برای صفحه‌های حساس مسدود می‌شود. توکن‌ها و رمزها همچنان پوشیده‌اند؛ پیش از اشتراک‌گذاری تصویر، اطلاعات حساس را بررسی کنید."
@@ -1366,7 +1438,7 @@ internal object CommandCopyFa : CommandCopy {
     override val upDeleteBody = "%1 و heartbeat/incidentهای محلی آن حذف می‌شوند."
     override val upDeleted = "Monitor حذف شد."
     override val and = "و"
-    override val serversSearchPlaceholder = "جستجوی نام یا Host"
+    override val serversSearchPlaceholder = "جست‌وجوی نام یا آدرس"
     override val tunnelsBody = "ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد."
     override val devLabBody = "این ابزار هیچ input ساختگی مصرف نمی‌کند؛ خروجی با SecureRandom و UUID واقعی تولید می‌شود."
     override val vaultConfigUnparseable = "Config قابل parse نیست"
@@ -1383,10 +1455,6 @@ internal object CommandCopyFa : CommandCopy {
     override val svcConfirmTitle = "تأیید %1 روی %2"
     override val svcConfirmBody = "این عملیات مستقیماً روی سرویس واقعی سرور اجرا می‌شود. خروجی خام SSH بعد از اجرا نمایش داده خواهد شد."
     override val cancel = "لغو"
-    override val hubObserveBody = "از سؤال عملیاتی شروع کنید؛ ابزار فقط در Context لازم باز می‌شود."
-    override val hubFileTransfer = "انتقال فایل"
-    override val hubInspectGenerate = "بررسی و تولید"
-    override val hubDevTools = "ابزارهای توسعه"
     override val hubProtectBody = "اطلاعات حساس، اعلان‌ها و بازیابی داده در یک فضای جدا از عملیات عادی."
     override val hubSecretTrust = "Secret و Trust"
     override val hubAlertDelivery = "تحویل هشدار"
@@ -1438,19 +1506,51 @@ internal object CommandCopyFa : CommandCopy {
 
 /** English. Every key is stated explicitly — nothing is inherited. */
 internal object CommandCopyEn : CommandCopy {
+    override val uiVaultInitialized = "Initialized"
+    override val uiVaultNotInitialized = "Not initialized"
+    override val uiServers = "Servers"
+    override val uiMyServers = "My servers"
+    override val uiMonitoringIntro = "Monitor your sites and services, and compare access from your phone and servers."
+    override val uiMonitoring = "Monitoring"
+    override val uiTools = "Tools"
+    override val uiServerIntro = "All your servers in one place."
+    override val uiToolsIntro = "Choose the right tool for your task."
+    override val uiPathTools = "Find a connection"
+    override val uiNetworkTools = "Troubleshoot the network"
+    override val uiMoreTools = "Advanced utilities"
+    override val uiServerTools = "Manage this server"
+    override val uiScopedTools = "All tools below act on “%1”."
+    override val uiResources = "Resource usage"
+    override val uiAdvanced = "Advanced settings"
+    override val uiAppearance = "Appearance and language"
+    override val uiPreferences = "App preferences"
+    override val uiDataSafety = "Alerts and data"
+    override val uiSecuritySettings = "App security"
+    override val uiComparison = "Compare access from servers"
+    override val uiComparisonHint = "Compare a target from your phone and your own servers."
+    override val uiServerToolsHint = "Open Docker, SSH and files from the relevant server’s details."
+    override val uiUnknown = "Not checked"
+    override val uiSourceSelection = "Which addresses should be checked?"
+    override val uiReadyScan = "Choose a list and start. Results will appear here."
+    override val uiName = "Name"
+    override val uiUser = "SSH username"
+    override val uiSshPassword = "SSH password"
+    override val uiCommand = "Command"
+    override val uiInput = "Input"
+    override val uiManualFields = "Enter connection details manually"
+    override val uiNoData = "No measurements yet"
+
     override val observe = "Observe"
     override val fleet = "Fleet"
     override val operate = "Operate"
     override val diagnose = "Diagnose"
-    override val workbench = "Workbench"
+    override val workbench = "Tools"
     override val protect = "Protect"
     override val overview = "Overview"
     override val incidents = "Incidents"
     override val servers = "Servers"
     override val fleetAll = "All"
     override val fleetSummary = "Live health and server controls in one place"
-    override val fleetLiveAlerts = "Current alerts"
-    override val fleetAlertsHint = "Select a server to investigate. These are current conditions, not an event history."
     override val fleetDetails = "Server details"
     override val fleetNoMatches = "No servers match this search or filter."
     override val fleetClearFilters = "Clear search and filter"
@@ -1506,7 +1606,7 @@ internal object CommandCopyEn : CommandCopy {
     override val waitingForData = "Waiting for real data"
     override val noServersTitle = "No server is connected yet"
     override val noServersBody = "Connect a real Agent to begin. Sample data is never shown."
-    override val openServer = "Open dossier"
+    override val openServer = "Details and tools"
     override val activeAttention = "Operations queue"
     override val noAttention = "Nothing needs attention"
     override val noAttentionBody = "No abnormal state has been reported by the current Agents."
@@ -1523,7 +1623,6 @@ internal object CommandCopyEn : CommandCopy {
     override val selectServer = "Select server"
     override val back = "Back"
     override val close = "Close"
-    override val openExistingTool = "Open existing capability"
     override val language = "Language"
     override val theme = "Theme"
     override val light = "Light"
@@ -1591,8 +1690,7 @@ internal object CommandCopyEn : CommandCopy {
     override val scannerChooseRange = "Select at least one range."
     override val scannerEditList = "Copy to custom list"
     override val scannerSnapshot = "Bundled list: %1; no automatic updates"
-    override val cfScannerBody = "Which Cloudflare edges actually complete TLS and answer /cdn-cgi/trace from your network."
-    override val cfSource = "Address source"
+    override val cfScannerBody = "Test Cloudflare IPs on your current connection. Results may differ on other networks."
     override val cfRandom = "Cloudflare range presets"
     override val cfCustomList = "Custom list"
     override val cfCustomListHint = "One IP or CIDR per line; # for a comment"
@@ -1713,8 +1811,6 @@ internal object CommandCopyEn : CommandCopy {
     override val svcRawSsh = "raw SSH result"
     override val setPollIntervalSec = "Poll interval (seconds)"
     override val setResetVault = "Reset Vault"
-    override val shellSentinelConsole = "SENTINEL CONSOLE"
-    override val shellLiveState = "LIVE STATE"
     override val monitorDetails = "Running and stopping tips"
     override val monitorTitle = "Automatic monitoring"
     override val monitorOff = "Automatic monitoring is off"
@@ -1832,7 +1928,7 @@ internal object CommandCopyEn : CommandCopy {
     override val setPollRange = "Poll interval must be between 5 and 3600 seconds."
     override val setPollSaved = "Poll interval saved; it applies from the next poll."
     override val setBody = "Controls behaviour, observability and this device's trust level."
-    override val setAppearanceBody = "Changes in this section apply to the shell immediately."
+    override val setAppearanceBody = "Appearance and language changes apply immediately."
     override val setPollBody = "The real agent request interval and its limits."
     override val setScreenshotProtection = "Block screenshots on sensitive screens"
     override val setScreenshotProtectionHint = "Off by default: screenshots are allowed. Turn on to block capture and Recent Apps previews on sensitive screens. Tokens and passwords stay masked; check for sensitive content before sharing images."
@@ -1980,10 +2076,6 @@ internal object CommandCopyEn : CommandCopy {
     override val svcConfirmTitle = "Confirm %1 on %2"
     override val svcConfirmBody = "This runs directly on the server's real service. The raw SSH output is shown after it completes."
     override val cancel = "Cancel"
-    override val hubObserveBody = "Start from an operational question; tools open only in the context that needs them."
-    override val hubFileTransfer = "File transfer"
-    override val hubInspectGenerate = "Inspect & generate"
-    override val hubDevTools = "Developer tools"
     override val hubProtectBody = "Secrets, alerts and data recovery live in a space separate from routine operations."
     override val hubSecretTrust = "Secrets & trust"
     override val hubAlertDelivery = "Alert delivery"

@@ -6,6 +6,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.runtime.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -61,7 +62,8 @@ internal fun CommandServerEditor(
     copy: CommandCopy,
     serverId: Long?,
     onSaved: (ServerConfig) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    embedded: Boolean = false
 ) {
     var helpVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -152,11 +154,10 @@ internal fun CommandServerEditor(
         } catch (_: Exception) { error = copy.srvQuickConnectInvalid }
     }
 
-    Dialog(onDismissRequest = ::requestClose, properties = DialogProperties(
-        usePlatformDefaultWidth = false, securePolicy = screenshotDialogPolicy(protectScreenshots)
-    )) {
+    BackHandler(enabled = embedded && !helpVisible && !discard, onBack = ::requestClose)
+    val editor: @Composable () -> Unit = {
         SecureWindowEffect()
-        Surface(Modifier.widthIn(max = 680.dp).fillMaxWidth().fillMaxHeight(0.94f),
+        Surface(if (embedded) Modifier.fillMaxSize() else Modifier.widthIn(max = 680.dp).fillMaxWidth().fillMaxHeight(0.94f),
             color = CommandColors.canvas, shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
             Column(Modifier.imePadding().padding(CommandSpacing.md)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,6 +187,7 @@ internal fun CommandServerEditor(
                                 enabled = !busy && draft.quickConnect.isNotBlank()
                             )
                         }
+                        item { CommandSectionTitle(copy.uiManualFields) }
                         item { OutlinedTextField(draft.name, { input -> change { current -> current.copy(name = input) } }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.fleetName) }) }
                         item { OutlinedTextField(draft.host, { input -> change { current -> current.copy(host = input) } }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.srvAgentHost) }) }
                         item { OutlinedTextField(draft.port, { input -> change { current -> current.copy(port = input.filter(Char::isDigit).take(5)) } }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.port) }) }
@@ -212,6 +214,9 @@ internal fun CommandServerEditor(
             }
         }
     }
+    if (embedded) editor() else Dialog(onDismissRequest = ::requestClose, properties = DialogProperties(
+        usePlatformDefaultWidth = false, securePolicy = screenshotDialogPolicy(protectScreenshots)
+    )) { editor() }
     if (helpVisible) CommandHelpDialog(CommandRoute.MANAGE_SERVERS, language, copy) { helpVisible = false }
     if (discard) AlertDialog(
         onDismissRequest = { discard = false },

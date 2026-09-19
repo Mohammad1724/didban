@@ -261,8 +261,8 @@ fun CommandManageServersScreen(
                         CommandRule()
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(name, { name = it }, Modifier.weight(1f), singleLine = true, label = { Text("Name") })
-                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                        OutlinedTextField(name, { name = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiName) })
+                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                     }
                     OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
                     OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())

@@ -123,10 +123,10 @@ fun CommandSshScreen(
                             }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(user, { user = it }, modifier = Modifier.weight(1f), singleLine = true, label = { Text("User") })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, modifier = Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                            OutlinedTextField(user, { user = it }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, modifier = Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                         }
-                        OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("SSH Password") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                        OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     }
                 }
             }
@@ -134,7 +134,7 @@ fun CommandSshScreen(
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Text("Input", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, label = { Text("Command") })
+                        OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, label = { Text(copy.uiCommand) })
                         CommandPrimaryButton(if (running) copy.waitingForData else copy.run, ::execute, enabled = !running && server != null, icon = Icons.Rounded.PlayArrow)
                     }
                 }
@@ -222,7 +222,7 @@ fun CommandBatchScreen(
                         }
                     }
                     OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.batchSharedPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                    OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 2, label = { Text("Command") })
+                    OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 2, label = { Text(copy.uiCommand) })
                     CommandPrimaryButton(if (running) copy.waitingForData else copy.run, ::runBatch, enabled = !running, icon = Icons.Rounded.Bolt)
                 }
             }

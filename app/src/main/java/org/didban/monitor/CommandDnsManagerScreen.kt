@@ -220,7 +220,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                             listOf("A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA").forEach { candidate -> CommandSecondaryButton(candidate, { recordType = candidate }, enabled = recordType != candidate) }
                         }
-                        OutlinedTextField(recordName, { recordName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("Name") })
+                        OutlinedTextField(recordName, { recordName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiName) })
                         OutlinedTextField(recordContent, { recordContent = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text("Content") })
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, Modifier.width(130.dp), singleLine = true, label = { Text("TTL") })

@@ -111,7 +111,7 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtInputTransform, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     if (selected != "Generator") {
-                        OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text("Input") })
+                        OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.uiInput) })
                     } else {
                         Text(copy.devLabBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
@@ -398,10 +398,10 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                             servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f)) }
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text("User") })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text("Port") })
+                            OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                         }
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text("SSH Password") }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                             OutlinedTextField(path, { path = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRemotePath) })
                             CommandPrimaryButton(if (loading) copy.waitingForData else copy.refresh, ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)

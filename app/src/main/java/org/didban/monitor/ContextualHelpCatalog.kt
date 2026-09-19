@@ -54,13 +54,13 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "«افزودن سرور» را بزنید؛ اگر اولین بار است راهنمای همان فرم را باز کنید و Agent را روی سرور نصب کنید.",
                 "خط didban:// خروجی نصب را در «کد اتصال فوری» بچسبانید و دکمهٔ واردکردن را بزنید؛ یا اطلاعات را دستی وارد کنید.",
                 "نام دلخواه بگذارید، «آزمایش Agent» را بزنید و نتیجه را بررسی کنید؛ سپس ذخیره کنید.",
-                "روی کارت سرور بزنید؛ از جزئیاتش Docker، رادار یا ابزار موردنظر را باز کنید.",
+                "روی کارت سرور بزنید؛ از جزئیاتش Docker، SSH یا ابزار موردنظر را باز کنید. رادار در بخش پایش است.",
             ),
             listOf(
                 "Tap Add server. On first use, open the form’s guide and install the Agent on your server.",
                 "Paste the installer’s didban:// line into Quick-connect code and press the import button, or fill in the fields manually.",
                 "Choose a name, use Test Agent and review the result, then save.",
-                "Open the server card, then choose Docker, Radar or another tool from its details.",
+                "Open the server card, then choose Docker, SSH or another tool from its details. Find Radar in Monitoring.",
             ),
             "نوسازی، داده‌ها را دوباره می‌گیرد. ویرایش و حذف از جزئیات همان سرور انجام می‌شود؛ لازم نیست برای هر ابزار سرور را دوباره بسازید.",
             "Refresh fetches data again. Edit or delete from server details; do not re-add a server for each tool.",
@@ -299,7 +299,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "یعنی برنامه مرتب بپرسد «سایت یا سرویس من جواب می‌دهد؟» تا قطع‌شدن و برگشتن آن را بفهمید. مثلاً هر ۳۰ ثانیه پنلتان بررسی شود؛ این با اندازه‌گیری CPU و رم فرق دارد.",
             "Keep asking “Does my site or service respond?” to notice outages and recovery. For example, check your panel every 30 seconds. This differs from CPU and memory monitoring.",
             listOf(
-                "«افزودن مانیتور» را بزنید؛ مانیتور یعنی یک مقصد همراه با برنامهٔ بررسی آن.",
+                "«افزودن مقصد» را بزنید؛ مانیتور یعنی یک مقصد همراه با برنامهٔ بررسی آن.",
                 "برای سایت HTTP/HTTPS، برای اتصال به پورت TCP، برای متن داخل صفحه KEYWORD و برای گواهی HTTPS گزینهٔ SSL را انتخاب کنید.",
                 "نام، آدرس و فاصلهٔ بررسی را وارد کنید؛ مثلاً نام «پنل من»، نشانی واقعی پنلتان و فاصلهٔ ۳۰ ثانیه.",
                 "ذخیره کنید و «آزمایش اکنون» را بزنید. ذخیره به‌تنهایی بررسی دوره‌ای را شروع نمی‌کند؛ به صفحهٔ پایش برگردید و در کارت «پایش خودکار» دکمهٔ «شروع پایش» را بزنید. وضعیت روشن فقط پس از راه‌اندازی سرویس نمایش داده می‌شود.",
@@ -418,17 +418,17 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "The token is secret. Verify the domain and record and keep the old value before editing or deleting; mistakes may break a site or email."
         )
         CommandRoute.WORKBENCH_HOME -> h(
-            "محل ابزارهای کار مستقیم با سرور و تنظیمات است؛ برای اجرای فرمان، ویرایش فایل یا ساخت تنظیمات شبکه، نه فقط دیدن وضعیت.",
-            "Tools for working directly with servers and configurations: running commands, editing files and generating network configuration, not just viewing status.",
+            "محل اسکنرها و ابزارهای مستقل شبکه است: یافتن IP و SNI، عیب‌یابی اتصال و ساخت تنظیمات. ابزارهای مدیریت یک سرور در جزئیات همان سرور هستند.",
+            "Independent scanners and network utilities: find IP and SNI candidates, diagnose connectivity and generate configuration. Manage a specific server from its details.",
             listOf(
-                "برای اجرای یک فرمان روی یک سرور SSH و برای چند سرور Batch را باز کنید.",
-                "برای دیدن و ویرایش فایل متنی سرور SFTP را انتخاب کنید.",
+                "برای اسکن IP یا SNI، ابزار مربوط را باز کنید؛ فهرست آماده را انتخاب و شروع را بزنید.",
+                "برای کار روی یک سرور، به سرورها ← جزئیات بروید. اجرای گروهی برای چند سرور در ابزارهاست.",
                 "برای ساخت تنظیمات چند سرویس روی یک پورت، تک‌پورت را باز کنید؛ برای بررسی لینک اتصال، Proxy را انتخاب کنید.",
                 "قبل از هر عملیات، راهنمای همان ابزار و پیش‌نیازهایش را بخوانید.",
             ),
             listOf(
-                "Use SSH for commands on one server and Batch for several servers.",
-                "Use SFTP to browse and edit remote text files.",
+                "For IP or SNI scanning, open the scanner, choose a ready list and start.",
+                "For a single server, go to Servers → details. Batch operations across servers remain in Tools.",
                 "Use Single port to generate shared-port routing configuration, or Proxy to inspect connection links.",
                 "Read each tool’s guide and prerequisites before operating.",
             ),
@@ -670,12 +670,14 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "Adjust app language, appearance, polling interval and security options, rather than server operating-system settings.",
             listOf(
                 "فارسی یا English و حالت روشن، تیره یا خودکار را انتخاب کنید.",
+                "هشدارها، خزانه و پشتیبان‌گیری را از همین بخش باز کنید.",
                 "فاصلهٔ دریافت اطلاعات سرورها را به ثانیه وارد و ذخیره کنید؛ برای شروع مقدار پیش‌فرض را نگه دارید.",
                 "اگر می‌خواهید عکس و ضبط صفحه محدود شود، محافظت تصویری را آگاهانه فعال کنید؛ پیش‌فرض خاموش است.",
                 "بازنشانی خزانه یا پاک‌کردن اعتماد SSH را فقط پس از خواندن هشدار و داشتن اطلاعات لازم تأیید کنید.",
             ),
             listOf(
                 "Choose Persian or English and light, dark or automatic appearance.",
+                "Open Alerts, Vault and Backup from this section.",
                 "Enter and save the server polling interval in seconds; keep the default initially.",
                 "Enable capture protection if you want to restrict screenshots and screen recording; it is off by default.",
                 "Reset Vault or clear SSH trust only after reading the warning and keeping the information you need.",

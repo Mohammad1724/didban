@@ -47,8 +47,6 @@ internal fun CommandServerHub(
     val selected = servers.firstOrNull { it.id == destination.serverId }
     val filter = FleetFilter.values().firstOrNull { it.name == filterKey } ?: FleetFilter.ALL
     val visible = remember(servers, states, query, filter, now) { visibleFleet(servers, states, query, filter, now) }
-    val health = servers.associate { it.id to fleetHealth(it, states[it.id], now) }
-    val alerts = servers.filter { health[it.id] == FleetHealth.OFFLINE || health[it.id] == FleetHealth.ATTENTION }
     val refreshScope = refreshState.targets.singleOrNull()?.let { id -> servers.firstOrNull { it.id == id }?.name } ?: copy.allSystems
 
     LaunchedEffect(Unit) { while (true) { delay(15_000); now = System.currentTimeMillis() } }
@@ -79,90 +77,54 @@ internal fun CommandServerHub(
         }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val split = maxWidth >= 840.dp
-        val showDetails = destination.serverPane == ServerPane.DETAILS
-        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
-            LazyColumn(Modifier.weight(1f).fillMaxHeight(),
-                contentPadding = PaddingValues(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm),
-                verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                item(key = "summary") {
-                    Text(copy.servers, style = MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
-                    Text(copy.fleetSummary, style = MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
-                    Spacer(Modifier.height(CommandSpacing.sm))
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                        CommandPrimaryButton(copy.addServer, { onEdit(null) }, enabled = !loadFailed)
-                        CommandRefreshButton(copy, refreshState.running, { refresh() }, enabled = !loadFailed)
-                        CommandHelpButton(Prefs.getLanguage(context), onHelp)
-                    }
-                    if (!loadFailed) {
-                        Text("${servers.size} ${copy.servers} · ${health.values.count { it == FleetHealth.HEALTHY }} ${copy.healthy} · " +
-                            "${health.values.count { it == FleetHealth.OFFLINE }} ${copy.offline} · " +
-                            "${health.values.count { it == FleetHealth.ATTENTION }} ${copy.attention} · ${health.values.count { it == FleetHealth.UNKNOWN }} ${copy.unknownState}",
-                            color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(vertical = CommandSpacing.sm))
-                        CommandRefreshFeedback(copy, refreshState, refreshScope)
-                    }
+    when {
+        destination.serverPane.editing -> CommandServerEditor(copy,
+            if (destination.serverPane == ServerPane.ADD) null else destination.serverId,
+            onSaved, onClosePane, embedded = true)
+        destination.serverPane == ServerPane.DETAILS -> details(Modifier.fillMaxSize())
+        else -> LazyColumn(Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item(key = "summary") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(copy.uiMyServers, Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
+                    CommandHelpButton(Prefs.getLanguage(context), onHelp)
                 }
-                if (loadFailed) item(key = "load-error") {
-                    CommandStateBlock(copy.operationFailed,
-                        securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_READ_FAILED),
-                        CommandHealthTone.OFFLINE, copy.retry, onReload)
-                } else {
-                    if (alerts.isNotEmpty()) item(key = "alerts") {
-                        CommandSurface(Modifier.fillMaxWidth(), raised = true) {
-                            Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                                Text("${copy.fleetLiveAlerts} · ${alerts.size}", color = CommandColors.warning, style = MaterialTheme.typography.titleSmall)
-                                Text(copy.fleetAlertsHint, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
-                                alerts.sortedBy { health[it.id]?.ordinal }.take(3).forEach { server ->
-                                    Row(Modifier.fillMaxWidth().clickable { onOpenServer(server) }.padding(vertical = 10.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                        Text(server.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, color = CommandColors.textPrimary)
-                                        Text(health.getValue(server.id).label(copy), color = CommandColors.warning, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                                CommandTextButton("${copy.attention} (${alerts.size})", { query = ""; filterKey = FleetFilter.ATTENTION.name })
-                            }
-                        }
-                    }
-                    if (servers.isEmpty()) item(key = "empty") {
-                        CommandEmptyState(copy.noServersTitle, copy.noServersBody, copy.addServer, { onEdit(null) })
-                    } else {
-                        item(key = "filters") {
-                            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                                label = { Text(copy.serversSearchPlaceholder) })
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                listOf(FleetFilter.ALL to copy.fleetAll, FleetFilter.OFFLINE to copy.offline, FleetFilter.ATTENTION to copy.attention).forEach { (value, label) ->
-                                    FilterChip(selected = filter == value, onClick = { filterKey = value.name }, label = { Text(label) })
-                                }
-                            }
-                            Text("${visible.size}/${servers.size} ${copy.servers}", color = CommandColors.textTertiary, style = MaterialTheme.typography.labelSmall)
-                        }
-                        if (visible.isEmpty()) item(key = "no-matches") {
-                            CommandEmptyState(copy.fleetNoMatches, copy.fleetSummary, copy.fleetClearFilters,
-                                { query = ""; filterKey = FleetFilter.ALL.name })
-                        }
-                        items(visible, key = { "server-${it.id}" }) { server ->
-                            CommandServerCard(copy, server, states[server.id], now, server.id == destination.serverId) { onOpenServer(server) }
-                        }
-                    }
+                Text(copy.uiServerIntro, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(12.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CommandPrimaryButton(copy.addServer, { onEdit(null) }, enabled = !loadFailed)
+                    CommandRefreshButton(copy, refreshState.running, { refresh() }, enabled = !loadFailed)
                 }
-                item { Spacer(Modifier.height(CommandSpacing.lg)) }
+                if (!loadFailed) CommandRefreshFeedback(copy, refreshState, refreshScope)
             }
-            if (split && showDetails) {
-                CommandSurface(Modifier.weight(1f).fillMaxHeight()) { details(Modifier.fillMaxSize()) }
+            if (loadFailed) item(key = "load-error") {
+                CommandStateBlock(copy.operationFailed,
+                    securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_READ_FAILED),
+                    CommandHealthTone.OFFLINE, copy.retry, onReload)
+            } else if (servers.isEmpty()) item(key = "empty") {
+                CommandEmptyState(copy.noServersTitle, copy.noServersBody, copy.addServer, { onEdit(null) })
+            } else {
+                item(key = "filters") {
+                    OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
+                        label = { Text(copy.serversSearchPlaceholder) }, shape = RoundedCornerShape(12.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(FleetFilter.ALL to copy.fleetAll, FleetFilter.OFFLINE to copy.offline,
+                            FleetFilter.ATTENTION to copy.attention, FleetFilter.UNKNOWN to copy.uiUnknown).forEach { (value, label) ->
+                            FilterChip(selected = filter == value, onClick = { filterKey = value.name }, label = { Text(label) })
+                        }
+                    }
+                    Text("${visible.size}/${servers.size} ${copy.servers}", color = CommandColors.textSecondary, style = MaterialTheme.typography.labelMedium)
+                }
+                if (visible.isEmpty()) item(key = "no-matches") {
+                    CommandEmptyState(copy.fleetNoMatches, copy.fleetSummary, copy.fleetClearFilters,
+                        { query = ""; filterKey = FleetFilter.ALL.name })
+                }
+                items(visible, key = { "server-${it.id}" }) { server ->
+                    CommandServerCard(copy, server, states[server.id], now, false) { onOpenServer(server) }
+                }
             }
+            item { Spacer(Modifier.height(16.dp)) }
         }
-        if (!split && showDetails) {
-            ModalBottomSheet(onDismissRequest = onClosePane,
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = CommandColors.canvas) {
-                details(Modifier.fillMaxWidth().fillMaxHeight(0.92f))
-            }
-        }
-    }
-    if (destination.serverPane.editing) {
-        CommandServerEditor(copy, if (destination.serverPane == ServerPane.ADD) null else destination.serverId, onSaved, onClosePane)
     }
     deleteTarget?.let { expected ->
         AlertDialog(
@@ -197,7 +159,7 @@ private fun FleetHealth.label(copy: CommandCopy): String = when (this) {
     FleetHealth.HEALTHY -> copy.healthy
     FleetHealth.OFFLINE -> copy.offline
     FleetHealth.ATTENTION -> copy.attention
-    FleetHealth.UNKNOWN -> copy.waitingForData
+    FleetHealth.UNKNOWN -> copy.uiUnknown
 }
 private fun FleetHealth.tone(): CommandHealthTone = when (this) {
     FleetHealth.HEALTHY -> CommandHealthTone.HEALTHY
@@ -209,7 +171,7 @@ private fun FleetHealth.tone(): CommandHealthTone = when (this) {
 @Composable
 private fun CommandServerCard(copy: CommandCopy, server: ServerConfig, state: Repo.State?, now: Long, selected: Boolean, onClick: () -> Unit) {
     val health = fleetHealth(server, state, now)
-    CommandSurface(Modifier.fillMaxWidth().then(if (selected) Modifier.border(2.dp, CommandColors.accent, RoundedCornerShape(16.dp)) else Modifier).clickable(onClick = onClick)) {
+    CommandSurface(Modifier.fillMaxWidth().then(if (selected) Modifier.border(2.dp, CommandColors.accent, RoundedCornerShape(16.dp)) else Modifier).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)) {
         Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(server.name, Modifier.weight(1f), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -217,13 +179,18 @@ private fun CommandServerCard(copy: CommandCopy, server: ServerConfig, state: Re
             }
             Text("${server.host}:${server.port}", color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             state?.metrics?.let { m ->
-                Text("CPU ${Fmt.pct(m.cpuUsage)} · RAM ${Fmt.pct(m.memPct)} · ${state.latencyMs.toInt()} ms", color = CommandColors.textPrimary, style = MaterialTheme.typography.bodyMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    CommandResourcePreview(copy.cpu, m.cpuUsage, Modifier.weight(1f))
+                    CommandResourcePreview(copy.memory, m.memPct, Modifier.weight(1f))
+                }
             }
             if (state?.error != null) Text(SecretRedactor.redact(state.error, listOf(server.token, server.adminToken)),
                 color = CommandColors.danger, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(if (state != null && state.updated > 0) "${copy.updated}: ${DateFormat.getTimeInstance(DateFormat.MEDIUM).format(Date(state.updated))}" else copy.waitingForData,
                 color = CommandColors.textTertiary, style = MaterialTheme.typography.labelSmall)
             if (state?.metrics != null && now - state.updated > 120_000L) Text(copy.dataIsStale, color = CommandColors.warning, style = MaterialTheme.typography.labelSmall)
+            Text(copy.openServer, color = CommandColors.accent, style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -237,11 +204,7 @@ private fun CommandServerDetails(
 ) {
     val health = fleetHealth(server, state, now)
     Column(modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-            Text(copy.fleetDetails, Modifier.weight(1f), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
-            CommandHelpButton(Prefs.getLanguage(LocalContext.current), onHelp)
-            CommandCloseButton(copy.close, onClose)
-        }
+        CommandPageChrome(copy.fleetDetails, copy, Prefs.getLanguage(LocalContext.current), true, onClose, onHelp)
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
             item {
                 Text(server.name, color = CommandColors.textPrimary, style = MaterialTheme.typography.headlineSmall)
@@ -269,24 +232,37 @@ private fun CommandServerDetails(
                     }
                     Text("${copy.metricUptime}: ${Fmt.uptime(metrics.uptime)} · ${copy.metricLoad}: ${metrics.load1} · ${copy.latency}: ${state.latencyMs.toInt()} ms", color = CommandColors.textSecondary)
                 }
-                if (metrics.disks.isNotEmpty()) item { CommandSectionTitle(copy.metricDisks) }
-                items(metrics.disks, key = { "disk-${it.mount}" }) { disk ->
-                    Text("${disk.mount} · ${Fmt.pct(disk.pct)} · ${Fmt.bytes(disk.used)} / ${Fmt.bytes(disk.total)}", color = CommandColors.textSecondary)
-                }
-                if (metrics.nets.isNotEmpty()) item { CommandSectionTitle(copy.metricInterfaces) }
-                items(metrics.nets, key = { "net-${it.name}" }) { net ->
-                    Text("${net.name} · ↓ ${Fmt.rate(net.rx)} · ↑ ${Fmt.rate(net.tx)}", color = CommandColors.textSecondary)
-                }
             }
-            item { CommandSectionTitle(copy.capabilities) }
-            item {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                    listOf(CommandRoute.DOCKER, CommandRoute.PROCESSES, CommandRoute.SSH, CommandRoute.TUNNELS, CommandRoute.SERVICES, CommandRoute.SFTP).forEach { route ->
-                        CommandSecondaryButton(route.commandLabel(copy), { onTool(route) })
+            item { CommandSectionTitle(copy.uiServerTools, copy.uiScopedTools.replace("%1", server.name)) }
+            items(serverToolRoutes, key = { "tool-${it.key}" }) { route ->
+                CommandToolLink(copy, route, onClick = { onTool(route) })
+            }
+            if (metrics != null) item {
+                CommandDisclosure(copy, title = copy.uiResources) {
+                    if (metrics.disks.isNotEmpty()) CommandSectionTitle(copy.metricDisks)
+                    metrics.disks.forEach { disk ->
+                        Text("${disk.mount} · ${Fmt.pct(disk.pct)} · ${Fmt.bytes(disk.used)} / ${Fmt.bytes(disk.total)}", color = CommandColors.textSecondary)
+                    }
+                    if (metrics.nets.isNotEmpty()) CommandSectionTitle(copy.metricInterfaces)
+                    metrics.nets.forEach { net ->
+                        Text("${net.name} · ↓ ${Fmt.rate(net.rx)} · ↑ ${Fmt.rate(net.tx)}", color = CommandColors.textSecondary)
                     }
                 }
             }
             item { CommandRule(); CommandTextButton(copy.delete, onDelete) }
         }
+    }
+}
+
+@Composable
+private fun CommandResourcePreview(label: String, value: Float, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+            Text(Fmt.pct(value), color = CommandColors.textPrimary, style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.height(6.dp))
+        LinearProgressIndicator(progress = { (value / 100f).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth(),
+            color = CommandColors.accent, trackColor = CommandColors.track)
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -69,12 +70,7 @@ fun CommandPage(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(CommandColors.infoSurface.copy(alpha = 0.22f), CommandColors.canvas),
-                    radius = 900f
-                )
-            )
+            .background(CommandColors.canvas)
             .padding(horizontal = CommandSpacing.md),
         content = content
     )
@@ -88,6 +84,15 @@ fun CommandSectionTitle(
     onAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    if (LocalCommandHeader.current == title) {
+        // Suppress only the repeated title, never the server identity, purpose or actions.
+        if (supporting != null || actionLabel != null) Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (supporting != null) Text(supporting, Modifier.weight(1f),
+                color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+            if (actionLabel != null && onAction != null) CommandTextButton(actionLabel, onAction)
+        }
+        return
+    }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -95,13 +100,6 @@ fun CommandSectionTitle(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                Box(
-                    Modifier
-                        .width(3.dp)
-                        .height(18.dp)
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(CommandColors.accent)
-                )
                 Text(
                     text = title,
                     style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
@@ -112,7 +110,7 @@ fun CommandSectionTitle(
                 Spacer(Modifier.height(CommandSpacing.xxs))
                 Text(
                     text = supporting,
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
                     color = CommandColors.textSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -144,8 +142,8 @@ fun CommandSurface(
 ) {
     Surface(
         modifier = modifier,
-        color = if (raised) CommandColors.surfaceRaised else CommandColors.surface,
-        shape = RoundedCornerShape(14.dp),
+        color = CommandColors.surface,
+        shape = RoundedCornerShape(16.dp),
         border = if (border) BorderStroke(1.dp, CommandColors.border) else null,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
@@ -231,7 +229,7 @@ fun CommandPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(44.dp),
+        modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(10.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = CommandColors.accent,
@@ -259,7 +257,7 @@ fun CommandSecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(44.dp),
+        modifier = modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (enabled) CommandColors.borderStrong else CommandColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
@@ -285,7 +283,7 @@ fun CommandTextButton(
 ) {
     Row(
         modifier = modifier
-            .height(40.dp)
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.sm),
@@ -296,8 +294,6 @@ fun CommandTextButton(
         Text(
             text,
             color = CommandColors.accent,
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
             style = androidx.compose.material3.MaterialTheme.typography.labelLarge
         )
     }
@@ -641,6 +637,7 @@ fun CommandTelemetryBar(
 
 @Composable
 fun CommandBackButton(text: String, onClick: () -> Unit) {
+    if (LocalCommandHeader.current != null) return
     CommandTextButton(text = text, onClick = onClick, icon = Icons.AutoMirrored.Rounded.ArrowBack)
 }
 

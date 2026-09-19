@@ -1,6 +1,6 @@
-# Didban UI redesign — proposal 01, pending visual approval
+# Didban UI redesign — approved direction and Android implementation
 
-**Status:** interactive visual proposal only, not a claim that the Android interface has been rebuilt. The agreed order is (1) repair monitoring controls, (2) show Servers, Server details and IP scanner examples, (3) obtain visual approval before applying the design throughout Android.
+**Status:** visually approved by the owner on 2026-09-19. The Android implementation now follows this direction; see [implementation and verification](android-redesign.md). The HTML below remains the original visual reference, not an Android runtime or a live service.
 
 ## Direction
 
@@ -40,6 +40,6 @@ All server names, measurements and scan results in the proposal are **explicit d
 
 Browser verification: initial screens, scoped server navigation, help and Escape dismissal, advanced-settings expansion, per-range selection persistence, clearly labelled scan simulation, theme toggle, search and document overflow at 320/390/768/1440px. No JavaScript errors or external requests were observed.
 
-## Preserve during subsequent implementation
+## Preservation requirements
 
 Existing saved servers, optional manual scanner input and file import, candidate-only claims, pinned TLS, encrypted/masked secrets, RAM-only drafts, dirty-form/discard guards, confirmation of destructive actions, actual refresh scope, sole-server Radar selection, notification permission behavior and default-off screenshot protection must not regress. Do not silently change network engines, data models or Agent compatibility while restyling screens.

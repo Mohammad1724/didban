@@ -34,23 +34,12 @@ fun CommandWorkbenchIndexScreen(
     copy: CommandCopy,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
-    val execute = listOf(CommandRoute.SSH, CommandRoute.BATCH)
-    val transfer = listOf(CommandRoute.SFTP)
-    val inspect = listOf(CommandRoute.SINGLE_PORT, CommandRoute.PROXY)
-    val utilities = listOf(CommandRoute.DEVELOPER_LAB)
-    CommandToolIndex(
-        title = copy.workbench,
-        body = copy.hubObserveBody,
-        groups = listOf(
-            copy.run to execute,
-            copy.hubFileTransfer to transfer,
-            copy.hubInspectGenerate to inspect,
-            copy.hubDevTools to utilities
-        ),
-        copy = copy,
-        icon = Icons.Rounded.Terminal,
-        onNavigate = onNavigate
-    )
+    CommandToolIndex(copy.uiTools, copy.uiToolsIntro,
+        listOf(copy.uiPathTools to independentToolRoutes.take(2),
+            copy.uiNetworkTools to independentToolRoutes.subList(2, 4),
+            copy.uiMoreTools to independentToolRoutes.drop(4)),
+        copy, Icons.Rounded.Tune, onNavigate)
+
 }
 
 @Composable
@@ -82,60 +71,22 @@ private fun CommandToolIndex(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)
-    ) {
-        item {
-            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(48.dp)
-                        .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                        .border(1.dp, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(24.dp))
-                }
-                Spacer(Modifier.width(CommandSpacing.sm))
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
-                    Text(body, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
-                }
-                CommandTelemetryPill(copy.openExistingTool, CommandHealthTone.INFO)
-            }
-        }
+    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)) {
+        item { CommandSectionTitle(title) }
+        item { Text(body, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium) }
         groups.forEach { (groupTitle, routes) ->
-            item {
-                Text(groupTitle, style = androidx.compose.material3.MaterialTheme.typography.labelMedium, color = CommandColors.textTertiary)
-            }
-            item {
-                CommandSurface(Modifier.fillMaxWidth()) {
-                    Column {
-                        routes.forEachIndexed { index, route ->
-                            if (index > 0) CommandRule()
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onNavigate(route, null) }
-                                    .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(route.commandIcon(), contentDescription = route.commandLabel(copy), tint = CommandColors.accent, modifier = Modifier.size(21.dp))
-                                Spacer(Modifier.width(CommandSpacing.sm))
-                                Column(Modifier.weight(1f)) {
-                                    Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
-                                    Text(copy.openExistingTool, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                                }
-                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = copy.openServer, tint = CommandColors.textTertiary, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-                }
-            }
+            item { CommandSectionTitle(groupTitle) }
+            routes.forEach { route -> item(key = route.key) {
+                CommandToolLink(copy, route,
+                    detail = route.helpContent(if (copy === CommandCopyFa) "fa" else "en").summary,
+                    onClick = { onNavigate(route, null) })
+            } }
         }
-        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+        item { Text(copy.uiServerToolsHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+        item { Spacer(Modifier.height(24.dp)) }
     }
+
 }
 
 fun CommandRoute.commandIcon(): androidx.compose.ui.graphics.vector.ImageVector = when (this) {

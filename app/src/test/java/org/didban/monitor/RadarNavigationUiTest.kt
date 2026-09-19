@@ -31,12 +31,9 @@ class RadarNavigationUiTest {
 
     private fun openRadar(servers: List<ServerConfig> = fleet, wide: Boolean = false) {
         compose.setContent { CommandCenterApp(mutableStateOf(null)) { Prefs.ServerLoadResult(servers.toMutableList()) } }
-        if (wide) compose.onNodeWithContentDescription(copy.diagnose).performClick()
-        else {
-            compose.onNodeWithContentDescription(copy.observe).performClick()
-            compose.onNodeWithText(copy.radar).performScrollTo().performClick()
-        }
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onNodeWithTag("primary-monitoring").performClick()
+        compose.onNodeWithText(copy.radar).performScrollTo().performClick()
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
     }
 
     private fun chooseButton() = compose.onNode(hasText(copy.selectServer) and
@@ -45,9 +42,9 @@ class RadarNavigationUiTest {
     @Test fun `select existing server stays in Radar instead of navigating to Servers`() {
         openRadar()
         chooseButton().performScrollTo().performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         compose.onNodeWithText("Node A").assertIsDisplayed().performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         compose.onNodeWithText(copy.addTarget).assertExists()
         compose.onNodeWithText(copy.addServer).assertDoesNotExist()
     }
@@ -66,19 +63,19 @@ class RadarNavigationUiTest {
         compose.onNodeWithText("Node A").performClick()
         compose.onNode(hasText("Node A") and hasClickAction()).performClick()
         compose.onNodeWithText("Node B").performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         compose.onNode(hasText("Node B") and hasClickAction()).assertIsDisplayed()
         compose.onAllNodesWithText("Node A").assertCountEquals(0)
-        compose.onNodeWithText(copy.back).performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(0)
-        compose.onNodeWithText(copy.addServer).assertExists()
+        compose.onNodeWithContentDescription(copy.back).performClick()
+        compose.onNodeWithTag("primary-monitoring").assertIsSelected()
+        compose.onNodeWithText(copy.addMonitor).assertExists()
     }
 
     @Test fun `cancelling the picker does not navigate or open an editor`() {
         openRadar()
         chooseButton().performScrollTo().performClick()
         compose.onNodeWithText(copy.cancel).performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         chooseButton().assertExists()
         compose.onNodeWithText(copy.srvQuickConnectLabel).assertDoesNotExist()
     }
@@ -86,7 +83,7 @@ class RadarNavigationUiTest {
     @Test fun `no servers offers Add only after an explicit action in the picker`() {
         openRadar(emptyList())
         chooseButton().performScrollTo().performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         compose.onNodeWithText(copy.noServersBody).assertIsDisplayed()
         compose.onNodeWithText(copy.addServer).performClick()
         compose.onNodeWithText(copy.srvQuickConnectLabel).assertExists()
@@ -98,7 +95,7 @@ class RadarNavigationUiTest {
                 Prefs.ServerLoadResult(mutableListOf(), IllegalStateException("unavailable storage"))
             }
         }
-        compose.onNodeWithContentDescription(copy.observe).performClick()
+        compose.onNodeWithTag("primary-monitoring").performClick()
         compose.onNodeWithText(copy.radar).performScrollTo().performClick()
         chooseButton().performScrollTo().performClick()
         compose.onNodeWithText(securityMessage("fa", SecurityMessage.SERVER_READ_FAILED)).assertIsDisplayed()
@@ -114,7 +111,7 @@ class RadarNavigationUiTest {
         compose.onNodeWithText("Node A").performClick()
         compose.onNode(hasText("Node A") and hasClickAction()).performClick()
         compose.onNodeWithText("Node B").performClick()
-        compose.onAllNodesWithText(copy.radar).assertCountEquals(2)
+        compose.onAllNodesWithText(copy.radar).assertCountEquals(1)
         compose.onNode(hasText("Node B") and hasClickAction()).assertIsDisplayed()
         compose.onNodeWithText(copy.addTarget).assertExists()
         compose.onNodeWithText(copy.addServer).assertDoesNotExist()

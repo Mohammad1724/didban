@@ -1,0 +1,45 @@
+{
+  "baseline": "e8a0cb98d956a0c2152c451a86a28e00ebaf97b5",
+  "date": "2026-09-19",
+  "tests": {
+    "tests": 469,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 3
+  },
+  "passed": 466,
+  "skipped_tests": [
+    "org.didban.monitor.ScannerLiveTest.a microsoft donor passes and a cloudflare donor is rejected",
+    "org.didban.monitor.ScannerLiveTest.an unreachable donor is reported as an error, never as a good donor",
+    "org.didban.monitor.ScannerLiveTest.cloudflare edges answer cdn-cgi trace from this network"
+  ],
+  "lint": {
+    "Warning": 51,
+    "Information": 5
+  },
+  "compile": "passed",
+  "dependency_dex": "passed",
+  "assemble_debug": "passed",
+  "apk_signature": "verified (see signature log)",
+  "apk_sha256": "bf1dd0d750298021672b3bf1dafc00e653cde766a093e7115b8838b3b6499f49",
+  "apk_bytes": 21458894,
+  "screenshots": [
+    "en-dark-tablet-tools.png",
+    "fa-light-details.png",
+    "fa-light-large-text-tools.png",
+    "fa-light-monitoring.png",
+    "fa-light-scanner.png",
+    "fa-light-servers.png",
+    "fa-light-settings.png",
+    "fa-light-tools.png"
+  ],
+  "screenshot_method": "Real Compose view.draw(Canvas(bitmap)) with Robolectric API 33 native graphics; synthetic .example hosts, no live Agent metrics.",
+  "limitations": [
+    "No physical phone/OEM validation",
+    "No TalkBack session",
+    "No private/live Agent verification",
+    "Debug APK is not a production release signature"
+  ],
+  "production_engine_or_agent_changes": false,
+  "test_execution_note": "Split compilation and test JVMs on 2GB host; first combined attempt exhausted build-daemon memory. PixelCopy was replaced only in the test renderer, because Robolectric has no real display compositor."
+}

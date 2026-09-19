@@ -1,9 +1,12 @@
 package org.didban.monitor
 
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -147,7 +151,8 @@ internal fun CommandCfScannerScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    CommandSectionTitle(copy.cfSource)
+                    CommandSectionTitle(copy.uiSourceSelection)
+                    Text(copy.uiReadyScan, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
                     CommandChipRow(
                         options = listOf(copy.cfRandom to false, copy.cfCustomList to true),
                         selected = useCustomList,
@@ -200,6 +205,7 @@ internal fun CommandCfScannerScreen(
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                    CommandDisclosure(copy) {
                     CommandSectionTitle(copy.cfSettings)
                     CommandChipRow(
                         options = listOf("TCP" to "TCP", "TLS" to "TLS", "HTTP" to "HTTP"),
@@ -228,6 +234,7 @@ internal fun CommandCfScannerScreen(
                     }
                     Text(copy.cfSettingsHint, color = CommandColors.textTertiary,
                         style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }
@@ -378,23 +385,17 @@ internal fun <T> CommandChipRow(
     ) {
         options.forEach { (label, value) ->
             val active = value == selected
-            CommandSurface(
-                raised = active,
-                border = true,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable(enabled = enabled) { onSelect(value) }
+            Surface(
+                color = if (active) CommandColors.infoSurface else CommandColors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (active) CommandColors.accent else CommandColors.borderStrong),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .selectable(active, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(value) })
             ) {
-                Text(
-                    label,
-                    color = if (active) CommandColors.accent else CommandColors.textSecondary,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = CommandSpacing.sm, horizontal = CommandSpacing.xs)
-                )
+                Box(Modifier.padding(vertical = 12.dp, horizontal = 8.dp), contentAlignment = Alignment.Center) {
+                    Text(label, color = if (active) CommandColors.accent else CommandColors.textSecondary,
+                        style = MaterialTheme.typography.labelLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
             }
         }
     }
