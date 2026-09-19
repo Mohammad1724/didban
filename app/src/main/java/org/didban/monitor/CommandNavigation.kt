@@ -81,8 +81,21 @@ internal data class CommandNavigation private constructor(val entries: List<Comm
     }
 
     fun finishEditing(id: Long): CommandNavigation = openServer(id)
-    fun clearScope(): CommandNavigation = if (current.route == CommandRoute.FLEET) navigate(CommandRoute.FLEET, null)
-        else if (current.serverId == null) this else back().navigate(current.route, null)
+    /** Change a tool's input, not its destination or its Back origin. */
+    fun selectScope(id: Long?): CommandNavigation = when {
+        current.route == CommandRoute.FLEET -> if (id == null) navigate(CommandRoute.FLEET) else openServer(id)
+        current.serverId == id -> this
+        else -> CommandNavigation(entries.dropLast(1) + current.copy(serverId = id))
+    }
+
+    fun clearScope(): CommandNavigation = selectScope(null)
+
+    /** Radar requires one agent. Never arbitrarily choose from a multi-server fleet. */
+    fun resolveRadarScope(ids: List<Long>, loadFailed: Boolean = false): CommandNavigation {
+        if (current.route != CommandRoute.RADAR || loadFailed) return this
+        val id = current.serverId?.takeIf { it in ids } ?: ids.singleOrNull()
+        return selectScope(id)
+    }
 
     fun removeServer(id: Long): CommandNavigation = restore(entries.filterNot { it.serverId == id }.map { it.encode() })
     fun save(): List<String> = entries.map { it.encode() }

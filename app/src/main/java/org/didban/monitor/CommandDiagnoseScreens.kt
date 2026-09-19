@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.runtime.key
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -96,6 +98,18 @@ private fun parseProbePoints(payload: JSONObject): List<CommandProbePoint> {
 
 @Composable
 fun CommandRadarScreen(
+    copy: CommandCopy,
+    server: ServerConfig?,
+    onSelectServer: () -> Unit,
+    onBack: () -> Unit
+) {
+    // A new connection gets fresh callbacks/state and cancels the previous screen scope.
+    // An old response must never populate the newly selected server's Radar.
+    key(server) { CommandRadarContent(copy, server, onSelectServer, onBack) }
+}
+
+@Composable
+private fun CommandRadarContent(
     copy: CommandCopy,
     server: ServerConfig?,
     onSelectServer: () -> Unit,
@@ -236,7 +250,7 @@ fun CommandRadarScreen(
             }
         }
         if (server == null) {
-            item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
+            item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer, actionIcon = Icons.Rounded.Dns) }
         } else {
             item {
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {

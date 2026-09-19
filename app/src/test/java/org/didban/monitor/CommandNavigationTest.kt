@@ -117,4 +117,46 @@ class CommandNavigationTest {
         repeat(63) { nav = nav.back() }
         assertEquals(CommandNavigation.root(), nav)
     }
+
+    @Test fun `selecting tool scope stays in the tool and does not add Back steps`() {
+        val origin = CommandNavigation.root().openServer(1)
+        val radar = origin.navigate(CommandRoute.RADAR)
+        val changed = radar.selectScope(2)
+        assertEquals(CommandRoute.RADAR, changed.current.route)
+        assertEquals(2L, changed.current.serverId)
+        assertEquals(radar.entries.size, changed.entries.size)
+        assertEquals(origin, changed.back())
+        assertEquals(changed, changed.selectScope(2))
+        assertEquals(CommandNavigation.restore(changed.save()), changed)
+    }
+
+    @Test fun `clearing scope stays in the current tool with the same history`() {
+        val origin = CommandNavigation.root().openServer(1)
+        val tool = origin.navigate(CommandRoute.DOCKER)
+        val cleared = tool.clearScope()
+        assertEquals(CommandRoute.DOCKER, cleared.current.route)
+        assertNull(cleared.current.serverId)
+        assertEquals(origin, cleared.back())
+        assertEquals(cleared, cleared.clearScope())
+    }
+
+    @Test fun `Radar chooses only an unambiguous existing server and preserves a valid selection`() {
+        val radar = CommandNavigation.root().navigate(CommandRoute.RADAR, null)
+        assertEquals(7L, radar.resolveRadarScope(listOf(7)).current.serverId)
+        assertNull(radar.resolveRadarScope(emptyList()).current.serverId)
+        assertNull(radar.resolveRadarScope(listOf(7, 8)).current.serverId)
+        assertEquals(8L, radar.selectScope(8).resolveRadarScope(listOf(7, 8)).current.serverId)
+        assertNull(radar.selectScope(99).resolveRadarScope(listOf(7, 8)).current.serverId)
+        assertEquals(7L, radar.selectScope(99).resolveRadarScope(listOf(7)).current.serverId)
+        assertEquals(radar, radar.resolveRadarScope(listOf(7), loadFailed = true))
+    }
+
+    @Test fun `scope selection on the hub still opens its inspector and other routes do not auto select`() {
+        val root = CommandNavigation.root()
+        assertEquals(root.openServer(7), root.selectScope(7))
+        assertEquals(root, root.openServer(7).clearScope())
+        val settings = root.navigate(CommandRoute.SETTINGS, null)
+        assertEquals(settings, settings.resolveRadarScope(listOf(7)))
+    }
+
 }

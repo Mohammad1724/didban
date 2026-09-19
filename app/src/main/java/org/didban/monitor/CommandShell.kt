@@ -59,6 +59,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
@@ -228,7 +229,10 @@ private fun CommandRoute.icon(): ImageVector = when (this) {
 private fun routesFor(workspace: CommandWorkspace): List<CommandRoute> = commandMenuRoutes(workspace)
 
 @Composable
-fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
+fun CommandCenterApp(
+    pendingServerId: MutableState<Long?>,
+    loadServers: (android.content.Context) -> Prefs.ServerLoadResult = Prefs::loadServersResult
+) {
     val context = androidx.compose.ui.platform.LocalContext.current
     var language by rememberSaveable { mutableStateOf(Prefs.getLanguage(context)) }
     var themeMode by rememberSaveable { mutableStateOf(Prefs.getThemeMode(context)) }
@@ -248,9 +252,10 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
     var lastBackPressAt by remember { mutableStateOf(0L) }
 
     val copy = remember(language) { CommandCopy.forLanguage(language) }
-    val serverLoad = remember(reloadTick) { Prefs.loadServersResult(context) }
+    val serverLoad = remember(reloadTick, loadServers) { loadServers(context) }
     val servers = serverLoad.servers.toList()
     val route = navigation.current.route
+    var serverPickerOpen by rememberSaveable(route.key) { mutableStateOf(false) }
     val selectedServer = navigation.current.serverId?.let { id -> servers.firstOrNull { it.id == id } }
     val states by Repo.states.collectAsState()
 
@@ -260,6 +265,17 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
         mobileNavigationOpen = false
         exitHintVisible = false
         lastBackPressAt = 0L
+    }
+
+    fun selectScope(server: ServerConfig?) {
+        navigation = navigation.selectScope(server?.id)
+        serverPickerOpen = false
+        exitHintVisible = false
+        lastBackPressAt = 0L
+    }
+
+    LaunchedEffect(route, servers.map { it.id }, serverLoad.error != null) {
+        navigation = navigation.resolveRadarScope(servers.map { it.id }, serverLoad.error != null)
     }
 
     fun goBack() {
@@ -333,6 +349,14 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
             }
         }
 
+        if (serverPickerOpen) CommandServerPicker(
+            copy, servers, serverLoad.error != null,
+            onSelect = ::selectScope,
+            onDismiss = { serverPickerOpen = false },
+            onRetry = { reloadTick++ },
+            onAdd = { serverPickerOpen = false; navigation = navigation.editServer(null) }
+        )
+
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -362,13 +386,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                             route = route,
                             selectedServer = selectedServer,
                             servers = servers,
-                            onSelectedServer = { server ->
-                                if (server != null) {
-                                    navigate(CommandRoute.SERVER_DOSSIER, server)
-                                } else {
-                                    navigation = navigation.clearScope()
-                                }
-                            },
+                            onSelectedServer = ::selectScope,
                             onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                             backLabel = backLabel,
                             onBack = ::goBack
@@ -381,6 +399,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                             servers = servers,
                             loadFailed = serverLoad.error != null,
                             onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
+                            onSelectServer = { reloadTick++; serverPickerOpen = true },
                             onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                             onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
                             onSaved = { server ->
@@ -433,13 +452,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         route = route,
                         selectedServer = selectedServer,
                         servers = servers,
-                        onSelectedServer = { server ->
-                            if (server != null) {
-                                navigate(CommandRoute.SERVER_DOSSIER, server)
-                            } else {
-                                navigation = navigation.clearScope()
-                            }
-                        },
+                        onSelectedServer = ::selectScope,
                         onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                         backLabel = backLabel,
                         onBack = ::goBack
@@ -452,6 +465,7 @@ fun CommandCenterApp(pendingServerId: MutableState<Long?>) {
                         servers = servers,
                         loadFailed = serverLoad.error != null,
                         onReload = { reloadTick++; exitHintVisible = false; lastBackPressAt = 0L },
+                        onSelectServer = { reloadTick++; serverPickerOpen = true },
                         onHubHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L },
                         onEdit = { id -> navigation = navigation.editServer(id); exitHintVisible = false; lastBackPressAt = 0L },
                         onSaved = { server ->
@@ -716,12 +730,12 @@ private fun CommandScopeBar(
                     ) {
                         Box(Modifier.size(7.dp).clip(CircleShape).background(if (selectedServer == null) CommandColors.accent else CommandColors.success))
                         Spacer(Modifier.width(CommandSpacing.xs))
-                        Text(selectedServer?.name ?: copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(selectedServer?.name ?: if (route == CommandRoute.RADAR) copy.selectServer else copy.allSystems, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.width(CommandSpacing.xs))
                         Text("⌄", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        DropdownMenuItem(
+                        if (route != CommandRoute.RADAR) DropdownMenuItem(
                             text = { Text(copy.allSystems) },
                             onClick = { expanded = false; onSelectedServer(null) }
                         )
@@ -767,6 +781,7 @@ private fun CommandRouteContent(
     servers: List<ServerConfig>,
     loadFailed: Boolean,
     onReload: () -> Unit,
+    onSelectServer: () -> Unit,
     onHubHelp: () -> Unit,
     onEdit: (Long?) -> Unit,
     onSaved: (ServerConfig) -> Unit,
@@ -788,28 +803,28 @@ private fun CommandRouteContent(
                 copy, servers, loadFailed, states, destination, onReload, onHubHelp,
                 { onNavigate(CommandRoute.SERVER_DOSSIER, it) }, onEdit, onBack, onSaved, onDeleted, onNavigate
             )
-            CommandRoute.TUNNELS -> CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onBack() }
+            CommandRoute.TUNNELS -> key(selectedServer) { CommandTunnelsScreen(copy, reloadTick, selectedServer, { onNavigate(CommandRoute.TUNNELS_EDITOR, selectedServer) }) { onBack() } }
             CommandRoute.TUNNELS_EDITOR -> CommandTunnelEditorScreen(copy) { onBack() }
-            CommandRoute.DOCKER -> CommandDockerScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-            CommandRoute.PROCESSES -> CommandProcessesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-            CommandRoute.SERVICES -> CommandServicesScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-            CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
-            CommandRoute.BANDWIDTH -> CommandBandwidthScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+            CommandRoute.DOCKER -> key(selectedServer) { CommandDockerScreen(copy, selectedServer, onSelectServer, { onBack() }) }
+            CommandRoute.PROCESSES -> key(selectedServer) { CommandProcessesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
+            CommandRoute.SERVICES -> key(selectedServer) { CommandServicesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
+            CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, onSelectServer, { onBack() })
+            CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer) { onBack() } }
             CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
             CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
             CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
             CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
             CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
-            CommandRoute.NETWORK_TOOLS_EDITOR -> CommandNetworkToolsScreen(copy, selectedServer) { onBack() }
+            CommandRoute.NETWORK_TOOLS_EDITOR -> key(selectedServer) { CommandNetworkToolsScreen(copy, selectedServer) { onBack() } }
             CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
             CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }
             CommandRoute.VAULT -> CommandVaultScreen(copy) { onBack() }
-            CommandRoute.SECURITY -> CommandSecurityScreen(copy, selectedServer, { onNavigate(CommandRoute.MANAGE_SERVERS, null) }) { onBack() }
+            CommandRoute.SECURITY -> key(selectedServer) { CommandSecurityScreen(copy, selectedServer, onSelectServer) { onBack() } }
             CommandRoute.ALERTS -> CommandAlertsScreen(copy) { onBack() }
             CommandRoute.BACKUP -> CommandBackupScreen(copy) { onBack() }
-            CommandRoute.SSH -> CommandSshScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }, { onBack() })
+            CommandRoute.SSH -> key(selectedServer) { CommandSshScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.BATCH -> CommandBatchScreen(copy) { onBack() }
-            CommandRoute.SFTP -> CommandSftpScreen(copy, selectedServer, { onNavigate(CommandRoute.FLEET, null) }) { onBack() }
+            CommandRoute.SFTP -> key(selectedServer) { CommandSftpScreen(copy, selectedServer, onSelectServer) { onBack() } }
             CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
             CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
             CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }

@@ -379,7 +379,8 @@ fun CommandEmptyState(
     body: String,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actionIcon: ImageVector? = Icons.Rounded.Add
 ) {
     Column(
         modifier = modifier
@@ -410,7 +411,7 @@ fun CommandEmptyState(
         )
         if (actionLabel != null && onAction != null) {
             Spacer(Modifier.height(CommandSpacing.md))
-            CommandPrimaryButton(actionLabel, onAction, icon = Icons.Rounded.Add)
+            CommandPrimaryButton(actionLabel, onAction, icon = actionIcon)
         }
     }
 }

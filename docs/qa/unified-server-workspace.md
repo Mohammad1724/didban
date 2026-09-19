@@ -63,3 +63,18 @@ The actual Compose dialog on base `52534a9` showed an entered name but Save stil
 Verification: 384 tests, 381 passed, 3 intentionally skipped, 0 failures/errors; all 11 new Robolectric/Compose tests passed. `lintDebug`: 0 errors, 51 pre-existing warnings, 5 information items. `assembleDebug` and APK v2 signature verification passed. Robolectric checks real Compose interactions and Android window flags, **not physical-device screenshot capture**. Successful end-to-end saving against device Keystore, live Agent Test/polling and physical rotation remain device acceptance items.
 
 On a memory-constrained runner, compile `compileDebugUnitTestKotlin` first, then run `testDebugUnitTest` in a separate Gradle process with a smaller daemon heap (256 MB here; test worker 384 MB). This avoids concurrent compiler and Robolectric memory pressure. CI may use its usual commands on a larger runner.
+
+## Radar scope regression — 2026-09-19
+
+A saved server and a selected tool scope are different. The old Radar empty-state action navigated to the hub, while the scope dropdown navigated to the server inspector. A real Compose shell test on `8f67d8c` reproduced leaving Radar after pressing Select server, despite an existing fleet.
+
+- Radar now automatically selects the only available server. With several servers, it preserves a valid current selection; otherwise the user explicitly chooses one. A stale ID is not treated as a usable connection.
+- Select server opens a connection picker **over the current tool**. Selecting/dismissing it does not navigate to the hub or add a Back-history entry. The phone/tablet scope bar updates the current tool in place. Only an explicitly chosen Add action in a genuinely empty picker opens the connection editor.
+- A storage read failure shows Retry, not Add. The picker never exposes token fields. The Radar selection action uses a server icon rather than the misleading plus icon.
+- Radar's server-bound composition is keyed to the connection; switching it recreates local callbacks/state and disposes the previous coroutine scope. Other server-bound consumers of the shared scope selector also recreate their content on scope changes. Hub list/filter state is not keyed to the selected server.
+- `RadarNavigationUiTest`: seven Robolectric API 33 full-shell scenarios (phone and tablet, one/multiple/no servers, dropdown switch/Back, cancellation and read failure). Saved connection fixtures are supplied through the shell's loader parameter; production still defaults to encrypted `Prefs.loadServersResult`. Test pins are intentionally missing so no live Agent request is sent.
+- Four additional `CommandNavigationTest` cases cover in-place scope/history, clear scope, sole-server/invalid-ID resolution, and scope behavior outside Radar.
+
+Verification: **395 tests, 392 passed, 3 intentionally skipped, zero failures/errors**. Lint: 0 errors, 51 existing warnings, 5 information items. Debug build and APK v2 signature verification passed. Physical-device interaction, encrypted on-device save, and live `/api/probe` operations remain manual acceptance items; automated UI tests are not a live Agent connectivity claim.
+
+Device checklist: with one saved server open Radar from the menu; it must show that server's target form. With two servers choose A, then B in the top selector; remain in Radar and ensure refresh/target operations use B. Back must restore the real origin. Test Cancel and Android Back on the picker. With no servers only explicit Add opens the editor. Repeat on phone/tablet, Persian/English, rotation and a slow/offline Agent.
