@@ -2,13 +2,10 @@
 
 package org.didban.monitor
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -57,8 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 
 fun Context.findActivity(): Activity? {
@@ -80,14 +75,8 @@ class MainActivity : ComponentActivity() {
             handleServerIntent(intent)
         } catch (_: Throwable) {}
 
-        // Notification permission for background monitoring alerts (Android 13+)
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            try {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
-            } catch (_: Throwable) {}
-        }
+        // Ask for notification permission when the user starts monitoring,
+        // not before they know why the app needs it.
 
         setContent {
             // H8: the trace is decrypted here (stored encrypted at rest).

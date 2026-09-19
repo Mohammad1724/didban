@@ -514,6 +514,27 @@ interface CommandCopy {
     val setResetVault: String
     val shellSentinelConsole: String
     val shellLiveState: String
+    val monitorDetails: String
+    val monitorTitle: String
+    val monitorOff: String
+    val monitorOn: String
+    val monitorStarting: String
+    val monitorStopping: String
+    val monitorFailed: String
+    val monitorStart: String
+    val monitorStop: String
+    val monitorBody: String
+    val monitorTargets: String
+    val monitorNoTargets: String
+    val monitorLimits: String
+    val monitorNotification: String
+    val monitorPermission: String
+    val monitorPermissionSettings: String
+    val monitorPermissionPending: String
+    val monitorStartError: String
+    val monitorStopError: String
+    val monitorEngineError: String
+    val monitorSettingsError: String
     val upNewMonitor: String
     val upSavedMonitors: String
     val upMonitorContract: String
@@ -1097,6 +1118,27 @@ internal object CommandCopyFa : CommandCopy {
     override val setResetVault = "بازنشانی Vault"
     override val shellSentinelConsole = "کنسول دیدبانی"
     override val shellLiveState = "وضعیت زنده"
+    override val monitorDetails = "نکات اجرا و توقف"
+    override val monitorTitle = "پایش خودکار"
+    override val monitorOff = "پایش خودکار خاموش است"
+    override val monitorOn = "پایش خودکار روشن است"
+    override val monitorStarting = "در حال شروع پایش…"
+    override val monitorStopping = "در حال توقف پایش…"
+    override val monitorFailed = "پایش شروع نشد یا متوقف شد"
+    override val monitorStart = "شروع پایش"
+    override val monitorStop = "توقف پایش"
+    override val monitorBody = "در حالت روشن، سرورهای ذخیره‌شده و مقصدهای فعال به‌صورت دوره‌ای از اینترنت این گوشی بررسی می‌شوند؛ پایش به یک سرور انتخاب‌شده محدود نیست."
+    override val monitorTargets = "%1 مقصد فعال برای پایش سایت و سرویس"
+    override val monitorNoTargets = "مقصد فعالی ندارید؛ یک مقصد اضافه یا از حالت توقف خارج کنید. پایش سرورهای ذخیره‌شده مستقل از این فهرست است."
+    override val monitorLimits = "توقف، بررسی‌های خودکار بعدی را متوقف می‌کند؛ بررسی دستی همچنان ممکن است. اتصالِ در حال اجرا ممکن است کمی دیرتر تمام شود. بستن اجباری برنامه، راه‌اندازی دوبارهٔ گوشی و محدودیت باتری می‌توانند پایش را قطع کنند."
+    override val monitorNotification = "بررسی دوره‌ای سرورها و مقصدها از این گوشی فعال است."
+    override val monitorPermission = "اعلان‌ها یا یکی از کانال‌های هشدار مجاز نیست. پایش می‌تواند کار کند، اما ممکن است هشدار گوشی را نبینید."
+    override val monitorPermissionSettings = "تنظیمات اعلان گوشی"
+    override val monitorPermissionPending = "در انتظار پاسخ مجوز اعلان…"
+    override val monitorStartError = "اندروید شروع پایش را نپذیرفت یا راه‌اندازی کامل نشد. برنامه را در پیش‌زمینه نگه دارید و دوباره شروع کنید؛ محدودیت باتری و تنظیمات برنامه را هم بررسی کنید."
+    override val monitorStopError = "توقف تأیید نشد؛ وضعیت فعلی حفظ شده است. دوباره توقف را امتحان کنید."
+    override val monitorEngineError = "موتور پایش با خطا متوقف شد. مقصدها حذف نشده‌اند؛ دوباره شروع کنید و اگر خطا تکرار شد داده‌ها و تنظیمات برنامه را بررسی کنید."
+    override val monitorSettingsError = "تنظیمات اعلان باز نشد؛ از تنظیمات اندروید، برنامهٔ دیدبان را باز کنید."
     override val upNewMonitor = "پایش جدید"
     override val upSavedMonitors = "پایش‌های ذخیره‌شده"
     override val upMonitorContract = "قرارداد پایش"
@@ -1314,7 +1356,7 @@ internal object CommandCopyFa : CommandCopy {
     override val delete = "حذف"
     override val upTargetRequired = "Target نمی‌تواند خالی باشد."
     override val upKeywordRequired = "برای KEYWORD باید keyword واقعی وارد شود."
-    override val upSaved = "Monitor ذخیره شد؛ check بعدی توسط UptimeEngine انجام می‌شود."
+    override val upSaved = "مقصد ذخیره شد. برای بررسی دوره‌ای، در صفحهٔ پایش «شروع پایش» را بزنید؛ اگر پایش روشن است، این مقصد طبق برنامه بررسی می‌شود."
     override val upTargetFirst = "ابتدا target را وارد کنید."
     override val upCheckDone = "Check واقعی انجام شد: %1 · %2 ms"
     override val upCheckFailed = "Check ناموفق بود."
@@ -1673,6 +1715,27 @@ internal object CommandCopyEn : CommandCopy {
     override val setResetVault = "Reset Vault"
     override val shellSentinelConsole = "SENTINEL CONSOLE"
     override val shellLiveState = "LIVE STATE"
+    override val monitorDetails = "Running and stopping tips"
+    override val monitorTitle = "Automatic monitoring"
+    override val monitorOff = "Automatic monitoring is off"
+    override val monitorOn = "Automatic monitoring is on"
+    override val monitorStarting = "Starting monitoring…"
+    override val monitorStopping = "Stopping monitoring…"
+    override val monitorFailed = "Monitoring could not start or has stopped"
+    override val monitorStart = "Start monitoring"
+    override val monitorStop = "Stop monitoring"
+    override val monitorBody = "When on, saved servers and active targets are checked periodically from this phone. Monitoring is not limited to one selected server."
+    override val monitorTargets = "%1 active website/service targets"
+    override val monitorNoTargets = "No active targets. Add or resume a target. Saved-server monitoring is independent of this list."
+    override val monitorLimits = "Stop prevents future automatic checks; manual tests remain available. In-flight connections may take longer to finish. Force-stop, reboot and battery restrictions can interrupt monitoring."
+    override val monitorNotification = "Periodic server and target checks from this phone are active."
+    override val monitorPermission = "Notifications or an alert channel are disabled. Checks can run, but phone alerts may not be visible."
+    override val monitorPermissionSettings = "Phone notification settings"
+    override val monitorPermissionPending = "Waiting for notification permission…"
+    override val monitorStartError = "Android rejected the start or setup did not finish. Keep the app in the foreground and try again; check battery restrictions and app settings."
+    override val monitorStopError = "Stop was not confirmed; the current state is retained. Try stopping again."
+    override val monitorEngineError = "The monitoring engine stopped after an error. Targets were not deleted. Retry and review app data/settings if it recurs."
+    override val monitorSettingsError = "Could not open notification settings. Open Didban in Android app settings."
     override val upNewMonitor = "new monitor"
     override val upSavedMonitors = "Saved monitors"
     override val upMonitorContract = "Monitor contract"
@@ -1890,7 +1953,7 @@ internal object CommandCopyEn : CommandCopy {
     override val delete = "Delete"
     override val upTargetRequired = "Target cannot be empty."
     override val upKeywordRequired = "A KEYWORD monitor needs a real keyword."
-    override val upSaved = "Monitor saved; the next check runs in UptimeEngine."
+    override val upSaved = "Target saved. Start monitoring on the Uptime page for scheduled checks; if already running, this target follows its schedule."
     override val upTargetFirst = "Enter a target first."
     override val upCheckDone = "Real check completed: %1 · %2 ms"
     override val upCheckFailed = "The check failed."

@@ -373,6 +373,9 @@ fun CommandUptimeScreen(
         item {
             CommandSectionTitle(copy.uptime, copy.incidentsFromLiveState, copy.refresh, { UptimeEngine.ensureLoaded(context) }, Modifier.padding(top = CommandSpacing.sm))
         }
+        item(key = "monitoring-control") {
+            CommandMonitoringControl(copy, targets.count { !it.isPaused })
+        }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {

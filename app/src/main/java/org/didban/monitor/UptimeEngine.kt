@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -181,9 +183,6 @@ object UptimeEngine {
     val monitoring: StateFlow<Boolean> = _monitoring.asStateFlow()
 
     private val scheduler = UptimeScheduler()
-    // Checked coroutines remove on IO threads; the loop adds on IO; stop()
-    // clears on main - synchronized set keeps this race-free.
-    private val inFlight = java.util.Collections.synchronizedSet(HashSet<Long>())
     private var engineScope: CoroutineScope? = null
 
     private const val TICK_MS = 2_000L
@@ -197,21 +196,40 @@ object UptimeEngine {
     }
 
     /** Start the background scheduler (idempotent). Called by MonitorService. */
-    fun start(ctx: Context) {
+    @Synchronized
+    fun start(ctx: Context, onFailure: () -> Unit = {}) {
         val app = ctx.applicationContext
         if (engineScope?.isActive == true) return
         ensureLoaded(app)
+        liveTargets.value.forEach { scheduler.reschedule(it.id) }
+        val runScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        engineScope = runScope
         _monitoring.value = true
-        engineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        engineScope!!.launch { schedulerLoop(app) }
+        runScope.launch {
+            var failed = false
+            try { schedulerLoop(app, runScope) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { failed = true }
+            finally {
+                synchronized(UptimeEngine) {
+                    if (engineScope === runScope) {
+                        _monitoring.value = false
+                        engineScope = null
+                    }
+                }
+                runScope.cancel()
+                if (failed) onFailure()
+            }
+        }
     }
 
-    /** Stop the background scheduler. Called by MonitorService on destroy. */
+    /** Stop future scheduled work. Blocking DNS/socket work may need time to unwind. */
+    @Synchronized
     fun stop() {
-        _monitoring.value = false
-        engineScope?.cancel()
+        val previous = engineScope
         engineScope = null
-        inFlight.clear()
+        _monitoring.value = false
+        previous?.cancel()
     }
 
     private fun normalize(t: UptimeTarget): UptimeTarget {
@@ -219,7 +237,9 @@ object UptimeEngine {
         return t
     }
 
-    private suspend fun schedulerLoop(app: Context) {
+    private suspend fun schedulerLoop(app: Context, runScope: CoroutineScope) {
+        // Each run owns its set: an old cancelled worker cannot clear a restarted run's IDs.
+        val inFlight = java.util.Collections.synchronizedSet(HashSet<Long>())
         val sem = Semaphore(MAX_CONCURRENT_CHECKS)
         while (currentCoroutineContext().isActive) {
             // Reconcile with disk: backup restore or another writer may have
@@ -242,20 +262,19 @@ object UptimeEngine {
             for (id in due) {
                 val t = targets.firstOrNull { it.id == id } ?: continue
                 if (!inFlight.add(id)) continue // previous check still running
-                engineScope!!.launch {
-                    sem.withPermit {
-                        try {
-                            checkTarget(t, app)
-                            scheduler.markChecked(t.id, System.currentTimeMillis(), t.intervalSec)
-                        } catch (_: Exception) {
-                            // checkTarget never throws (it records errors as
-                            // down-heartbeats); defensive re-schedule anyway.
-                            scheduler.markChecked(t.id, System.currentTimeMillis(), t.intervalSec)
-                        } finally {
-                            inFlight.remove(id)
-                            commit(app)
+                runScope.launch {
+                    try {
+                        sem.withPermit {
+                            currentCoroutineContext().ensureActive()
+                            checkNow(app, t)
                         }
-                    }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        if (currentCoroutineContext().isActive) {
+                            scheduler.markChecked(t.id, System.currentTimeMillis(), t.intervalSec)
+                        }
+                    } finally { inFlight.remove(id) }
                 }
             }
             delay(TICK_MS)
@@ -265,6 +284,7 @@ object UptimeEngine {
     // ── Mutations (UI entry points) ─────────────────────────────────────────
 
     /** Add or replace a target; it will be checked immediately. */
+    @Synchronized
     fun upsert(ctx: Context, target: UptimeTarget) {
         val app = ctx.applicationContext
         ensureLoaded(app)
@@ -278,6 +298,7 @@ object UptimeEngine {
     }
 
     /** Remove a target and its schedule entry. */
+    @Synchronized
     fun remove(ctx: Context, id: Long) {
         val app = ctx.applicationContext
         ensureLoaded(app)
@@ -290,25 +311,37 @@ object UptimeEngine {
     }
 
     /** Toggle pause; unpausing triggers an immediate check. */
+    @Synchronized
     fun togglePause(ctx: Context, id: Long) {
         val app = ctx.applicationContext
         ensureLoaded(app)
         val t = liveTargets.value.firstOrNull { it.id == id } ?: return
-        t.isPaused = !t.isPaused
-        if (!t.isPaused) scheduler.reschedule(id)
+        val next = t.copy(isPaused = !t.isPaused)
+        liveTargets.value = liveTargets.value.map { if (it.id == id) next else it }
+        if (!next.isPaused) scheduler.reschedule(id)
         commit(app)
     }
 
-    /** Manual "Test Now": one immediate check, reschedules normally. */
-    suspend fun checkNow(ctx: Context, target: UptimeTarget) {
+    /** Probe a snapshot: mutating objects already held by StateFlow suppresses UI emissions. */
+    suspend fun checkNow(ctx: Context, target: UptimeTarget): Heartbeat {
         val app = ctx.applicationContext
-        checkTarget(target, app)
-        scheduler.markChecked(target.id, System.currentTimeMillis(), target.intervalSec)
-        commit(app)
+        val checked = target.copy(heartbeats = target.heartbeats.toMutableList(),
+            incidents = target.incidents.map { it.copy() }.toMutableList())
+        val result = checkTarget(checked, app)
+        val checkContext = currentCoroutineContext()
+        synchronized(UptimeEngine) {
+            checkContext.ensureActive()
+            // A deleted/edited/paused target must not be resurrected by an old check.
+            if (liveTargets.value.any { it === target }) {
+                liveTargets.value = liveTargets.value.map { if (it === target) checked else it }
+                scheduler.markChecked(target.id, System.currentTimeMillis(), target.intervalSec)
+                commit(app)
+            }
+        }
+        return result
     }
 
     private fun commit(app: Context) {
-        liveTargets.value = liveTargets.value.toList() // new instance => UI recomposes
         Prefs.saveUptimeTargets(app, liveTargets.value)
     }
 
@@ -376,11 +409,15 @@ object UptimeEngine {
 
                 else -> isUp = true
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             isUp = false
             errMsg = e.message ?: "Connection failed"
         }
 
+        // Cancelling monitoring is not a failed target and must not produce a down alert.
+        currentCoroutineContext().ensureActive()
         val latency = System.currentTimeMillis() - t0
         val statusInt = if (isUp) 1 else 0
 

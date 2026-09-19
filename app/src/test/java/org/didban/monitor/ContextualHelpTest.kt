@@ -54,10 +54,10 @@ class ContextualHelpTest {
     @Test fun `uptime explains purpose and acknowledges current runner and measurement limits`() {
         val uptime = CommandRoute.UPTIME.helpContent("en")
         assertTrue(uptime.summary.contains("Does my site or service respond?"))
-        assertTrue(uptime.steps.joinToString().contains("no background-engine start control"))
+        assertTrue(uptime.steps.joinToString().contains("Start monitoring"))
         assertTrue(uptime.tip!!.contains("last 30 checks"))
         assertTrue(uptime.warning!!.contains("not ICMP"))
-        assertTrue(uptime.warning!!.contains("background restrictions"))
+        assertTrue(uptime.warning!!.contains("battery restrictions"))
         assertFalse(uptime.steps.joinToString().contains("Set interval and timeout"))
     }
 

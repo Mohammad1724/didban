@@ -1,5 +1,7 @@
 # Beginner help throughout the app
 
+> Historical QA for the help rollout at `32d9645`. The missing Uptime start-control gap described below was subsequently repaired; see [monitoring-control.md](monitoring-control.md). Current in-app guides describe the new Start/Stop path.
+
 ## Scope
 
 All 33 `CommandRoute` values have distinct Persian and English guides in `ContextualHelpCatalog.kt`, including the editor routes and compatibility destinations. The catalog is an exhaustive `when`: adding a route requires an explicit guide rather than a generic fallback.

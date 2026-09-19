@@ -302,20 +302,20 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "«افزودن مانیتور» را بزنید؛ مانیتور یعنی یک مقصد همراه با برنامهٔ بررسی آن.",
                 "برای سایت HTTP/HTTPS، برای اتصال به پورت TCP، برای متن داخل صفحه KEYWORD و برای گواهی HTTPS گزینهٔ SSL را انتخاب کنید.",
                 "نام، آدرس و فاصلهٔ بررسی را وارد کنید؛ مثلاً نام «پنل من»، نشانی واقعی پنلتان و فاصلهٔ ۳۰ ثانیه.",
-                "ذخیره کنید و «آزمایش اکنون» را بزنید. ذخیره به‌تنهایی بررسی دوره‌ای را شروع نمی‌کند؛ در رابط فعلی دکمهٔ شروع موتور پس‌زمینه وجود ندارد، پس فعلاً از آزمایش دستی استفاده کنید.",
+                "ذخیره کنید و «آزمایش اکنون» را بزنید. ذخیره به‌تنهایی بررسی دوره‌ای را شروع نمی‌کند؛ به صفحهٔ پایش برگردید و در کارت «پایش خودکار» دکمهٔ «شروع پایش» را بزنید. وضعیت روشن فقط پس از راه‌اندازی سرویس نمایش داده می‌شود.",
                 "مجوز اعلان را بدهید تا تغییر وضعیت قطع و وصل را دریافت کنید؛ از همین فهرست وضعیت و زمان پاسخ را ببینید.",
             ),
             listOf(
                 "Tap Add monitor: a monitor is a target plus its checking schedule.",
                 "Use HTTP/HTTPS for sites, TCP for a port, KEYWORD for text on a page and SSL for a certificate.",
                 "Enter a name, address and interval, such as “My panel”, your real panel URL and 30 seconds.",
-                "Save and use Test now. Saving alone does not start scheduled checks. The current interface has no background-engine start control, so use manual tests for now.",
+                "Save and use Test now. Saving alone does not start scheduled checks. Return to Uptime and press Start monitoring in the Automatic monitoring card. The on state appears only after the service starts.",
                 "Allow notifications to receive down/recovery transitions; inspect status and response time in the list.",
             ),
             "بررسی از اینترنت گوشی انجام می‌شود و Agent لازم ندارد. درصد وضعیت از ۳۰ بررسی اخیر است، نه گزارش آپ‌تایم ماهانه؛ قبل از اولین آزمایش به درصد اعتماد نکنید.",
             "Checks run from your phone connection without an Agent. The percentage uses the last 30 checks, not monthly uptime; do not rely on it before the first check.",
-            "قطع اینترنت گوشی یا محدودیت پس‌زمینهٔ اندروید روی نتیجه و تداوم پایش اثر دارد. پورت باز، سلامت کامل VPN را تضمین نمی‌کند. گزینهٔ PING فعلی در این بخش اتصال TCP است، نه پینگ ICMP.",
-            "Phone connectivity and Android background restrictions affect checks and continuity. An open port does not prove a working VPN. PING in this section currently uses TCP, not ICMP ping."
+            "اعلان ردشده مانع بررسی نمی‌شود ولی ممکن است هشدار را نبینید. پایش با بستن عادی صفحه ادامه دارد، اما بستن اجباری، راه‌اندازی دوبارهٔ گوشی یا محدودیت باتری می‌تواند آن را قطع کند. پورت باز، سلامت کامل VPN را تضمین نمی‌کند. گزینهٔ PING فعلی در این بخش اتصال TCP است، نه پینگ ICMP.",
+            "Denied notifications do not prevent checks but can hide alerts. Checks continue when leaving this page, but force-stop, reboot and battery restrictions can interrupt them. An open port does not prove a working VPN. PING in this section currently uses TCP, not ICMP ping."
         )
         CommandRoute.UPTIME_EDITOR -> h(
             "اینجا به دیدبان می‌گویید چه چیزی را و هر چند ثانیه بررسی کند؛ برای اینکه مثلاً زودتر بفهمید پنل یا پورت سرویس قطع شده است.",
@@ -325,14 +325,14 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "برای سایت، HTTPS و URL کامل مثل https://panel.example.com را با آدرس واقعی خودتان جایگزین کنید؛ پورت خاص وب را داخل URL بنویسید.",
                 "برای TCP یا SSL فقط دامنه یا IP مناسب مقصد و پورت را وارد کنید؛ مثلاً پورت 443. برای KEYWORD متن مورد انتظار صفحه را هم بنویسید.",
                 "فاصله را مثلاً ۳۰ ثانیه بگذارید؛ ذخیره و آزمایش اکنون را بزنید و نتیجه را بررسی کنید.",
-                "Pause مقصد را از برنامهٔ بررسی خودکار کنار می‌گذارد و Resume برمی‌گرداند؛ اما در رابط فعلی کنترل شروع موتور پس‌زمینه موجود نیست، پس ذخیره یا Resume به‌تنهایی بررسی دوره‌ای را آغاز نمی‌کند.",
+                "به صفحهٔ پایش برگردید و «شروع پایش» را بزنید؛ Pause بررسی خودکار فقط این مقصد را متوقف و Resume دوباره فعال می‌کند. دکمهٔ «توقف پایش» موتور خودکار همهٔ مقصدها و پایش پس‌زمینهٔ سرورها را متوقف می‌کند.",
             ),
             listOf(
                 "Use New for a new target, or select a saved monitor to edit; choose a recognizable name.",
                 "For a website choose HTTPS and replace https://panel.example.com with your real URL. Put a custom web port inside the URL.",
                 "For TCP or SSL enter the target host and port, such as 443. For KEYWORD also enter the expected page text.",
                 "Choose an interval such as 30 seconds, save and use Test now to verify.",
-                "Pause excludes this target from scheduling and Resume includes it again. The current interface has no background-engine start control, so saving or resuming alone does not start scheduled checks.",
+                "Return to Uptime and press Start monitoring. Pause suspends only this target and Resume enables it again. Stop monitoring stops automatic target checks and background server monitoring.",
             ),
             "HTTP پاسخ موفق وب را بررسی می‌کند؛ KEYWORD علاوه بر آن دنبال متن شما می‌گردد؛ SSL وضعیت انقضای گواهی را بررسی می‌کند. برای اعلان‌ها مجوز اعلان لازم است.",
             "HTTP checks a successful web response; KEYWORD also looks for your text; SSL checks certificate expiry. Notifications need permission.",

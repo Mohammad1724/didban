@@ -133,7 +133,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         scope.launch {
             runCatching { UptimeEngine.checkNow(context, item) }
-                .onSuccess { message = copy.upCheckDone.replace("%1", if (item.lastStatus == 1) "UP" else "DOWN").replace("%2", item.lastLatencyMs.toString()) }
+                .onSuccess { heartbeat -> message = copy.upCheckDone.replace("%1", if (heartbeat.status == 1) "UP" else "DOWN").replace("%2", heartbeat.latencyMs.toString()) }
                 .onFailure { error = it.message ?: copy.upCheckFailed }
             busy = false
         }
