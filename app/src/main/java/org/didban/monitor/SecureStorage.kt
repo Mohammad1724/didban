@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
+import java.security.KeyStoreException
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 
@@ -63,10 +64,17 @@ object SecureStorage {
     private fun getOrCreateKey(): SecretKey {
         key?.let { return it }
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        val existing = ks.getEntry(KEY_ALIAS, null)
-        val k: SecretKey = if (existing is KeyStore.SecretKeyEntry) {
-            existing.secretKey
+        // Some Samsung/vendor KeyStore implementations throw an internal NPE
+        // from getEntry(alias, null) when the alias does not exist. Check the
+        // alias first and use the simpler getKey API recommended for secret
+        // keys, while treating a present-but-null key as corruption.
+        val existing: SecretKey? = if (ks.containsAlias(KEY_ALIAS)) {
+            (ks.getKey(KEY_ALIAS, null) as? SecretKey)
+                ?: throw KeyStoreException("Keystore alias does not contain a secret key")
         } else {
+            null
+        }
+        val k: SecretKey = existing ?: run {
             // A few older/vendor AndroidKeyStore implementations reject an
             // explicit 256-bit AES key even though AES-GCM itself is present.
             // AES-128-GCM remains cryptographically strong; use it only as a
