@@ -65,6 +65,8 @@ object QuickConnectCodeParser {
                 "(?:\\s*&\\s*name=\\s*([^\\s&]+))?",
             RegexOption.IGNORE_CASE
         ).find(raw) ?: throw IllegalArgumentException("incomplete quick-connect code")
+        val trailing = raw.substring(match.range.last + 1).trimStart()
+        require(!trailing.startsWith("&")) { "unexpected quick-connect data" }
         val host = match.groupValues[1]
         val port = match.groupValues[2].ifEmpty { "8686" }
         val readToken = match.groupValues[3]
