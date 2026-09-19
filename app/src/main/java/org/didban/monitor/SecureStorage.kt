@@ -111,7 +111,9 @@ object SecureStorage {
     private fun storageUnavailableMessage(error: Throwable): String {
         var root = error
         while (root.cause != null && root.cause !== root) root = root.cause!!
-        return "Secure storage is unavailable (${root.javaClass.simpleName})"
+        val frame = root.stackTrace.firstOrNull()
+        val location = frame?.let { " at ${it.className.substringAfterLast('.')}.${it.methodName}" }.orEmpty()
+        return "Secure storage is unavailable (${root.javaClass.simpleName}$location)"
     }
 
     fun encrypt(plaintext: String): String = SecureCipher.encrypt(getOrCreateKey(), plaintext)
