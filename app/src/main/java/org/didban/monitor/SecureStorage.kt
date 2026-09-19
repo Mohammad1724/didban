@@ -39,6 +39,21 @@ object SecureStorage {
 
     @Volatile private var key: SecretKey? = null
 
+    private fun generateAesKey(sizeBits: Int): SecretKey {
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
+        val spec = KeyGenParameterSpec.Builder(
+            KEY_ALIAS,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setKeySize(sizeBits)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true)
+            .build()
+        generator.init(spec)
+        return generator.generateKey()
+    }
+
     @Synchronized
     private fun getOrCreateKey(): SecretKey {
         key?.let { return it }
@@ -47,21 +62,31 @@ object SecureStorage {
         val k: SecretKey = if (existing is KeyStore.SecretKeyEntry) {
             existing.secretKey
         } else {
-            val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE)
-            val spec = KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-            )
-                .setKeySize(KEY_SIZE_BITS)
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setRandomizedEncryptionRequired(true)
-                .build()
-            gen.init(spec)
-            gen.generateKey()
+            // A few older/vendor AndroidKeyStore implementations reject an
+            // explicit 256-bit AES key even though AES-GCM itself is present.
+            // AES-128-GCM remains cryptographically strong; use it only as a
+            // generation fallback, never as plaintext-storage fallback.
+            try {
+                generateAesKey(KEY_SIZE_BITS)
+            } catch (primary: Exception) {
+                runCatching { ks.deleteEntry(KEY_ALIAS) }
+                try {
+                    generateAesKey(128)
+                } catch (fallback: Exception) {
+                    fallback.addSuppressed(primary)
+                    throw fallback
+                }
+            }
         }
         key = k
         return k
+    }
+
+    @Synchronized
+    private fun resetKeyAlias() {
+        key = null
+        val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
+        if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
     }
 
     fun encrypt(plaintext: String): String = SecureCipher.encrypt(getOrCreateKey(), plaintext)
@@ -136,8 +161,22 @@ object SecureStorage {
         val sp = ctx.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         val encrypted = try {
             encryptBound(prefsName, key, plaintext)
-        } catch (e: Exception) {
-            throw SecretStorageException("Secure storage is unavailable", e)
+        } catch (first: Exception) {
+            // An interrupted OS/app restore can leave a stale Keystore alias
+            // before any encrypted app data exists. It is safe to recreate it
+            // only for an empty secure store; never discard a key that protects
+            // existing ciphertext.
+            val hasEncryptedData = sp.all.keys.any { it.endsWith("_enc") }
+            if (hasEncryptedData) {
+                throw SecretStorageException("Secure storage is unavailable", first)
+            }
+            try {
+                resetKeyAlias()
+                encryptBound(prefsName, key, plaintext)
+            } catch (retry: Exception) {
+                retry.addSuppressed(first)
+                throw SecretStorageException("Secure storage is unavailable", retry)
+            }
         }
         if (!sp.edit().putString(key + "_enc", encrypted).remove(key).commit()) {
             throw SecretStorageException("Could not persist encrypted data")
