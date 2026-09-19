@@ -335,6 +335,12 @@ EOF
   # H14: bounded wait for the cert line instead of a racing fixed sleep —
   # an empty fingerprint here is what made the app save the server unpinned.
   FINGERPRINT="$(wait_for_fingerprint || true)"
+  # Journal access can be delayed or restricted even though the certificate is
+  # already present. Derive the same leaf-certificate SHA-256 directly before
+  # deciding whether a safe quick-connect code can be printed.
+  if [[ -z "$FINGERPRINT" && -f "$DATA_DIR/cert.pem" ]] && command -v openssl >/dev/null 2>&1; then
+    FINGERPRINT="$(openssl x509 -in "$DATA_DIR/cert.pem" -noout -fingerprint -sha256 2>/dev/null | sed -n 's/^[^=]*=//p' | tr -d ':' | tr 'A-F' 'a-f' || true)"
+  fi
 
   echo ""
   echo "══════════════════════════════════════════════════════════"
@@ -347,8 +353,13 @@ EOF
     echo "  Cert SHA256:  ${FINGERPRINT}"
   fi
   echo ""
-  echo "  📲 One-Click Mobile Import Link (کپی این خط برای اتصال فوری در اپ):"
-  echo "  didban://${SERVER_IP}:${PORT}?token=${TOKEN}&admin_token=${ADMIN_TOKEN}&fp=${FINGERPRINT}&name=${SERVER_IP}"
+  if [[ "$FINGERPRINT" =~ ^[a-f0-9]{64}$ ]]; then
+    echo "  📲 One-Click Mobile Import Link (کپی این خط برای اتصال فوری در اپ):"
+    echo "  didban://${SERVER_IP}:${PORT}?token=${TOKEN}&admin_token=${ADMIN_TOKEN}&fp=${FINGERPRINT}&name=${SERVER_IP}"
+  else
+    echo "  WARNING: certificate fingerprint unavailable; quick-connect code was not printed."
+    echo "  Run: journalctl -u didban-agent --no-pager | grep 'Cert SHA256'"
+  fi
   echo ""
   echo "  Save these — you will enter them in the Didban Android app."
   echo "  این اطلاعات را در اپ اندروید دیدبان وارد کنید."

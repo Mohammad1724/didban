@@ -18,7 +18,7 @@ object QuickConnectCodeParser {
     private val allowedKeys = setOf("token", "admin_token", "fp", "name")
 
     fun parse(raw: String): QuickConnectCode {
-        val text = raw.trim()
+        val text = extractCode(raw)
         require(text.length in 1..2048) { "invalid quick-connect code" }
         val uri = runCatching { URI(text) }.getOrElse { throw IllegalArgumentException("invalid quick-connect code") }
         require(uri.scheme.equals("didban", ignoreCase = true)) { "invalid quick-connect scheme" }
@@ -44,6 +44,25 @@ object QuickConnectCodeParser {
         require(CertFingerprint.isValidSha256(fingerprint)) { "invalid certificate fingerprint" }
         val name = values["name"]?.trim()?.take(100).orEmpty().ifBlank { host }
         return QuickConnectCode(host, port, readToken, adminToken, fingerprint, name)
+    }
+
+    /**
+     * Terminal apps may copy the explanatory label, indentation, or hard line
+     * wraps together with the URI. Extract only the installer-shaped code and
+     * remove whitespace introduced by wrapping; credentials themselves cannot
+     * legally contain whitespace.
+     */
+    private fun extractCode(raw: String): String {
+        require(raw.length in 1..8192) { "invalid quick-connect code" }
+        val compact = raw.replace(Regex("\\s+"), "")
+        val start = compact.indexOf("didban://", ignoreCase = true)
+        require(start >= 0) { "quick-connect scheme is missing" }
+        val candidate = compact.substring(start)
+        val match = Regex(
+            "(?i)^didban://[^?&#]+\\?token=[^&#]+&admin_token=[^&#]+&fp=[0-9a-f: ]{64,95}(?:&name=[A-Za-z0-9._%:-]{1,300})?"
+        ).find(candidate) ?: throw IllegalArgumentException("incomplete quick-connect code")
+        require(!candidate.substring(match.value.length).startsWith("&")) { "unexpected quick-connect data" }
+        return match.value
     }
 
     private fun decode(value: String): String = runCatching {

@@ -19,6 +19,18 @@ class QuickConnectCodeTest {
         assertEquals(fp, result.fingerprint)
     }
 
+    @Test fun acceptsTerminalLabelsAndWrappedLines() {
+        val pasted = """
+            One-Click Mobile Import Link:
+              didban://203.0.113.8:8686?token=$read&admin_token=
+              $admin&fp=$fp&name=Production%20One
+            Save these values.
+        """.trimIndent()
+        val result = QuickConnectCodeParser.parse(pasted)
+        assertEquals("Production One", result.name)
+        assertEquals(admin, result.adminToken)
+    }
+
     @Test fun rejectsMissingWeakEqualOrUnexpectedCredentials() {
         rejects("https://203.0.113.8:8686?token=$read&admin_token=$admin&fp=$fp")
         rejects("didban://203.0.113.8:8686?token=weak&admin_token=$admin&fp=$fp")
