@@ -54,15 +54,30 @@ object QuickConnectCodeParser {
      */
     private fun extractCode(raw: String): String {
         require(raw.length in 1..8192) { "invalid quick-connect code" }
-        val compact = raw.replace(Regex("\\s+"), "")
-        val start = compact.indexOf("didban://", ignoreCase = true)
-        require(start >= 0) { "quick-connect scheme is missing" }
-        val candidate = compact.substring(start)
+        // Installer-generated credentials are hexadecimal. Matching each field
+        // separately lets us tolerate terminal wrapping without accidentally
+        // swallowing the explanatory line printed after the URI into `name`.
         val match = Regex(
-            "(?i)^didban://[^?&#]+\\?token=[^&#]+&admin_token=[^&#]+&fp=[0-9a-f: ]{64,95}(?:&name=[A-Za-z0-9._%:-]{1,300})?"
-        ).find(candidate) ?: throw IllegalArgumentException("incomplete quick-connect code")
-        require(!candidate.substring(match.value.length).startsWith("&")) { "unexpected quick-connect data" }
-        return match.value
+            "didban://\\s*([A-Za-z0-9.-]+)(?::(\\d{1,5}))?\\s*\\?\\s*" +
+                "token=\\s*([A-Fa-f0-9]{32,256})\\s*&\\s*" +
+                "admin_token=\\s*([A-Fa-f0-9]{32,256})\\s*&\\s*" +
+                "fp=\\s*((?:[A-Fa-f0-9]{2}:?\\s*){32})" +
+                "(?:\\s*&\\s*name=\\s*([^\\s&]+))?",
+            RegexOption.IGNORE_CASE
+        ).find(raw) ?: throw IllegalArgumentException("incomplete quick-connect code")
+        val host = match.groupValues[1]
+        val port = match.groupValues[2].ifEmpty { "8686" }
+        val readToken = match.groupValues[3]
+        val adminToken = match.groupValues[4]
+        val fingerprint = match.groupValues[5].replace(Regex("\\s+"), "")
+        val name = match.groupValues[6]
+        return buildString {
+            append("didban://").append(host).append(':').append(port)
+            append("?token=").append(readToken)
+            append("&admin_token=").append(adminToken)
+            append("&fp=").append(fingerprint)
+            if (name.isNotEmpty()) append("&name=").append(name)
+        }
     }
 
     private fun decode(value: String): String = runCatching {
