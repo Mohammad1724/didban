@@ -13,7 +13,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-class ApiException(message: String) : Exception(message)
+class ApiException(message: String, val statusCode: Int? = null) : Exception(message)
 
 /**
  * HTTP client for one or more agents.
@@ -84,7 +84,7 @@ class ApiClient {
                 val body = BoundedResponseReader.readUtf8(resp.body, responseLimit)
                 // Agent/proxy bodies are untrusted and may echo request data;
                 // never propagate the raw body into UI errors or crash traces.
-                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}")
+                if (!resp.isSuccessful) throw ApiException("HTTP ${resp.code}", resp.code)
                 return JSONObject(body)
             }
         } catch (e: ApiException) {

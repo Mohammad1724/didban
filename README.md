@@ -67,6 +67,9 @@ curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/inst
 sudo bash didban-install.sh
 ```
 
+> **Match app and Agent builds:** the default installer downloads the latest **Release**, not latest `main`. A main-build APK may require newer Docker/bandwidth endpoints. Use an Agent from the same build or compile the reviewed source; reinstalling an older Release is not an upgrade. See [Agent upgrade and diagnostics](docs/qa/docker-bandwidth.md). Preserve existing configuration and credentials.
+
+
 If you use a firewall, open the port:
 
 ```bash

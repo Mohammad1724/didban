@@ -115,6 +115,26 @@ wait_for_fingerprint() {
   return 1
 }
 
+# Replace the inode atomically; never overwrite an executable that is running.
+install_binary() {
+  local source="$1" staged
+  [[ ! -L "$BIN_DEST" ]] || die "refusing symlinked agent binary: $BIN_DEST"
+  staged="$(mktemp "$(dirname "$BIN_DEST")/.didban-agent.XXXXXX")"
+  if ! install -m 0755 "$source" "$staged" || ! "$staged" -version; then
+    rm -f "$staged"
+    die "new agent binary failed validation; current binary was preserved"
+  fi
+  mv -f "$staged" "$BIN_DEST"
+}
+
+activate_agent() {
+  systemctl daemon-reload
+  systemctl enable didban-agent
+  # enable --now does NOT restart an already-running old agent after upgrade.
+  systemctl restart didban-agent
+  systemctl is-active --quiet didban-agent
+}
+
 main() {
 # ── Preflight ────────────────────────────────────────────────────────────────
   require_root
@@ -172,8 +192,7 @@ main() {
     fi
   fi
 
-  install -m 0755 "$BIN" "$BIN_DEST"
-  "$BIN_DEST" -version
+  install_binary "$BIN"
 
 # ── Configuration ────────────────────────────────────────────────────────────
   mkdir -p "$CONF_DIR" "$DATA_DIR"
@@ -325,9 +344,7 @@ RestrictSUIDSGID=true
 WantedBy=multi-user.target
 EOF
 
-  systemctl daemon-reload
-  systemctl enable --now didban-agent
-  sleep 2
+  activate_agent
 
 # ── Summary ──────────────────────────────────────────────────────────────────
   local SERVER_IP FINGERPRINT

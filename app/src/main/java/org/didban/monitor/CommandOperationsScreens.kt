@@ -413,7 +413,7 @@ fun CommandDockerScreen(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: Exception) {
-                error = e.message ?: copy.operationFailed
+                error = describeAgentToolFailure(e, copy, target, bandwidth = false)
                 refreshedAt = System.currentTimeMillis()
             } finally {
                 loading = false
@@ -437,7 +437,11 @@ fun CommandDockerScreen(
         if (server == null) item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
         else if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: copy.operationFailed, CommandHealthTone.OFFLINE, copy.retry, ::load) }
         else if (loading && data == null) item { CommandStateBlock(copy.waitingForData, copy.waitingForData, CommandHealthTone.UNKNOWN) }
-        else if (data?.installed == false) item { CommandStateBlock(copy.docker, copy.notAvailable, CommandHealthTone.INFO) }
+        else if (data?.installed == false || !data?.error.isNullOrBlank()) item {
+            CommandStateBlock(copy.docker, copy.dockerUnavailable + data?.error?.takeIf { it.isNotBlank() }?.let {
+                "\n" + SecretRedactor.redact(it, listOf(server.token, server.adminToken)).take(300)
+            }.orEmpty(), CommandHealthTone.ATTENTION, copy.retry, ::load)
+        }
         else if (data?.containers.isNullOrEmpty()) item { CommandEmptyState(copy.docker, copy.noAttentionBody) }
         else {
             item {

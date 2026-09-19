@@ -164,6 +164,37 @@ else
   bad "missing checksum (rc=$MAIN_RC): $MAIN_OUT / $(cat "$WORK/err")"
 fi
 
+# Upgrade must keep credentials/config/data and actually restart the service.
+printf 'custom-setting=keep\n' >> "$E2E_CONF/agent.conf"
+printf 'existing certificate fixture\n' > "$E2E_DATA/cert.pem"
+BEFORE_CONF="$(sha256_of "$E2E_CONF/agent.conf")"
+BEFORE_READ="$(sha256_of "$E2E_CONF/token")"
+BEFORE_ADMIN="$(sha256_of "$E2E_CONF/admin-token")"
+: > "$STUB_LOG"
+run_main
+if [[ $MAIN_RC == 0 ]] && grep -q '^systemctl restart didban-agent$' "$STUB_LOG" && grep -q '^systemctl is-active --quiet didban-agent$' "$STUB_LOG"; then
+  ok "upgrade restarts the agent and checks active state"
+else
+  bad "upgrade did not restart/check the service"
+fi
+if [[ "$BEFORE_CONF" == "$(sha256_of "$E2E_CONF/agent.conf")" && "$BEFORE_READ" == "$(sha256_of "$E2E_CONF/token")" && "$BEFORE_ADMIN" == "$(sha256_of "$E2E_CONF/admin-token")" ]] && grep -q 'existing certificate fixture' "$E2E_DATA/cert.pem"; then
+  ok "upgrade preserves config, credentials and certificate data"
+else
+  bad "upgrade changed existing configuration or secrets"
+fi
+
+# Broken executable must not replace the current binary.
+BEFORE_BIN="$(sha256_of "$E2E_BIN")"
+printf '#!/bin/sh\nexit 1\n' > "$WORK/broken-agent"
+chmod +x "$WORK/broken-agent"
+if (install_binary "$WORK/broken-agent" > /dev/null 2>&1); then
+  bad "broken agent was accepted"
+elif [[ "$BEFORE_BIN" == "$(sha256_of "$E2E_BIN")" ]]; then
+  ok "failed executable validation preserves the previous binary"
+else
+  bad "failed validation replaced the current binary"
+fi
+
 # ── H14: wait_for_fingerprint (bounded, no racing fixed sleep) ──────────────
 echo "── wait_for_fingerprint (H14) ──"
 export DIDBAN_FP_DELAY=0   # fast for tests; real default is 1s

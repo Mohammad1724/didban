@@ -67,6 +67,9 @@ curl -fsSL https://raw.githubusercontent.com/Mohammad1724/didban/main/agent/inst
 sudo bash didban-install.sh
 ```
 
+> **هماهنگی نسخه‌ها:** نصب‌کنندهٔ پیش‌فرض آخرین Release را دریافت می‌کند، نه آخرین بیلد `main`. اگر APK را از بیلد `main` گرفته‌اید و Docker یا پهنای باند 404 می‌دهد، ایجنت همان بیلد را نصب کنید یا از سورس جدید بسازید؛ تکرار نصب Release قدیمی کافی نیست. [راهنمای ارتقای ایجنت و عیب‌یابی](docs/qa/docker-bandwidth.md). تنظیمات و توکن‌ها را حذف نکنید.
+
+
 اگه فایروال داری، پورت رو باز کن:
 
 ```bash

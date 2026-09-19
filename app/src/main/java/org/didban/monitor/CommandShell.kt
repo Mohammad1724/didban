@@ -809,7 +809,7 @@ private fun CommandRouteContent(
             CommandRoute.PROCESSES -> key(selectedServer) { CommandProcessesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.SERVICES -> key(selectedServer) { CommandServicesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, onSelectServer, { onBack() })
-            CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer) { onBack() } }
+            CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer, onBack = onBack) }
             CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
             CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
             CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }

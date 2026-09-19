@@ -335,7 +335,6 @@ interface CommandCopy {
     val currentServer: String
     val noServerSelected: String
     val capabilities: String
-    val notAvailable: String
     val retry: String
     val dataIsStale: String
     val start: String
@@ -748,6 +747,14 @@ interface CommandCopy {
     val bandwidthRunning: String
     val bandwidthResult: String
     val bandwidthUnsupported: String
+    val dockerUnsupported: String
+    val dockerUnavailable: String
+    val agentToolAuthFailed: String
+    val agentToolPayloadRejected: String
+    val agentToolTimeout: String
+    val agentToolDnsFailed: String
+    val agentToolTlsFailed: String
+    val agentToolUnreachable: String
     val download: String
     val upload: String
     val jitter: String
@@ -886,7 +893,6 @@ internal object CommandCopyFa : CommandCopy {
     override val currentServer = "سرور انتخاب‌شده"
     override val noServerSelected = "بدون محدودهٔ سرور"
     override val capabilities = "قابلیت‌ها"
-    override val notAvailable = "در Agent فعلی در دسترس نیست"
     override val retry = "تلاش دوباره"
     override val dataIsStale = "داده قدیمی است"
     override val start = "شروع"
@@ -1295,14 +1301,22 @@ internal object CommandCopyFa : CommandCopy {
     override val hubDataRecovery = "داده و بازیابی"
     override val hubAppBehaviour = "رفتار برنامه"
     override val bandwidth = "سنجش پهنای باند"
-    override val bandwidthBody = "دانلود و آپلود واقعی ۱۰۰ مگابایت از/به ایجنت، به‌همراه تأخیر، جیتر و افت بسته."
+    override val bandwidthBody = "دانلود و آپلود واقعی، هرکدام ۱۰۰ مگابایت از/به ایجنت. تأخیر و جیتر با اتصال TCP سنجیده می‌شوند؛ درصد خطا مربوط به شکست اتصال TCP است، نه افت بستهٔ ICMP."
     override val bandwidthRunning = "در حال سنجش…"
     override val bandwidthResult = "نتیجهٔ سنجش"
-    override val bandwidthUnsupported = "ایجنت این سرور از سنجش پهنای باند پشتیبانی نمی‌کند؛ ایجنت را به‌روزرسانی کنید."
+    override val bandwidthUnsupported = "HTTP 404/405: مسیر سنجش پهنای باند در ایجنت یا پروکسی در دسترس نیست. ایجنت را با بیلد جدید به‌روز و سرویس را راه‌اندازی مجدد کنید؛ آدرس و پورت را هم بررسی کنید."
     override val download = "دانلود"
     override val upload = "آپلود"
     override val jitter = "جیتر"
     override val packetLoss = "افت بسته"
+    override val dockerUnsupported = "HTTP 404/405: مسیر Docker در ایجنت یا پروکسی این سرور در دسترس نیست. ایجنت را با بیلد جدید به‌روز و سرویس را راه‌اندازی مجدد کنید؛ آدرس و پورت اتصال را هم بررسی کنید."
+    override val dockerUnavailable = "ایجنت پاسخ داد، اما Docker در دسترس نیست. سرویس Docker و دسترسی ایجنت به سوکت Docker را بررسی کنید."
+    override val agentToolAuthFailed = "توکن یا مجوز ایجنت پذیرفته نشد؛ اطلاعات اتصال را بررسی کنید."
+    override val agentToolPayloadRejected = "حجم درخواست رد شد؛ محدودیت آپلود پروکسی و نسخهٔ ایجنت را بررسی کنید."
+    override val agentToolTimeout = "مهلت ارتباط تمام شد؛ دسترسی به ایجنت و محدودیت زمانی پروکسی را بررسی کنید."
+    override val agentToolDnsFailed = "نام میزبان به آدرس IP تبدیل نشد؛ آدرس سرور و DNS را بررسی کنید."
+    override val agentToolTlsFailed = "بررسی TLS یا گواهی سرور ناموفق بود. اثرانگشت گواهی را از منبع معتبر بررسی کنید؛ بررسی امنیتی را غیرفعال نکنید."
+    override val agentToolUnreachable = "اتصال به پورت ایجنت برقرار نشد؛ آدرس، پورت، سرویس و فایروال را بررسی کنید."
     override val networkError = "خطای شبکه"
     override val security = "امنیت سرور"
     override val securityFirewall = "دیوار آتش"
@@ -1430,7 +1444,6 @@ internal object CommandCopyEn : CommandCopy {
     override val currentServer = "Selected server"
     override val noServerSelected = "No server scope"
     override val capabilities = "Capabilities"
-    override val notAvailable = "Not available from this Agent"
     override val retry = "Retry"
     override val dataIsStale = "Data is stale"
     override val start = "Start"
@@ -1839,14 +1852,22 @@ internal object CommandCopyEn : CommandCopy {
     override val hubDataRecovery = "Data & recovery"
     override val hubAppBehaviour = "App behaviour"
     override val bandwidth = "Bandwidth benchmark"
-    override val bandwidthBody = "A real 100 MiB download from and upload to the agent, plus latency, jitter and packet loss."
+    override val bandwidthBody = "A real 100 MiB download and 100 MiB upload to the agent. Latency and jitter use TCP handshakes; loss means failed TCP connections, not measured ICMP packet loss."
     override val bandwidthRunning = "Measuring…"
     override val bandwidthResult = "Benchmark result"
-    override val bandwidthUnsupported = "This server's agent does not support the bandwidth benchmark; update the agent."
+    override val bandwidthUnsupported = "HTTP 404/405: the bandwidth endpoint is unavailable on this agent or proxy. Update the agent to the current build and restart its service; also check its address and port."
     override val download = "Download"
     override val upload = "Upload"
     override val jitter = "Jitter"
     override val packetLoss = "Packet loss"
+    override val dockerUnsupported = "HTTP 404/405: the Docker endpoint is unavailable on this agent or proxy. Update the agent to the current build and restart its service; also check the connection address and port."
+    override val dockerUnavailable = "The agent responded, but Docker is unavailable. Check the Docker service and the agent’s access to its socket."
+    override val agentToolAuthFailed = "The agent rejected the token or permissions. Check the connection credentials."
+    override val agentToolPayloadRejected = "The request payload was rejected. Check the proxy upload limit and agent version."
+    override val agentToolTimeout = "The connection timed out. Check agent reachability and proxy timeouts."
+    override val agentToolDnsFailed = "The hostname could not be resolved. Check the server address and DNS."
+    override val agentToolTlsFailed = "TLS or certificate verification failed. Verify the certificate fingerprint through a trusted source; do not disable verification."
+    override val agentToolUnreachable = "Could not connect to the agent port. Check its address, port, service and firewall."
     override val networkError = "Network error"
     override val security = "Server security"
     override val securityFirewall = "Firewall"
