@@ -73,4 +73,15 @@ class CommandRedesignUiTest {
         compose.onNodeWithText(copy.fleetDiscard).performClick()
         compose.runOnIdle { assertTrue(closed) }
     }
+    @Test fun `glass surface supplies readable default content color in dark mode`() {
+        var color = androidx.compose.ui.graphics.Color.Transparent
+        compose.setContent { CommandTheme("dark", "fa") {
+            CommandLayerSurface {
+                color = androidx.compose.material3.LocalContentColor.current
+                androidx.compose.material3.Text("Glass content")
+            }
+        } }
+        compose.onNodeWithText("Glass content").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(CommandDarkPalette.textPrimary, color) }
+    }
 }

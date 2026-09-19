@@ -1,0 +1,52 @@
+{
+  "date": "2026-09-19",
+  "baseline": "8041a3f27fa513ec0f9fc89cca66ba561ca6842a",
+  "tests": {
+    "tests": 474,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 3
+  },
+  "passed": 471,
+  "lint": {
+    "Warning": 51,
+    "Information": 5
+  },
+  "compile": "passed",
+  "dex": "passed",
+  "assemble_debug": "passed",
+  "apk_signature_v2": "verified",
+  "apk_sha256": "4936252ad4c1a00eb2a412acad319e2e44a4271ea65214fc917d927f88bb54dd",
+  "apk_bytes": 21464130,
+  "screenshots": [
+    "en-dark-tablet-tools.png",
+    "fa-dark-details.png",
+    "fa-dark-monitoring.png",
+    "fa-dark-scanner.png",
+    "fa-dark-servers.png",
+    "fa-dark-settings.png",
+    "fa-light-details.png",
+    "fa-light-large-text-tools.png",
+    "fa-light-monitoring.png",
+    "fa-light-scanner.png",
+    "fa-light-servers.png",
+    "fa-light-settings.png",
+    "fa-light-tools.png"
+  ],
+  "render_evidence": "Actual Compose view.draw with Robolectric API33 native graphics. Dark phone includes synthetic CPU/RAM/latency fixtures, not live Agent data.",
+  "glass_implementation": "Static cached edge lights, opaque gradient content cards, 96–97% opaque navigation/header chrome; no live blur or backdrop capture.",
+  "preserved": [
+    "four primary sections",
+    "route keys and Back behavior",
+    "saved preferences and servers",
+    "RAM-only masked connection drafts",
+    "default-off screenshot protection",
+    "monitoring/scanner/Agent engines"
+  ],
+  "not_validated": [
+    "physical phone/OEM",
+    "TalkBack session",
+    "live private Agent",
+    "battery/GPU/frame timing"
+  ]
+}

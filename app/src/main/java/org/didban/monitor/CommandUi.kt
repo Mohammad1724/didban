@@ -70,7 +70,7 @@ fun CommandPage(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CommandColors.canvas)
+            .commandAtmosphere()
             .padding(horizontal = CommandSpacing.md),
         content = content
     )
@@ -140,16 +140,7 @@ fun CommandSurface(
     border: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Surface(
-        modifier = modifier,
-        color = CommandColors.surface,
-        shape = RoundedCornerShape(16.dp),
-        border = if (border) BorderStroke(1.dp, CommandColors.border) else null,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
-    ) {
-        Column(content = content)
-    }
+    CommandLayerSurface(modifier = modifier, raised = raised, border = border, content = content)
 }
 
 @Composable

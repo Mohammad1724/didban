@@ -357,7 +357,7 @@ fun CommandCenterApp(
             onAdd = { serverPickerOpen = false; navigation = navigation.editServer(null) }
         )
 
-        BoxWithConstraints(Modifier.fillMaxSize().background(CommandColors.canvas)) {
+        BoxWithConstraints(Modifier.fillMaxSize().commandAtmosphere()) {
             val wide = maxWidth >= 840.dp
             @Composable fun page() {
                 Column(Modifier.fillMaxSize()) {

@@ -1,5 +1,7 @@
 # Approved Android redesign
 
+This document records the first implementation (`8041a3f`). The subsequent owner-approved visual polish is documented in [Restrained glass refinement](glass-refinement.md); navigation and security constraints below remain in force.
+
 The owner approved the `ui-redesign-v1.html` direction. This change applies it to the actual Compose application rather than shipping another web mockup. Existing serialized route keys, server records, Agent APIs and scanner engines remain unchanged.
 
 ## Navigation and page structure

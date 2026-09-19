@@ -20,6 +20,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -71,24 +73,29 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
     val selected = route.primary()
     @Composable fun entry(section: CommandPrimary, modifier: Modifier) {
         val active = section == selected
-        Column(modifier.clip(RoundedCornerShape(12.dp))
+        Column(modifier.clip(RoundedCornerShape(18.dp))
+            .background(if (active) CommandColors.infoSurface else Color.Transparent)
+            .border(1.dp, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(18.dp))
             .testTag("primary-${section.name.lowercase()}")
             .selectable(active, role = Role.Tab, onClick = { onNavigate(section.root) })
             .padding(horizontal = 4.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.width(48.dp).height(30.dp).clip(RoundedCornerShape(10.dp))
-                .background(if (active) CommandColors.infoSurface else CommandColors.surface), contentAlignment = Alignment.Center) {
+                .background(Color.Transparent), contentAlignment = Alignment.Center) {
                 Icon(section.icon(), null, tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(21.dp))
             }
             Text(section.label(copy), color = if (active) CommandColors.accent else CommandColors.textSecondary,
                 style = MaterialTheme.typography.labelMedium, maxLines = 2)
         }
     }
-    Surface(color = CommandColors.surface) {
-        if (rail) Column(Modifier.width(100.dp).fillMaxHeight().padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CommandPrimary.values().forEach { entry(it, Modifier.fillMaxWidth()) }
-        } else Column {
-            CommandRule()
-            Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp)) {
+    if (rail) {
+        CommandLayerSurface(Modifier.padding(8.dp), chrome = true) {
+            Column(Modifier.width(96.dp).fillMaxHeight().padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CommandPrimary.values().forEach { entry(it, Modifier.fillMaxWidth()) }
+            }
+        }
+    } else {
+        CommandLayerSurface(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), chrome = true) {
+            Row(Modifier.fillMaxWidth().padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 CommandPrimary.values().forEach { entry(it, Modifier.weight(1f)) }
             }
         }
@@ -98,7 +105,7 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
 @Composable
 internal fun CommandPageChrome(title: String, copy: CommandCopy, language: String,
     showBack: Boolean, onBack: () -> Unit, onHelp: () -> Unit) {
-    Surface(color = CommandColors.surface) {
+    CommandLayerSurface(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), chrome = true) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             if (showBack) CommandIconButton(Icons.AutoMirrored.Rounded.ArrowBack, copy.back, onBack)
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = CommandColors.textPrimary)
@@ -129,7 +136,9 @@ internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: Str
     CommandSurface(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(24.dp))
+            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(CommandColors.infoSurface), contentAlignment = Alignment.Center) {
+                Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(22.dp))
+            }
             Column(Modifier.weight(1f)) {
                 Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
                 if (detail != null) Text(detail, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 3)
