@@ -31,6 +31,15 @@ class QuickConnectCodeTest {
         assertEquals(admin, result.adminToken)
     }
 
+    @Test fun acceptsHtmlEscapedSeparatorsAndTokenLineWraps() {
+        val wrappedAdmin = admin.take(60) + "\n" + admin.drop(60)
+        val pasted = "didban://203.0.113.8:8686?token=$read&amp;admin_token=$wrappedAdmin&amp;fp=$fp&amp;name=203.0.113.8"
+        val result = QuickConnectCodeParser.parse(pasted)
+        assertEquals(read, result.readToken)
+        assertEquals(admin, result.adminToken)
+        assertEquals("203.0.113.8", result.name)
+    }
+
     @Test fun rejectsMissingWeakEqualOrUnexpectedCredentials() {
         rejects("https://203.0.113.8:8686?token=$read&admin_token=$admin&fp=$fp")
         rejects("didban://203.0.113.8:8686?token=weak&admin_token=$admin&fp=$fp")

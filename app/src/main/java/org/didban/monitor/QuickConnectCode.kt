@@ -57,20 +57,24 @@ object QuickConnectCodeParser {
         // Installer-generated credentials are hexadecimal. Matching each field
         // separately lets us tolerate terminal wrapping without accidentally
         // swallowing the explanatory line printed after the URI into `name`.
+        // Some rich-text terminals/clipboard bridges encode '&' as '&amp;'.
+        // Decode only that separator entity (never arbitrary HTML) before
+        // parsing. Hard wraps are also allowed inside hexadecimal values.
+        val normalizedInput = raw.replace(Regex("&amp;", RegexOption.IGNORE_CASE), "&")
         val match = Regex(
             "didban://\\s*([A-Za-z0-9.-]+)(?::(\\d{1,5}))?\\s*\\?\\s*" +
-                "token=\\s*([A-Fa-f0-9]{32,256})\\s*&\\s*" +
-                "admin_token=\\s*([A-Fa-f0-9]{32,256})\\s*&\\s*" +
+                "token=\\s*((?:[A-Fa-f0-9]\\s*){32,256})&\\s*" +
+                "admin_token=\\s*((?:[A-Fa-f0-9]\\s*){32,256})&\\s*" +
                 "fp=\\s*((?:[A-Fa-f0-9]{2}:?\\s*){32})" +
-                "(?:\\s*&\\s*name=\\s*([^\\s&]+))?",
+                "(?:&\\s*name=\\s*([^\\s&]+))?",
             RegexOption.IGNORE_CASE
-        ).find(raw) ?: throw IllegalArgumentException("incomplete quick-connect code")
-        val trailing = raw.substring(match.range.last + 1).trimStart()
+        ).find(normalizedInput) ?: throw IllegalArgumentException("incomplete quick-connect code")
+        val trailing = normalizedInput.substring(match.range.last + 1).trimStart()
         require(!trailing.startsWith("&")) { "unexpected quick-connect data" }
         val host = match.groupValues[1]
         val port = match.groupValues[2].ifEmpty { "8686" }
-        val readToken = match.groupValues[3]
-        val adminToken = match.groupValues[4]
+        val readToken = match.groupValues[3].replace(Regex("\\s+"), "")
+        val adminToken = match.groupValues[4].replace(Regex("\\s+"), "")
         val fingerprint = match.groupValues[5].replace(Regex("\\s+"), "")
         val name = match.groupValues[6]
         return buildString {
