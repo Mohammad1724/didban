@@ -60,7 +60,10 @@ object QuickConnectCodeParser {
         // Some rich-text terminals/clipboard bridges encode '&' as '&amp;'.
         // Decode only that separator entity (never arbitrary HTML) before
         // parsing. Hard wraps are also allowed inside hexadecimal values.
-        val normalizedInput = raw.replace(Regex("&amp;", RegexOption.IGNORE_CASE), "&")
+        val normalizedInput = raw.replace(
+            Regex("&(?:amp;)+|&#0*38;|&#x0*26;", RegexOption.IGNORE_CASE),
+            "&"
+        )
         val match = Regex(
             "didban://\\s*([A-Za-z0-9.-]+)(?::(\\d{1,5}))?\\s*\\?\\s*" +
                 "token=\\s*((?:[A-Fa-f0-9]\\s*){32,256})&\\s*" +
