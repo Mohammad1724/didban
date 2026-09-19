@@ -365,6 +365,31 @@ interface CommandCopy {
     val netQRealityDonor: String
     val netQRealityDonorTools: String
     val cfScanner: String
+    val scannerReadyLists: String
+    val scannerBuiltIn: String
+    val scannerManual: String
+    val scannerCfReadyHint: String
+    val scannerSniReadyHint: String
+    val scannerShowList: String
+    val scannerHideList: String
+    val scannerSelectAll: String
+    val scannerClearSelection: String
+    val scannerImportFile: String
+    val scannerImportFailed: String
+    val scannerCategory: String
+    val scannerCategoryAll: String
+    val scannerCategoryTechnology: String
+    val scannerCategoryDevelopment: String
+    val scannerCategoryKnowledge: String
+    val scannerCategoryServices: String
+    val scannerLimit: String
+    val scannerPlanSummary: String
+    val scannerRangeSummary: String
+    val scannerSniListHint: String
+    val scannerInputSummary: String
+    val scannerChooseRange: String
+    val scannerEditList: String
+    val scannerSnapshot: String
     val cfScannerBody: String
     val cfSource: String
     val cfRandom: String
@@ -923,9 +948,34 @@ internal object CommandCopyFa : CommandCopy {
     override val netQRealityDonor = "این دامنه دونر REALITY می‌شود؟"
     override val netQRealityDonorTools = "TLS 1.3، h2، SAN، redirect، CDN"
     override val cfScanner = "اسکنر IP تمیز کلودفلر"
+    override val scannerReadyLists = "فهرست‌های آمادهٔ اسکن"
+    override val scannerBuiltIn = "فهرست آماده"
+    override val scannerManual = "فهرست شخصی"
+    override val scannerCfReadyHint = "از رنج‌های رسمی IPv4 کلودفلر نمونه‌گیری می‌شود، نه تمام آدرس‌ها. تمیزبودن IP به شبکهٔ فعلی شما بستگی دارد."
+    override val scannerSniReadyHint = "این دامنه‌ها فقط کاندید آزمایش‌اند؛ ممکن است به‌دلیل TLS، گواهی یا CDN رد شوند. نتیجهٔ گوشی تضمینِ کارکرد از سرور نیست. اسکن فقط با شروع شما انجام می‌شود؛ حداکثر ۴ آزمایش هم‌زمان."
+    override val scannerShowList = "مشاهدهٔ فهرست"
+    override val scannerHideList = "بستن فهرست"
+    override val scannerSelectAll = "انتخاب همه"
+    override val scannerClearSelection = "لغو انتخاب همه"
+    override val scannerImportFile = "واردکردن فایل متنی"
+    override val scannerImportFailed = "فایل خوانده نشد. یک فایل متنی UTF-8 با حجم حداکثر ۶۴ KiB انتخاب کنید."
+    override val scannerCategory = "دسته‌بندی"
+    override val scannerCategoryAll = "همهٔ دسته‌ها"
+    override val scannerCategoryTechnology = "فناوری و سخت‌افزار"
+    override val scannerCategoryDevelopment = "توسعه و متن‌باز"
+    override val scannerCategoryKnowledge = "دانش و رسانه"
+    override val scannerCategoryServices = "خدمات و فروشگاه‌ها"
+    override val scannerLimit = "حداکثر تعداد اسکن"
+    override val scannerPlanSummary = "در این اجرا: %1 از %2 کاندید"
+    override val scannerRangeSummary = "%1 از %2 رنج انتخاب شده"
+    override val scannerSniListHint = "هر خط یک دامنه یا دامنه:پورت؛ # برای توضیح. موارد تکراری حذف می‌شوند."
+    override val scannerInputSummary = "%1 مقصد معتبر؛ %2 خط نامعتبر. سقف اجرا: %3"
+    override val scannerChooseRange = "حداقل یک رنج انتخاب کنید."
+    override val scannerEditList = "کپی در فهرست شخصی"
+    override val scannerSnapshot = "فهرست داخلی: %1؛ بدون به‌روزرسانی خودکار"
     override val cfScannerBody = "کدام لبهٔ کلودفلر از شبکهٔ شما واقعاً TLS را کامل می‌کند و به /cdn-cgi/trace پاسخ می‌دهد."
     override val cfSource = "منبع آدرس‌ها"
-    override val cfRandom = "تصادفی از بازه‌های کلودفلر"
+    override val cfRandom = "رنج‌های آمادهٔ کلودفلر"
     override val cfCustomList = "فهرست دلخواه"
     override val cfCustomListHint = "هر خط یک IP یا CIDR؛ # برای توضیح"
     override val cfSettings = "تنظیمات اسکن"
@@ -952,7 +1002,7 @@ internal object CommandCopyFa : CommandCopy {
     override val realityBody = "آیا این دامنه دونر معتبری برای dest/serverNames در REALITY هست یا نه، و چرا."
     override val realityDomain = "دامنهٔ دونر"
     override val realityCheck = "بررسی دونر"
-    override val realityCheckAll = "بررسی همهٔ پیشنهادی‌ها"
+    override val realityCheckAll = "شروع اسکن فهرست"
     override val realityDiscouraged = "دونرهای نامناسب"
     override val realityResults = "نتایج"
     override val realityProgress = "%1 از %2 بررسی شد · %3 قابل استفاده"
@@ -1474,9 +1524,34 @@ internal object CommandCopyEn : CommandCopy {
     override val netQRealityDonor = "Can this domain be a REALITY donor?"
     override val netQRealityDonorTools = "TLS 1.3, h2, SANs, redirect, CDN"
     override val cfScanner = "Cloudflare clean-IP scanner"
+    override val scannerReadyLists = "Ready-to-scan lists"
+    override val scannerBuiltIn = "Built-in list"
+    override val scannerManual = "Custom list"
+    override val scannerCfReadyHint = "Samples the official Cloudflare IPv4 ranges, not every address. Clean-IP results depend on your current network."
+    override val scannerSniReadyHint = "These domains are test candidates, not verified donors. TLS, certificates or CDN checks may reject them. Phone results do not guarantee server-side suitability. Scanning starts only when requested, with at most 4 probes at once."
+    override val scannerShowList = "View list"
+    override val scannerHideList = "Hide list"
+    override val scannerSelectAll = "Select all"
+    override val scannerClearSelection = "Clear selection"
+    override val scannerImportFile = "Import text file"
+    override val scannerImportFailed = "Could not read the file. Choose a UTF-8 text file up to 64 KiB."
+    override val scannerCategory = "Category"
+    override val scannerCategoryAll = "All categories"
+    override val scannerCategoryTechnology = "Technology & hardware"
+    override val scannerCategoryDevelopment = "Development & open source"
+    override val scannerCategoryKnowledge = "Knowledge & media"
+    override val scannerCategoryServices = "Services & shopping"
+    override val scannerLimit = "Scan limit"
+    override val scannerPlanSummary = "This run: %1 of %2 candidates"
+    override val scannerRangeSummary = "%1 of %2 ranges selected"
+    override val scannerSniListHint = "One domain or domain:port per line; # starts a comment. Duplicates are removed."
+    override val scannerInputSummary = "%1 valid targets; %2 invalid lines. Run limit: %3"
+    override val scannerChooseRange = "Select at least one range."
+    override val scannerEditList = "Copy to custom list"
+    override val scannerSnapshot = "Bundled list: %1; no automatic updates"
     override val cfScannerBody = "Which Cloudflare edges actually complete TLS and answer /cdn-cgi/trace from your network."
     override val cfSource = "Address source"
-    override val cfRandom = "Random from Cloudflare ranges"
+    override val cfRandom = "Cloudflare range presets"
     override val cfCustomList = "Custom list"
     override val cfCustomListHint = "One IP or CIDR per line; # for a comment"
     override val cfSettings = "Scan settings"
@@ -1503,7 +1578,7 @@ internal object CommandCopyEn : CommandCopy {
     override val realityBody = "Whether a domain is a valid REALITY dest/serverNames donor, and why."
     override val realityDomain = "Donor domain"
     override val realityCheck = "Check donor"
-    override val realityCheckAll = "Check all suggested"
+    override val realityCheckAll = "Scan selected list"
     override val realityDiscouraged = "Donors to avoid"
     override val realityResults = "Results"
     override val realityProgress = "%1 of %2 checked · %3 usable"

@@ -1,6 +1,8 @@
 package org.didban.monitor
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,9 +47,12 @@ import kotlinx.coroutines.launch
  * question. The engine and all of its decision logic live in [CfCleanIp].
  */
 @Composable
-fun CommandCfScannerScreen(
+internal fun CommandCfScannerScreen(
     copy: CommandCopy,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    scan: suspend (List<CfCandidate>, CfScanConfig, (CfScanProgress) -> Unit) -> List<CfProbeResult> = { plan, config, progress ->
+        CloudflareIpScanner.scan(plan, config, progress)
+    }
 ) {
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -60,6 +66,8 @@ fun CommandCfScannerScreen(
     var sniOverride by rememberSaveable { mutableStateOf("") }
     var useCustomList by rememberSaveable { mutableStateOf(false) }
     var customList by rememberSaveable { mutableStateOf("") }
+    var rangeKeys by rememberSaveable { mutableStateOf(CloudflareRanges.V4.joinToString(",")) }
+    var rangesVisible by rememberSaveable { mutableStateOf(false) }
 
     var job by remember { mutableStateOf<Job?>(null) }
     var running by remember { mutableStateOf(false) }
@@ -87,12 +95,12 @@ fun CommandCfScannerScreen(
             )
         )
         val ips = if (useCustomList) {
-            CfIpPlan.parseList(customList, CfScanConfig.MAX_COUNT)
+            CfIpPlan.parseList(customList, cfg.count)
         } else {
-            CfIpPlan.randomV4(CloudflareRanges.V4, cfg.count, seed = System.currentTimeMillis())
+            CfIpPlan.randomV4(ScannerCatalog.selectedRanges(rangeKeys), cfg.count, seed = System.currentTimeMillis())
         }
         if (ips.isEmpty()) {
-            error = copy.cfNoAddresses
+            error = if (!useCustomList) copy.scannerChooseRange else copy.cfNoAddresses
             return
         }
         error = null
@@ -102,7 +110,7 @@ fun CommandCfScannerScreen(
         running = true
         job = scope.launch {
             try {
-                val out = CloudflareIpScanner.scan(
+                val out = scan(
                     CloudflareIpScanner.plan(ips, cfg), cfg
                 ) { p -> progress = p }
                 results = CfRanker.best(out, limit = 100)
@@ -146,10 +154,38 @@ fun CommandCfScannerScreen(
                         onSelect = { useCustomList = it },
                         enabled = !running
                     )
+                    Text(copy.scannerCfReadyHint, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    if (!useCustomList) {
+                        Text(copy.scannerRangeSummary.replace("%1", ScannerCatalog.selectedRanges(rangeKeys).size.toString())
+                            .replace("%2", CloudflareRanges.V4.size.toString()), color = CommandColors.textPrimary)
+                        CommandSecondaryButton(if (rangesVisible) copy.scannerHideList else copy.scannerShowList,
+                            { rangesVisible = !rangesVisible })
+                        if (rangesVisible) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                CommandTextButton(copy.scannerSelectAll, { rangeKeys = CloudflareRanges.V4.joinToString(",") }, enabled = !running)
+                                CommandTextButton(copy.scannerClearSelection, { rangeKeys = "" }, enabled = !running)
+                            }
+                            CloudflareRanges.V4.forEach { cidr ->
+                                Row(Modifier.fillMaxWidth().toggleable(
+                                    value = cidr in ScannerCatalog.selectedRanges(rangeKeys), enabled = !running, role = Role.Checkbox,
+                                    onValueChange = { checked ->
+                                        val selected = ScannerCatalog.selectedRanges(rangeKeys).toMutableSet()
+                                        if (checked) selected.add(cidr) else selected.remove(cidr)
+                                        rangeKeys = selected.joinToString(",")
+                                    }), verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(checked = cidr in ScannerCatalog.selectedRanges(rangeKeys), enabled = !running, onCheckedChange = null)
+                                    Text(cidr, fontFamily = Telemetry, color = CommandColors.textPrimary)
+                                }
+                            }
+                            Text(ScannerCatalog.CF_SOURCE, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text(copy.scannerSnapshot.replace("%1", ScannerCatalog.VERSION), color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    CommandScannerImport(copy, !running) { if (!running) { customList = it; useCustomList = true } }
                     if (useCustomList) {
                         OutlinedTextField(
                             value = customList,
-                            onValueChange = { customList = it },
+                            onValueChange = { customList = it.take(ScannerCatalog.MAX_TEXT_BYTES) },
                             label = { Text(copy.cfCustomList) },
                             placeholder = { Text(copy.cfCustomListHint) },
                             modifier = Modifier.fillMaxWidth().height(140.dp),
@@ -329,7 +365,7 @@ private fun CommandNumberField(
 
 /** Single-select chip row used for the source and mode pickers. */
 @Composable
-private fun <T> CommandChipRow(
+internal fun <T> CommandChipRow(
     options: List<Pair<String, T>>,
     selected: T,
     onSelect: (T) -> Unit,

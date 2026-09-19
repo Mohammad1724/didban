@@ -810,8 +810,8 @@ private fun CommandRouteContent(
             CommandRoute.SERVICES -> key(selectedServer) { CommandServicesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, onSelectServer, { onBack() })
             CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer, onBack = onBack) }
-            CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy) { onBack() }
-            CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy) { onBack() }
+            CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy, onBack = onBack)
+            CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy, onBack = onBack)
             CommandRoute.UPTIME -> CommandUptimeScreen(copy) { onNavigate(CommandRoute.UPTIME_EDITOR, null) }
             CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
             CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })

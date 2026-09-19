@@ -42,14 +42,24 @@ import kotlinx.coroutines.launch
  * are unit-tested there.
  */
 @Composable
-fun CommandRealitySniScreen(
+internal fun CommandRealitySniScreen(
     copy: CommandCopy,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    probe: suspend (String, Int) -> RealityProbeResult = { host, port -> RealitySniScanner.probe(host, port, timeoutMs = 3_000) }
 ) {
     val scope = rememberCoroutineScope()
 
     var target by rememberSaveable { mutableStateOf("") }
     var port by rememberSaveable { mutableStateOf("443") }
+    var customSource by rememberSaveable { mutableStateOf(false) }
+    var category by rememberSaveable { mutableStateOf(ScannerCatalog.Group.ALL.name) }
+    var limitText by rememberSaveable { mutableStateOf("50") }
+    var customDomains by rememberSaveable { mutableStateOf("") }
+    var preview by remember { mutableStateOf(false) }
+    val group = ScannerCatalog.Group.values().firstOrNull { it.name == category } ?: ScannerCatalog.Group.ALL
+    val limit = (limitText.toIntOrNull() ?: 50).coerceIn(1, ScannerCatalog.MAX_SNI_TARGETS)
+    val imported = ScannerCatalog.parseSniList(customDomains, port.toIntOrNull() ?: 443, limit)
+    val readyNames = ScannerCatalog.domains(group)
 
     var job by remember { mutableStateOf<Job?>(null) }
     var running by remember { mutableStateOf(false) }
@@ -63,17 +73,19 @@ fun CommandRealitySniScreen(
     fun startSingle() {
         if (running) return
         val parsed = RealitySniScanner.parseTarget(target, port.toIntOrNull() ?: 443)
-        if (parsed == null) {
+        if (parsed == null || !ScannerCatalog.validDomain(parsed.first)) {
             error = copy.realityBadTarget
             return
         }
         error = null
         single = null
         batch = emptyList()
+        batchTotal = 0
+        batchDone = 0
         running = true
         job = scope.launch {
             try {
-                val r = RealitySniScanner.probe(parsed.first, parsed.second)
+                val r = probe(parsed.first, parsed.second)
                 single = r to RealityCriteria.evaluate(r)
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 throw ce
@@ -91,19 +103,22 @@ fun CommandRealitySniScreen(
         error = null
         single = null
         batch = emptyList()
-        val names = RealitySniScanner.SUGGESTED
+        val scanPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
+        if (scanPort == null) { error = copy.fleetPortInvalid; return }
+        // Read saved input state AT THE CLICK, not an immutable composition snapshot.
+        val scanLimit = (limitText.toIntOrNull() ?: 50).coerceIn(1, ScannerCatalog.MAX_SNI_TARGETS)
+        val selectedGroup = ScannerCatalog.Group.values().firstOrNull { it.name == category } ?: ScannerCatalog.Group.ALL
+        val names = if (customSource) ScannerCatalog.parseSniList(customDomains, scanPort, scanLimit).targets
+            else ScannerCatalog.sniPlan(selectedGroup, scanLimit, scanPort)
+        if (names.isEmpty()) { error = copy.realityBadTarget; return }
         batchTotal = names.size
         batchDone = 0
         running = true
         job = scope.launch {
             try {
-                val out = mutableListOf<Pair<RealityProbeResult, RealityAssessment>>()
-                for (name in names) {
-                    val parsed = RealitySniScanner.parseTarget(name) ?: continue
-                    val r = RealitySniScanner.probe(parsed.first, parsed.second)
-                    out.add(r to RealityCriteria.evaluate(r))
-                    batch = out.toList()
-                    batchDone++
+                scanSniCandidates(names, probe) { completed ->
+                    batch = completed
+                    batchDone = completed.size
                 }
             } catch (ce: kotlinx.coroutines.CancellationException) {
                 throw ce
@@ -116,6 +131,8 @@ fun CommandRealitySniScreen(
         }
     }
 
+    if (preview) CommandScannerPreview(copy, readyNames) { preview = false }
+
     LazyColumn(
         Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(CommandSpacing.md),
@@ -125,6 +142,41 @@ fun CommandRealitySniScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
                 CommandSectionTitle(copy.realitySni, copy.realityBody, modifier = Modifier.weight(1f))
+            }
+        }
+
+        item {
+            CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                    CommandSectionTitle(copy.scannerReadyLists)
+                    CommandChipRow(listOf(copy.scannerBuiltIn to false, copy.scannerManual to true), customSource,
+                        { customSource = it }, !running)
+                    Text(copy.scannerSniReadyHint, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    if (!customSource) {
+                        CommandSniCategory(copy, group, !running) { category = it.name }
+                        Text(copy.scannerPlanSummary.replace("%1", minOf(limit, readyNames.size).toString())
+                            .replace("%2", readyNames.size.toString()), color = CommandColors.textPrimary)
+                        CommandSecondaryButton(copy.scannerShowList, { preview = true })
+                        CommandTextButton(copy.scannerEditList, {
+                            customDomains = ScannerCatalog.domains(ScannerCatalog.Group.valueOf(category)).joinToString("\n")
+                            customSource = true
+                        }, enabled = !running)
+                        Text(copy.scannerSnapshot.replace("%1", ScannerCatalog.VERSION), color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        OutlinedTextField(customDomains, { customDomains = it.take(ScannerCatalog.MAX_TEXT_BYTES) },
+                            Modifier.fillMaxWidth().height(140.dp), enabled = !running,
+                            label = { Text(copy.scannerManual) }, placeholder = { Text(copy.scannerSniListHint) })
+                        Text(copy.scannerInputSummary.replace("%1", imported.targets.size.toString())
+                            .replace("%2", imported.rejected.toString()).replace("%3", limit.toString()),
+                            color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    CommandScannerImport(copy, !running) { if (!running) { customDomains = it; customSource = true } }
+                    OutlinedTextField(limitText, { limitText = it.filter(Char::isDigit).take(3) },
+                        Modifier.fillMaxWidth(), enabled = !running, singleLine = true,
+                        label = { Text("${copy.scannerLimit} (1–${ScannerCatalog.MAX_SNI_TARGETS})") })
+                    CommandPrimaryButton(copy.realityCheckAll, ::startBatch, enabled = !running, modifier = Modifier.fillMaxWidth(), icon = Icons.Rounded.PlayArrow)
+                    if (running) CommandSecondaryButton(copy.stop, { job?.cancel() }, modifier = Modifier.fillMaxWidth())
+                }
             }
         }
 
@@ -151,7 +203,7 @@ fun CommandRealitySniScreen(
                         )
                     }
                     CommandPrimaryButton(copy.realityCheck, ::startSingle, icon = Icons.Rounded.PlayArrow, enabled = !running)
-                    CommandSecondaryButton(copy.realityCheckAll, ::startBatch, enabled = !running)
+
                 }
             }
         }
@@ -205,10 +257,10 @@ fun CommandRealitySniScreen(
 
         if (batch.isNotEmpty()) {
             item { CommandSectionTitle(copy.realityResults, "${batch.size}") }
-            items(batch.sortedBy { -it.second.score }, key = { it.first.sni }) { (r, a) ->
+            items(batch.sortedBy { -it.second.score }, key = { "${it.first.sni}:${it.first.port}" }) { (r, a) ->
                 CommandSurface(
                     Modifier.fillMaxWidth().clickable {
-                        expanded = if (expanded == r.sni) null else r.sni
+                        expanded = if (expanded == "${r.sni}:${r.port}") null else "${r.sni}:${r.port}"
                     }
                 ) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
@@ -242,7 +294,7 @@ fun CommandRealitySniScreen(
                             color = CommandColors.textTertiary,
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry)
                         )
-                        if (expanded == r.sni) {
+                        if (expanded == "${r.sni}:${r.port}") {
                             CommandRule()
                             RealityDetailBody(copy, r, a)
                         }
