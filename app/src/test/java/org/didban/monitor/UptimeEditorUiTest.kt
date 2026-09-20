@@ -43,7 +43,9 @@ class UptimeEditorUiTest {
         }
         // Switching to KEYWORD reveals the field; switching back hides it.
         compose.onNodeWithText("KEYWORD").performClick()
-        compose.onNodeWithText(copy.upKeywordHint).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(copy.upKeywordHint).assertExists()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.upKeywordHint))
+        compose.onNodeWithText(copy.upKeywordHint).assertIsDisplayed()
         compose.onNodeWithText("HTTP").performClick()
         compose.onNodeWithText(copy.upKeywordHint).assertDoesNotExist()
     }
