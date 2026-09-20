@@ -179,7 +179,7 @@ class ServerEditorUiTest {
     }
 
     @Test fun `quick-connect import is offered when editing an existing server`() {
-        val context = RuntimeEnvironment.getApplication<Application>()
+        val context = RuntimeEnvironment.getApplication()
         Prefs.saveServers(
             context,
             listOf(
