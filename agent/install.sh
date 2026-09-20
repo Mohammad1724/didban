@@ -95,6 +95,66 @@ require_root() {
   fi
 }
 
+# is_ipv4 ADDR — syntactic IPv4 check (dotted digits only).
+is_ipv4() { [[ "${1:-}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; }
+
+# is_private_ipv4 ADDR — true for RFC1918, loopback and link-local ranges.
+is_private_ipv4() {
+  local ip="${1:-}"
+  is_ipv4 "$ip" || return 1
+  case "$ip" in
+    10.*|192.168.*|127.*|169.254.*) return 0 ;;
+    172.1[6-9].*|172.2[0-9].*|172.3[01].*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# pick_local_ipv4 CANDIDATES — choose one address out of a space-separated
+# list: the first public IPv4 wins (a phone rarely reaches private or Docker
+# addresses); otherwise the first syntactically valid IPv4; otherwise nothing.
+# Always succeeds.
+pick_local_ipv4() {
+  local candidates="${1:-}" cand first=""
+  # shellcheck disable=SC2086 — word-splitting the list is intended.
+  for cand in $candidates; do
+    is_ipv4 "$cand" || continue
+    if [[ -z "$first" ]]; then first="$cand"; fi
+    if ! is_private_ipv4 "$cand"; then echo "$cand"; return 0; fi
+  done
+  if [[ -n "$first" ]]; then echo "$first"; fi
+  return 0
+}
+
+# detect_server_ip — print the IPv4 the phone app should use for this host.
+#
+# `hostname -I` order is meaningless: its first address is often a private
+# or Docker address, or a stale address that is still configured after the
+# operator renumbered the server. On NAT/cloud hosts no local address
+# equals the public address at all. So:
+#   1. ask an external echo service for the public IPv4 (what the phone
+#      actually reaches, including through NAT) — strictly validated and
+#      time-bounded so a filtered network only costs a few seconds;
+#   2. else the primary outbound interface address (`ip route get`);
+#   3. else the local list with public addresses preferred (the old code
+#      picked the first entry blindly, private or stale).
+# Prints nothing (but still succeeds) when no IPv4 exists at all.
+detect_server_ip() {
+  local ip="" svc
+  if command -v curl >/dev/null 2>&1; then
+    for svc in "https://api.ipify.org" "https://checkip.amazonaws.com"; do
+      ip="$(curl -fsSL --max-time 4 "$svc" 2>/dev/null | tr -d '[:space:]' || true)"
+      if is_ipv4 "$ip"; then echo "$ip"; return 0; fi
+      ip=""
+    done
+  fi
+  if command -v ip >/dev/null 2>&1; then
+    ip="$(ip route get 1.1.1.1 2>/dev/null | awk '/ src /{for(i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}' || true)"
+    if is_ipv4 "$ip"; then echo "$ip"; return 0; fi
+  fi
+  pick_local_ipv4 "$(hostname -I 2>/dev/null || true)"
+  return 0
+}
+
 # Wait (bounded) for the agent's startup banner — specifically the
 # "Cert SHA256:" line — to reach the journal. On slow hosts the agent may
 # take a few seconds after `systemctl enable --now`, and a fixed `sleep 2`
@@ -347,8 +407,11 @@ EOF
   activate_agent
 
 # ── Summary ──────────────────────────────────────────────────────────────────
-  local SERVER_IP FINGERPRINT
-  SERVER_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  local SERVER_IP FINGERPRINT OTHER_IPS
+  SERVER_IP="$(detect_server_ip || true)"
+  # Other local IPv4s, so the operator can substitute one when the detected
+  # address is not how their phone reaches this host (multi-homed, VPN...).
+  OTHER_IPS="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' | grep -v -x -F -e "$SERVER_IP" | tr '\n' ' ' | sed 's/ *$//' || true)"
   # H14: bounded wait for the cert line instead of a racing fixed sleep —
   # an empty fingerprint here is what made the app save the server unpinned.
   FINGERPRINT="$(wait_for_fingerprint || true)"
@@ -363,7 +426,15 @@ EOF
   echo "══════════════════════════════════════════════════════════"
   echo "  Didban agent installed successfully! — نصب موفق"
   echo "══════════════════════════════════════════════════════════"
+  if [[ -z "$SERVER_IP" ]]; then
+    echo "  WARNING: no IPv4 address detected on this host — put your server's"
+    echo "  reachable IP into the URL and import link below."
+  fi
   echo "  URL:          https://${SERVER_IP}:${PORT}"
+  if [[ -n "$OTHER_IPS" ]]; then
+    echo "  Also on this host: $OTHER_IPS"
+    echo "  (use one of these above if that is how your phone reaches this server)"
+  fi
   echo "  Read token:   ${TOKEN}"
   echo "  Admin token:  ${ADMIN_TOKEN}"
   if [[ -n "$FINGERPRINT" ]]; then

@@ -3,7 +3,7 @@
 # Tests for install.sh (H13): release checksum verification + install wiring.
 # Sources install.sh (its BASH_SOURCE guard keeps main() from auto-running),
 # then exercises verify_release() with real files and main() end-to-end with
-# stubbed curl/install/systemctl/journalctl/hostname — no root required.
+# stubbed curl/install/systemctl/journalctl/hostname/ip — no root required.
 #
 # Usage:  bash install_test.sh
 #
@@ -80,6 +80,18 @@ STUB_LOG="$WORK/stub.log"
 
 # stubs (functions shadow external commands / builtins inside main's subshell)
 curl() {
+  local a
+  # Public-IP echo probes (detect_server_ip): answer from STUB_IPIFY instead
+  # of the download logic below. Logged distinctly so the "no download"
+  # assertion on local-binary installs keeps passing.
+  for a in "$@"; do
+    if [[ "$a" == *api.ipify.org* || "$a" == *checkip.amazonaws.com* ]]; then
+      echo "ipify-probe $a" >> "$STUB_LOG"
+      if [[ "${STUB_IPIFY:-203.0.113.9}" == "FAIL" ]]; then return 22; fi
+      printf '%s' "${STUB_IPIFY:-203.0.113.9}"
+      return 0
+    fi
+  done
   echo "curl $*" >> "$STUB_LOG"
   local out=""
   while [[ $# -gt 0 ]]; do
@@ -108,7 +120,15 @@ install() {
 }
 systemctl()  { echo "systemctl $*" >> "$STUB_LOG"; }
 journalctl() { return 0; }
-hostname()   { echo "10.9.9.9"; }
+hostname()   { echo "${STUB_HOSTNAME_IPS:-10.9.9.9}"; }
+ip() {
+  if [[ "${1:-}" == "route" ]]; then
+    if [[ "${STUB_IPROUTE_FAIL:-0}" == 1 ]]; then return 1; fi
+    echo "1.1.1.1 via 10.9.9.1 dev eth0 src ${STUB_IPROUTE_SRC:-10.9.9.9} uid 0"
+    return 0
+  fi
+  return 1
+}
 require_root() { :; }
 
 run_main() {  # sets MAIN_OUT / MAIN_RC
@@ -228,6 +248,82 @@ if FP_GOT="$(wait_for_fingerprint)" ; then
   bad "wait_for_fingerprint should fail when the banner never appears"
 else
   if [[ -z "$FP_GOT" ]]; then ok "no banner → bounded failure (rc!=0, empty)"; else bad "expected empty on failure, got '$FP_GOT'"; fi
+fi
+
+# ── detect_server_ip (public-first, no stale first-entry) ─────────────
+echo "── detect_server_ip ──"
+
+if is_ipv4 "87.107.81.151" && ! is_ipv4 "abc" && ! is_ipv4 "1.2.3" && ! is_ipv4 "1.2.3.4.5" && ! is_ipv4 "" && ! is_ipv4 "2001:db8::1"; then
+  ok "is_ipv4 accepts dotted IPv4 and rejects garbage/IPv6"
+else
+  bad "is_ipv4 validation wrong"
+fi
+
+# public echo wins over local addresses
+STUB_IPIFY="87.107.81.151"; STUB_IPROUTE_SRC="10.9.9.9"; STUB_HOSTNAME_IPS="10.9.9.9 172.17.0.1"
+if [[ "$(detect_server_ip)" == "87.107.81.151" ]]; then
+  ok "public echo IP preferred over local addresses"
+else
+  bad "public IP not preferred (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_SRC STUB_HOSTNAME_IPS
+
+# echo service down -> primary outbound interface address
+STUB_IPIFY="FAIL"; STUB_IPROUTE_SRC="10.1.2.3"; STUB_HOSTNAME_IPS="10.9.9.9"
+if [[ "$(detect_server_ip)" == "10.1.2.3" ]]; then
+  ok "echo failure falls back to the outbound interface address"
+else
+  bad "route fallback wrong (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_SRC STUB_HOSTNAME_IPS
+
+# echo + route down -> first PUBLIC local address (skips stale/private first entries)
+STUB_IPIFY="FAIL"; STUB_IPROUTE_FAIL=1; STUB_HOSTNAME_IPS="172.17.0.1 10.9.9.9 87.107.81.151"
+if [[ "$(detect_server_ip)" == "87.107.81.151" ]]; then
+  ok "local fallback skips private/stale entries for the public one"
+else
+  bad "public-preferring fallback wrong (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_FAIL STUB_HOSTNAME_IPS
+
+# only private addresses -> first valid one (old behavior, minus IPv6)
+STUB_IPIFY="FAIL"; STUB_IPROUTE_FAIL=1; STUB_HOSTNAME_IPS="172.17.0.1 10.9.9.9"
+if [[ "$(detect_server_ip)" == "172.17.0.1" ]]; then
+  ok "private-only hosts keep the first address"
+else
+  bad "private-only fallback wrong (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_FAIL STUB_HOSTNAME_IPS
+
+# IPv6 entries are skipped everywhere
+STUB_IPIFY="FAIL"; STUB_IPROUTE_FAIL=1; STUB_HOSTNAME_IPS="2001:db8::1 10.9.9.9"
+if [[ "$(detect_server_ip)" == "10.9.9.9" ]]; then
+  ok "IPv6 entries never selected"
+else
+  bad "IPv6 leaked into detection (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_FAIL STUB_HOSTNAME_IPS
+
+# garbage echo body -> treated as failure, route used
+STUB_IPIFY="<html>blocked"; STUB_IPROUTE_SRC="10.1.2.3"
+if [[ "$(detect_server_ip)" == "10.1.2.3" ]]; then
+  ok "non-IP echo body falls back instead of poisoning the URL"
+else
+  bad "garbage echo body leaked (got: '$(detect_server_ip)')"
+fi
+unset STUB_IPIFY STUB_IPROUTE_SRC
+
+# end-to-end: summary URL and import link carry the detected public IP
+FP64="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+journalctl() { echo "Cert SHA256:  $FP64"; }
+DIDBAN_FP_RETRIES=2
+STUB_IPIFY="87.107.81.151"
+run_main
+unset STUB_IPIFY
+if [[ $MAIN_RC == 0 ]] && grep -q "https://87.107.81.151:" <<< "$MAIN_OUT" && grep -q "didban://87.107.81.151:.*fp=$FP64" <<< "$MAIN_OUT"; then
+  ok "installer summary and import link use the detected public IP"
+else
+  bad "summary IP wiring (rc=$MAIN_RC): $MAIN_OUT"
 fi
 
 # ── summary ──────────────────────────────────────────────────────────────────
