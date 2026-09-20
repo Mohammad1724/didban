@@ -42,11 +42,13 @@ class UptimeEditorUiTest {
             compose.onNodeWithText(kind).assertExists()
         }
         // Switching to KEYWORD reveals the field; switching back hides it.
-        compose.onNodeWithText("KEYWORD").performClick()
+        // Match the clickable chip itself: clicking the bare text node is a
+        // silent no-op (same lesson as RadarNavigationUiTest's chooseButton).
+        compose.onNode(hasText("KEYWORD") and hasClickAction()).performClick()
         compose.onNodeWithText(copy.upKeywordHint).assertExists()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.upKeywordHint))
         compose.onNodeWithText(copy.upKeywordHint).assertIsDisplayed()
-        compose.onNodeWithText("HTTP").performClick()
+        compose.onNode(hasText("HTTP") and hasClickAction()).performClick()
         compose.onNodeWithText(copy.upKeywordHint).assertDoesNotExist()
     }
 
