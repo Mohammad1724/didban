@@ -269,6 +269,46 @@ else
   if [[ -z "$FP_GOT" ]]; then ok "no banner → bounded failure (rc!=0, empty)"; else bad "expected empty on failure, got '$FP_GOT'"; fi
 fi
 
+# ── rotation: journal history must not shadow the current pin ─────────
+echo "── fingerprint rotation ──"
+
+FP_OLD="4f3954e5d71b852a0ce97301be5464a089ed9f587d4b3c390b7a1077e045d1a0"
+FP_NEW="f8a7727286e439314cf96bfcb1b3f7bbfe47b0b19cc96049c0ac542d8ee95b8e"
+
+# t12: journal keeps old + new banner lines (rotation) → latest wins
+journalctl() {
+  echo "Sep 19 16:02:11 host didban-agent[1]:   Cert SHA256:  ${FP_OLD}"
+  echo "Sep 20 05:57:44 host didban-agent[2]:   Cert SHA256:  ${FP_NEW}"
+}
+DIDBAN_FP_RETRIES=2
+if FP_GOT="$(wait_for_fingerprint)" && [[ "$FP_GOT" == "$FP_NEW" ]]; then
+  ok "rotated journal → latest fingerprint picked (tail, not head)"
+else
+  bad "rotation picked stale pin (got: '$FP_GOT')"
+fi
+
+# t13: resolve prefers the on-disk cert over (stale) journal history
+FP_SAVE_DATA="$DATA_DIR"
+FP_RESOLVE_DIR="$WORK/fp-resolve"; mkdir -p "$FP_RESOLVE_DIR"; : > "$FP_RESOLVE_DIR/cert.pem"
+DATA_DIR="$FP_RESOLVE_DIR"
+openssl() { echo "sha256 Fingerprint=F8:A7:72:72:86:E4:39:31:4C:F9:6B:FC:B1:B3:F7:BB:FE:47:B0:B1:9C:C9:60:49:C0:AC:54:2D:8E:E9:5B:8E"; }
+if FP_GOT="$(resolve_fingerprint)" && [[ "$FP_GOT" == "$FP_NEW" ]]; then
+  ok "resolve prefers on-disk cert over journal history"
+else
+  bad "resolve missed on-disk cert (got: '$FP_GOT')"
+fi
+unset -f openssl
+
+# t14: no cert on disk → journal fallback still works
+rm -f "$FP_RESOLVE_DIR/cert.pem"
+if FP_GOT="$(resolve_fingerprint)" && [[ "$FP_GOT" == "$FP_NEW" ]]; then
+  ok "resolve falls back to journal when cert.pem is absent"
+else
+  bad "journal fallback broken (got: '$FP_GOT')"
+fi
+DATA_DIR="$FP_SAVE_DATA"
+journalctl() { :; }   # restore the empty stub for later sections
+
 # ── detect_server_ip (public-first, no stale first-entry) ─────────────
 echo "── detect_server_ip ──"
 

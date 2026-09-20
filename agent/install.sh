@@ -173,11 +173,12 @@ detect_server_ip() {
 # raced that and printed a deep link with an EMPTY fingerprint, which made
 # the mobile app save the server without TLS pinning (H14). Bounded retry:
 # up to $DIDBAN_FP_RETRIES tries, $DIDBAN_FP_DELAY seconds apart (0/1 are
-# valid for tests).
+# valid for tests). The journal keeps history across rotations, so the
+# LATEST line (tail) — not the first — is the cert the agent serves now.
 wait_for_fingerprint() {
   local fp="" i
   for i in $(seq 1 "${DIDBAN_FP_RETRIES:-15}"); do
-    fp="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | head -1 | awk '{print $3}' || true)"
+    fp="$(journalctl -u didban-agent --no-pager 2>/dev/null | grep -o 'Cert SHA256:  [a-f0-9]*' | tail -1 | awk '{print $3}' || true)"
     if [[ -n "$fp" ]]; then
       echo "$fp"
       return 0
@@ -185,6 +186,23 @@ wait_for_fingerprint() {
     sleep "${DIDBAN_FP_DELAY:-1}"
   done
   return 1
+}
+
+# Fingerprint for the summary/quick-connect link. Prefers the certificate
+# on disk — ground truth, exactly what the agent serves — over the
+# journal: journal history survives rotations (reinstall-with-purge), so
+# a journal-only read can hand the app a stale pin. Falls back to the
+# bounded journal wait when the cert is unreadable or openssl is absent.
+resolve_fingerprint() {
+  if [[ -f "$DATA_DIR/cert.pem" ]] && command -v openssl >/dev/null 2>&1; then
+    local direct=""
+    direct="$(openssl x509 -in "$DATA_DIR/cert.pem" -noout -fingerprint -sha256 2>/dev/null | sed -n 's/^[^=]*=//p' | tr -d ':' | tr 'A-F' 'a-f' || true)"
+    if [[ -n "$direct" ]]; then
+      echo "$direct"
+      return 0
+    fi
+  fi
+  wait_for_fingerprint || true
 }
 
 # Replace the inode atomically; never overwrite an executable that is running.
@@ -424,15 +442,9 @@ EOF
   # Other local IPv4s, so the operator can substitute one when the detected
   # address is not how their phone reaches this host (multi-homed, VPN...).
   OTHER_IPS="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]{1,3}(\.[0-9]{1,3}){3}$' | grep -v -x -F -e "$SERVER_IP" | tr '\n' ' ' | sed 's/ *$//' || true)"
-  # H14: bounded wait for the cert line instead of a racing fixed sleep —
-  # an empty fingerprint here is what made the app save the server unpinned.
-  FINGERPRINT="$(wait_for_fingerprint || true)"
-  # Journal access can be delayed or restricted even though the certificate is
-  # already present. Derive the same leaf-certificate SHA-256 directly before
-  # deciding whether a safe quick-connect code can be printed.
-  if [[ -z "$FINGERPRINT" && -f "$DATA_DIR/cert.pem" ]] && command -v openssl >/dev/null 2>&1; then
-    FINGERPRINT="$(openssl x509 -in "$DATA_DIR/cert.pem" -noout -fingerprint -sha256 2>/dev/null | sed -n 's/^[^=]*=//p' | tr -d ':' | tr 'A-F' 'a-f' || true)"
-  fi
+  # H14 (+rotation fix): the cert on disk wins over journal history, which
+  # can predate a rotation and would hand the app a stale pin.
+  FINGERPRINT="$(resolve_fingerprint)"
 
   echo ""
   echo "══════════════════════════════════════════════════════════"
