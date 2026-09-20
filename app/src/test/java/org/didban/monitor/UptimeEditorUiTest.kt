@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -56,5 +58,21 @@ class UptimeEditorUiTest {
         openEditor()
         compose.onNodeWithText(copy.upAllowPrivateTitle).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Allow private network targets").assertDoesNotExist()
+    }
+
+    @Test fun `debug dump uptime semantics`() {
+        openEditor()
+        fun dump(tag: String): String {
+            val chips = compose.onAllNodes(hasText("KEYWORD")).fetchSemanticsNodes()
+            val label = compose.onAllNodes(hasText(copy.upKeywordHint)).fetchSemanticsNodes().size
+            return tag + ": keywordNodes=" + chips.size + " " + chips.joinToString(";") {
+                "click=" + it.config.contains(SemanticsActions.OnClick) +
+                    " dis=" + it.config.contains(SemanticsProperties.Disabled)
+            } + " labelNodes=" + label
+        }
+        val before = dump("BEFORE")
+        compose.onNode(hasText("KEYWORD") and hasClickAction()).performClick()
+        val after = dump("AFTER")
+        throw AssertionError("SEMANTICS-DUMP\n" + before + "\n" + after)
     }
 }
