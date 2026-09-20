@@ -53,7 +53,7 @@ data class CommandPalette(
 )
 
 val CommandLightPalette = CommandPalette(
-    canvas = Color(0xFFEDF2F5),
+    canvas = Color(0xFFE9E3D8),
     surface = Color(0xFFFCFDFE),
     surfaceRaised = Color(0xFFFFFFFF),
     border = Color(0xFFD7E1E9),
@@ -77,14 +77,14 @@ val CommandLightPalette = CommandPalette(
 )
 
 val CommandDarkPalette = CommandPalette(
-    canvas = Color(0xFF10151C),
+    canvas = Color(0xFF151131),
     surface = Color(0xFF19222C),
     surfaceRaised = Color(0xFF222F3A),
     border = Color(0xFF34434F),
     borderStrong = Color(0xFF6F8899),
     textPrimary = Color(0xFFECF2F6),
-    textSecondary = Color(0xFFAFBECA),
-    textTertiary = Color(0xFFAFBECA),
+    textSecondary = Color(0xFFD6DEE6),
+    textTertiary = Color(0xFFD6DEE6),
     accent = Color(0xFF91CEDF),
     onAccent = Color(0xFF102831),
     success = Color(0xFF92D5B9),
