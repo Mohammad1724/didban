@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.runtime.key
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -96,6 +97,14 @@ private fun parseProbePoints(payload: JSONObject): List<CommandProbePoint> {
     }
 }
 
+/**
+ * Local completeness check for the Radar target form. Pure so the JVM
+ * tests can cover it: the agent only accepts tcp/http anyway, so the
+ * mode chips cannot produce an invalid mode.
+ */
+internal fun isRadarTargetComplete(name: String, host: String, portText: String): Boolean =
+    name.trim().isNotEmpty() && host.trim().isNotEmpty() && portText.toIntOrNull() != null
+
 @Composable
 fun CommandRadarScreen(
     copy: CommandCopy,
@@ -139,13 +148,13 @@ private fun CommandRadarContent(
 
     fun syncTarget() {
         val target = server ?: return
-        val name = targetName.trim()
-        val host = targetHost.trim()
-        val port = targetPort.toIntOrNull()
-        if (name.isEmpty() || host.isEmpty() || port == null) {
-            error = "${copy.target}: ${copy.host} ${copy.and} ${copy.port}"
+        if (!isRadarTargetComplete(targetName, targetHost, targetPort)) {
+            error = copy.radarTargetIncomplete
             return
         }
+        val name = targetName.trim()
+        val host = targetHost.trim()
+        val port = targetPort.toIntOrNull() ?: return
         scope.launch {
             loading = true
             runCatching {
@@ -256,12 +265,15 @@ private fun CommandRadarContent(
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Text(copy.target, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(targetName, { targetName = it }, label = { Text(copy.target) }, modifier = Modifier.weight(1f), singleLine = true)
-                            OutlinedTextField(targetMode, { targetMode = it }, label = { Text(copy.mode) }, modifier = Modifier.width(110.dp), singleLine = true)
+                        Text(copy.radarTargetBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        OutlinedTextField(targetName, { targetName = it }, label = { Text(copy.target) }, placeholder = { Text(copy.radarTargetNameHint) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text(copy.mode, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                            FilterChip(targetMode == "tcp", { targetMode = "tcp" }, { Text("TCP") })
+                            FilterChip(targetMode == "http", { targetMode = "http" }, { Text("HTTP") })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, modifier = Modifier.weight(1f), singleLine = true)
+                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = Modifier.weight(1f), singleLine = true)
                             OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = Modifier.width(110.dp), singleLine = true)
                         }
                         CommandPrimaryButton(copy.addTarget, ::syncTarget, enabled = !loading)
@@ -274,7 +286,7 @@ private fun CommandRadarContent(
             if (loading && points.isEmpty()) {
                 item { CommandStateBlock(copy.waitingForData, copy.waitingForData, CommandHealthTone.UNKNOWN) }
             } else if (points.isEmpty()) {
-                item { CommandEmptyState(copy.sources, copy.noAttentionBody) }
+                item { CommandEmptyState(copy.sources, copy.radarNoPointsBody) }
             } else {
                 items(points, key = { "${it.source}:${it.name}" }) { point ->
                     val tone = when {
@@ -345,7 +357,7 @@ private fun CommandRadarContent(
                     }
                     if (row.divergent) {
                         Text(
-                            copy.noAttentionBody,
+                            copy.radarDivergentBody,
                             color = CommandColors.warning,
                             style = androidx.compose.material3.MaterialTheme.typography.bodySmall
                         )

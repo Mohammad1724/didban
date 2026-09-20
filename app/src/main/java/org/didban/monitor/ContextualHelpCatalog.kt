@@ -343,12 +343,12 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "مثل جعبه‌ابزار عیب‌یابی اینترنت است؛ کمک می‌کند بفهمید مشکل از دسترسی مقصد، پورت، نام دامنه یا اتصال امن است.",
             "A network troubleshooting toolbox to distinguish destination, port, domain-name and secure-connection problems.",
             listOf(
-                "سؤال نزدیک به مشکلتان را انتخاب کنید؛ مثلاً «مقصد در دسترس است؟» یا مشکل TLS.",
+                "ابزار نزدیک به مشکلتان را انتخاب کنید؛ مثلاً «تست دسترسی به مقصد» یا «بررسی گواهی TLS».",
                 "برای آزمایش مستقیم از گوشی، مجموعهٔ ابزار شبکه را باز کنید و راهنمای همان صفحه را بخوانید.",
                 "برای مقایسهٔ سرورها رادار، برای رکورد دامنه DNS و برای کاندیدهای کلودفلر یا SNI اسکنر مربوط را باز کنید.",
             ),
             listOf(
-                "Choose the question closest to your problem, such as reachability or TLS.",
+                "Pick the tool closest to your problem, such as destination reachability or the TLS check.",
                 "For a direct phone-side test, open the network suite and its guide.",
                 "Use Radar for server comparisons, DNS for domain records and the respective scanners for Cloudflare or SNI candidates.",
             ),

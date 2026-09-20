@@ -117,4 +117,21 @@ class RadarNavigationUiTest {
         compose.onNodeWithText(copy.addServer).assertDoesNotExist()
     }
 
+    @Test fun `radar target form guides the user and validates locally before sync`() {
+        val server = ServerConfig(9, "Node X", "node-x.example")
+        compose.setContent {
+            CommandTheme(themeMode = "dark", language = "fa") {
+                CommandRadarScreen(copy, server, {}, {})
+            }
+        }
+        // Static guidance renders immediately: what to enter and which check types exist.
+        compose.onNodeWithText(copy.radarTargetBody).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("TCP").assertExists()
+        compose.onNodeWithText("HTTP").assertExists()
+        // The failed load settles into a helpful empty state (invalid pins fail locally, no Agent needed).
+        compose.waitUntil(10_000) { compose.onAllNodesWithText(copy.radarNoPointsBody).fetchSemanticsNodes().isNotEmpty() }
+        // Empty form shows the local validation message; the settled load cannot overwrite it.
+        compose.onNodeWithText(copy.addTarget).performScrollTo().performClick()
+        compose.onNodeWithText(copy.radarTargetIncomplete).assertIsDisplayed()
+    }
 }

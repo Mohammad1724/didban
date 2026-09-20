@@ -814,7 +814,6 @@ interface CommandCopy {
     val upDeleteTitle: String
     val upDeleteBody: String
     val upDeleted: String
-    val and: String
     val serversSearchPlaceholder: String
     val tunnelsBody: String
     val devLabBody: String
@@ -883,6 +882,12 @@ interface CommandCopy {
     val radarSynced: String
     val radarNoTargets: String
     val radarNoTargetsBody: String
+    val radarTargetBody: String
+    val radarTargetNameHint: String
+    val radarTargetHostHint: String
+    val radarTargetIncomplete: String
+    val radarNoPointsBody: String
+    val radarDivergentBody: String
     val vantagePhone: String
 
     companion object {
@@ -1049,9 +1054,9 @@ internal object CommandCopyFa : CommandCopy {
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
-    override val netQCfEdge = "کدام لبهٔ کلودفلر از اینجا تمیز است؟"
-    override val netQCfEdgeTools = "اسکنر IP تمیز"
-    override val netQRealityDonor = "این دامنه دونر REALITY می‌شود؟"
+    override val netQCfEdge = "اسکنر IP تمیز کلودفلر"
+    override val netQCfEdgeTools = "پیدا کردن تمیزترین لبه از این موقعیت"
+    override val netQRealityDonor = "بررسی دونر REALITY"
     override val netQRealityDonorTools = "TLS 1.3، h2، SAN، redirect، CDN"
     override val cfScanner = "اسکنر IP تمیز کلودفلر"
     override val scannerReadyLists = "فهرست‌های آمادهٔ اسکن"
@@ -1393,17 +1398,17 @@ internal object CommandCopyFa : CommandCopy {
     override val alertsTriggerCpuSpike = "Spike CPU یا Memory"
     override val alertsTriggerTunnelDown = "افتادن Tunnel"
     override val backupSummary = "%1 سرور · %2 تونل · %3 Monitor · %4"
-    override val netIndexBody = "هر ابزار با سؤال تشخیصی خودش شروع می‌شود."
-    override val netQReachable = "آیا مقصد از این Server قابل دسترسی است؟"
-    override val netQReachableTools = "TCP، HTTP، SSL و Check-Host"
-    override val netQNetworkLayer = "آیا مشکل در لایهٔ شبکه است؟"
-    override val netQNetworkLayerTools = "DPI، Port Scanner و TCP Ping"
-    override val netQTls = "گواهی و هویت TLS درست است؟"
-    override val netQTlsTools = "Subject، Chain، SAN و Fingerprint"
-    override val netQDns = "DNS چه پاسخی می‌دهد؟"
-    override val netQDnsTools = "Recordها و Cloudflare"
-    override val netQQuality = "کیفیت اتصال چقدر است؟"
-    override val netQQualityTools = "Latency، Loss، Jitter و Bandwidth"
+    override val netIndexBody = "عیب‌یابی دسترسی، شبکه، TLS، DNS و کیفیت اتصال."
+    override val netQReachable = "تست دسترسی به مقصد"
+    override val netQReachableTools = "از دید این سرور: TCP، HTTP، SSL و Check-Host"
+    override val netQNetworkLayer = "عیب‌یابی لایهٔ شبکه"
+    override val netQNetworkLayerTools = "TCP Ping، تشخیص DPI و Port Scanner"
+    override val netQTls = "بررسی گواهی TLS"
+    override val netQTlsTools = "Fingerprint، Subject، Chain و SAN"
+    override val netQDns = "DNS و Cloudflare"
+    override val netQDnsTools = "بررسی پاسخ DNS و مدیریت Recordها"
+    override val netQQuality = "سنجش کیفیت اتصال"
+    override val netQQualityTools = "Bandwidth، Latency، Loss و Jitter"
     override val dnsIndexBody = "تشخیص پاسخ DNS از مدیریت Record جداست."
     override val dnsZoneRecords = "مدیریت Zone و Record"
     override val dnsZoneRecordsBody = "ساخت، ویرایش و حذف Recordهای واقعی Cloudflare"
@@ -1452,7 +1457,6 @@ internal object CommandCopyFa : CommandCopy {
     override val upDeleteTitle = "Delete monitor؟"
     override val upDeleteBody = "%1 و heartbeat/incidentهای محلی آن حذف می‌شوند."
     override val upDeleted = "Monitor حذف شد."
-    override val and = "و"
     override val serversSearchPlaceholder = "جست‌وجوی نام یا آدرس"
     override val tunnelsBody = "ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد."
     override val devLabBody = "این ابزار هیچ input ساختگی مصرف نمی‌کند؛ خروجی با SecureRandom و UUID واقعی تولید می‌شود."
@@ -1521,6 +1525,12 @@ internal object CommandCopyFa : CommandCopy {
     override val radarSynced = "%d پایش همگام شد"
     override val radarNoTargets = "پایشی برای همگام‌سازی نیست"
     override val radarNoTargetsBody = "ابتدا در «پایش دسترس‌پذیری» یک پایش بسازید."
+    override val radarTargetBody = "یک مقصد برای پایش از دید این سرور ثبت کنید: یک نام دلخواه، آدرس میزبان، پورت و نوع بررسی."
+    override val radarTargetNameHint = "مثلاً: سایت اصلی"
+    override val radarTargetHostHint = "مثلاً: example.com"
+    override val radarTargetIncomplete = "نام، آدرس میزبان و پورت هدف را کامل وارد کنید."
+    override val radarNoPointsBody = "هنوز هدفی برای این سرور ثبت نشده است. با فرم بالا یک هدف اضافه کنید تا وضعیت دسترسی آن از دید این سرور دیده شود."
+    override val radarDivergentBody = "وضعیت این هدف از دید گوشی با سرورها متفاوت است؛ مسیر دسترسی را بررسی کنید."
     override val vantagePhone = "گوشی"
 }
 
@@ -1680,9 +1690,9 @@ internal object CommandCopyEn : CommandCopy {
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
     override val pressAgainToExit = "Press back again to exit"
-    override val netQCfEdge = "Which Cloudflare edge is clean from here?"
-    override val netQCfEdgeTools = "Clean-IP scanner"
-    override val netQRealityDonor = "Can this domain be a REALITY donor?"
+    override val netQCfEdge = "Cloudflare clean-IP scanner"
+    override val netQCfEdgeTools = "Find the cleanest edge from this location"
+    override val netQRealityDonor = "Check REALITY donor"
     override val netQRealityDonorTools = "TLS 1.3, h2, SANs, redirect, CDN"
     override val cfScanner = "Cloudflare clean-IP scanner"
     override val scannerReadyLists = "Ready-to-scan lists"
@@ -2024,17 +2034,17 @@ internal object CommandCopyEn : CommandCopy {
     override val alertsTriggerCpuSpike = "CPU or memory spike"
     override val alertsTriggerTunnelDown = "Tunnel went down"
     override val backupSummary = "%1 servers · %2 tunnels · %3 monitors · %4"
-    override val netIndexBody = "Start with the diagnostic question, not a tool list."
-    override val netQReachable = "Is the target reachable from this server?"
-    override val netQReachableTools = "TCP, HTTP, SSL and Check-Host"
-    override val netQNetworkLayer = "Is the problem in the network layer?"
-    override val netQNetworkLayerTools = "DPI, port scanner and TCP ping"
-    override val netQTls = "Is the TLS identity valid?"
-    override val netQTlsTools = "Subject, chain, SAN and fingerprint"
-    override val netQDns = "What does DNS return?"
-    override val netQDnsTools = "Records and Cloudflare"
-    override val netQQuality = "What is the connection quality?"
-    override val netQQualityTools = "Latency, loss, jitter and bandwidth"
+    override val netIndexBody = "Diagnose reachability, network, TLS, DNS and connection quality."
+    override val netQReachable = "Test destination reachability"
+    override val netQReachableTools = "From this server: TCP, HTTP, SSL and Check-Host"
+    override val netQNetworkLayer = "Troubleshoot the network layer"
+    override val netQNetworkLayerTools = "TCP ping, DPI detection and port scanner"
+    override val netQTls = "Inspect the TLS certificate"
+    override val netQTlsTools = "Fingerprint, subject, chain and SAN"
+    override val netQDns = "DNS and Cloudflare"
+    override val netQDnsTools = "Inspect DNS answers and manage records"
+    override val netQQuality = "Measure connection quality"
+    override val netQQualityTools = "Bandwidth, latency, loss and jitter"
     override val dnsIndexBody = "DNS diagnosis is separate from record management."
     override val dnsZoneRecords = "Manage zones and records"
     override val dnsZoneRecordsBody = "Create, edit and delete real Cloudflare records"
@@ -2083,7 +2093,6 @@ internal object CommandCopyEn : CommandCopy {
     override val upDeleteTitle = "Delete monitor?"
     override val upDeleteBody = "%1 and its local heartbeats and incidents are deleted."
     override val upDeleted = "Monitor deleted."
-    override val and = "and"
     override val serversSearchPlaceholder = "Search name or host"
     override val tunnelsBody = "Create and edit tunnel configuration from here. Save is local; deploy asks for separate confirmation."
     override val devLabBody = "This tool consumes no synthetic input: output comes from SecureRandom and real UUIDs."
@@ -2152,5 +2161,11 @@ internal object CommandCopyEn : CommandCopy {
     override val radarSynced = "Synced %d monitors"
     override val radarNoTargets = "No monitors to sync"
     override val radarNoTargetsBody = "Create a monitor under Uptime first."
+    override val radarTargetBody = "Register a destination to watch from this server: any name, a host address, a port and a check type."
+    override val radarTargetNameHint = "e.g. Main site"
+    override val radarTargetHostHint = "e.g. example.com"
+    override val radarTargetIncomplete = "Enter the target name, host address and port completely."
+    override val radarNoPointsBody = "No targets registered for this server yet. Add one with the form above to watch its reachability from this server."
+    override val radarDivergentBody = "This target looks different from the phone than from the servers; check the access path."
     override val vantagePhone = "Phone"
 }
