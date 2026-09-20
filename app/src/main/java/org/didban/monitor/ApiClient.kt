@@ -134,7 +134,7 @@ class ApiClient {
      */
     internal fun pinRejectionOrNull(server: ServerConfig, observed: String?): FingerprintMismatchException? {
         val pinned = CertFingerprint.normalizeFingerprint(server.fingerprint)
-        if (!server.useTls || pinned.isEmpty() || observed.isNullOrEmpty() || observed != pinned) return null
+        if (!server.useTls || pinned.isEmpty() || observed.isNullOrEmpty() || observed == pinned) return null
         return FingerprintMismatchException(pinned, observed)
     }
 

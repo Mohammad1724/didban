@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -63,13 +64,16 @@ internal fun CommandServerEditor(
     serverId: Long?,
     onSaved: (ServerConfig) -> Unit,
     onClose: () -> Unit,
-    embedded: Boolean = false
+    embedded: Boolean = false,
+    // Injectable store read: production passes Prefs; UI tests pass an
+    // in-memory ServerLoadResult (the encrypted store needs a real Keystore).
+    loadServers: (Context) -> Prefs.ServerLoadResult = { ctx -> Prefs.loadServersResult(ctx) }
 ) {
     var helpVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = context.findActivity() as? androidx.activity.ComponentActivity ?: return
     val model = remember(activity) { ViewModelProvider(activity)[ServerEditorViewModel::class.java] }
-    remember(model, serverId) { model.begin(serverId, Prefs.loadServersResult(context)); true }
+    remember(model, serverId) { model.begin(serverId, loadServers(context)); true }
     val draft = model.draft ?: return
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -105,7 +109,7 @@ internal fun CommandServerEditor(
         if (busy || model.blocked || model.missing) return
         val server = model.serverForAction() ?: return
         validation(server)?.let { error = it; return }
-        val loaded = Prefs.loadServersResult(context)
+        val loaded = loadServers(context)
         if (loaded.error != null) {
             error = securityMessage(language, SecurityMessage.SERVER_WRITE_BLOCKED)
             return

@@ -179,21 +179,15 @@ class ServerEditorUiTest {
     }
 
     @Test fun `quick-connect import is offered when editing an existing server`() {
-        val context = RuntimeEnvironment.getApplication()
-        Prefs.saveServers(
-            context,
-            listOf(
-                ServerConfig(
-                    id = 42, name = "old", host = "old.example", port = 8686,
-                    token = "tok", adminToken = "adm", useTls = true,
-                    fingerprint = "ab".repeat(32), cpuAlert = 90, memAlert = 90
-                )
-            )
+        val existing = ServerConfig(
+            id = 42, name = "old", host = "old.example", port = 8686,
+            token = "tok", adminToken = "adm", useTls = true,
+            fingerprint = "ab".repeat(32), cpuAlert = 90, memAlert = 90
         )
         compose.setContent {
             activity = LocalContext.current.findActivity() as ComponentActivity
             CommandTheme(themeMode = "dark", language = "fa") {
-                CommandServerEditor(copy, 42, {}, {})
+                CommandServerEditor(copy, 42, {}, {}, loadServers = { Prefs.ServerLoadResult(mutableListOf(existing)) })
             }
         }
         compose.waitForIdle()
