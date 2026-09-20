@@ -4,9 +4,9 @@ package org.didban.monitor
  * Agent/app compatibility helpers.
  *
  * The app and the agent release independently: a user can install a new APK
- * while their server still runs an older agent that does not serve newer
- * endpoints (`/api/docker/*`, `/api/bandwidth/*`). Those calls then fail
- * with HTTP 404/405 — not a network problem, just an outdated agent.
+ * while their server still runs an older agent that does not serve the
+ * newer Docker and bandwidth endpoints. Those calls then fail with
+ * HTTP 404/405 — not a network problem, just an outdated agent.
  *
  * Everything here is a pure function so it can be unit-tested without a
  * network or an Android device.
