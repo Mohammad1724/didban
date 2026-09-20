@@ -584,6 +584,11 @@ interface CommandCopy {
     val monitorEngineError: String
     val monitorSettingsError: String
     val upNewMonitor: String
+    val upAllowPrivateTitle: String
+    val upAllowPrivateBody: String
+    val upEditing: String
+    val upPause: String
+    val upResume: String
     val upSavedMonitors: String
     val upMonitorContract: String
     val upProbeType: String
@@ -1227,12 +1232,17 @@ internal object CommandCopyFa : CommandCopy {
     override val monitorEngineError = "موتور پایش با خطا متوقف شد. مقصدها حذف نشده‌اند؛ دوباره شروع کنید و اگر خطا تکرار شد داده‌ها و تنظیمات برنامه را بررسی کنید."
     override val monitorSettingsError = "تنظیمات اعلان باز نشد؛ از تنظیمات اندروید، برنامهٔ دیدبان را باز کنید."
     override val upNewMonitor = "پایش جدید"
+    override val upAllowPrivateTitle = "اجازه به مقصدهای شبکهٔ خصوصی"
+    override val upAllowPrivateBody = "برای localhost، LAN و آدرس‌های خصوصی لازم است. فقط برای مقصدهای قابل اعتماد فعال کنید."
+    override val upEditing = "ویرایش #%1"
+    override val upPause = "توقف"
+    override val upResume = "ادامه"
     override val upSavedMonitors = "پایش‌های ذخیره‌شده"
-    override val upMonitorContract = "چه چیزی بررسی شود؟"
+    override val upMonitorContract = "مشخصات پایش"
     override val upProbeType = "نوع بررسی"
-    override val upTargetUrlHost = "هدف / نشانی / میزبان"
+    override val upTargetUrlHost = "نشانی"
     override val upIntervalSeconds = "فاصله (ثانیه)"
-    override val upKeywordHint = "کلیدواژه، فقط برای KEYWORD"
+    override val upKeywordHint = "کلیدواژه"
     override val upTestNow = "آزمون فوری"
     override val wbFleetScope = "محدودهٔ ناوگان"
     override val wbResultMatrix = "ماتریس نتایج"
@@ -1452,8 +1462,8 @@ internal object CommandCopyFa : CommandCopy {
     override val upTargetFirst = "ابتدا target را وارد کنید."
     override val upCheckDone = "Check واقعی انجام شد: %1 · %2 ms"
     override val upCheckFailed = "Check ناموفق بود."
-    override val upNoMonitorYet = "هنوز Monitor واقعی ذخیره نشده است."
-    override val upEditorBody = "URL/HTTP و SSL از engine واقعی استفاده می‌کنند؛ target نمونه یا synthetic result ساخته نمی‌شود."
+    override val upNoMonitorYet = "هنوز پایشی ذخیره نشده است. با فرم زیر اولین پایش را بسازید."
+    override val upEditorBody = "بررسی‌ها واقعاً روی همین مقصد اجرا و نتیجهٔ واقعی ثبت می‌شود."
     override val upDeleteTitle = "Delete monitor؟"
     override val upDeleteBody = "%1 و heartbeat/incidentهای محلی آن حذف می‌شوند."
     override val upDeleted = "Monitor حذف شد."
@@ -1862,13 +1872,18 @@ internal object CommandCopyEn : CommandCopy {
     override val monitorStopError = "Stop was not confirmed; the current state is retained. Try stopping again."
     override val monitorEngineError = "The monitoring engine stopped after an error. Targets were not deleted. Retry and review app data/settings if it recurs."
     override val monitorSettingsError = "Could not open notification settings. Open Didban in Android app settings."
-    override val upNewMonitor = "new monitor"
+    override val upNewMonitor = "New monitor"
+    override val upAllowPrivateTitle = "Allow private network targets"
+    override val upAllowPrivateBody = "Required for localhost, LAN, link-local or private IPv6 targets. Enable only for trusted destinations."
+    override val upEditing = "editing #%1"
+    override val upPause = "Pause"
+    override val upResume = "Resume"
     override val upSavedMonitors = "Saved monitors"
-    override val upMonitorContract = "Monitor contract"
+    override val upMonitorContract = "Monitor details"
     override val upProbeType = "Probe type"
-    override val upTargetUrlHost = "Target / URL / host"
+    override val upTargetUrlHost = "Address"
     override val upIntervalSeconds = "Interval seconds"
-    override val upKeywordHint = "Keyword, only for KEYWORD"
+    override val upKeywordHint = "Keyword"
     override val upTestNow = "Test now"
     override val wbFleetScope = "Fleet Scope"
     override val wbResultMatrix = "Result Matrix"
@@ -2088,8 +2103,8 @@ internal object CommandCopyEn : CommandCopy {
     override val upTargetFirst = "Enter a target first."
     override val upCheckDone = "Real check completed: %1 · %2 ms"
     override val upCheckFailed = "The check failed."
-    override val upNoMonitorYet = "No real monitor has been saved yet."
-    override val upEditorBody = "URL/HTTP and SSL use the real engine; no sample target or synthetic result is produced."
+    override val upNoMonitorYet = "No monitor saved yet. Build the first one with the form below."
+    override val upEditorBody = "Checks really run against this target and record the real result."
     override val upDeleteTitle = "Delete monitor?"
     override val upDeleteBody = "%1 and its local heartbeats and incidents are deleted."
     override val upDeleted = "Monitor deleted."

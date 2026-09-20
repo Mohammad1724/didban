@@ -3,6 +3,7 @@ package org.didban.monitor
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +48,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
     UptimeEngine.ensureLoaded(context)
     val targets by UptimeEngine.liveTargets.collectAsState()
     var selectedId by remember { mutableStateOf<Long?>(null) }
-    var name by remember { mutableStateOf("New monitor") }
+    var name by remember { mutableStateOf(copy.upNewMonitor) }
     var type by remember { mutableStateOf("HTTP") }
     var target by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("443") }
@@ -61,7 +62,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
 
     fun reset() {
         selectedId = null
-        name = "New monitor"
+        name = copy.upNewMonitor
         type = "HTTP"
         target = ""
         port = "443"
@@ -89,7 +90,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         val original = selectedId?.let { id -> targets.firstOrNull { it.id == id } }
         return UptimeTarget(
         id = selectedId ?: System.currentTimeMillis(),
-        name = name.trim().ifBlank { "Monitor ${selectedId ?: "new"}" },
+        name = name.trim().ifBlank { copy.upNewMonitor },
         type = type,
         target = target.trim(),
         port = port.toIntOrNull()?.coerceIn(1, 65535) ?: if (type == "HTTPS" || type == "SSL") 443 else 80,
@@ -145,7 +146,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.uptime, if (selectedId == null) copy.upNewMonitor else "editing #$selectedId", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.uptime, if (selectedId == null) copy.upNewMonitor else copy.upEditing.replace("%1", "$selectedId"), modifier = Modifier.weight(1f))
             }
         }
         item {
@@ -153,7 +154,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(copy.upSavedMonitors, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        CommandTextButton("New", ::reset, icon = Icons.Rounded.Refresh)
+                        CommandTextButton(copy.upNewMonitor, ::reset, icon = Icons.Rounded.Refresh)
                     }
                     if (targets.isEmpty()) {
                         Text(copy.upNoMonitorYet, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -173,23 +174,29 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                     Text(copy.upMonitorContract, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiName) })
                     Text(copy.upProbeType, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                    // All six check types stay visible: a scroll row clipped
+                    // PING/KEYWORD/SSL with no affordance that more exist.
+                    FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                         listOf("HTTP", "HTTPS", "TCP", "PING", "KEYWORD", "SSL").forEach { candidate ->
                             CommandSecondaryButton(candidate, { type = candidate }, enabled = type != candidate)
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upTargetUrlHost) })
+                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upTargetUrlHost) }, placeholder = { Text(copy.radarTargetHostHint) })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upIntervalSeconds) })
-                        OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.upKeywordHint) })
+                        // The keyword field only makes sense for KEYWORD
+                        // checks; showing it always confused HTTP/TCP users.
+                        if (type == "KEYWORD") {
+                            OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.upKeywordHint) })
+                        }
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("Allow private network targets", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
-                            Text("Required for localhost, LAN, link-local or private IPv6 targets. Enable only for trusted destinations.", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                            Text(copy.upAllowPrivateTitle, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
+                            Text(copy.upAllowPrivateBody, color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
                         Switch(checked = allowPrivateNetwork, onCheckedChange = { allowPrivateNetwork = it })
                     }
@@ -199,7 +206,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
         }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                CommandPrimaryButton("Save", ::save, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
+                CommandPrimaryButton(copy.save, ::save, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
                 CommandSecondaryButton(copy.upTestNow, ::test, Modifier.weight(1f), Icons.Rounded.PlayArrow, enabled = !busy)
             }
         }
@@ -213,8 +220,8 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                             detail = "${selected.lastLatencyMs} ms · ${selected.intervalSec}s"
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            CommandSecondaryButton(if (selected.isPaused) "Resume" else "Pause", { UptimeEngine.togglePause(context, selected.id) }, icon = if (selected.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause)
-                            CommandTextButton("Delete", { deleteTarget = selected }, icon = Icons.Rounded.DeleteOutline)
+                            CommandSecondaryButton(if (selected.isPaused) copy.upResume else copy.upPause, { UptimeEngine.togglePause(context, selected.id) }, icon = if (selected.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause)
+                            CommandTextButton(copy.delete, { deleteTarget = selected }, icon = Icons.Rounded.DeleteOutline)
                         }
                         if (selected.incidents.isNotEmpty()) {
                             Text(copy.upIncidentCount.replace("%1", selected.incidents.size.toString()), color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -223,7 +230,7 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                 }
             }
         }
-        if (message != null) item { CommandStateBlock("Operation", message ?: "", CommandHealthTone.INFO) }
+        if (message != null) item { CommandStateBlock(copy.operationDone, message ?: "", CommandHealthTone.INFO) }
         if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
