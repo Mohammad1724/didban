@@ -188,6 +188,24 @@ Tn/eDTUE64VCrcSnVXYolnZhPWJDDrNrE7UYLxtrEWNQRGkqfzDnIbTDtKy/8Zkw
     }
 
     @Test
+    fun mismatchedPinThrowsTypedExceptionWithBothSides() {
+        val pinned = "ab".repeat(32)
+        val tm = HttpClientPool.trustManager(pinned, null)
+        try {
+            tm.checkServerTrusted(arrayOf(fixtureCert()), "RSA")
+            fail("expected FingerprintMismatchException for pin mismatch")
+        } catch (e: FingerprintMismatchException) {
+            assertEquals(pinned, e.expected)
+            assertEquals(EXPECTED_FP, e.observed)
+            // Legacy log text is unchanged so old filters keep matching.
+            assertEquals(
+                "certificate fingerprint mismatch (expected ${pinned.take(12)}…, got ${EXPECTED_FP.take(12)}…)",
+                e.message
+            )
+        }
+    }
+
+    @Test
     fun emptyChainIsRejected() {
         val tm = HttpClientPool.trustManager("", AtomicReference<String>(""))
         try {

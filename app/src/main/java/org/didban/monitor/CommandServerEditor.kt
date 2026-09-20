@@ -76,6 +76,7 @@ internal fun CommandServerEditor(
     var discard by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
+    var pendingFingerprint by remember { mutableStateOf<String?>(null) }
     val language = Prefs.getLanguage(context)
     val protectScreenshots = rememberScreenshotProtection()
 
@@ -124,6 +125,41 @@ internal fun CommandServerEditor(
         onSaved(server)
     }
 
+    /**
+     * Re-pin ceremony (SSH "host key changed" style): fetch the fingerprint
+     * the server presents NOW over an unpinned, tokenless handshake, then
+     * ask for explicit confirmation showing old vs new. Accepting only
+     * fills the form — nothing is pinned until the user taps Save.
+     *
+     * Only host/port are validated here: after a reinstall the saved
+     * tokens are stale too, and capture must work regardless.
+     */
+    fun fetchFingerprint() {
+        if (busy || model.blocked || model.missing) return
+        val server = model.serverForAction() ?: return
+        if (!TunnelFieldValidation.isHost(server.host)) {
+            error = copy.srvHostInvalid
+            return
+        }
+        if (server.port !in 1..65535) {
+            error = copy.fleetPortInvalid
+            return
+        }
+        busy = true; error = null; message = null
+        scope.launch {
+            try {
+                pendingFingerprint = withTimeout(15_000L) { ApiClient().captureFingerprint(server.host, server.port) }
+            } catch (_: TimeoutCancellationException) {
+                error = copy.refreshTimedOut
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                error = SecretRedactor.redact(failure.message ?: copy.srvConnectFailed,
+                    listOf(server.token, server.adminToken)).take(300)
+            } finally { busy = false }
+        }
+    }
+
     fun test() {
         if (busy || model.blocked || model.missing) return
         val server = model.serverForAction() ?: return
@@ -138,7 +174,13 @@ internal fun CommandServerEditor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                error = SecretRedactor.redact(failure.message ?: copy.srvConnectFailed,
+                // A rotated agent certificate is explained with both pins in
+                // the user's language; everything else keeps the redacted raw text.
+                error = (failure as? FingerprintMismatchException)?.let { mismatch ->
+                    copy.connFingerprintMismatch
+                        .replace("%1", mismatch.expected.take(12))
+                        .replace("%2", mismatch.observed.take(12))
+                } ?: SecretRedactor.redact(failure.message ?: copy.srvConnectFailed,
                     listOf(server.token, server.adminToken)).take(300)
             } finally { busy = false }
         }
@@ -175,7 +217,9 @@ internal fun CommandServerEditor(
                 } else {
                     LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         item { Text(copy.fleetDraftPrivacy, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall) }
-                        if (serverId == null) item {
+                        // Quick-connect import stays available when editing: after an
+                        // agent reinstall one paste refreshes host, tokens and pin.
+                        item {
                             OutlinedTextField(draft.quickConnect, { input -> change { current -> current.copy(quickConnect = input.take(2048)) } },
                                 Modifier.fillMaxWidth(), enabled = !busy, label = { Text(copy.srvQuickConnectLabel) },
                                 visualTransformation = PasswordVisualTransformation(), minLines = 2, maxLines = 3)
@@ -196,6 +240,9 @@ internal fun CommandServerEditor(
                         item {
                             Text(copy.srvUseTls, color = CommandColors.textSecondary)
                             OutlinedTextField(draft.fingerprint, { input -> change { current -> current.copy(fingerprint = input) } }, Modifier.fillMaxWidth(), enabled = !busy, label = { Text(copy.srvTlsFingerprint) })
+                            Spacer(Modifier.height(CommandSpacing.xs))
+                            // Re-pin entry point — see fetchFingerprint().
+                            CommandSecondaryButton(copy.srvFetchFingerprint, ::fetchFingerprint, enabled = !busy && draft.host.isNotBlank())
                         }
                         item {
                             Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
@@ -217,6 +264,36 @@ internal fun CommandServerEditor(
     if (embedded) editor() else Dialog(onDismissRequest = ::requestClose, properties = DialogProperties(
         usePlatformDefaultWidth = false, securePolicy = screenshotDialogPolicy(protectScreenshots)
     )) { editor() }
+    // Explicit re-pin confirmation: old pin vs freshly observed pin, with
+    // the server-side command to verify out of band before accepting.
+    val pending = pendingFingerprint
+    val liveDraft = model.draft
+    if (pending != null && liveDraft != null) {
+        val oldPin = CertFingerprint.normalizeFingerprint(liveDraft.fingerprint)
+        AlertDialog(
+            onDismissRequest = { pendingFingerprint = null },
+            title = { Text(copy.srvFingerprintConfirmTitle) },
+            text = {
+                Text(
+                    copy.srvFingerprintConfirmBody
+                        .replace("%1", liveDraft.host)
+                        .replace("%2", oldPin.take(12).ifBlank { "?" } + "…")
+                        .replace("%3", pending)
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    change { it.copy(fingerprint = pending) }
+                    message = copy.srvFingerprintSuggested
+                    pendingFingerprint = null
+                }) { Text(copy.srvAcceptFingerprint) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingFingerprint = null }) { Text(copy.cancel) }
+            },
+            properties = DialogProperties(securePolicy = screenshotDialogPolicy(protectScreenshots))
+        )
+    }
     if (helpVisible) CommandHelpDialog(CommandRoute.MANAGE_SERVERS, language, copy) { helpVisible = false }
     if (discard) AlertDialog(
         onDismissRequest = { discard = false },

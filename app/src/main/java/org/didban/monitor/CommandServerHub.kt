@@ -222,7 +222,17 @@ private fun CommandServerDetails(
             }
             if (mutationError != null) item { CommandStateBlock(copy.operationFailed, mutationError, CommandHealthTone.OFFLINE) }
             if (state?.error != null) item {
-                CommandStateBlock(copy.offline, SecretRedactor.redact(state.error, listOf(server.token, server.adminToken)), CommandHealthTone.OFFLINE)
+                // A pin rotation is explained in the user's language with a
+                // pointer to the re-pin flow; other errors keep redacted raw text.
+                val mismatch = state.fingerprintMismatch
+                val detail = if (mismatch != null) {
+                    copy.connFingerprintMismatch
+                        .replace("%1", mismatch.expectedPrefix)
+                        .replace("%2", mismatch.observedPrefix)
+                } else {
+                    SecretRedactor.redact(state.error, listOf(server.token, server.adminToken))
+                }
+                CommandStateBlock(copy.offline, detail, CommandHealthTone.OFFLINE)
             }
             val metrics = state?.metrics
             if (metrics == null && state?.error == null) item { Text(copy.waitingForData, color = CommandColors.textSecondary) }

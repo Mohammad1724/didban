@@ -69,6 +69,75 @@ class ApiClient {
         clients.forEach { HttpClientPool.releaseStreaming(it) }
     }
 
+    /**
+     * Explicit TOFU capture for the server editor's "fetch fingerprint"
+     * flow: performs a TLS handshake against the tokenless /health
+     * endpoint WITHOUT pin verification and returns the observed leaf
+     * SHA-256.
+     *
+     * Security rules (all deliberate):
+     *  - the request carries NO Authorization header, so no token is ever
+     *    sent to an unverified peer;
+     *  - the client is one-shot and never cached ([HttpClientPool.captureClient]);
+     *  - the body is closed unread — status and content are irrelevant, the
+     *    handshake alone publishes the fingerprint;
+     *  - cancellation aborts the socket and releases the client, like metrics polling.
+     *
+     * Throws [ApiException] when the handshake never produces a valid pin.
+     */
+    suspend fun captureFingerprint(host: String, port: Int): String = suspendCancellableCoroutine { continuation ->
+        val captured = runCatching { HttpClientPool.captureClient(host, port) }.getOrNull()
+        if (captured == null) {
+            if (continuation.isActive) continuation.resumeWithException(ApiException("fingerprint capture failed"))
+            return@suspendCancellableCoroutine
+        }
+        val (client, holder) = captured
+        val call = try {
+            client.newCall(Request.Builder().url("https://$host:$port/health").build())
+        } catch (e: Exception) {
+            HttpClientPool.releaseCapture(client)
+            if (continuation.isActive) continuation.resumeWithException(ApiException("fingerprint capture failed"))
+            return@suspendCancellableCoroutine
+        }
+        continuation.invokeOnCancellation {
+            runCatching { call.cancel() }
+            HttpClientPool.releaseCapture(client)
+        }
+        // The handshake already published the pin (or failed trying): close
+        // everything, read nothing, and report what the holder saw.
+        fun finish() {
+            HttpClientPool.releaseCapture(client)
+            if (!continuation.isActive) return
+            val observed = holder.get().orEmpty()
+            if (CertFingerprint.isValidSha256(observed)) continuation.resume(observed)
+            else continuation.resumeWithException(ApiException("fingerprint capture failed"))
+        }
+        call.enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) = finish()
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                runCatching { response.close() }
+                finish()
+            }
+        })
+    }
+
+    /**
+     * Deterministic pin-rotation detector. The trust manager records every
+     * observed leaf in the pooled holder, so when a request fails and the
+     * observed fingerprint differs from the pinned one, the failure IS a
+     * pin rejection: the agent was reinstalled (new self-signed
+     * certificate) or the entry points at a different machine.
+     *
+     * Comparing holder-vs-pin (instead of sniffing the cause chain) is
+     * deliberate: the socket layer wraps the TLS alert and may drop the
+     * original cause. Internal so JVM tests can cover the matrix.
+     */
+    internal fun pinRejectionOrNull(server: ServerConfig, observed: String?): FingerprintMismatchException? {
+        val pinned = CertFingerprint.normalizeFingerprint(server.fingerprint)
+        if (!server.useTls || pinned.isEmpty() || observed.isNullOrEmpty() || observed != pinned) return null
+        return FingerprintMismatchException(pinned, observed)
+    }
+
     private fun get(server: ServerConfig, path: String): JSONObject {
         val scheme = if (server.useTls) "https" else "http"
         val url = "$scheme://${server.host}:${server.port}$path"
@@ -90,7 +159,10 @@ class ApiClient {
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
+            // A failed request that observed a different certificate than the
+            // pinned one IS a pin rejection — report it typed instead of a raw TLS alert.
+            throw pinRejectionOrNull(server, pooled.fingerprint?.get())
+                ?: ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
@@ -126,7 +198,10 @@ class ApiClient {
         } catch (e: ApiException) {
             throw e
         } catch (e: Exception) {
-            throw ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
+            // A failed request that observed a different certificate than the
+            // pinned one IS a pin rejection — report it typed instead of a raw TLS alert.
+            throw pinRejectionOrNull(server, pooled.fingerprint?.get())
+                ?: ApiException(SecretRedactor.redact(e.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
         } finally {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
         }
@@ -144,9 +219,12 @@ class ApiClient {
         continuation.invokeOnCancellation { call.cancel() }
         fun fail(error: Exception) {
             lastSeenFingerprint = pooled.fingerprint?.get()?.takeIf { it.isNotEmpty() }
-            if (continuation.isActive) continuation.resumeWithException(ApiException(
-                SecretRedactor.redact(error.message ?: "network error", listOf(server.token, server.adminToken)).take(300)
-            ))
+            if (continuation.isActive) continuation.resumeWithException(
+                // Holder-vs-pin decides: a rotation surfaces typed, every
+                // other failure keeps the redacted ApiException.
+                pinRejectionOrNull(server, pooled.fingerprint?.get())
+                    ?: ApiException(SecretRedactor.redact(error.message ?: "network error", listOf(server.token, server.adminToken)).take(300))
+            )
         }
         call.enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: IOException) = fail(e)

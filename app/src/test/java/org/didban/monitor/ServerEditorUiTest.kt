@@ -177,4 +177,27 @@ class ServerEditorUiTest {
         compose.runOnIdle { assertEquals(0, editorWindow.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) }
         field(copy.fleetName).assertTextContains("Dirty form")
     }
+
+    @Test fun `quick-connect import is offered when editing an existing server`() {
+        val context = RuntimeEnvironment.getApplication<Application>()
+        Prefs.saveServers(
+            context,
+            listOf(
+                ServerConfig(
+                    id = 42, name = "old", host = "old.example", port = 8686,
+                    token = "tok", adminToken = "adm", useTls = true,
+                    fingerprint = "ab".repeat(32), cpuAlert = 90, memAlert = 90
+                )
+            )
+        )
+        compose.setContent {
+            activity = LocalContext.current.findActivity() as ComponentActivity
+            CommandTheme(themeMode = "dark", language = "fa") {
+                CommandServerEditor(copy, 42, {}, {})
+            }
+        }
+        compose.waitForIdle()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.srvQuickConnectImport))
+        compose.onNodeWithText(copy.srvQuickConnectImport).assertIsDisplayed()
+    }
 }

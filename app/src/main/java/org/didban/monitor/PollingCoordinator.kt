@@ -149,7 +149,12 @@ object PollingCoordinator {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (e: Exception) {
-            Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f)
+            // A rotation keeps its typed pair so the inspector can explain
+            // it in the user's language; the raw text stays as fallback.
+            val mismatch = (e as? FingerprintMismatchException)?.let {
+                FingerprintMismatch(it.expected.take(12), it.observed.take(12))
+            }
+            Repo.set(s.id, error = e.message ?: "error", latencyMs = -1f, fingerprintMismatch = mismatch)
             nextCheckAt[s.id] = System.currentTimeMillis() + PollSchedule.nextDelayMs(false, pollMs)
             if (MonitorService.isRunning) {
                 alert(ctx, s, "${s.name}: ${e.message}")

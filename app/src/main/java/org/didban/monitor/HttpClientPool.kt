@@ -34,6 +34,19 @@ import okhttp3.OkHttpClient
  * JVM-testable: [ClientKey], the LRU cache, fingerprint normalization and
  * the pinning behavior itself are covered by [HttpClientPoolTest].
  */
+/**
+ * TLS pin rejection with both sides attached: the fingerprint the app had
+ * pinned for the server ([expected]) and the one the server actually
+ * presented ([observed]), both normalized lowercase hex. Carrying the pair
+ * (instead of formatting it into English prose) lets every UI surface
+ * explain a rotation in the user's language and offer a re-pin flow.
+ *
+ * The message keeps the historical English text so logs and crash filters
+ * keep matching; UI must never show it raw — see `connFingerprintMismatch`.
+ */
+class FingerprintMismatchException(val expected: String, val observed: String) :
+    CertificateException("certificate fingerprint mismatch (expected ${expected.take(12)}…, got ${observed.take(12)}…)")
+
 object HttpClientPool {
 
     /** Cached clients beyond this number are evicted LRU-first. */
@@ -121,6 +134,40 @@ object HttpClientPool {
     }
 
     /**
+     * One-shot UNPINNED TLS client for the editor's explicit "fetch
+     * fingerprint" capture. Unlike [standardClient] this client:
+     *  - is never cached (no pool key exists for "no pin"),
+     *  - must only ever request the tokenless /health endpoint, so no
+     *    credential is sent to an unverified peer,
+     *  - must be passed to [releaseCapture] when the call completes.
+     *
+     * The returned holder receives the observed leaf SHA-256 (or stays ""
+     * when the handshake never ran).
+     */
+    fun captureClient(host: String, port: Int): Pair<OkHttpClient, AtomicReference<String>> {
+        val holder = AtomicReference("")
+        // Ephemeral config: only host/port/TLS feed the builder; the empty
+        // pin selects the trust manager's accept-and-record branch. This
+        // bypasses [standardClient] on purpose — an unpinned client must
+        // never enter the cache.
+        val ephemeral = ServerConfig(id = -1, name = "", host = host, port = port, useTls = true, fingerprint = "")
+        val built = try {
+            baseBuilder(ephemeral, holder)
+                .connectTimeout(CONNECT_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .readTimeout(READ_TIMEOUT_SEC, TimeUnit.SECONDS)
+                .build()
+        } catch (e: Exception) {
+            throw IllegalStateException("Failed to build capture client for $host", e)
+        }
+        return built to holder
+    }
+
+    /** Releases a one-shot capture client's dispatcher (same rule as [releaseStreaming]). */
+    fun releaseCapture(client: OkHttpClient) {
+        release(client)
+    }
+
+    /**
      * Drop the cached client for one key. Call whenever the key inputs can
      * change (re-pin, port, TLS toggle) or when a server is deleted —
      * otherwise the stale client would keep enforcing the old pin.
@@ -187,9 +234,9 @@ object HttpClientPool {
                 // one-tap pinning (previously: ApiClient.lastSeenFingerprint).
                 holder?.set(fp)
                 if (pinned.isNotEmpty() && pinned != fp) {
-                    throw CertificateException(
-                        "certificate fingerprint mismatch (expected ${pinned.take(12)}…, got ${fp.take(12)}…)"
-                    )
+                    // Typed (not plain CertificateException) so callers can
+                    // explain the rotation and offer a re-pin without parsing text.
+                    throw FingerprintMismatchException(pinned, fp)
                 }
             }
 

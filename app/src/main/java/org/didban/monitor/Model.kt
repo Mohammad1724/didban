@@ -325,21 +325,29 @@ object JsonParse {
 
 // ── Shared live state (written by PollingCoordinator, read by UI) ───────────
 
+/**
+ * Pin-rotation details for localized display: 12-char prefixes of the
+ * pinned vs observed fingerprints (full pins live in the server config
+ * and the re-pin dialog, never in polling state).
+ */
+data class FingerprintMismatch(val expectedPrefix: String, val observedPrefix: String)
+
 object Repo {
     data class State(
         val metrics: Metrics? = null,
         val error: String? = null,
         val updated: Long = 0,
-        val latencyMs: Float = 0f
+        val latencyMs: Float = 0f,
+        val fingerprintMismatch: FingerprintMismatch? = null
     )
 
     val states = MutableStateFlow<Map<Long, State>>(emptyMap())
 
     fun remove(id: Long) { states.update { it - id } }
 
-    fun set(id: Long, metrics: Metrics? = null, error: String? = null, latencyMs: Float = 0f) {
+    fun set(id: Long, metrics: Metrics? = null, error: String? = null, latencyMs: Float = 0f, fingerprintMismatch: FingerprintMismatch? = null) {
         states.update { current ->
-            current + (id to State(metrics, error, System.currentTimeMillis(), latencyMs))
+            current + (id to State(metrics, error, System.currentTimeMillis(), latencyMs, fingerprintMismatch))
         }
     }
 }

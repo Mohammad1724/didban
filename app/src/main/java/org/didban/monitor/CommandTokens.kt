@@ -792,6 +792,11 @@ interface CommandCopy {
     val srvSavedPolled: String
     val srvConnecting: String
     val srvFingerprintSuggested: String
+    val srvFetchFingerprint: String
+    val srvAcceptFingerprint: String
+    val srvFingerprintConfirmTitle: String
+    val srvFingerprintConfirmBody: String
+    val connFingerprintMismatch: String
     val srvConnectFailed: String
     val srvDossierHint: String
     val srvDeleteTitle: String
@@ -1425,6 +1430,11 @@ internal object CommandCopyFa : CommandCopy {
     override val srvSavedPolled = "اتصال ذخیره شد؛ Polling واقعی برای آن درخواست شد."
     override val srvConnecting = "در حال اتصال به Agent واقعی..."
     override val srvFingerprintSuggested = "Agent پاسخ داد؛ fingerprint فقط به‌صورت پیشنهادی در فرم قرار گرفت و تا Save pin نمی‌شود."
+    override val srvFetchFingerprint = "دریافت fingerprint فعلی سرور"
+    override val srvAcceptFingerprint = "پذیرش و درج در فرم"
+    override val srvFingerprintConfirmTitle = "تأیید fingerprint جدید"
+    override val srvFingerprintConfirmBody = "سرور %1 fingerprint جدیدی ارائه می‌کند.\n\nقبلی: %2\nفعلی: %3\n\nفقط اگر خودتان ایجنت را دوباره نصب یا به‌روز کرده‌اید بپذیرید. برای اطمینان، این دستور را روی سرور اجرا کنید و fingerprint را مقایسه کنید:\njournalctl -u didban-agent --no-pager | grep 'Cert SHA256'"
+    override val connFingerprintMismatch = "fingerprint گواهی مطابقت ندارد (مورد انتظار %1…، دریافتی %2…). اگر ایجنت را دوباره نصب کرده‌اید، fingerprint را در ویرایش سرور به‌روز کنید."
     override val srvConnectFailed = "اتصال به Agent ناموفق بود."
     override val srvDossierHint = "از اینجا پروندهٔ واقعی سرور باز می‌شود؛ حذف فقط local connection را حذف می‌کند."
     override val srvDeleteTitle = "Delete connection؟"
@@ -2051,6 +2061,11 @@ internal object CommandCopyEn : CommandCopy {
     override val srvSavedPolled = "Connection saved; a real poll was requested for it."
     override val srvConnecting = "Connecting to the real agent…"
     override val srvFingerprintSuggested = "The agent replied; the fingerprint is only suggested in the form and is not pinned until you save."
+    override val srvFetchFingerprint = "Fetch server's current fingerprint"
+    override val srvAcceptFingerprint = "Accept into form"
+    override val srvFingerprintConfirmTitle = "Confirm new fingerprint"
+    override val srvFingerprintConfirmBody = "Server %1 presents a new fingerprint.\n\nOld: %2\nNew: %3\n\nAccept only if you reinstalled or updated the agent yourself. To verify, run this on the server and compare fingerprints:\njournalctl -u didban-agent --no-pager | grep 'Cert SHA256'"
+    override val connFingerprintMismatch = "Certificate fingerprint mismatch (expected %1…, got %2…). If you reinstalled the agent, refresh the fingerprint in the server editor."
     override val srvConnectFailed = "Connecting to the agent failed."
     override val srvDossierHint = "The server's real dossier opens from here; delete only removes the local connection."
     override val srvDeleteTitle = "Delete connection?"
