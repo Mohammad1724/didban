@@ -321,6 +321,8 @@ fun CommandStateBlock(
     tone: CommandHealthTone = CommandHealthTone.INFO,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    secondActionLabel: String? = null,
+    onSecondAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val icon = when (tone) {
@@ -353,9 +355,14 @@ fun CommandStateBlock(
             style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
             color = CommandColors.textSecondary
         )
-        if (actionLabel != null && onAction != null) {
+        val hasFirst = actionLabel != null && onAction != null
+        val hasSecond = secondActionLabel != null && onSecondAction != null
+        if (hasFirst || hasSecond) {
             Spacer(Modifier.height(CommandSpacing.sm))
-            CommandSecondaryButton(actionLabel, onAction, modifier = Modifier.align(Alignment.Start))
+            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                if (hasFirst) CommandSecondaryButton(actionLabel!!, onAction!!)
+                if (hasSecond) CommandSecondaryButton(secondActionLabel!!, onSecondAction!!)
+            }
         }
     }
 }

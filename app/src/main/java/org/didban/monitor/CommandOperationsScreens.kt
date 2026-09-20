@@ -36,7 +36,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -388,9 +390,11 @@ fun CommandDockerScreen(
     onBack: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
     var data by remember(server?.id) { mutableStateOf<DockerSummaryData?>(null) }
     var loading by remember(server?.id) { mutableStateOf(false) }
     var error by remember(server?.id) { mutableStateOf<String?>(null) }
+    var endpointMissing by remember(server?.id) { mutableStateOf(false) }
     var selected by remember { mutableStateOf<DockerContainerItem?>(null) }
     var confirmAction by remember { mutableStateOf<String?>(null) }
     var pendingContainerId by remember { mutableStateOf<String?>(null) }
@@ -406,6 +410,7 @@ fun CommandDockerScreen(
         if (loading) return
         loading = true
         error = null
+        endpointMissing = false
         loadJob = scope.launch {
             try {
                 data = ApiClient().dockerContainers(target)
@@ -414,6 +419,7 @@ fun CommandDockerScreen(
                 throw cancelled
             } catch (e: Exception) {
                 error = describeAgentToolFailure(e, copy, target, bandwidth = false)
+                endpointMissing = isMissingEndpointFailure(e)
                 refreshedAt = System.currentTimeMillis()
             } finally {
                 loading = false
@@ -435,7 +441,19 @@ fun CommandDockerScreen(
             CommandRefreshFeedback(copy, commandLoadState(loading, error, refreshedAt, server?.id), copy.docker)
         }
         if (server == null) item { CommandEmptyState(copy.selectServer, copy.noServerSelected, copy.selectServer, onSelectServer) }
-        else if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: copy.operationFailed, CommandHealthTone.OFFLINE, copy.retry, ::load) }
+        else if (error != null) item {
+            CommandStateBlock(
+                copy.operationFailed, error ?: copy.operationFailed, CommandHealthTone.OFFLINE,
+                copy.retry, ::load,
+                secondActionLabel = if (endpointMissing) copy.copyAgentUpdateCommand else null,
+                onSecondAction = if (endpointMissing) {
+                    {
+                        clipboard.setText(AnnotatedString(AGENT_UPDATE_COMMAND))
+                        result = copy.agentUpdateCommandCopied
+                    }
+                } else null
+            )
+        }
         else if (loading && data == null) item { CommandStateBlock(copy.waitingForData, copy.waitingForData, CommandHealthTone.UNKNOWN) }
         else if (data?.installed == false || !data?.error.isNullOrBlank()) item {
             CommandStateBlock(copy.docker, copy.dockerUnavailable + data?.error?.takeIf { it.isNotBlank() }?.let {

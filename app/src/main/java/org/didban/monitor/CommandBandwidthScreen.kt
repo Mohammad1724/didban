@@ -24,6 +24,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -53,6 +55,7 @@ internal fun CommandBandwidthScreen(
     }
 ) {
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
     // The shell is the single source of truth; do not silently pick a different saved server.
     val server = initialServer
     val currentServer by rememberUpdatedState(server)
@@ -61,6 +64,8 @@ internal fun CommandBandwidthScreen(
     var liveMbps by remember { mutableFloatStateOf(0f) }
     var result by remember { mutableStateOf<BenchmarkResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var endpointMissing by remember { mutableStateOf(false) }
+    var notice by remember { mutableStateOf<String?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
 
     fun run() {
@@ -71,6 +76,8 @@ internal fun CommandBandwidthScreen(
         liveMbps = 0f
         result = null
         error = null
+        endpointMissing = false
+        notice = null
         job = scope.launch {
             try {
                 val activeRun = currentCoroutineContext()[Job]!!
@@ -94,6 +101,7 @@ internal fun CommandBandwidthScreen(
                     else -> copy.latency
                 }
                 error = "$label: ${describeAgentToolFailure(failure.cause ?: failure, copy, target, bandwidth = true)}"
+                endpointMissing = isMissingEndpointFailure(failure.cause ?: failure)
             } finally { running = false }
         }
     }
@@ -155,7 +163,23 @@ internal fun CommandBandwidthScreen(
             }
 
             if (error != null) {
-                item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+                item {
+                    CommandStateBlock(
+                        copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE,
+                        copy.retry, ::run,
+                        secondActionLabel = if (endpointMissing) copy.copyAgentUpdateCommand else null,
+                        onSecondAction = if (endpointMissing) {
+                            {
+                                clipboard.setText(AnnotatedString(AGENT_UPDATE_COMMAND))
+                                notice = copy.agentUpdateCommandCopied
+                            }
+                        } else null
+                    )
+                }
+            }
+
+            if (notice != null) {
+                item { Text(notice ?: "", color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall) }
             }
 
             result?.let { r ->

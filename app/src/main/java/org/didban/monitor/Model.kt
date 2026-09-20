@@ -123,7 +123,9 @@ data class Metrics(
     val swapUsed: Long,
     val swapPct: Float,
     val disks: List<DiskInfo>,
-    val nets: List<NetInfo>
+    val nets: List<NetInfo>,
+    /** Agent build tag from /api/metrics (`version`); "" when the agent did not send one. */
+    val agentVersion: String = ""
 ) {
     companion object {
         fun fromJson(o: JSONObject): Metrics {
@@ -161,7 +163,8 @@ data class Metrics(
                 swapUsed = mem.optLong("swap_used"),
                 swapPct = mem.optDouble("swap_usage_pct").toFloat(),
                 disks = disks,
-                nets = nets
+                nets = nets,
+                agentVersion = o.optString("version")
             )
         }
     }

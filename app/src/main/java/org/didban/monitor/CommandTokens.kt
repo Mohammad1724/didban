@@ -839,6 +839,11 @@ interface CommandCopy {
     val bandwidthUnsupported: String
     val dockerUnsupported: String
     val dockerUnavailable: String
+    val agentVersion: String
+    val agentOutdated: String
+    val agentOutdatedBody: String
+    val copyAgentUpdateCommand: String
+    val agentUpdateCommandCopied: String
     val agentToolAuthFailed: String
     val agentToolPayloadRejected: String
     val agentToolTimeout: String
@@ -1471,6 +1476,11 @@ internal object CommandCopyFa : CommandCopy {
     override val packetLoss = "افت بسته"
     override val dockerUnsupported = "HTTP 404/405: مسیر Docker در ایجنت یا پروکسی این سرور در دسترس نیست. ایجنت را با بیلد جدید به‌روز و سرویس را راه‌اندازی مجدد کنید؛ آدرس و پورت اتصال را هم بررسی کنید."
     override val dockerUnavailable = "ایجنت پاسخ داد، اما Docker در دسترس نیست. سرویس Docker و دسترسی ایجنت به سوکت Docker را بررسی کنید."
+    override val agentVersion = "نسخه ایجنت"
+    override val agentOutdated = "ایجنت این سرور قدیمی است"
+    override val agentOutdatedBody = "این نسخه ایجنت، Docker و سنجش پهنای باند ندارد. دستور به‌روزرسانی را کپی کنید و روی سرور اجرا کنید؛ توکن‌ها حفظ می‌شوند."
+    override val copyAgentUpdateCommand = "کپی دستور به‌روزرسانی ایجنت"
+    override val agentUpdateCommandCopied = "دستور به‌روزرسانی ایجنت کپی شد؛ آن را روی سرور اجرا کنید."
     override val agentToolAuthFailed = "توکن یا مجوز ایجنت پذیرفته نشد؛ اطلاعات اتصال را بررسی کنید."
     override val agentToolPayloadRejected = "حجم درخواست رد شد؛ محدودیت آپلود پروکسی و نسخهٔ ایجنت را بررسی کنید."
     override val agentToolTimeout = "مهلت ارتباط تمام شد؛ دسترسی به ایجنت و محدودیت زمانی پروکسی را بررسی کنید."
@@ -2092,6 +2102,11 @@ internal object CommandCopyEn : CommandCopy {
     override val packetLoss = "Packet loss"
     override val dockerUnsupported = "HTTP 404/405: the Docker endpoint is unavailable on this agent or proxy. Update the agent to the current build and restart its service; also check the connection address and port."
     override val dockerUnavailable = "The agent responded, but Docker is unavailable. Check the Docker service and the agent’s access to its socket."
+    override val agentVersion = "Agent version"
+    override val agentOutdated = "This server's agent is outdated"
+    override val agentOutdatedBody = "This agent version has no Docker or bandwidth endpoints. Copy the update command and run it on the server; tokens are preserved."
+    override val copyAgentUpdateCommand = "Copy agent update command"
+    override val agentUpdateCommandCopied = "Agent update command copied; run it on the server."
     override val agentToolAuthFailed = "The agent rejected the token or permissions. Check the connection credentials."
     override val agentToolPayloadRejected = "The request payload was rejected. Check the proxy upload limit and agent version."
     override val agentToolTimeout = "The connection timed out. Check agent reachability and proxy timeouts."

@@ -14,7 +14,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
@@ -203,6 +205,8 @@ private fun CommandServerDetails(
     onTool: (CommandRoute) -> Unit, onHelp: () -> Unit, modifier: Modifier = Modifier
 ) {
     val health = fleetHealth(server, state, now)
+    val clipboard = LocalClipboardManager.current
+    var updateCopied by remember(server.id) { mutableStateOf(false) }
     Column(modifier) {
         CommandPageChrome(copy.fleetDetails, copy, Prefs.getLanguage(LocalContext.current), true, onClose, onHelp)
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
@@ -231,6 +235,20 @@ private fun CommandServerDetails(
                         CommandMetricTile(copy.memory, Fmt.pct(metrics.memPct), "${Fmt.bytes(metrics.memUsed)} / ${Fmt.bytes(metrics.memTotal)}", health.tone(), Modifier.weight(1f))
                     }
                     Text("${copy.metricUptime}: ${Fmt.uptime(metrics.uptime)} · ${copy.metricLoad}: ${metrics.load1} · ${copy.latency}: ${state.latencyMs.toInt()} ms", color = CommandColors.textSecondary)
+                    if (metrics.agentVersion.isNotBlank()) {
+                        Text("${copy.agentVersion}: ${metrics.agentVersion}", color = CommandColors.textSecondary)
+                        if (isAgentOutdated(metrics.agentVersion)) {
+                            CommandStateBlock(
+                                copy.agentOutdated, copy.agentOutdatedBody, CommandHealthTone.ATTENTION,
+                                copy.copyAgentUpdateCommand,
+                                {
+                                    clipboard.setText(AnnotatedString(AGENT_UPDATE_COMMAND))
+                                    updateCopied = true
+                                }
+                            )
+                            if (updateCopied) Text(copy.agentUpdateCommandCopied, color = CommandColors.textSecondary)
+                        }
+                    }
                 }
             }
             item { CommandSectionTitle(copy.uiServerTools, copy.uiScopedTools.replace("%1", server.name)) }
