@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package org.didban.monitor
 
 import androidx.compose.foundation.horizontalScroll
