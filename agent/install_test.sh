@@ -184,6 +184,25 @@ else
   bad "missing checksum (rc=$MAIN_RC): $MAIN_OUT / $(cat "$WORK/err")"
 fi
 
+# Tokens must be single-line hex even on hosts with xxd (stock xxd -ps
+# wraps every 60 chars, which used to split the 64-char admin token and
+# break agent.conf plus the import link).
+if [[ "$(grep -c '' "$E2E_CONF/token")" == 1 ]] && grep -q -E '^[0-9a-f]{48}$' "$E2E_CONF/token" \
+  && [[ "$(grep -c '' "$E2E_CONF/admin-token")" == 1 ]] && grep -q -E '^[0-9a-f]{64}$' "$E2E_CONF/admin-token"; then
+  ok "generated tokens are single-line hex"
+else
+  bad "token format wrong"
+fi
+
+# Token generation stays one line even if the hex tool wraps its output.
+xxd() { od -An -tx1 | tr -d ' \n' | fold -w 60; }
+if [[ "$(gen_hex_token 32)" =~ ^[0-9a-f]{64}$ ]]; then
+  ok "token generation survives wrapping hex output"
+else
+  bad "token generation broke on wrapped output"
+fi
+unset -f xxd
+
 # Upgrade must keep credentials/config/data and actually restart the service.
 printf 'custom-setting=keep\n' >> "$E2E_CONF/agent.conf"
 printf 'existing certificate fixture\n' > "$E2E_DATA/cert.pem"

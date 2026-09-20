@@ -95,6 +95,18 @@ require_root() {
   fi
 }
 
+# gen_hex_token BYTES — print BYTES of randomness as one lowercase hex line.
+# The outer whitespace strip keeps this single-line no matter how the hex
+# tool wraps its output (stock xxd -ps breaks every 60 chars, which used to
+# split the 64-char admin token across two lines and break agent.conf plus
+# the printed import link).
+gen_hex_token() {
+  {
+    head -c "$1" /dev/urandom | xxd -ps -c 256 2>/dev/null \
+      || head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'
+  } | tr -d '[:space:]'
+}
+
 # is_ipv4 ADDR — syntactic IPv4 check (dotted digits only).
 is_ipv4() { [[ "${1:-}" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]]; }
 
@@ -266,7 +278,7 @@ main() {
     TOKEN="$(cat "$CONF_DIR/token")"
   fi
   if [[ -z "$TOKEN" ]]; then
-    TOKEN="$(head -c 24 /dev/urandom | xxd -ps 2>/dev/null || head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    TOKEN="$(gen_hex_token 24)"
     write_secret_atomic "$CONF_DIR/token" "$TOKEN"
   fi
   local ADMIN_TOKEN=""
@@ -274,7 +286,7 @@ main() {
     ADMIN_TOKEN="$(cat "$CONF_DIR/admin-token")"
   fi
   if [[ -z "$ADMIN_TOKEN" ]]; then
-    ADMIN_TOKEN="$(head -c 32 /dev/urandom | xxd -ps 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+    ADMIN_TOKEN="$(gen_hex_token 32)"
     write_secret_atomic "$CONF_DIR/admin-token" "$ADMIN_TOKEN"
   fi
 
