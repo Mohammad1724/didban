@@ -48,13 +48,61 @@ import kotlinx.coroutines.withContext
 @Composable
 fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
     val clipboard = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     val tools = listOf("Base64 / URL", "JSON", "Hash", "Subnet", "JWT", "Generator")
     var selected by remember { mutableStateOf(tools.first()) }
     var input by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    fun subnetErrorMessage(code: String): String = when (code) {
+        "prefix" -> copy.subnetErrPrefix
+        "ip" -> copy.subnetErrIp
+        "dns" -> copy.subnetErrDns
+        "ipv6" -> copy.subnetErrIpv6
+        else -> copy.subnetErrFormat
+    }
+
+    fun runSubnet() {
+        if (busy) return
+        busy = true
+        error = null
+        output = ""
+        scope.launch {
+            try {
+                val request = DevLabTools.parseSubnetRequest(input)
+                val ip = withContext(Dispatchers.IO) { DevLabTools.resolveIpv4(request.host) }
+                val result = DevLabTools.calculateSubnet("$ip/${request.prefix}")
+                output = buildString {
+                    if (!DevLabTools.looksLikeIpv4(request.host)) appendLine("${copy.subnetDomainLabel}: ${request.host}")
+                    append(copy.subnetIpLabel + ": " + ip)
+                    if (request.prefixAssumed) append(" " + copy.subnetAssumedPrefix)
+                    appendLine()
+                    appendLine("${copy.netNetwork}: ${result.network}")
+                    appendLine("${copy.netBroadcast}: ${result.broadcast}")
+                    appendLine("${copy.netFirstHost}: ${result.firstHost}")
+                    appendLine("${copy.netLastHost}: ${result.lastHost}")
+                    appendLine("${copy.netNetmask}: ${result.netmask}")
+                    appendLine("${copy.netWildcard}: ${result.wildcard}")
+                    appendLine("${copy.netUsableHosts}: ${result.usableHosts}")
+                    append("${copy.netTotalHosts}: ${result.totalHosts}")
+                }
+            } catch (e: DevLabTools.SubnetInputException) {
+                error = subnetErrorMessage(e.code)
+            } catch (e: Exception) {
+                error = e.message ?: copy.subnetErrFormat
+            } finally {
+                busy = false
+            }
+        }
+    }
 
     fun execute() {
+        if (selected == "Subnet") {
+            runSubnet()
+            return
+        }
         error = null
         output = try {
             when (selected) {
@@ -78,13 +126,10 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
                     appendLine("SHA-512  ${DevLabTools.hash(input, "SHA-512")}")
                     appendLine("Detected: ${DevLabTools.identifyHash(input)}")
                 }
-                "Subnet" -> DevLabTools.calculateSubnet(input).let { result ->
-                    "Network      ${result.network}\nBroadcast    ${result.broadcast}\nFirst host   ${result.firstHost}\nLast host    ${result.lastHost}\nNetmask      ${result.netmask}\nWildcard     ${result.wildcard}\nUsable hosts ${result.usableHosts}\nTotal hosts  ${result.totalHosts}"
-                }
                 "JWT" -> DevLabTools.decodeJwt(input).let { result ->
                     "Header\n${result.header}\n\nPayload\n${result.payload}\n\nExpired: ${result.isExpired}\nExpiry: ${result.expiryDate ?: "not provided"}"
                 }
-                else -> "Password\n${DevLabTools.generatePassword()}\n\nUUID\n${DevLabTools.generateUuid()}"
+                else -> "${copy.genPasswordLabel}\n${DevLabTools.generatePassword()}\n\n${copy.genUuidLabel}\n${DevLabTools.generateUuid()}"
             }
         } catch (e: Exception) {
             error = e.message ?: "Tool failed"
@@ -110,12 +155,16 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtInputTransform, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    if (selected != "Generator") {
-                        OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.uiInput) })
-                    } else {
+                    if (selected == "Generator") {
+                        Text(copy.genTitle, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Text(copy.devLabBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    } else if (selected == "Subnet") {
+                        OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiInput) }, placeholder = { Text(copy.subnetPlaceholder) })
+                        Text(copy.subnetHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    } else {
+                        OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.uiInput) })
                     }
-                    CommandPrimaryButton("Run $selected", ::execute, icon = Icons.Rounded.PlayArrow)
+                    CommandPrimaryButton(copy.runVerb + " " + selected, ::execute, icon = Icons.Rounded.PlayArrow, enabled = !busy)
                 }
             }
         }
@@ -124,8 +173,8 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Output", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        CommandTextButton("Copy", { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy, enabled = output.isNotBlank())
+                        Text(copy.outputTitle, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy, enabled = output.isNotBlank())
                     }
                     Spacer(Modifier.height(CommandSpacing.sm))
                     Text(output.ifBlank { copy.waitingForData }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
@@ -180,24 +229,33 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
             }
         }
         item {
+            CommandSurface(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                    Text(copy.spIntroTitle, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.spIntroBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtRoutingContract, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.spFormHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtBindPort) })
                         OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtInspectSec) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtPanelSni) })
-                        OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text("Local") })
+                        OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(subDomain, { subDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
-                        OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text("Local") })
+                        OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                         OutlinedTextField(realitySni, { realitySni = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRealitySni) })
-                        OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text("Local") })
+                        OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
                     OutlinedTextField(fallbackPort, { fallbackPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtFallbackPort) })
                 }
@@ -210,15 +268,22 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
                 }
             }
         }
-        item { CommandPrimaryButton("Generate $selectedArtifact", ::generate, icon = Icons.Rounded.Tune) }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                Text(copy.spArtifactHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                CommandPrimaryButton(copy.spGenerateVerb + " " + selectedArtifact, ::generate, icon = Icons.Rounded.Tune)
+            }
+        }
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(copy.wtGeneratedArtifact, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        CommandTextButton("Copy", { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy, enabled = output.isNotBlank())
+                        CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy, enabled = output.isNotBlank())
                     }
                     Spacer(Modifier.height(CommandSpacing.sm))
+                    Text(copy.spNextHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Spacer(Modifier.height(CommandSpacing.xs))
                     Text(output.ifBlank { copy.waitingForData }, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                 }
             }

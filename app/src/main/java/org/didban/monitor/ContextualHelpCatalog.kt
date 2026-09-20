@@ -508,7 +508,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
                 "پورت ورودی را مشخص کنید؛ سرویس‌های پشت آن باید از قبل روی پورت‌های داخلی متفاوت آماده باشند.",
                 "دامنهٔ پنل، دامنهٔ اشتراک، SNI مربوط به REALITY و پورت داخلی هرکدام را وارد کنید؛ مقدارهای نمونه را جایگزین کنید.",
                 "پورت fallback، یعنی مسیر پیش‌فرض برای اتصال‌های نامنطبق، را مشخص کنید.",
-                "نوع خروجی HAProxy، Bash deploy یا Docker Compose را انتخاب و Generate را بزنید.",
+                "نوع خروجی HAProxy، Bash deploy یا Docker Compose را انتخاب و «ساخت» را بزنید.",
                 "خروجی را بخوانید و کپی کنید؛ برای استقرار باید خودتان با آگاهی روی سرور اجرا یا نصبش کنید.",
             ),
             listOf(
@@ -548,18 +548,18 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "Small utilities for text and configuration: format JSON, convert Base64 and URLs, calculate hashes and subnet ranges, or inspect JWT content.",
             listOf(
                 "نوع ابزار را انتخاب کنید؛ مثلاً JSON برای خواناترشدن متن تنظیمات.",
-                "متن مناسب همان ابزار را وارد کنید؛ برای Subnet یک CIDR مثل 192.168.1.0/24 بنویسید.",
+                "متن مناسب همان ابزار را وارد کنید؛ برای Subnet یک آی‌پی با پیشوند مثل 192.168.1.10/24، فقط آی‌پی، یا یک دامنه بنویسید.",
                 "اجرا را بزنید و نتیجه یا خطای ورودی را بخوانید.",
-                "برای ساخت مقدار تازه از Generator و برای برداشتن خروجی از کپی استفاده کنید.",
+                "برای ساخت گذرواژهٔ امن و شناسهٔ یکتای تازه، ابزار Generator را انتخاب و اجرا را بزنید؛ برای برداشتن خروجی از کپی استفاده کنید.",
             ),
             listOf(
                 "Choose a tool, such as JSON to format configuration text.",
-                "Enter suitable input; for Subnet use a CIDR such as 192.168.1.0/24.",
+                "Enter suitable input; for Subnet use an IP with prefix such as 192.168.1.10/24, a bare IP, or a domain name.",
                 "Run and inspect output or input errors.",
-                "Use Generator for new values and Copy for output.",
+                "Use Generator for a fresh secure password and UUID, and Copy for output.",
             ),
-            "پردازش این ابزارها محلی است و سرور نمی‌خواهد. Base64 تبدیل نمایش متن است، نه رمزگذاری امن.",
-            "These utilities process locally without a server. Base64 is an encoding, not secure encryption.",
+            "پردازش این ابزارها محلی است و سرور نمی‌خواهد؛ فقط تبدیل دامنه به آی‌پی در Subnet به اینترنت نیاز دارد. Base64 تبدیل نمایش متن است، نه رمزگذاری امن.",
+            "These utilities process locally without a server; only domain resolution in Subnet needs the internet. Base64 is an encoding, not secure encryption.",
             "دیدن محتوای JWT به معنی تأیید امضای آن نیست. خروجی حاوی رمز یا توکن را در چت یا اسکرین‌شات منتشر نکنید.",
             "Decoding JWT content does not verify its signature. Never publish output containing passwords or tokens."
         )
