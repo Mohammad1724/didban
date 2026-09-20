@@ -4,8 +4,6 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsProperties
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -44,13 +42,13 @@ class UptimeEditorUiTest {
             compose.onNodeWithText(kind).assertExists()
         }
         // Switching to KEYWORD reveals the field; switching back hides it.
-        // Match the clickable chip itself: clicking the bare text node is a
-        // silent no-op (same lesson as RadarNavigationUiTest's chooseButton).
-        compose.onNode(hasText("KEYWORD") and hasClickAction()).performClick()
+        // Match the clickable chip itself and scroll it into view first:
+        // clicking an off-screen node is a silent no-op in this setup.
+        compose.onNode(hasText("KEYWORD") and hasClickAction()).performScrollTo().performClick()
         compose.onNodeWithText(copy.upKeywordHint).assertExists()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.upKeywordHint))
         compose.onNodeWithText(copy.upKeywordHint).assertIsDisplayed()
-        compose.onNode(hasText("HTTP") and hasClickAction()).performClick()
+        compose.onNode(hasText("HTTP") and hasClickAction()).performScrollTo().performClick()
         compose.onNodeWithText(copy.upKeywordHint).assertDoesNotExist()
     }
 
@@ -60,19 +58,4 @@ class UptimeEditorUiTest {
         compose.onNodeWithText("Allow private network targets").assertDoesNotExist()
     }
 
-    @Test fun `debug dump uptime semantics`() {
-        openEditor()
-        fun dump(tag: String): String {
-            val chips = compose.onAllNodes(hasText("KEYWORD")).fetchSemanticsNodes()
-            val label = compose.onAllNodes(hasText(copy.upKeywordHint)).fetchSemanticsNodes().size
-            return tag + ": keywordNodes=" + chips.size + " " + chips.joinToString(";") {
-                "click=" + it.config.contains(SemanticsActions.OnClick) +
-                    " dis=" + it.config.contains(SemanticsProperties.Disabled)
-            } + " labelNodes=" + label
-        }
-        val before = dump("BEFORE")
-        compose.onNode(hasText("KEYWORD") and hasClickAction()).performClick()
-        val after = dump("AFTER")
-        throw AssertionError("SEMANTICS-DUMP\n" + before + "\n" + after)
-    }
 }
