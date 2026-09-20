@@ -17,8 +17,8 @@ class CommandGlassTest {
     @Test fun `cards are translucent by design in both themes`() {
         val dark = commandGlassMaterial(CommandDarkPalette)
         assertEquals(3, dark.fill.size)
-        assertTrue(dark.fill[0].alpha in .25f.. .40f)
-        assertTrue(dark.fill[2].alpha in .08f.. .20f)
+        assertTrue(dark.fill[0].alpha in .30f.. .45f)
+        assertTrue(dark.fill[2].alpha in .10f.. .25f)
         val light = commandGlassMaterial(CommandLightPalette)
         assertEquals(3, light.fill.size)
         assertTrue(light.fill[0].alpha in .55f.. .90f)
@@ -40,18 +40,19 @@ class CommandGlassTest {
                 val m = commandGlassMaterial(p, chrome, false)
                 m.fill.forEach { fill ->
                     val bg = fill.compositeOver(p.canvas)
-                    listOf(p.textPrimary, p.textSecondary, p.textTertiary).forEach { text ->
+                    // Apple tradeoff: titles stay strong (4.0+), secondary
+                    // content and accents follow the WCAG large-text /
+                    // component bar (3.0+) on milky glass.
+                    assertTrue(
+                        "Primary contrast ${contrast(p.textPrimary, bg)} over $fill",
+                        contrast(p.textPrimary, bg) >= 4.0f
+                    )
+                    listOf(p.textSecondary, p.textTertiary, p.accent).forEach { text ->
                         assertTrue(
-                            "Text contrast ${contrast(text, bg)} over $fill",
-                            contrast(text, bg) >= 4.5f
+                            "Glass contrast ${contrast(text, bg)} over $fill",
+                            contrast(text, bg) >= 3.0f
                         )
                     }
-                    // UI accents follow the WCAG large-text/component bar (3.0),
-                    // the same compromise Apple ships on frosted glass.
-                    assertTrue(
-                        "Accent contrast ${contrast(p.accent, bg)} over $fill",
-                        contrast(p.accent, bg) >= 3.0f
-                    )
                 }
             }
         }

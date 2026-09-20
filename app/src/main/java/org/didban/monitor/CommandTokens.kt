@@ -85,7 +85,7 @@ val CommandDarkPalette = CommandPalette(
     textPrimary = Color(0xFFECF2F6),
     textSecondary = Color(0xFFD6DEE6),
     textTertiary = Color(0xFFD6DEE6),
-    accent = Color(0xFF91CEDF),
+    accent = Color(0xFFBFE9F4),
     onAccent = Color(0xFF102831),
     success = Color(0xFF92D5B9),
     successSurface = Color(0xFF1C392F),
@@ -93,11 +93,11 @@ val CommandDarkPalette = CommandPalette(
     warningSurface = Color(0xFF3C3222),
     danger = Color(0xFFF1A6B1),
     dangerSurface = Color(0xFF402A32),
-    info = Color(0xFF91CEDF),
+    info = Color(0xFFBFE9F4),
     infoSurface = Color(0xFF263D4A),
-    violet = Color(0xFF91CEDF),
+    violet = Color(0xFFBFE9F4),
     track = Color(0xFF344550),
-    focus = Color(0xFF91CEDF)
+    focus = Color(0xFFBFE9F4)
 )
 
 val LocalCommandPalette = staticCompositionLocalOf { CommandLightPalette }

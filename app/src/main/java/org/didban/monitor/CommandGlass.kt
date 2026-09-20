@@ -32,9 +32,9 @@ internal fun commandGlassMaterial(palette: CommandPalette, chrome: Boolean = fal
     val lift = if (chrome || raised) (if (dark) .02f else .04f) else 0f
     return if (dark) CommandGlassMaterial(
         fill = listOf(
-            Color.White.copy(alpha = .30f + lift),
-            Color.White.copy(alpha = .20f + lift),
-            Color.White.copy(alpha = .12f + lift)
+            Color.White.copy(alpha = .38f + lift),
+            Color.White.copy(alpha = .26f + lift),
+            Color.White.copy(alpha = .16f + lift)
         ),
         rim = listOf(
             Color.White.copy(alpha = .90f),
@@ -123,18 +123,18 @@ internal fun Modifier.commandAtmosphere(): Modifier {
                 center = Offset(w * cx, h * cy), radius = radius
             )
         val orbs = if (dark) listOf(
-            orb(Color(0xFFFF4ECD).copy(alpha = .40f), 1.02f, -.06f, w * .78f),
-            orb(Color(0xFFFF9A3D).copy(alpha = .36f), -.12f, .30f, w * .72f),
-            orb(Color(0xFF38E1FF).copy(alpha = .26f), 1.06f, .62f, w * .66f),
-            orb(Color(0xFF7C5CFF).copy(alpha = .44f), .12f, 1.04f, w * .72f),
-            orb(Color(0xFF3B82F6).copy(alpha = .26f), .55f, .46f, w * .95f)
+            orb(Color(0xFFFF4ECD).copy(alpha = .60f), 1.02f, -.06f, w * .78f),
+            orb(Color(0xFFFF9A3D).copy(alpha = .55f), -.12f, .30f, w * .72f),
+            orb(Color(0xFF38E1FF).copy(alpha = .45f), 1.06f, .62f, w * .66f),
+            orb(Color(0xFF7C5CFF).copy(alpha = .60f), .12f, 1.04f, w * .72f),
+            orb(Color(0xFF3B82F6).copy(alpha = .40f), .55f, .46f, w * .95f)
         ) else listOf(
             orb(Color(0xFFFFC9A3).copy(alpha = .85f), 1.0f, -.08f, w * .80f),
             orb(Color(0xFFBFE3D0).copy(alpha = .80f), -.12f, .34f, w * .72f),
             orb(Color(0xFFC3D9F5).copy(alpha = .80f), 1.06f, .68f, w * .76f),
             orb(Color(0xFFE7C8F2).copy(alpha = .70f), .18f, 1.06f, w * .72f)
         )
-        val veil = if (dark) Color.Black.copy(alpha = .30f) else Color.Transparent
+        val veil = if (dark) Color.Black.copy(alpha = .32f) else Color.Transparent
         onDrawBehind {
             drawRect(base)
             orbs.forEach { drawRect(it) }
