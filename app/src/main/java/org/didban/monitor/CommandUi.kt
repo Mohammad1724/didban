@@ -221,7 +221,7 @@ fun CommandPrimaryButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(CommandRadii.control),
         colors = ButtonDefaults.buttonColors(
             containerColor = CommandColors.accent,
             contentColor = CommandColors.onAccent,
@@ -249,7 +249,7 @@ fun CommandSecondaryButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(CommandRadii.control),
         border = BorderStroke(1.dp, if (enabled) CommandColors.borderStrong else CommandColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = CommandColors.textPrimary,
@@ -275,7 +275,7 @@ fun CommandTextButton(
     Row(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(CommandRadii.control))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
@@ -336,8 +336,8 @@ fun CommandStateBlock(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(tone.background(), RoundedCornerShape(8.dp))
-            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+            .background(tone.background(), RoundedCornerShape(CommandRadii.tile))
+            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(CommandRadii.tile))
             .padding(CommandSpacing.md)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -448,9 +448,9 @@ fun CommandTelemetryPill(
     val color = tone.color()
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(99.dp))
+            .clip(RoundedCornerShape(CommandRadii.pill))
             .background(tone.background())
-            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(99.dp))
+            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(CommandRadii.pill))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -484,8 +484,8 @@ fun CommandMetricTile(
     }
     Column(
         modifier = modifier
-            .background(CommandColors.surface, RoundedCornerShape(12.dp))
-            .border(1.dp, CommandColors.border, RoundedCornerShape(12.dp))
+            .background(CommandColors.surface, RoundedCornerShape(CommandRadii.tile))
+            .border(1.dp, CommandColors.border, RoundedCornerShape(CommandRadii.tile))
             .padding(horizontal = 14.dp, vertical = 13.dp)
     ) {
         Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -500,7 +500,7 @@ fun CommandMetricTile(
         Spacer(Modifier.height(3.dp))
         Text(supporting, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(valueColor.copy(alpha = 0.72f), RoundedCornerShape(99.dp)))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(valueColor.copy(alpha = 0.72f), RoundedCornerShape(CommandRadii.bar)))
     }
 }
 
@@ -562,14 +562,14 @@ fun CommandTelemetryOrbit(
     Box(
         modifier = modifier
             .height(184.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(CommandRadii.card))
             .background(
                 Brush.radialGradient(
                     colors = listOf(CommandColors.infoSurface.copy(alpha = 0.55f), orbitCanvas),
                     radius = 420f
                 )
             )
-            .border(1.dp, CommandColors.border, RoundedCornerShape(14.dp)),
+            .border(1.dp, CommandColors.border, RoundedCornerShape(CommandRadii.card)),
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {
@@ -624,9 +624,9 @@ fun CommandTelemetryBar(
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
     ) {
         Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(31.dp))
-        Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(99.dp)).background(CommandColors.track)) {
+        Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(CommandRadii.bar)).background(CommandColors.track)) {
             if (value != null) {
-                Box(Modifier.fillMaxWidth(value.coerceIn(0f, 100f) / 100f).fillMaxHeight().background(color, RoundedCornerShape(99.dp)))
+                Box(Modifier.fillMaxWidth(value.coerceIn(0f, 100f) / 100f).fillMaxHeight().background(color, RoundedCornerShape(CommandRadii.bar)))
             }
         }
         Text(value?.let { Fmt.pct(it) } ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(38.dp), textAlign = TextAlign.End)

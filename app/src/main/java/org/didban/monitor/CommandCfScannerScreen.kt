@@ -388,7 +388,7 @@ internal fun <T> CommandChipRow(
             Surface(
                 color = if (active) CommandColors.infoSurface else CommandColors.surface,
                 border = androidx.compose.foundation.BorderStroke(1.dp, if (active) CommandColors.accent else CommandColors.borderStrong),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.control),
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     .selectable(active, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(value) })
             ) {

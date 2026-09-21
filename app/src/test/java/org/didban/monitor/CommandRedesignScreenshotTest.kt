@@ -103,6 +103,7 @@ class CommandRedesignScreenshotTest {
         RuntimeEnvironment.setFontScale(1.5f)
         try {
             open("fa", "light")
+            shot("fa-light-large-text-hub")
             compose.onNodeWithTag("primary-monitoring").assertIsDisplayed().performClick()
             compose.onNodeWithTag("primary-tools").assertIsDisplayed().performClick()
             compose.onNodeWithTag("page-help").assertIsDisplayed()

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -20,8 +21,16 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import java.text.DateFormat
 import java.util.Date
+
+/** میانگین یک سنجهٔ اختیاری روی ناوگان؛ «—» وقتی هیچ گرهی داده ندارد. */
+private fun averageOf(views: List<CommandServerView>, pick: (CommandServerView) -> Float?): String {
+    val values = views.mapNotNull(pick).filter { it.isFinite() && it > 0f }
+    if (values.isEmpty()) return "\u2014"
+    return "${values.average().roundToInt()}%"
+}
 
 @Composable
 internal fun CommandServerHub(
@@ -50,6 +59,17 @@ internal fun CommandServerHub(
     val filter = FleetFilter.values().firstOrNull { it.name == filterKey } ?: FleetFilter.ALL
     val visible = remember(servers, states, query, filter, now) { visibleFleet(servers, states, query, filter, now) }
     val refreshScope = refreshState.targets.singleOrNull()?.let { id -> servers.firstOrNull { it.id == id }?.name } ?: copy.allSystems
+    val fleetViews = remember(servers, states, now, copy) { servers.map { buildServerView(it, states[it.id], copy) } }
+    val fleetScore = commandHealthScore(fleetViews)
+    val fleetHealths = fleetViews.map { it.tone }
+    val fleetIssues = fleetViews.filter { it.tone == CommandHealthTone.OFFLINE || it.tone == CommandHealthTone.ATTENTION }
+    val fleetTone = when {
+        fleetViews.isEmpty() -> CommandHealthTone.UNKNOWN
+        fleetHealths.any { it == CommandHealthTone.OFFLINE } -> CommandHealthTone.OFFLINE
+        fleetHealths.any { it == CommandHealthTone.ATTENTION } -> CommandHealthTone.ATTENTION
+        fleetHealths.any { it == CommandHealthTone.UNKNOWN } -> CommandHealthTone.UNKNOWN
+        else -> CommandHealthTone.HEALTHY
+    }
 
     LaunchedEffect(Unit) { while (true) { delay(15_000); now = System.currentTimeMillis() } }
     LaunchedEffect(destination.serverId) { mutationError = null }
@@ -108,18 +128,68 @@ internal fun CommandServerHub(
             } else {
                 item(key = "filters") {
                     OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
-                        label = { Text(copy.serversSearchPlaceholder) }, shape = RoundedCornerShape(12.dp))
+                        label = { Text(copy.serversSearchPlaceholder) }, shape = RoundedCornerShape(CommandRadii.field))
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(FleetFilter.ALL to copy.fleetAll, FleetFilter.OFFLINE to copy.offline,
                             FleetFilter.ATTENTION to copy.attention, FleetFilter.UNKNOWN to copy.uiUnknown).forEach { (value, label) ->
-                            FilterChip(selected = filter == value, onClick = { filterKey = value.name }, label = { Text(label) })
+                            FilterChip(selected = filter == value, onClick = { filterKey = value.name },
+                                shape = RoundedCornerShape(CommandRadii.pill), label = { Text(label) })
                         }
                     }
-                    Text("${visible.size}/${servers.size} ${copy.servers}", color = CommandColors.textSecondary, style = MaterialTheme.typography.labelMedium)
+                    Text("${visible.size}/${servers.size} ${copy.nodes}", color = CommandColors.textSecondary, style = MaterialTheme.typography.labelMedium)
                 }
                 if (visible.isEmpty()) item(key = "no-matches") {
                     CommandEmptyState(copy.fleetNoMatches, copy.fleetSummary, copy.fleetClearFilters,
                         { query = ""; filterKey = FleetFilter.ALL.name })
+                }
+                item(key = "fleet-hero") {
+                    CommandHeroCard(
+                        modifier = Modifier.fillMaxWidth().commandEntrance(0),
+                        eyebrow = copy.overview,
+                        title = when {
+                            fleetScore == null -> copy.waitingForData
+                            fleetIssues.isEmpty() -> copy.healthy
+                            else -> copy.attention
+                        },
+                        body = copy.fleetSummary,
+                        score = fleetScore,
+                        gaugeLabel = copy.scoreOutOf,
+                        statusLabel = when (fleetTone) {
+                            CommandHealthTone.OFFLINE -> copy.offline
+                            CommandHealthTone.ATTENTION -> copy.attention
+                            CommandHealthTone.HEALTHY -> copy.healthy
+                            else -> copy.uiUnknown
+                        },
+                        statusTone = fleetTone,
+                        segments = commandStatusSegments(listOf(
+                            fleetHealths.count { it == CommandHealthTone.HEALTHY },
+                            fleetHealths.count { it == CommandHealthTone.ATTENTION },
+                            fleetHealths.count { it == CommandHealthTone.OFFLINE },
+                            fleetHealths.count { it == CommandHealthTone.UNKNOWN }
+                        )),
+                        badgeIcon = Icons.Rounded.MonitorHeart,
+                        actionLabel = copy.addServer,
+                        onAction = { onEdit(null) }
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${servers.size} ${copy.nodes} · ${copy.cpu} ${averageOf(fleetViews) { it.state?.metrics?.cpuUsage }}",
+                                color = CommandHeroInk.muted,
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+                if (fleetIssues.isNotEmpty()) item(key = "fleet-notice") {
+                    CommandNoticeRow(
+                        modifier = Modifier.fillMaxWidth().commandEntrance(1),
+                        title = fleetIssues.first().server.name,
+                        body = "${fleetIssues.first().status} · ${if (fleetIssues.size > 1) "${fleetIssues.size} ${copy.nodes}" else copy.attention}",
+                        tone = fleetIssues.first().tone,
+                        onClick = { onOpenServer(fleetIssues.first().server) }
+                    )
                 }
                 items(visible, key = { "server-${it.id}" }) { server ->
                     CommandServerCard(copy, server, states[server.id], now, false) { onOpenServer(server) }
@@ -173,7 +243,7 @@ private fun FleetHealth.tone(): CommandHealthTone = when (this) {
 @Composable
 private fun CommandServerCard(copy: CommandCopy, server: ServerConfig, state: Repo.State?, now: Long, selected: Boolean, onClick: () -> Unit) {
     val health = fleetHealth(server, state, now)
-    CommandSurface(Modifier.fillMaxWidth().then(if (selected) Modifier.border(2.dp, CommandColors.accent, RoundedCornerShape(16.dp)) else Modifier).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)) {
+    CommandSurface(Modifier.fillMaxWidth().then(if (selected) Modifier.border(2.dp, CommandColors.accent, RoundedCornerShape(CommandRadii.card)) else Modifier).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)) {
         Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(server.name, Modifier.weight(1f), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)

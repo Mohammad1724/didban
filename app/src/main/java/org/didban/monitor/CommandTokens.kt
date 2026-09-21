@@ -168,6 +168,39 @@ object CommandSpacing {
     val xxl = 40.dp
 }
 
+/**
+ * مقیاس شعاع گوشه‌ها — «زمرد» (۲۰۲۶-۰۹-۲۱).
+ *
+ * مالک پروژه گزارش داد بعضی کادرها هنوز مربع‌اند. ریشه دو چیز بود:
+ *  ۱) `Shapes` تم فقط `small/medium/large` را می‌داد، پس `extraSmall` روی
+ *     پیش‌فرض ۴dp می‌ماند و همهٔ `OutlinedTextField`ها و منوها تقریباً تیز
+ *     رسم می‌شدند.
+ *  ۲) کارت‌ها/دکمه‌ها شعاع ۸ تا ۱۲ داشتند که در پرزنت زمردی گوشه‌تیز دیده
+ *     می‌شود.
+ *
+ * این مقیاس مرجع واحد است: هیچ مقدار دستی `RoundedCornerShape(n.dp)` برای
+ * سطوح نباید بیرون از این جدول اضافه شود. `CommandLayoutTest` حداقل‌ها را
+ * تست می‌کند.
+ */
+object CommandRadii {
+    /** کارت هیرو. */
+    val hero = 24.dp
+    /** کارت‌های محتوا (CommandSurface/CommandLayerSurface). */
+    val card = 22.dp
+    /** کاشی‌های شاخص و بلوک‌های وضعیت. */
+    val tile = 18.dp
+    /** دکمه‌ها و نوارهای تعاملی. */
+    val control = 16.dp
+    /** فیلدهای ورودی. */
+    val field = 14.dp
+    /** آیکون‌های مربعی کوچک. */
+    val icon = 13.dp
+    /** قرص‌ها و چیپ‌ها. */
+    val pill = 999.dp
+    /** نوارهای باریک پیشرفت. */
+    val bar = 999.dp
+}
+
 private fun CommandPalette.materialColors(dark: Boolean): ColorScheme = if (dark) {
     darkColorScheme(
         primary = accent,
@@ -270,9 +303,14 @@ fun CommandTheme(
             colorScheme = palette.materialColors(dark),
             typography = commandTypography(language),
             shapes = Shapes(
-                small = RoundedCornerShape(8.dp),
-                medium = RoundedCornerShape(12.dp),
-                large = RoundedCornerShape(16.dp)
+                // هر پنج اسلات صریح مقدار می‌گیرند؛ otherwise M3 components
+                // (OutlinedTextField و منوها با extraSmall، دیالوگ‌ها با
+                // extraLarge) به پیش‌فرض ۴dp برمی‌گردند و گوشه‌تیز دیده می‌شوند.
+                extraSmall = RoundedCornerShape(12.dp),
+                small = RoundedCornerShape(CommandRadii.field),
+                medium = RoundedCornerShape(CommandRadii.tile),
+                large = RoundedCornerShape(CommandRadii.card),
+                extraLarge = RoundedCornerShape(28.dp)
             ),
             content = content
         )

@@ -73,13 +73,13 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
     val selected = route.primary()
     @Composable fun entry(section: CommandPrimary, modifier: Modifier) {
         val active = section == selected
-        Column(modifier.clip(RoundedCornerShape(18.dp))
+        Column(modifier.clip(RoundedCornerShape(CommandRadii.tile))
             .background(if (active) CommandColors.infoSurface else Color.Transparent)
-            .border(1.dp, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(18.dp))
+            .border(1.dp, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(CommandRadii.tile))
             .testTag("primary-${section.name.lowercase()}")
             .selectable(active, role = Role.Tab, onClick = { onNavigate(section.root) })
             .padding(horizontal = 4.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.width(48.dp).height(30.dp).clip(RoundedCornerShape(10.dp))
+            Box(Modifier.width(48.dp).height(30.dp).clip(RoundedCornerShape(CommandRadii.icon))
                 .background(Color.Transparent), contentAlignment = Alignment.Center) {
                 Icon(section.icon(), null, tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(21.dp))
             }
@@ -120,7 +120,7 @@ internal fun CommandDisclosure(copy: CommandCopy, title: String = copy.uiAdvance
     content: @Composable ColumnScope.() -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     Column {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp))
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(CommandRadii.control))
             .semantics { stateDescription = if (expanded) copy.scannerHideList else copy.scannerShowList }
             .clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {

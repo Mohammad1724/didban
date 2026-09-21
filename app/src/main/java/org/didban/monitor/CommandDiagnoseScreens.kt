@@ -269,8 +269,8 @@ private fun CommandRadarContent(
                         OutlinedTextField(targetName, { targetName = it }, label = { Text(copy.target) }, placeholder = { Text(copy.radarTargetNameHint) }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                             Text(copy.mode, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium)
-                            FilterChip(targetMode == "tcp", { targetMode = "tcp" }, { Text("TCP") })
-                            FilterChip(targetMode == "http", { targetMode = "http" }, { Text("HTTP") })
+                            FilterChip(targetMode == "tcp", { targetMode = "tcp" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("TCP") })
+                            FilterChip(targetMode == "http", { targetMode = "http" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("HTTP") })
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
                             OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = Modifier.weight(1f), singleLine = true)

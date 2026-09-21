@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -43,7 +44,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private data class CommandServerView(
+internal data class CommandServerView(
     val server: ServerConfig,
     val state: Repo.State?,
     val tone: CommandHealthTone,
@@ -60,7 +61,7 @@ private fun observeToneColor(tone: CommandHealthTone) = when (tone) {
     CommandHealthTone.UNKNOWN -> CommandColors.textTertiary
 }
 
-private fun buildServerView(server: ServerConfig, state: Repo.State?, copy: CommandCopy): CommandServerView {
+internal fun buildServerView(server: ServerConfig, state: Repo.State?, copy: CommandCopy): CommandServerView {
     val stale = state?.updated?.let { it > 0L && System.currentTimeMillis() - it > 120_000L } == true
     if (state == null || (state.metrics == null && state.error == null)) {
         return CommandServerView(server, state, CommandHealthTone.UNKNOWN, if (stale) copy.dataIsStale else copy.waitingForData, stale)
@@ -129,27 +130,30 @@ fun CommandOverviewScreen(
         CommandHealthTone.HEALTHY -> copy.healthy
         else -> copy.waitingForData
     }
+    val issues = views.filter { it.tone == CommandHealthTone.ATTENTION || it.tone == CommandHealthTone.OFFLINE }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 920.dp
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)
+            verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
         ) {
             item {
                 Row(
-                    Modifier.fillMaxWidth().padding(top = CommandSpacing.md),
-                    verticalAlignment = Alignment.Bottom
+                    Modifier.fillMaxWidth().padding(top = CommandSpacing.sm, bottom = CommandSpacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(copy.overview, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
+                        Text(
+                            copy.overview.uppercase(),
+                            color = CommandColors.accent,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry)
+                        )
                         Spacer(Modifier.height(CommandSpacing.xxs))
                         Text(
-                            if (servers.isEmpty()) copy.noServersBody else copy.incidentsFromLiveState,
-                            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                            color = CommandColors.textSecondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            if (servers.isEmpty()) copy.noServersTitle else "${views.size} ${copy.nodes}",
+                            style = androidx.compose.material3.MaterialTheme.typography.headlineSmall,
+                            color = CommandColors.textPrimary
                         )
                     }
                     CommandRefreshButton(copy, refreshing, onRefresh)
@@ -158,94 +162,107 @@ fun CommandOverviewScreen(
 
             if (servers.isEmpty()) {
                 item {
-                    CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
+                    CommandSurface(raised = true, modifier = Modifier.fillMaxWidth().commandEntrance(0)) {
                         CommandEmptyState(copy.noServersTitle, copy.noServersBody, copy.addServer, onAddServer)
                     }
                 }
             } else {
                 item {
-                    CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(CommandSpacing.lg)) {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(copy.activeAttention.uppercase(), color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
-                                    Spacer(Modifier.height(CommandSpacing.xs))
-                                    Text(
-                                        when {
-                                            score == null -> copy.waitingForData
-                                            attentionCount + offlineCount > 0 -> copy.attention
-                                            else -> copy.healthy
-                                        },
-                                        color = CommandColors.textPrimary,
-                                        style = androidx.compose.material3.MaterialTheme.typography.headlineSmall
-                                    )
-                                    Spacer(Modifier.height(CommandSpacing.xs))
-                                    Text(
-                                        if (knownCount == 0) copy.waitingForData else copy.incidentsFromLiveState,
-                                        color = CommandColors.textSecondary,
-                                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                                        maxLines = if (wide) 2 else 4,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                CommandTelemetryPill(statusLabel, statusTone)
-                            }
-                            Spacer(Modifier.height(CommandSpacing.lg))
-                            if (wide) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        CommandRingGauge(score, copy.scoreOutOf)
-                                        Text("${knownCount}/${views.size} ${copy.coverage}", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
-                                    }
-                                    CommandTelemetryOrbit(views.map { it.tone }, Modifier.weight(1f), "${views.size} ${copy.nodes}")
-                                }
-                            } else {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                    CommandRingGauge(score, copy.scoreOutOf)
-                                    Spacer(Modifier.height(CommandSpacing.xs))
-                                    Text("${knownCount}/${views.size} ${copy.coverage}", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry))
-                                    Spacer(Modifier.height(CommandSpacing.md))
-                                    CommandTelemetryOrbit(views.map { it.tone }, Modifier.fillMaxWidth(), "${views.size} ${copy.nodes}")
-                                }
-                            }
-                            Spacer(Modifier.height(CommandSpacing.lg))
-                            if (wide) {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                    CommandMetricTile(copy.online, "$healthyCount / ${views.size}", copy.healthy, CommandHealthTone.HEALTHY, Modifier.weight(1f))
-                                    CommandMetricTile(copy.averageCpu, averageCpu?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                    CommandMetricTile(copy.averageMemory, averageMemory?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
-                                    CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                }
-                            } else {
-                                Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                        CommandMetricTile(copy.online, "$healthyCount / ${views.size}", copy.healthy, CommandHealthTone.HEALTHY, Modifier.weight(1f))
-                                        CommandMetricTile(copy.averageCpu, averageCpu?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                    }
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                        CommandMetricTile(copy.averageMemory, averageMemory?.let { Fmt.pct(it) } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f), CommandColors.violet)
-                                        CommandMetricTile(copy.latency, averageLatency?.let { "${it.roundToInt()} ms" } ?: "—", copy.telemetry, CommandHealthTone.INFO, Modifier.weight(1f))
-                                    }
-                                }
+                    CommandHeroCard(
+                        modifier = Modifier.commandEntrance(0),
+                        eyebrow = copy.observe,
+                        title = when {
+                            score == null -> copy.waitingForData
+                            issues.isEmpty() -> copy.healthy
+                            else -> copy.attention
+                        },
+                        body = if (knownCount == 0) copy.incidentsFromLiveState else copy.fleetSummary,
+                        score = score,
+                        gaugeLabel = copy.scoreOutOf,
+                        statusLabel = statusLabel,
+                        statusTone = statusTone,
+                        segments = commandStatusSegments(listOf(healthyCount, attentionCount, offlineCount, unknownCount)),
+                        badgeIcon = Icons.Rounded.MonitorHeart,
+                        actionLabel = copy.openServer,
+                        onAction = onOpenFleet
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
+                        ) {
+                            Text(
+                                "$knownCount ${copy.online} · ${views.size} ${copy.nodes}",
+                                color = CommandColors.textTertiary,
+                                style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
+                                modifier = Modifier.weight(1f)
+                            )
+                            views.firstOrNull()?.updatedLabel(copy)?.let {
+                                Text(
+                                    it,
+                                    color = CommandColors.textTertiary,
+                                    style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                     }
                 }
 
+                item {
+                    CommandStatStrip(
+                        modifier = Modifier.commandEntrance(1),
+                        cells = listOf(
+                            CommandStatCell(copy.averageCpu, "", "%", if (averageCpu != null && averageCpu >= 80f) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, averageCpu),
+                            CommandStatCell(copy.averageMemory, "", "%", if (averageMemory != null && averageMemory >= 80f) CommandHealthTone.ATTENTION else CommandHealthTone.INFO, averageMemory),
+                            CommandStatCell(copy.latency, averageLatency?.let { "${it.roundToInt()}" } ?: "—", "ms", CommandHealthTone.INFO)
+                        )
+                    )
+                }
+
+                item {
+                    CommandConsumeBar(
+                        modifier = Modifier.commandEntrance(2),
+                        title = copy.activeAttention,
+                        valueLabel = commandHealthFraction(score)?.let { commandPercentLabel(it) } ?: "—",
+                        fraction = commandHealthFraction(score),
+                        caption = "${knownCount}/${views.size} ${copy.coverage}"
+                    )
+                }
+
+                if (issues.isNotEmpty()) {
+                    item {
+                        CommandNoticeRow(
+                            modifier = Modifier.commandEntrance(3),
+                            title = issues.first().server.name,
+                            body = "${issues.first().status} · ${copy.attention}",
+                            tone = issues.first().tone,
+                            onClick = { onOpenServer(issues.first().server) }
+                        )
+                    }
+                }
+
+                item {
+                    CommandChipRow(
+                        modifier = Modifier.commandEntrance(4),
+                        items = views.map {
+                            CommandChipItem(it.server.id, it.server.name, it.status, it.tone)
+                        },
+                        onSelect = { id -> views.firstOrNull { it.server.id == id }?.let { onOpenServer(it.server) } }
+                    )
+                }
+
                 if (wide) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.md), verticalAlignment = Alignment.Top) {
-                            CommandIncidentPanel(views, copy, onOpenServer, onOpenIncidents, Modifier.weight(1f))
-                            CommandFleetPanel(views, copy, onOpenServer, onOpenFleet, Modifier.weight(1f))
+                            CommandIncidentPanel(views, copy, onOpenServer, onOpenIncidents, Modifier.weight(1f).commandEntrance(5), issues)
+                            CommandFleetPanel(views, copy, onOpenServer, onOpenFleet, Modifier.weight(1f).commandEntrance(6))
                         }
                     }
                 } else {
-                    item { CommandIncidentPanel(views, copy, onOpenServer, onOpenIncidents) }
-                    item { CommandFleetPanel(views, copy, onOpenServer, onOpenFleet) }
+                    item { CommandIncidentPanel(views, copy, onOpenServer, onOpenIncidents, Modifier.commandEntrance(5), issues) }
+                    item { CommandFleetPanel(views, copy, onOpenServer, onOpenFleet, Modifier.commandEntrance(6)) }
                 }
             }
             item { Spacer(Modifier.height(CommandSpacing.xl)) }
@@ -255,7 +272,7 @@ fun CommandOverviewScreen(
 
 private fun List<Float>.averageOrNull(): Float? = takeIf { it.isNotEmpty() }?.average()?.toFloat()
 
-private fun commandHealthScore(views: List<CommandServerView>): Int? {
+internal fun commandHealthScore(views: List<CommandServerView>): Int? {
     val known = views.filter { it.state?.metrics != null || it.state?.error != null }
     if (known.isEmpty()) return null
     return known.map {
@@ -275,9 +292,9 @@ private fun CommandIncidentPanel(
     copy: CommandCopy,
     onOpenServer: (ServerConfig) -> Unit,
     onOpenIncidents: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    issues: List<CommandServerView> = views.filter { it.tone == CommandHealthTone.ATTENTION || it.tone == CommandHealthTone.OFFLINE }
 ) {
-    val issues = views.filter { it.tone == CommandHealthTone.ATTENTION || it.tone == CommandHealthTone.OFFLINE }
     CommandSurface(modifier = modifier.fillMaxWidth()) {
         Column {
             Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
@@ -345,10 +362,10 @@ private fun CommandServerBentoCard(view: CommandServerView, copy: CommandCopy, o
     Column(
         modifier
             .fillMaxWidth()
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(11.dp))
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.tile))
             .clickable(onClick = onClick)
             .background(CommandColors.canvas.copy(alpha = 0.72f))
-            .border(1.dp, CommandColors.border, androidx.compose.foundation.shape.RoundedCornerShape(11.dp))
+            .border(1.dp, CommandColors.border, androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.tile))
             .padding(CommandSpacing.sm)
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -563,7 +580,7 @@ fun CommandFleetScreen(
                         onValueChange = { query = it },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(11.dp),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.field),
                         label = { Text(copy.serversSearchPlaceholder) }
                     )
                     CommandSecondaryButton(
