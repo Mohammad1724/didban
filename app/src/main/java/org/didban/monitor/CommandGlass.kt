@@ -1,5 +1,11 @@
 package org.didban.monitor
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -8,6 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
@@ -15,6 +24,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
@@ -63,6 +73,56 @@ internal fun commandGlassMaterial(palette: CommandPalette, chrome: Boolean = fal
             Color.White.copy(alpha = .70f),
             Color.White.copy(alpha = .50f)
         )
+    )
+}
+
+/**
+ * Pure motion math for the ambient emerald canvas (JVM-testable, no Compose
+ * state): one period is [periodMs], offsets stay inside ±1 unit and the loop
+ * closes exactly at the period so there is no visible jump.
+ */
+internal object CommandAurora {
+    const val periodMs = 30_000
+
+    /** Longest visual travel of the orb layer, in dp. */
+    const val driftDp = 9f
+
+    /** Offset in units of [driftDp]; `harmonic` must be a whole number so
+     *  every axis returns to its start at phase 1f (loop closure). */
+    fun driftOffset(phase: Float, harmonic: Float): Float {
+        val a = (phase * 2.0 * Math.PI * harmonic).toFloat()
+        return kotlin.math.sin(a) * (0.55f + 0.45f * kotlin.math.cos(a * 0.5f))
+    }
+}
+
+/** Orb tints for the emerald atmosphere, one set per theme. */
+internal object CommandEmeraldAurora {
+    val darkAccent = Color(0xFF2FCB93)
+    val darkGold = Color(0xFFD6AE4A)
+    val darkJade = Color(0xFF1E9C8A)
+    val lightAccent = Color(0xFF3FA97F)
+    val lightGold = Color(0xFFE8C46A)
+    val lightJade = Color(0xFF63BFA7)
+}
+
+/**
+ * Drift phase as an observable value. Zero (a still canvas) when the system
+ * "reduce motion" setting is on, so the ambient layer is never a forced
+ * animation.
+ */
+@Composable
+internal fun rememberCommandAuroraDrift(): State<Float> {
+    val reduceMotion = useReduceMotion()
+    if (reduceMotion) return remember { mutableStateOf(0f) }
+    val transition = rememberInfiniteTransition(label = "emerald-atmosphere")
+    return transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(CommandAurora.periodMs, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "emerald-drift"
     )
 }
 
@@ -124,17 +184,26 @@ internal fun CommandLayerSurface(
 
 /** Static glass-orb canvas: deep gradient base plus cached radial glows.
  * Brushes are built once per size; nothing animates behind data. Vivid on
- * purpose — the frost cards are meant to read as glass over it. */
+ * purpose — the frost cards are meant to read as glass over it.
+ *
+ * 2026-09-21 (emerald identity): the orbs are re-tinted to the emerald/gold
+ * family and drift very slowly. The drift is a single float animation that
+ * translates the orb layer by a few dp — the base and every orb brush stay
+ * cached (`drawWithCache`), only the draw phase re-runs, and the whole effect
+ * collapses to a still canvas when "reduce motion" is enabled. No surface
+ * translucency, elevation or blur is involved, so the device-safety rules in
+ * glass-refinement.md are untouched. */
 @Composable
 internal fun Modifier.commandAtmosphere(): Modifier {
     val palette = LocalCommandPalette.current
     val dark = palette.canvas.luminance() < .5f
+    val driftState = rememberCommandAuroraDrift()
     return drawWithCache {
         val w = size.width.coerceAtLeast(1f)
         val h = size.height.coerceAtLeast(1f)
         val base = Brush.verticalGradient(
-            if (dark) listOf(Color(0xFF1B1338), Color(0xFF101B40))
-            else listOf(Color(0xFFF0EADD), Color(0xFFDCE3E6))
+            if (dark) listOf(Color(0xFF07211A), Color(0xFF04120F))
+            else listOf(Color(0xFFF1F6F1), Color(0xFFDCE9E1))
         )
         fun orb(color: Color, cx: Float, cy: Float, radius: Float): Brush =
             Brush.radialGradient(
@@ -142,22 +211,36 @@ internal fun Modifier.commandAtmosphere(): Modifier {
                 center = Offset(w * cx, h * cy), radius = radius
             )
         val orbs = if (dark) listOf(
-            orb(Color(0xFFFF4ECD).copy(alpha = .60f), 1.02f, -.06f, w * .78f),
-            orb(Color(0xFFFF9A3D).copy(alpha = .55f), -.12f, .30f, w * .72f),
-            orb(Color(0xFF38E1FF).copy(alpha = .45f), 1.06f, .62f, w * .66f),
-            orb(Color(0xFF7C5CFF).copy(alpha = .60f), .12f, 1.04f, w * .72f),
-            orb(Color(0xFF3B82F6).copy(alpha = .40f), .55f, .46f, w * .95f)
+            orb(CommandEmeraldAurora.darkAccent.copy(alpha = .62f), 1.02f, -.06f, w * .78f),
+            orb(CommandEmeraldAurora.darkGold.copy(alpha = .46f), -.12f, .30f, w * .72f),
+            orb(CommandEmeraldAurora.darkJade.copy(alpha = .50f), 1.06f, .62f, w * .66f),
+            orb(CommandEmeraldAurora.darkGold.copy(alpha = .34f), .12f, 1.04f, w * .72f),
+            orb(CommandEmeraldAurora.darkAccent.copy(alpha = .30f), .55f, .46f, w * .95f)
         ) else listOf(
-            orb(Color(0xFFFFC9A3).copy(alpha = .60f), 1.0f, -.08f, w * .80f),
-            orb(Color(0xFFBFE3D0).copy(alpha = .55f), -.12f, .34f, w * .72f),
-            orb(Color(0xFFC3D9F5).copy(alpha = .55f), 1.06f, .68f, w * .76f),
-            orb(Color(0xFFE7C8F2).copy(alpha = .50f), .18f, 1.06f, w * .72f)
+            orb(CommandEmeraldAurora.lightGold.copy(alpha = .46f), 1.0f, -.08f, w * .80f),
+            orb(CommandEmeraldAurora.lightAccent.copy(alpha = .40f), -.12f, .34f, w * .72f),
+            orb(CommandEmeraldAurora.lightJade.copy(alpha = .44f), 1.06f, .68f, w * .76f),
+            orb(CommandEmeraldAurora.lightGold.copy(alpha = .32f), .18f, 1.06f, w * .72f)
         )
-        val veil = if (dark) Color.Black.copy(alpha = .28f) else Color.White.copy(alpha = .12f)
+        val veil = if (dark) Color.Black.copy(alpha = .26f) else Color.White.copy(alpha = .10f)
+        val driftRange = CommandAurora.driftDp * density
         onDrawBehind {
             drawRect(base)
-            orbs.forEach { drawRect(it) }
+            // Read the drift here (not in the cache block) so only the draw
+            // phase invalidates and every brush above stays cached.
+            val phase = driftState.value
+            withTransform({
+                // DrawTransform.translate() names its axes left/top.
+                translate(
+                    left = CommandAurora.driftOffset(phase, 1f) * driftRange,
+                    top = CommandAurora.driftOffset(phase, 2f) * driftRange * .7f
+                )
+            }) {
+                orbs.forEach { drawRect(it) }
+            }
             drawRect(veil)
         }
     }
 }
+
+

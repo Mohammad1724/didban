@@ -27,6 +27,18 @@ import androidx.compose.ui.unit.sp
  * این سیستم عمداً از `Ds` و Tokenهای Aero جدا است. `Ds` تا پایان مهاجرت
  * صفحه‌های قدیمی برای Compatibility باقی می‌ماند؛ هیچ صفحهٔ جدیدی نباید از
  * آن استفاده کند.
+ *
+ * ### هویت رنگی «زمرد» (۲۰۲۶-۰۹-۲۱)
+ *
+ * پالت زمردی جای پالت آبی/فیروزه‌ای قبلی را گرفته است:
+ *  - `accent` = سبز زمردی (کنش‌ها، لینک‌ها، حلقه‌ها)
+ *  - `gold`   = طلایی برای CTA و تأکیدهای سطح‌بالا (امضای بصری زمرد)
+ *  - `heroTop`/`heroBottom` = گرادیان کارت هیرو
+ *  - `violet` = طلایی کم‌رنگ برای تله‌متری حافظه (رنگ دوم نمودارها)
+ *
+ * همهٔ مقادیر در دو پالت روشن/تیره با نسبت کنتراست WCAG-AA بسته شده‌اند
+ * (`CommandRedesignTest` و `CommandEmeraldThemeTest`) و نباید بدون اجرای
+ * آن تست‌ها تغییر کنند.
  */
 data class CommandPalette(
     val canvas: Color,
@@ -39,6 +51,12 @@ data class CommandPalette(
     val textTertiary: Color,
     val accent: Color,
     val onAccent: Color,
+    /** طلایی زمرد: CTA، نشان‌ها و تأکیدهای سطح‌بالا. */
+    val gold: Color,
+    val onGold: Color,
+    /** گرادیان کارت هیرو: از زمرد روشن تا زمرد عمیق. */
+    val heroTop: Color,
+    val heroBottom: Color,
     val success: Color,
     val successSurface: Color,
     val warning: Color,
@@ -52,52 +70,62 @@ data class CommandPalette(
     val focus: Color
 )
 
+/** Emerald daylight — سبز زمردی روی کاغذ روشن، با لهجهٔ طلایی. */
 val CommandLightPalette = CommandPalette(
-    canvas = Color(0xFFE9E3D8),
-    surface = Color(0xFFFCFDFE),
+    canvas = Color(0xFFF3F5F1),
+    surface = Color(0xFFFFFFFF),
     surfaceRaised = Color(0xFFFFFFFF),
-    border = Color(0xFFD7E1E9),
-    borderStrong = Color(0xFFA3B5C4),
-    textPrimary = Color(0xFF1C2C3A),
-    textSecondary = Color(0xFF506478),
-    textTertiary = Color(0xFF506478),
-    accent = Color(0xFF2364A6),
+    border = Color(0xFFD5E0D8),
+    borderStrong = Color(0xFFA2B4A8),
+    textPrimary = Color(0xFF16241C),
+    textSecondary = Color(0xFF46584E),
+    textTertiary = Color(0xFF5E7266),
+    accent = Color(0xFF0C6B4E),
     onAccent = Color(0xFFFFFFFF),
-    success = Color(0xFF176B50),
+    gold = Color(0xFF7B5D13),
+    onGold = Color(0xFFFFFAEC),
+    heroTop = Color(0xFF17724F),
+    heroBottom = Color(0xFF00402C),
+    success = Color(0xFF167B52),
     successSurface = Color(0xFFE7F4ED),
-    warning = Color(0xFF8C5B15),
-    warningSurface = Color(0xFFFFF4DF),
-    danger = Color(0xFFB33348),
+    warning = Color(0xFFB45309),
+    warningSurface = Color(0xFFFDF3E2),
+    danger = Color(0xFFC9342F),
     dangerSurface = Color(0xFFFCEEF0),
-    info = Color(0xFF2364A6),
-    infoSurface = Color(0xFFE3EFF8),
-    violet = Color(0xFF2364A6),
-    track = Color(0xFFE1E9F0),
-    focus = Color(0xFF2364A6)
+    info = Color(0xFF0F7079),
+    infoSurface = Color(0xFFE4F1F2),
+    violet = Color(0xFFA87A12),
+    track = Color(0xFFDFE8E1),
+    focus = Color(0xFF0C6B4E)
 )
 
+/** Emerald night — زمرد عمیق روی شب، با لهجهٔ طلایی. */
 val CommandDarkPalette = CommandPalette(
-    canvas = Color(0xFF151131),
-    surface = Color(0xFF19222C),
-    surfaceRaised = Color(0xFF222F3A),
-    border = Color(0xFF34434F),
-    borderStrong = Color(0xFF6F8899),
-    textPrimary = Color(0xFFECF2F6),
-    textSecondary = Color(0xFFD6DEE6),
-    textTertiary = Color(0xFFD6DEE6),
-    accent = Color(0xFFBFE9F4),
-    onAccent = Color(0xFF102831),
-    success = Color(0xFF92D5B9),
-    successSurface = Color(0xFF1C392F),
-    warning = Color(0xFFEDC787),
-    warningSurface = Color(0xFF3C3222),
-    danger = Color(0xFFF1A6B1),
-    dangerSurface = Color(0xFF402A32),
-    info = Color(0xFFBFE9F4),
-    infoSurface = Color(0xFF263D4A),
-    violet = Color(0xFFBFE9F4),
-    track = Color(0xFF344550),
-    focus = Color(0xFFBFE9F4)
+    canvas = Color(0xFF07100D),
+    surface = Color(0xFF121F19),
+    surfaceRaised = Color(0xFF18271F),
+    border = Color(0xFF2A3A32),
+    borderStrong = Color(0xFF5D7A6C),
+    textPrimary = Color(0xFFEFF5F1),
+    textSecondary = Color(0xFFD3E0D8),
+    textTertiary = Color(0xFFC2D2C8),
+    accent = Color(0xFF7DE7B6),
+    onAccent = Color(0xFF04211A),
+    gold = Color(0xFFD6AE4A),
+    onGold = Color(0xFF241A04),
+    heroTop = Color(0xFF0F5431),
+    heroBottom = Color(0xFF032418),
+    success = Color(0xFF54C88F),
+    successSurface = Color(0xFF16311F),
+    warning = Color(0xFFF0833C),
+    warningSurface = Color(0xFF3A2A16),
+    danger = Color(0xFFFF8A84),
+    dangerSurface = Color(0xFF3A1F1E),
+    info = Color(0xFF57CFDA),
+    infoSurface = Color(0xFF12312F),
+    violet = Color(0xFFE3BE63),
+    track = Color(0xFF24352C),
+    focus = Color(0xFF7DE7B6)
 )
 
 val LocalCommandPalette = staticCompositionLocalOf { CommandLightPalette }
@@ -113,6 +141,10 @@ object CommandColors {
     val textTertiary: Color @Composable get() = LocalCommandPalette.current.textTertiary
     val accent: Color @Composable get() = LocalCommandPalette.current.accent
     val onAccent: Color @Composable get() = LocalCommandPalette.current.onAccent
+    val gold: Color @Composable get() = LocalCommandPalette.current.gold
+    val onGold: Color @Composable get() = LocalCommandPalette.current.onGold
+    val heroTop: Color @Composable get() = LocalCommandPalette.current.heroTop
+    val heroBottom: Color @Composable get() = LocalCommandPalette.current.heroBottom
     val success: Color @Composable get() = LocalCommandPalette.current.success
     val successSurface: Color @Composable get() = LocalCommandPalette.current.successSurface
     val warning: Color @Composable get() = LocalCommandPalette.current.warning
