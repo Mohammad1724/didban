@@ -101,6 +101,45 @@ object Prefs {
         SecureStorage.putSecret(ctx, FILE, "cf_token", token.trim())
     }
 
+    // ── ابزار «اشتراک اینترنت با VPN» ──
+
+    /**
+     * پیکربندی اشتراک در حافظهٔ امن ذخیره می‌شود چون رمز پروکسی داخلش است؛
+     * دستگاه‌های متصل با همین رمز به پروکسی وصل می‌شوند.
+     */
+    /**
+     * پیکربندی ابزار اشتراک در تنظیمات سادهٔ اپ نگه داشته می‌شود، نه در
+     * SecureStorage: رمز آن رمز حساب کاربر نیست، رمز پروکسیِ شبکهٔ محلی است
+     * که خودِ کاربر باید بخواند و در دستگاه‌هایش وارد کند، و SecureStorage هم
+     * عمداً روی دستگاه‌های بدون Keystore fail-closed است؛ نتیجه‌اش این بود که
+     * هر بار رمز تازه‌ای ساخته می‌شد و دستگاه‌ها نمی‌توانستند وصل شوند.
+     */
+    fun getShareConfig(ctx: Context): ShareConfig {
+        val sp = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+        val raw = sp.getString("share_config", null)
+        if (raw.isNullOrBlank()) {
+            val fresh = ShareConfig()
+            sp.edit().putString("share_config", fresh.toJson().toString()).apply()
+            return fresh
+        }
+        val json = runCatching { org.json.JSONObject(raw) }.getOrNull()
+        return ShareConfig.fromJson(json)
+    }
+
+    fun setShareConfig(ctx: Context, config: ShareConfig) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString("share_config", config.toJson().toString()).apply()
+    }
+
+    /** نیت کاربر برای روشن‌بودن اشتراک (مثل الگوی MonitoringControl). */
+    fun getShareRequested(ctx: Context): Boolean =
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).getBoolean("share_requested", false)
+
+    fun setShareRequested(ctx: Context, requested: Boolean) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putBoolean("share_requested", requested).apply()
+    }
+
     // ── Vault Master Password & Data Persistence ──
 
     fun isVaultInitialized(ctx: Context): Boolean {

@@ -42,15 +42,15 @@ internal fun CommandRoute.primary(): CommandPrimary = when (this) {
     CommandRoute.CF_SCANNER, CommandRoute.REALITY_SNI, CommandRoute.NETWORK_TOOLS,
     CommandRoute.NETWORK_TOOLS_EDITOR, CommandRoute.DNS, CommandRoute.DNS_EDITOR,
     CommandRoute.WORKBENCH_HOME, CommandRoute.BATCH, CommandRoute.SINGLE_PORT,
-    CommandRoute.PROXY, CommandRoute.DEVELOPER_LAB -> CommandPrimary.TOOLS
+    CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.DEVELOPER_LAB -> CommandPrimary.TOOLS
     CommandRoute.PROTECT_HOME, CommandRoute.VAULT, CommandRoute.BACKUP,
     CommandRoute.ALERTS, CommandRoute.SETTINGS -> CommandPrimary.SETTINGS
 }
 internal val serverToolRoutes = listOf(CommandRoute.DOCKER, CommandRoute.SERVICES, CommandRoute.SSH,
     CommandRoute.SFTP, CommandRoute.PROCESSES, CommandRoute.BANDWIDTH, CommandRoute.TUNNELS, CommandRoute.SECURITY)
 internal val independentToolRoutes = listOf(CommandRoute.CF_SCANNER, CommandRoute.REALITY_SNI,
-    CommandRoute.NETWORK_TOOLS, CommandRoute.DNS, CommandRoute.PROXY, CommandRoute.SINGLE_PORT,
-    CommandRoute.DEVELOPER_LAB, CommandRoute.BATCH)
+    CommandRoute.NETWORK_TOOLS, CommandRoute.DNS, CommandRoute.PROXY, CommandRoute.SHARE,
+    CommandRoute.SINGLE_PORT, CommandRoute.DEVELOPER_LAB, CommandRoute.BATCH)
 internal val settingsToolRoutes = listOf(CommandRoute.ALERTS, CommandRoute.VAULT, CommandRoute.BACKUP)
 internal val LocalCommandHeader = staticCompositionLocalOf<String?> { null }
 

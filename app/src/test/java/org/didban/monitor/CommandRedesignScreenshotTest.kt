@@ -8,6 +8,7 @@ import android.graphics.Canvas
 import android.view.View
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.test.*
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Before
 import org.junit.After
@@ -92,6 +93,26 @@ class CommandRedesignScreenshotTest {
         compose.onNodeWithTag("primary-settings").performClick()
         shot("fa-dark-settings")
     }
+    @Test fun `share tool renders with its honest TV note`() {
+        val copy = CommandCopy.forLanguage("fa")
+        open("fa", "light")
+        compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTitle))
+        compose.onNodeWithText(copy.shareTitle).performClick()
+        shot("fa-light-share")
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTvTitle))
+        shot("fa-light-share-tv-note")
+    }
+
+    @Test fun `share tool renders in dark`() {
+        val copy = CommandCopy.forLanguage("fa")
+        open("fa", "dark")
+        compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTitle))
+        compose.onNodeWithText(copy.shareTitle).performClick()
+        shot("fa-dark-share")
+    }
+
     @Test @Config(qualifiers = "w1000dp-h900dp-mdpi")
     fun `English dark tablet uses a rail`() {
         open("en", "dark")

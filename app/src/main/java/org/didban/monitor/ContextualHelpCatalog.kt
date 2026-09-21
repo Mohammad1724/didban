@@ -543,6 +543,26 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "دسترسی TCP/TLS ثابت نمی‌کند احراز هویت یا عبور ترافیک VPN کار می‌کند. لینک کانفیگ و اشتراک محرمانه‌اند؛ فقط لینک مورداعتماد را وارد کنید.",
             "TCP/TLS reachability does not prove VPN authentication or traffic forwarding. Configuration and subscription links are secrets; use trusted links only."
         )
+        CommandRoute.SHARE -> h(
+            "این ابزار اینترنت گوشی را همراه با VPN به دستگاه‌های دیگر می‌دهد: روی گوشی یک پروکسی بالا می‌آید که خروجی‌اش از تونل VPN می‌رود و دستگاه‌های دیگر آن را به‌عنوان پروکسی خود می‌گیرند. این کار روت لازم ندارد.",
+            "This tool hands this phone's internet, through its VPN, to other devices: a proxy runs on the phone and every outgoing connection rides the VPN tunnel, while other devices use it as their proxy. No root needed.",
+            listOf(
+                "در اپ VPN گوشی وصل شو و مطمئن شو «VPN فعال است» را در همین صفحه می‌بینی.",
+                "پورت و پروتکل را انتخاب کن؛ اگر شبکه‌ات مشترک است رمز بگذار و «بدون VPN وصل نشو» را روشن نگه دار.",
+                "«روشن‌کردن اشتراک» را بزن و هات‌اسپات گوشی را روشن کن.",
+                "در دستگاه مقصد نشانی نمایش‌داده‌شده را به‌عنوان پروکسی (SOCKS5) وارد کن.",
+            ),
+            listOf(
+                "Connect your VPN app and confirm this page shows VPN active.",
+                "Pick a port and protocol; on a shared network keep a password and leave \"never connect without a VPN\" on.",
+                "Tap Start sharing, then turn on the phone hotspot.",
+                "On the other device enter the shown address as a SOCKS5 proxy.",
+            ),
+            "برای لپ‌تاپ همین نشانی در تنظیمات پروکسی سیستم کافی است؛ برای اندروید یک اپ کلاینت پروکسی لازم است.",
+            "For a laptop the system proxy setting is enough; Android needs a proxy client app.",
+            "webOS تلویزیون LG تنظیم پروکسی ندارد. برای تلویزیون باید یا رام گزینهٔ «Allow clients to use VPNs» داشته باشد یا گوشی روت شود یا یک روتر کوچک VPN بگیرد؛ این محدودیت اندروید است، نه این ابزار.",
+            "LG webOS TVs have no proxy setting: a TV needs either a ROM with \"Allow clients to use VPNs\", a rooted phone, or a small router running the VPN. That is an Android limitation, not this tool."
+        )
         CommandRoute.DEVELOPER_LAB -> h(
             "ابزارهای کوچک برای کار با متن و تنظیمات است: مرتب‌کردن JSON، تبدیل Base64 و URL، محاسبهٔ هش و محدودهٔ شبکه یا دیدن محتوای JWT.",
             "Small utilities for text and configuration: format JSON, convert Base64 and URLs, calculate hashes and subnet ranges, or inspect JWT content.",

@@ -46,6 +46,7 @@ import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.Terminal
@@ -131,6 +132,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     SFTP("sftp", CommandWorkspace.WORKBENCH),
     SINGLE_PORT("single-port", CommandWorkspace.WORKBENCH),
     PROXY("proxy", CommandWorkspace.WORKBENCH),
+    SHARE("share", CommandWorkspace.WORKBENCH),
     DEVELOPER_LAB("developer-lab", CommandWorkspace.WORKBENCH),
     PROTECT_HOME("protect-home", CommandWorkspace.PROTECT),
     VAULT("vault", CommandWorkspace.PROTECT),
@@ -185,6 +187,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.SFTP -> copy.sftp
     CommandRoute.SINGLE_PORT -> copy.singlePort
     CommandRoute.PROXY -> copy.proxy
+    CommandRoute.SHARE -> copy.shareTitle
     CommandRoute.DEVELOPER_LAB -> copy.developerLab
     CommandRoute.PROTECT_HOME -> copy.protect
     CommandRoute.VAULT -> copy.vault
@@ -217,6 +220,7 @@ internal fun CommandRoute.navIcon(): ImageVector = when (this) {
     CommandRoute.SFTP -> Icons.Rounded.Folder
     CommandRoute.SINGLE_PORT -> Icons.Rounded.Router
     CommandRoute.PROXY -> Icons.Rounded.Public
+    CommandRoute.SHARE -> Icons.Rounded.Cast
     CommandRoute.DEVELOPER_LAB -> Icons.Rounded.Code
     CommandRoute.PROTECT_HOME -> Icons.Rounded.Security
     CommandRoute.VAULT -> Icons.Rounded.Security
@@ -522,6 +526,7 @@ private fun CommandRouteContent(
             CommandRoute.SFTP -> key(selectedServer) { CommandSftpScreen(copy, selectedServer, onSelectServer) { onBack() } }
             CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
             CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
+            CommandRoute.SHARE -> CommandShareScreen(copy, onBack) { onNavigate(CommandRoute.SHARE, null) }
             CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
             CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
             CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)

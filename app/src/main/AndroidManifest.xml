@@ -35,6 +35,13 @@
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
+        <!-- Keeps the sharing proxy alive while the screen is off so a connected
+             TV or laptop is not dropped mid-stream. -->
+        <service
+            android:name=".ShareService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- App-widget updates are explicit system broadcasts. Keeping the
              provider private prevents other apps from spoofing update intents
              and forcing credential-backed preference reads. -->

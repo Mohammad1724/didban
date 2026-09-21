@@ -480,6 +480,71 @@ interface CommandCopy {
     val coverage: String
     val scoreOutOf: String
     val nodes: String
+
+    // ── اشتراک اینترنت با VPN ──
+    val shareHotspotOn: String
+    val shareHotspotOff: String
+    val shareTitle: String
+    val shareEyebrow: String
+    val shareHeroBody: String
+    val shareRunning: String
+    val shareStopped: String
+    val shareLive: String
+    val shareVpnOn: String
+    val shareVpnOff: String
+    val shareVpnApp: String
+    val shareAddress: String
+    val shareAddressPending: String
+    val shareCopyAddress: String
+    val shareAddressCopied: String
+    val shareStart: String
+    val shareStop: String
+    val shareSave: String
+    val shareReset: String
+    val shareClients: String
+    val shareClientsShort: String
+    val shareClientsHint: String
+    val shareNoClients: String
+    val shareUpload: String
+    val shareDownload: String
+    val shareSettings: String
+    val shareSettingsHint: String
+    val sharePort: String
+    val sharePortHint: String
+    val shareSocks: String
+    val shareHttp: String
+    val shareAuth: String
+    val shareAuthHint: String
+    val shareUsername: String
+    val sharePassword: String
+    val sharePasswordHint: String
+    val shareLanOnly: String
+    val shareLanOnlyHint: String
+    val shareRequireVpn: String
+    val shareRequireVpnHint: String
+    val shareUse: String
+    val shareUseHint: String
+    val shareStep1: String
+    val shareStep2: String
+    val shareStep3: String
+    val shareStep4: String
+    val shareTvTitle: String
+    val shareTvBody: String
+    val shareVpnMissing: String
+    val shareVpnMissingBody: String
+    val shareEventsHint: String
+    val shareEventStarted: String
+    val shareEventStopped: String
+    val shareEventAuthFailed: String
+    val shareEventRejected: String
+    val shareEventNoVpn: String
+    val shareEventDialFailed: String
+    val shareEventUnsupported: String
+    val shareErrorStart: String
+    val shareErrorPort: String
+    val shareErrorProtocol: String
+    val shareErrorUsername: String
+    val shareErrorPassword: String
     val pressAgainToExit: String
     val netQCfEdge: String
     val netQCfEdgeTools: String
@@ -1158,6 +1223,70 @@ internal object CommandCopyFa : CommandCopy {
     override val coverage = "پوشش داده"
     override val scoreOutOf = "از ۱۰۰"
     override val nodes = "گره"
+
+    override val shareHotspotOn = "هات‌اسپات روشن است"
+    override val shareHotspotOff = "هات‌اسپات خاموش است"
+    override val shareTitle = "اشتراک اینترنت با VPN"
+    override val shareEyebrow = "پل هوشمند"
+    override val shareHeroBody = "اینترنت گوشی را با VPN به دستگاه\u200cهای دیگر بده؛ تلویزیون، لپ\u200cتاپ یا گوشی دوم بدون نصب چیزی از همان تونل استفاده می\u200cکنند."
+    override val shareRunning = "اشتراک روشن است"
+    override val shareStopped = "اشتراک خاموش است"
+    override val shareLive = "زنده"
+    override val shareVpnOn = "VPN فعال است"
+    override val shareVpnOff = "VPN خاموش است"
+    override val shareVpnApp = "اپ VPN"
+    override val shareAddress = "نشانی پروکسی"
+    override val shareAddressPending = "پس از روشن\u200cکردن نمایش داده می\u200cشود"
+    override val shareCopyAddress = "رونوشت نشانی"
+    override val shareAddressCopied = "نشانی رونوشت شد."
+    override val shareStart = "روشن\u200cکردن اشتراک"
+    override val shareStop = "خاموش\u200cکردن"
+    override val shareSave = "ذخیره و اعمال"
+    override val shareReset = "بازگردانی"
+    override val shareClients = "دستگاه\u200cهای متصل"
+    override val shareClientsShort = "دستگاه"
+    override val shareClientsHint = "هر نشانی که از پروکسی رد شده و مقدار دادهٔ رد\u200cوبدل\u200cشده."
+    override val shareNoClients = "هنوز دستگاهی وصل نشده است."
+    override val shareUpload = "فرستاده"
+    override val shareDownload = "دریافتی"
+    override val shareSettings = "تنظیمات اشتراک"
+    override val shareSettingsHint = "پورت، پروتکل و رمز دسترسی پروکسی روی گوشی."
+    override val sharePort = "پورت پروکسی"
+    override val sharePortHint = "پورت\u200cهای بالای ۱۰۲۴ (پیشنهاد: ۱۰۸۰)"
+    override val shareSocks = "پروتکل SOCKS5"
+    override val shareHttp = "پروکسی HTTP"
+    override val shareAuth = "پرسیدن نام کاربری و رمز"
+    override val shareAuthHint = "بدون رمز، هر دستگاهی در همان شبکه می\u200cتواند از تونل تو استفاده کند."
+    override val shareUsername = "نام کاربری"
+    override val sharePassword = "رمز پروکسی"
+    override val sharePasswordHint = "دست\u200cکم ۴ نویسه"
+    override val shareLanOnly = "فقط دستگاه\u200cهای شبکهٔ محلی"
+    override val shareLanOnlyHint = "درخواست از نشانی\u200cهای عمومی رد می\u200cشود."
+    override val shareRequireVpn = "بدون VPN وصل نشو"
+    override val shareRequireVpnHint = "اگر VPN خاموش باشد هیچ سوکتی باز نمی\u200cشود؛ جلوی لو رفتن ترافیک را می\u200cگیرد."
+    override val shareUse = "راه اتصال دستگاه\u200cها"
+    override val shareUseHint = "چهار گام تا رسیدن دستگاه دیگر به همان VPN."
+    override val shareStep1 = "VPN را روی گوشی روشن کن و مطمئن شو وصل است."
+    override val shareStep2 = "هات\u200cاسپات گوشی را روشن کن و دستگاه دیگر را به آن وصل کن."
+    override val shareStep3 = "در دستگاه مقصد، پروکسی را روی نشانی و پورتی که بالا آمده بگذار (SOCKS5 و در صورت نیاز نام کاربری و رمز)."
+    override val shareStep4 = "در لپ\u200cتاپ تنظیمات شبکه؛ در اندروید اپ\u200cهای پروکسی؛ در ویندوز Settings ← Network ← Proxy."
+    override val shareTvTitle = "تلویزیون LG (webOS) را چطور وصل کنم؟"
+    override val shareTvBody = "webOS تنظیم پروکسی ندارد؛ پس بدون تغییر رام یا روت، هیچ برنامه\u200cای نمی\u200cتواند ترافیک تلویزیون را از تونل گوشی ببرد. راه\u200cها: گزینهٔ «Allow clients to use VPNs» در رام\u200cهای سفارشی، روت\u200cکردن گوشی، یا یک روتر کوچک که خودش VPN می\u200cگیرد. صادقانه می\u200cگوییم تا وقتت تلف نشود."
+    override val shareVpnMissing = "VPN روشن نیست"
+    override val shareVpnMissingBody = "برای اینکه اشتراک واقعاً از تونل رد شود، اول اپ VPN را وصل کن. اگر نمی\u200cخواهی این قید را داشته باشی، گزینهٔ «بدون VPN وصل نشو» را خاموش کن (ترافیک دستگاه\u200cهای متصل مستقیم می\u200cرود)."
+    override val shareEventsHint = "برای بستن، همین کارت را بزن."
+    override val shareEventStarted = "اشتراک روشن شد."
+    override val shareEventStopped = "اشتراک خاموش شد."
+    override val shareEventAuthFailed = "یک دستگاه با رمز اشتباه وصل شد و رد شد."
+    override val shareEventRejected = "یک نشانی غیرمجاز تلاش کرد وصل شود."
+    override val shareEventNoVpn = "درخواست بدون VPN فعال رد شد."
+    override val shareEventDialFailed = "اتصال به مقصد برقرار نشد."
+    override val shareEventUnsupported = "پروتکل درخواست پشتیبانی نمی\u200cشود."
+    override val shareErrorStart = "روشن\u200cکردن اشتراک ناموفق بود (پورت آزاد نیست؟)."
+    override val shareErrorPort = "پورت باید بین ۱۰۲۴ تا ۶۵۵۳۵ باشد."
+    override val shareErrorProtocol = "دست\u200cکم یک پروتکل را روشن کن."
+    override val shareErrorUsername = "نام کاربری را پر کن."
+    override val shareErrorPassword = "رمز باید دست\u200cکم ۴ نویسه باشد."
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
     override val netQCfEdge = "اسکنر IP تمیز کلودفلر"
     override val netQCfEdgeTools = "پیدا کردن تمیزترین لبه از این موقعیت"
@@ -1829,6 +1958,70 @@ internal object CommandCopyEn : CommandCopy {
     override val coverage = "Data coverage"
     override val scoreOutOf = "OUT OF 100"
     override val nodes = "nodes"
+
+    override val shareHotspotOn = "Hotspot is on"
+    override val shareHotspotOff = "Hotspot is off"
+    override val shareTitle = "Share internet with VPN"
+    override val shareEyebrow = "Smart bridge"
+    override val shareHeroBody = "Hand this phone's internet — through its VPN — to other devices. A TV, laptop or second phone joins the same tunnel without installing anything."
+    override val shareRunning = "Sharing is on"
+    override val shareStopped = "Sharing is off"
+    override val shareLive = "LIVE"
+    override val shareVpnOn = "VPN is active"
+    override val shareVpnOff = "VPN is off"
+    override val shareVpnApp = "VPN app"
+    override val shareAddress = "Proxy address"
+    override val shareAddressPending = "Shown once sharing starts"
+    override val shareCopyAddress = "Copy address"
+    override val shareAddressCopied = "Address copied."
+    override val shareStart = "Start sharing"
+    override val shareStop = "Stop"
+    override val shareSave = "Save and apply"
+    override val shareReset = "Revert"
+    override val shareClients = "Connected devices"
+    override val shareClientsShort = "devices"
+    override val shareClientsHint = "Each address that went through the proxy and the bytes it moved."
+    override val shareNoClients = "No device has connected yet."
+    override val shareUpload = "Sent"
+    override val shareDownload = "Received"
+    override val shareSettings = "Sharing settings"
+    override val shareSettingsHint = "Proxy port, protocol and password on this phone."
+    override val sharePort = "Proxy port"
+    override val sharePortHint = "Ports above 1024 (1080 recommended)"
+    override val shareSocks = "SOCKS5 protocol"
+    override val shareHttp = "HTTP proxy"
+    override val shareAuth = "Require username and password"
+    override val shareAuthHint = "Without a password any device on the same network can use your tunnel."
+    override val shareUsername = "Username"
+    override val sharePassword = "Proxy password"
+    override val sharePasswordHint = "At least 4 characters"
+    override val shareLanOnly = "Local network clients only"
+    override val shareLanOnlyHint = "Requests from public addresses are refused."
+    override val shareRequireVpn = "Never connect without a VPN"
+    override val shareRequireVpnHint = "With no VPN active no socket is opened at all, so traffic can never leak down the plain connection."
+    override val shareUse = "How devices connect"
+    override val shareUseHint = "Four steps from another device to the same VPN."
+    override val shareStep1 = "Turn the VPN on and confirm it is connected."
+    override val shareStep2 = "Turn on the phone hotspot and join it from the other device."
+    override val shareStep3 = "On that device set the proxy to the address and port above (SOCKS5, with the username and password if enabled)."
+    override val shareStep4 = "Laptop: network settings. Android: a proxy client app. Windows: Settings → Network → Proxy."
+    override val shareTvTitle = "How do I connect an LG (webOS) TV?"
+    override val shareTvBody = "webOS has no proxy setting, so without a custom ROM or root no app can push TV traffic through the phone tunnel. Options: the “Allow clients to use VPNs” ROM switch, rooting the phone, or a small router that runs the VPN itself. We say it plainly so you do not waste time."
+    override val shareVpnMissing = "No VPN is running"
+    override val shareVpnMissingBody = "Connect your VPN app first so the shared traffic really exits through the tunnel. If you would rather not require it, turn off “Never connect without a VPN” — connected devices then go straight out."
+    override val shareEventsHint = "Tap this card to dismiss."
+    override val shareEventStarted = "Sharing started."
+    override val shareEventStopped = "Sharing stopped."
+    override val shareEventAuthFailed = "A device tried the wrong password and was refused."
+    override val shareEventRejected = "An address outside the allowed range was refused."
+    override val shareEventNoVpn = "A request was refused because no VPN is active."
+    override val shareEventDialFailed = "The destination could not be reached."
+    override val shareEventUnsupported = "That request protocol is not supported."
+    override val shareErrorStart = "Sharing could not start (is the port already in use?)."
+    override val shareErrorPort = "The port must be between 1024 and 65535."
+    override val shareErrorProtocol = "Enable at least one protocol."
+    override val shareErrorUsername = "Fill in the username."
+    override val shareErrorPassword = "The password needs at least 4 characters."
     override val pressAgainToExit = "Press back again to exit"
     override val netQCfEdge = "Cloudflare clean-IP scanner"
     override val netQCfEdgeTools = "Find the cleanest edge from this location"
