@@ -6,53 +6,37 @@ import androidx.compose.ui.graphics.luminance
 import org.junit.Assert.*
 import org.junit.Test
 
-/** The glass contract (owner-approved spec, docs/design/glass-refinement.md):
- * card fills are pre-composited over the canvas and therefore fully OPAQUE —
- * real translucency rendered as hard inner rectangles / seams on physical
- * devices. Chrome reads a step brighter than plain cards, and text keeps AA
- * contrast over every fill stop. Orb glows stay decorative under a dim veil
- * (verified visually via the redesign screenshots CI uploads). */
+/** The glass contract (owner direction 2026-09-20, reference imagery): cards
+ * are translucent frost over a vivid orb canvas — orbs must stay visible
+ * through every card. Chrome reads a step stronger than plain cards, and text
+ * keeps AA contrast over the canvas through every fill stop. Rendering is a
+ * single cached round-rect pass with no elevation shadow (device-safe); the
+ * look itself is verified via the redesign screenshots CI uploads. */
 class CommandGlassTest {
     private fun contrast(a: Color, b: Color): Float =
         (maxOf(a.luminance(), b.luminance()) + .05f) / (minOf(a.luminance(), b.luminance()) + .05f)
 
-    @Test fun `cards are opaque by design in both themes`() {
-        listOf(CommandLightPalette, CommandDarkPalette).forEach { p ->
-            listOf(false, true).forEach { chrome ->
-                val m = commandGlassMaterial(p, chrome, false)
-                assertEquals(3, m.fill.size)
-                m.fill.forEach { fill ->
-                    assertEquals("fill must be solid, got $fill", 1f, fill.alpha, 0f)
-                }
-            }
-        }
+    @Test fun `cards are translucent frost in both themes`() {
+        val dark = commandGlassMaterial(CommandDarkPalette)
+        assertEquals(3, dark.fill.size)
+        assertTrue(dark.fill[0].alpha in .30f.. .45f)
+        assertTrue(dark.fill[2].alpha in .10f.. .25f)
+        val light = commandGlassMaterial(CommandLightPalette)
+        assertEquals(3, light.fill.size)
+        assertTrue(light.fill[0].alpha in .55f.. .90f)
+        assertTrue(light.fill[2].alpha in .35f.. .80f)
     }
 
-    @Test fun `chrome reads brighter than plain cards`() {
+    @Test fun `chrome is stronger than plain cards`() {
         listOf(CommandLightPalette, CommandDarkPalette).forEach { p ->
             val plain = commandGlassMaterial(p)
             val chrome = commandGlassMaterial(p, chrome = true)
-            plain.fill.indices.forEach { i ->
-                assertTrue(
-                    "chrome stop $i should outrank plain on ${p.canvas}",
-                    chrome.fill[i].luminance() > plain.fill[i].luminance()
-                )
-            }
+            assertTrue(chrome.fill[0].alpha > plain.fill[0].alpha)
+            assertTrue(chrome.fill[2].alpha > plain.fill[2].alpha)
         }
     }
 
-    @Test fun `light cards stay milky and dark cards stay charcoal`() {
-        val light = commandGlassMaterial(CommandLightPalette)
-        light.fill.forEach { fill ->
-            assertTrue("light fill should stay near-white, got $fill", fill.luminance() > .70f)
-        }
-        val dark = commandGlassMaterial(CommandDarkPalette)
-        dark.fill.forEach { fill ->
-            assertTrue("dark fill should stay charcoal, got $fill", fill.luminance() < .30f)
-        }
-    }
-
-    @Test fun `text stays AA over every fill stop`() {
+    @Test fun `text stays AA over the canvas through every fill stop`() {
         listOf(CommandLightPalette, CommandDarkPalette).forEach { p ->
             listOf(false, true).forEach { chrome ->
                 val m = commandGlassMaterial(p, chrome, false)
@@ -70,6 +54,14 @@ class CommandGlassTest {
                     }
                 }
             }
+        }
+    }
+
+    @Test fun `rim crown is brightest at the top edge`() {
+        listOf(CommandLightPalette, CommandDarkPalette).forEach { p ->
+            val m = commandGlassMaterial(p)
+            assertTrue(m.rim[0].alpha > m.rim[1].alpha)
+            assertTrue(m.rim[1].alpha >= m.rim[2].alpha)
         }
     }
 }

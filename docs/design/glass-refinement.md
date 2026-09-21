@@ -28,3 +28,18 @@ The dark phone render uses deliberately synthetic CPU/RAM/latency fixtures for a
 - Kotlin compilation, dependency DEX, debug APK assembly and APK v2 signature verification passed.
 - [13 actual Compose render images](glass-screenshots/) and [machine-readable verification](glass-verification.json).
 - Shared debug artifact `didban-redesign-debug.apk` is updated to this refinement together with its checksum; it is not a production-signed release.
+
+## 2026-09-20 update — owner direction: vivid glass (supersedes the opacity clause)
+
+The owner reviewed the opaque revision and asked for true frosted glass like the supplied
+references (vivid orb canvas visible through every card, bright crown rim). The opacity clause
+above is superseded for chrome AND content cards; translucency returns with these rendering
+rules so physical GPUs cannot reproduce the earlier artifacts:
+
+- The whole frost (vertical fill + diagonal sheen + inner bottom shade) is drawn in ONE cached
+  pass as `drawRoundRect` fills inside an explicit `clip(shape)` — no stacked translucent
+  Compose backgrounds.
+- Translucent surfaces carry NO `shadowElevation` (the RenderNode shadow leaking through alpha
+  layers was the device artifact source). Depth comes from the rim gradient + inner shade.
+- `CommandGlassTest` guards the translucent alpha ranges, chrome lift and AA contrast; the
+  renders in `glass-v3/` are the visual contract.
