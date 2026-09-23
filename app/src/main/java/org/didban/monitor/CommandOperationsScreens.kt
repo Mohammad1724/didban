@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -19,8 +17,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,8 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 private data class PendingTunnelOperation(
@@ -54,6 +48,13 @@ private fun tunnelTone(tunnel: TunnelConfig): CommandHealthTone = when {
     tunnel.lastStatus == 1 -> CommandHealthTone.HEALTHY
     tunnel.lastStatus == 0 -> CommandHealthTone.OFFLINE
     else -> CommandHealthTone.UNKNOWN
+}
+
+private fun operationLabel(action: String, copy: CommandCopy): String = when (action) {
+    "start" -> copy.start
+    "stop" -> copy.stop
+    "restart" -> copy.restart
+    else -> copy.run
 }
 
 private fun tunnelStatus(tunnel: TunnelConfig, copy: CommandCopy): String = when {
@@ -172,13 +173,17 @@ fun CommandTunnelsScreen(
 
     val operation = pendingOperation
     if (operation != null) {
-        AlertDialog(
-            onDismissRequest = { if (busyId == null) pendingOperation = null },
-            title = { Text(operation.action, fontWeight = FontWeight.Bold) },
-            text = { Text("${operation.server.name} · ${operation.server.host}:${operation.server.port}\n${operation.tunnel.name} · #${operation.tunnel.id}\n${operation.action}") },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (busyId != null) return@TextButton
+        val destructive = operation.action == "stop"
+        CommandConfirmDialog(
+            title = operationLabel(operation.action, copy),
+            body = "${operation.server.name} · ${operation.server.host}:${operation.server.port}\n${operation.tunnel.name} · #${operation.tunnel.id}",
+            confirmLabel = copy.run,
+            dismissLabel = copy.close,
+            destructive = destructive,
+            onDismiss = { if (busyId == null) pendingOperation = null },
+            enabled = busyId == null,
+            onConfirm = {
+                if (busyId == null) {
                     pendingOperation = null
                     busyId = operation.tunnel.id
                     operationMessage = null
@@ -195,7 +200,7 @@ fun CommandTunnelsScreen(
                                 "start" -> api.tunnelStart(operation.server, operation.tunnel.id.toString())
                                 "stop" -> api.tunnelStop(operation.server, operation.tunnel.id.toString())
                                 "restart" -> api.tunnelRestart(operation.server, operation.tunnel.id.toString())
-                                else -> error("Unsupported tunnel action")
+                                else -> error(copy.opUnsupportedAction)
                             }
                         }.onSuccess {
                             operationMessage = copy.operationDone
@@ -205,9 +210,8 @@ fun CommandTunnelsScreen(
                         }
                         busyId = null
                     }
-                }, enabled = busyId == null) { Text(copy.run, color = if (operation.action == "stop") CommandColors.danger else CommandColors.accent) }
-            },
-            dismissButton = { TextButton(onClick = { pendingOperation = null }, enabled = busyId == null) { Text(copy.close) } }
+                }
+            }
         )
     }
 }
@@ -238,7 +242,7 @@ private fun CommandTunnelDetail(
                 CommandSecondaryButton(copy.restart, { onAction("restart") }, icon = Icons.Rounded.Refresh, enabled = !busy)
             }
             CommandTextButton(copy.edit, onOpenEditor)
-            if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = CommandColors.accent)
+            if (busy) CommandInlineLoading(copy.waitingForData)
         }
     }
 }
@@ -325,6 +329,7 @@ fun CommandProcessesScreen(
                 }
             }
         }
+        if (acting) item { CommandInlineLoading(copy.waitingForData) }
         if (result != null) item { Text(result ?: "", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
@@ -347,25 +352,27 @@ fun CommandProcessesScreen(
         )
     }
     if (killConfirm != null) {
-        AlertDialog(
-            onDismissRequest = { killConfirm = null },
-            title = { Text(copy.stop) },
-            text = { Text("PID ${killConfirm?.pid} · $killSignal") },
-            confirmButton = {
-                TextButton(onClick = {
+        val process = killConfirm
+        if (process != null) {
+            CommandDestructiveDialog(
+                title = copy.stop,
+                body = "PID ${process.pid} · $killSignal",
+                confirmLabel = copy.run,
+                dismissLabel = copy.close,
+                onDismiss = { if (!acting) killConfirm = null },
+                enabled = !acting,
+                onConfirm = {
                     val target = server
-                    val process = killConfirm
                     killConfirm = null
-                    if (target != null && process != null && !acting) {
+                    if (target != null && !acting) {
                         acting = true
                         scope.launch {
                             runCatching {
-                                require(killSignal == "SIGTERM" || killSignal == "SIGKILL") { "Unsupported signal" }
-                                // Re-fetch immediately before signalling. This prevents a stale
-                                // row from killing an unrelated process after PID reuse.
+                                require(killSignal == "SIGTERM" || killSignal == "SIGKILL") { copy.opUnsupportedSignal }
+                                // Re-fetch immediately before signalling to avoid PID reuse.
                                 val current = ApiClient().processes(target).firstOrNull { it.pid == process.pid }
                                 check(current != null && current.name == process.name && current.user == process.user) {
-                                    "Process changed or exited; refresh before retrying"
+                                    copy.processChanged
                                 }
                                 ApiClient().killProcess(target, process.pid, killSignal)
                             }.onSuccess { result = it.message; load() }
@@ -375,10 +382,9 @@ fun CommandProcessesScreen(
                             acting = false
                         }
                     }
-                }, enabled = !acting) { Text(copy.run) }
-            },
-            dismissButton = { TextButton(onClick = { killConfirm = null }, enabled = !acting) { Text(copy.close) } }
-        )
+                }
+            )
+        }
     }
 }
 
@@ -476,6 +482,7 @@ fun CommandDockerScreen(
                 }
             }
         }
+        if (operating) item { CommandInlineLoading(copy.waitingForData) }
         if (result != null) item { Text(result ?: "", color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
@@ -492,12 +499,16 @@ fun CommandDockerScreen(
     if (confirmAction != null) {
         val action = confirmAction
         val pendingContainer = data?.containers?.firstOrNull { it.id == pendingContainerId }
-        AlertDialog(
-            onDismissRequest = { if (!operating) confirmAction = null },
-            title = { Text(action ?: copy.docker) },
-            text = { Text("${server?.name ?: copy.noServerSelected}\n${pendingContainer?.name ?: pendingContainerId.orEmpty()} · ${pendingContainer?.id.orEmpty()}\n${action ?: ""}", fontFamily = Telemetry) },
-            confirmButton = {
-                TextButton(onClick = {
+        if (pendingContainer != null) {
+            CommandConfirmDialog(
+                title = operationLabel(action.orEmpty(), copy),
+                body = "${server?.name ?: copy.noServerSelected}\n${pendingContainer.name} · ${pendingContainer.id}",
+                confirmLabel = copy.run,
+                dismissLabel = copy.close,
+                destructive = action == "stop",
+                onDismiss = { if (!operating) confirmAction = null },
+                enabled = !operating,
+                onConfirm = {
                     val target = server
                     val container = data?.containers?.firstOrNull { it.id == pendingContainerId }
                     confirmAction = null
@@ -509,7 +520,7 @@ fun CommandDockerScreen(
                                 val api = ApiClient()
                                 val current = api.dockerContainers(target).containers.firstOrNull { it.id == container.id }
                                 check(current != null && current.name == container.name) {
-                                    "Container changed or disappeared; refresh before retrying"
+                                    copy.containerChanged
                                 }
                                 if (action == "restart") api.dockerRestart(target, current.id)
                                 else api.dockerStop(target, current.id)
@@ -520,9 +531,8 @@ fun CommandDockerScreen(
                             operating = false
                         }
                     }
-                }, enabled = !operating && pendingContainer != null) { Text(copy.run) }
-            },
-            dismissButton = { TextButton(onClick = { confirmAction = null }, enabled = !operating) { Text(copy.close) } }
-        )
+                }
+            )
+        }
     }
 }

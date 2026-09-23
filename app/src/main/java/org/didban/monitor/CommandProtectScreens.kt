@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -37,10 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -164,7 +159,7 @@ fun CommandVaultScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(note.title, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                                    Text(note.tags.ifBlank { "SECRET" }, color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
+                                    Text(note.tags.ifBlank { copy.secretType }, color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                                 }
                                 CommandIconButton(if (revealed) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, if (revealed) copy.hide else copy.revealTemporarily, { revealedId = if (revealed) null else note.id })
                                 CommandIconButton(Icons.Rounded.ContentCopy, copy.copySecret, {
@@ -197,7 +192,7 @@ fun CommandVaultScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     OutlinedTextField(title, { title = it.take(200) }, label = { Text(copy.secretTitle) }, singleLine = true)
-                    OutlinedTextField(tags, { tags = it.take(500) }, label = { Text("Tag") }, singleLine = true)
+                    OutlinedTextField(tags, { tags = it.take(500) }, label = { Text(copy.secretTags) }, singleLine = true)
                     OutlinedTextField(content, { content = it.take(65_536) }, label = { Text(copy.secretContent) }, minLines = 4)
                 }
             },
@@ -221,13 +216,15 @@ fun CommandVaultScreen(
 
     val noteToDelete = deleteNote
     if (noteToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { if (!mutating) deleteNote = null },
-            title = { Text(copy.deleteSecret, fontWeight = FontWeight.Bold) },
-            text = { Text("${noteToDelete.title}\n${noteToDelete.tags.ifBlank { "SECRET" }} · #${noteToDelete.id}") },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (mutating) return@TextButton
+        CommandDestructiveDialog(
+            title = copy.deleteSecret,
+            body = "${noteToDelete.title}\n${noteToDelete.tags.ifBlank { copy.secretType }} · #${noteToDelete.id}",
+            confirmLabel = copy.delete,
+            dismissLabel = copy.cancel,
+            onDismiss = { if (!mutating) deleteNote = null },
+            enabled = !mutating,
+            onConfirm = {
+                if (!mutating) {
                     mutating = true
                     val current = notes.firstOrNull { it.id == noteToDelete.id }
                     if (current != null && current.title == noteToDelete.title && current.content == noteToDelete.content) {
@@ -237,11 +234,11 @@ fun CommandVaultScreen(
                         }
                     } else error = copy.vaultSaveFailed
                     mutating = false
-                }, enabled = !mutating) { Text(copy.delete, color = CommandColors.danger) }
-            },
-            dismissButton = { TextButton(onClick = { deleteNote = null }, enabled = !mutating) { Text(copy.cancel) } }
+                }
+            }
         )
     }
+
 }
 
 @Composable
@@ -317,10 +314,11 @@ fun CommandBackupScreen(
                     OutlinedTextField(raw, { raw = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
                     OutlinedTextField(restorePassword, { restorePassword = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.backupPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandSecondaryButton("Merge", { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
-                        CommandSecondaryButton("Overwrite", { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
-                        CommandSecondaryButton("Inspect", { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = raw }, enabled = raw.isNotBlank() && !busy)
+                        CommandSecondaryButton(copy.backupModeMerge, { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
+                        CommandSecondaryButton(copy.backupModeOverwrite, { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
+                        CommandSecondaryButton(copy.backupInspect, { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = raw }, enabled = raw.isNotBlank() && !busy)
                     }
+                    if (busy) CommandInlineLoading(copy.waitingForData)
                     val currentPreview = preview
                     if (currentPreview != null) {
                         val p = currentPreview
@@ -340,19 +338,20 @@ fun CommandBackupScreen(
     val request = pendingRestore
     if (request != null) {
         val destructive = request.mode == RestoreMode.Overwrite
-        AlertDialog(
-            onDismissRequest = { if (!busy) pendingRestore = null },
-            title = { Text(copy.backupRestoreAction.replace("%1", if (destructive) copy.backupModeOverwrite else copy.backupModeMerge), fontWeight = FontWeight.Bold) },
-            text = {
-                Text(copy.backupSummary
-                    .replace("%1", request.preview.serversCount.toString())
-                    .replace("%2", request.preview.tunnelsCount.toString())
-                    .replace("%3", request.preview.uptimeCount.toString())
-                    .replace("%4", BackupEngine.formatTimestamp(request.preview.timestamp)))
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (busy) return@TextButton
+        CommandConfirmDialog(
+            title = copy.backupRestoreAction.replace("%1", if (destructive) copy.backupModeOverwrite else copy.backupModeMerge),
+            body = copy.backupSummary
+                .replace("%1", request.preview.serversCount.toString())
+                .replace("%2", request.preview.tunnelsCount.toString())
+                .replace("%3", request.preview.uptimeCount.toString())
+                .replace("%4", BackupEngine.formatTimestamp(request.preview.timestamp)),
+            confirmLabel = copy.run,
+            dismissLabel = copy.cancel,
+            destructive = destructive,
+            onDismiss = { if (!busy) pendingRestore = null },
+            enabled = !busy,
+            onConfirm = {
+                if (!busy) {
                     busy = true
                     scope.launch {
                         val restored = withContext(Dispatchers.Default) {
@@ -368,11 +367,11 @@ fun CommandBackupScreen(
                         }
                         busy = false
                     }
-                }, enabled = !busy) { Text(copy.run, color = if (destructive) CommandColors.danger else CommandColors.accent) }
-            },
-            dismissButton = { TextButton(onClick = { pendingRestore = null }, enabled = !busy) { Text(copy.cancel) } }
+                }
+            }
         )
     }
+
 }
 
 @Composable
@@ -426,7 +425,7 @@ fun CommandAlertsScreen(
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Telegram", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.alertsTelegram, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(telegramToken, { telegramToken = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.alertsBotToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     OutlinedTextField(telegramChat, { telegramChat = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.alertsChatId) })
                     CommandToggleRow(copy.alertsEnableTelegram, telegramEnabled) { telegramEnabled = it }
@@ -435,6 +434,7 @@ fun CommandAlertsScreen(
                         scope.launch {
                             val response = AlertEngine.testTelegram(telegramToken, telegramChat)
                             message = response.second
+                            messageIsError = !response.first
                             testing = false
                         }
                     }, icon = Icons.Rounded.PlayArrow, enabled = !testing)
@@ -452,12 +452,14 @@ fun CommandAlertsScreen(
                         scope.launch {
                             val response = AlertEngine.testDiscord(discordUrl)
                             message = response.second
+                            messageIsError = !response.first
                             testing = false
                         }
                     }, icon = Icons.Rounded.PlayArrow, enabled = !testing)
                 }
             }
         }
+        if (testing) item { CommandInlineLoading(copy.waitingForData) }
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {

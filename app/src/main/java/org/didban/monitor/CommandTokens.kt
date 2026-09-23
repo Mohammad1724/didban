@@ -504,6 +504,10 @@ interface CommandCopy {
     val run: String
     val operationDone: String
     val operationFailed: String
+    val opUnsupportedAction: String
+    val opUnsupportedSignal: String
+    val processChanged: String
+    val containerChanged: String
     val target: String
     val host: String
     val port: String
@@ -696,6 +700,7 @@ interface CommandCopy {
     val backupRestoreAction: String
     val backupModeMerge: String
     val backupModeOverwrite: String
+    val backupInspect: String
     val netDomainLabel: String
     val netReverseDnsLabel: String
     val netIspLabel: String
@@ -950,6 +955,7 @@ interface CommandCopy {
     val setResetVaultAction: String
     val setPurgeTrustAction: String
     val setTrustCount: String
+    val setTrustStore: String
     val tunSaved: String
     val tunCodeGenerated: String
     val tunCodeFailed: String
@@ -990,6 +996,8 @@ interface CommandCopy {
     val deleteSecret: String
     val secretTitle: String
     val secretContent: String
+    val secretTags: String
+    val secretType: String
     val backupCreate: String
     val backupBody: String
     val backupPasswordOptional: String
@@ -1002,6 +1010,7 @@ interface CommandCopy {
     val backupInvalid: String
     val alertsChannelsBody: String
     val alertsEnableTelegram: String
+    val alertsTelegram: String
     val alertsEnableDiscord: String
     val alertsTriggers: String
     val alertsTriggerServerDown: String
@@ -1334,6 +1343,10 @@ internal object CommandCopyFa : CommandCopy {
     override val run = "اجرا"
     override val operationDone = "عملیات با موفقیت انجام شد"
     override val operationFailed = "عملیات ناموفق بود"
+    override val opUnsupportedAction = "کنش پشتیبانی نمی‌شود."
+    override val opUnsupportedSignal = "سیگنال پشتیبانی نمی‌شود."
+    override val processChanged = "پردازش تغییر کرده یا خارج شده است؛ قبل از تلاش دوباره Refresh کنید."
+    override val containerChanged = "کانتینر تغییر کرده یا ناپدید شده است؛ قبل از تلاش دوباره Refresh کنید."
     override val target = "هدف"
     override val host = "Host"
     override val port = "Port"
@@ -1525,6 +1538,7 @@ internal object CommandCopyFa : CommandCopy {
     override val backupRestoreAction = "بازیابی %1"
     override val backupModeMerge = "ادغام"
     override val backupModeOverwrite = "بازنویسی"
+    override val backupInspect = "بررسی"
     override val netDomainLabel = "دامنه"
     override val netReverseDnsLabel = "Reverse DNS"
     override val netIspLabel = "ISP"
@@ -1779,6 +1793,7 @@ internal object CommandCopyFa : CommandCopy {
     override val setResetVaultAction = "حذف Vault"
     override val setPurgeTrustAction = "حذف Trustها"
     override val setTrustCount = "%1 host key ثبت شده؛ fingerprintها Secret نیستند."
+    override val setTrustStore = "SSH Trust Store"
     override val tunSaved = "تنظیمات تونل ذخیره شد؛ هنوز هیچ deploy یا تغییر remote انجام نشده است."
     override val tunCodeGenerated = "کد بر اساس تنظیمات واقعی ساخته شد و token پایدار ذخیره شد."
     override val tunCodeFailed = "تولید کد ناموفق بود."
@@ -1819,6 +1834,8 @@ internal object CommandCopyFa : CommandCopy {
     override val deleteSecret = "حذف Secret"
     override val secretTitle = "عنوان"
     override val secretContent = "محتوای حساس"
+    override val secretTags = "برچسب‌ها"
+    override val secretType = "SECRET"
     override val backupCreate = "ساخت Backup"
     override val backupBody = "Backup بدون Password قابل خواندن است؛ برای دادهٔ واقعی از رمز استفاده کنید."
     override val backupPasswordOptional = "Password اختیاری"
@@ -1831,6 +1848,7 @@ internal object CommandCopyFa : CommandCopy {
     override val backupInvalid = "ساختار نامعتبر"
     override val alertsChannelsBody = "کانال‌ها و Triggerهای واقعی"
     override val alertsEnableTelegram = "فعال‌سازی Telegram"
+    override val alertsTelegram = "Telegram"
     override val alertsEnableDiscord = "فعال‌سازی Discord"
     override val alertsTriggers = "Triggerها"
     override val alertsTriggerServerDown = "قطع شدن Server"
@@ -2156,6 +2174,10 @@ internal object CommandCopyEn : CommandCopy {
     override val run = "Run"
     override val operationDone = "Operation completed"
     override val operationFailed = "Operation failed"
+    override val opUnsupportedAction = "This action is not supported."
+    override val opUnsupportedSignal = "This signal is not supported."
+    override val processChanged = "The process changed or exited; refresh before retrying."
+    override val containerChanged = "The container changed or disappeared; refresh before retrying."
     override val target = "Target"
     override val host = "Host"
     override val port = "Port"
@@ -2347,6 +2369,7 @@ internal object CommandCopyEn : CommandCopy {
     override val backupRestoreAction = "Restore %1"
     override val backupModeMerge = "Merge"
     override val backupModeOverwrite = "Overwrite"
+    override val backupInspect = "Inspect"
     override val netDomainLabel = "Domain"
     override val netReverseDnsLabel = "Reverse DNS"
     override val netIspLabel = "ISP"
@@ -2601,6 +2624,7 @@ internal object CommandCopyEn : CommandCopy {
     override val setResetVaultAction = "Delete vault"
     override val setPurgeTrustAction = "Delete trust entries"
     override val setTrustCount = "%1 host keys recorded; fingerprints are not secrets."
+    override val setTrustStore = "SSH trust store"
     override val tunSaved = "Tunnel configuration saved; no deploy or remote change has happened yet."
     override val tunCodeGenerated = "Code generated from the real configuration, and a stable token stored."
     override val tunCodeFailed = "Generating the code failed."
@@ -2641,6 +2665,8 @@ internal object CommandCopyEn : CommandCopy {
     override val deleteSecret = "Delete secret"
     override val secretTitle = "Title"
     override val secretContent = "Sensitive content"
+    override val secretTags = "Tags"
+    override val secretType = "SECRET"
     override val backupCreate = "Create backup"
     override val backupBody = "A backup is readable without a password; use one for real data."
     override val backupPasswordOptional = "Password (optional)"
@@ -2653,6 +2679,7 @@ internal object CommandCopyEn : CommandCopy {
     override val backupInvalid = "Invalid structure"
     override val alertsChannelsBody = "Real channels and triggers"
     override val alertsEnableTelegram = "Enable Telegram"
+    override val alertsTelegram = "Telegram"
     override val alertsEnableDiscord = "Enable Discord"
     override val alertsTriggers = "Triggers"
     override val alertsTriggerServerDown = "Server went down"

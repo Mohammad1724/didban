@@ -19,11 +19,9 @@ import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -55,6 +52,7 @@ fun CommandSettingsScreen(
     val protectScreenshots = rememberScreenshotProtection()
     var interval by remember { mutableStateOf((Prefs.getPollIntervalMs(context) / 1000L).toString()) }
     var saveMessage by remember { mutableStateOf<String?>(null) }
+    var saveMessageIsError by remember { mutableStateOf(false) }
     var confirmAction by remember { mutableStateOf<SettingsConfirmAction?>(null) }
     var trustEntries by remember { mutableStateOf(loadTrustEntries()) }
     var vaultInitialized by remember { mutableStateOf(Prefs.isVaultInitialized(context)) }
@@ -64,10 +62,12 @@ fun CommandSettingsScreen(
         val seconds = interval.toLongOrNull()?.coerceIn(5L, 3600L)
         if (seconds == null) {
             saveMessage = copy.setPollRange
+            saveMessageIsError = true
         } else {
             Prefs.setPollIntervalSec(context, seconds)
             interval = seconds.toString()
             saveMessage = copy.setPollSaved
+            saveMessageIsError = false
         }
     }
 
@@ -100,7 +100,7 @@ fun CommandSettingsScreen(
             SettingsSection(title = copy.uiPreferences, detail = copy.setPollBody) {
                 OutlinedTextField(
                     value = interval,
-                    onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null },
+                    onValueChange = { input -> interval = input.filter(Char::isDigit).take(4); saveMessage = null; saveMessageIsError = false },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     label = { Text(copy.setPollIntervalSec) }
@@ -108,7 +108,7 @@ fun CommandSettingsScreen(
                 CommandPrimaryButton(copy.save, ::saveInterval, icon = Icons.Rounded.Settings)
                 if (saveMessage != null) {
                     val currentMessage = saveMessage.orEmpty()
-                    Text(currentMessage, color = if (currentMessage.contains(copy.save)) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                    Text(currentMessage, color = if (saveMessageIsError) CommandColors.danger else CommandColors.success, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -139,7 +139,7 @@ fun CommandSettingsScreen(
                 CommandRule()
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
-                        Text("SSH Trust Store", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
+                        Text(copy.setTrustStore, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                         Text(copy.setTrustCount.replace("%1", trustEntries.size.toString()), color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                     CommandTextButton(copy.setPurge, { confirmAction = SettingsConfirmAction.CLEAR_TRUST }, icon = Icons.Rounded.DeleteOutline, enabled = trustEntries.isNotEmpty())
@@ -164,38 +164,35 @@ fun CommandSettingsScreen(
                 Text(copy.setConnectivityBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
             }
         }
+        if (mutationBusy) item { CommandInlineLoading(copy.waitingForData) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
     if (confirmAction != null) {
         val action = confirmAction
-        AlertDialog(
-            onDismissRequest = { if (!mutationBusy) confirmAction = null },
-            title = { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultTitle else copy.setPurgeTrustTitle, fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultBody
-                    else copy.setPurgeTrustBody
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (mutationBusy) return@TextButton
+        val resetVault = action == SettingsConfirmAction.RESET_VAULT
+        CommandDestructiveDialog(
+            title = if (resetVault) copy.setResetVaultTitle else copy.setPurgeTrustTitle,
+            body = if (resetVault) copy.setResetVaultBody else copy.setPurgeTrustBody,
+            confirmLabel = if (resetVault) copy.setResetVaultAction else copy.setPurgeTrustAction,
+            dismissLabel = copy.cancel,
+            onDismiss = { if (!mutationBusy) confirmAction = null },
+            enabled = !mutationBusy,
+            onConfirm = {
+                if (!mutationBusy) {
                     mutationBusy = true
                     runCatching {
-                        if (action == SettingsConfirmAction.RESET_VAULT) Prefs.resetVault(context)
-                        else HostKeyTrustStore.clearAll()
+                        if (resetVault) Prefs.resetVault(context) else HostKeyTrustStore.clearAll()
                     }.onSuccess {
-                        if (action == SettingsConfirmAction.RESET_VAULT) vaultInitialized = false
-                        else trustEntries = loadTrustEntries()
+                        if (resetVault) vaultInitialized = false else trustEntries = loadTrustEntries()
                         confirmAction = null
                     }.onFailure {
                         saveMessage = (it.message ?: copy.operationFailed).take(300)
+                        saveMessageIsError = true
                     }
                     mutationBusy = false
-                }, enabled = !mutationBusy) { Text(if (action == SettingsConfirmAction.RESET_VAULT) copy.setResetVaultAction else copy.setPurgeTrustAction, color = CommandColors.danger) }
-            },
-            dismissButton = { TextButton(onClick = { confirmAction = null }, enabled = !mutationBusy) { Text(copy.cancel) } }
+                }
+            }
         )
     }
 }
