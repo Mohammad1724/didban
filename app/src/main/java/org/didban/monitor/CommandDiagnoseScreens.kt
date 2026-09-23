@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -109,11 +108,12 @@ fun CommandRadarScreen(
     copy: CommandCopy,
     server: ServerConfig?,
     onSelectServer: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    probeStatus: suspend (ServerConfig) -> String = { target -> ApiClient().probeStatus(target) }
 ) {
     // A new connection gets fresh callbacks/state and cancels the previous screen scope.
     // An old response must never populate the newly selected server's Radar.
-    key(server) { CommandRadarContent(copy, server, onSelectServer, onBack) }
+    key(server) { CommandRadarContent(copy, server, onSelectServer, onBack, probeStatus) }
 }
 
 @Composable
@@ -121,7 +121,8 @@ private fun CommandRadarContent(
     copy: CommandCopy,
     server: ServerConfig?,
     onSelectServer: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    probeStatus: suspend (ServerConfig) -> String
 ) {
     val scope = rememberCoroutineScope()
     var points by remember(server?.id) { mutableStateOf<List<CommandProbePoint>>(emptyList()) }
@@ -138,7 +139,7 @@ private fun CommandRadarContent(
         loading = true
         error = null
         scope.launch {
-            runCatching { ApiClient().probeStatus(target) }
+            runCatching { probeStatus(target) }
                 .onSuccess { payload -> points = parseProbePoints(payload) }
                 .onFailure { error = it.message ?: copy.operationFailed }
             loading = false
@@ -271,9 +272,9 @@ private fun CommandRadarContent(
                             FilterChip(targetMode == "tcp", { targetMode = "tcp" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("TCP") })
                             FilterChip(targetMode == "http", { targetMode = "http" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("HTTP") })
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = Modifier.weight(1f), singleLine = true)
-                            OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = Modifier.width(CommandMetrics.formAuxFieldWidth), singleLine = true)
+                        CommandResponsiveRow {
+                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = item(weight = 1f), singleLine = true)
+                            OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = item(width = CommandMetrics.formAuxFieldWidth), singleLine = true)
                         }
                         CommandPrimaryButton(copy.addTarget, ::syncTarget, enabled = !loading)
                     }

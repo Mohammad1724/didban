@@ -47,8 +47,9 @@ class ServerEditorUiTest {
     }
 
     private fun field(label: String): SemanticsNodeInteraction {
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(label))
-        return compose.onNodeWithText(label)
+        val matcher = hasText(label, substring = true) and hasSetTextAction()
+        compose.onNode(hasScrollAction()).performScrollToNode(matcher)
+        return compose.onNode(matcher)
     }
 
     private fun assertError(text: String) {
@@ -61,7 +62,7 @@ class ServerEditorUiTest {
     // This exact interaction failed with NAME on 52534a9, despite the visible entered name.
     @Test fun `save reads the name visibly entered in the actual dialog`() {
         openEditor()
-        compose.onNodeWithText(copy.fleetName).performScrollTo().performTextInput("Tehran node")
+        field(copy.fleetName).performTextInput("Tehran node")
         compose.onNodeWithText("Tehran node").assertExists()
         compose.onNodeWithText(copy.save).performClick()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.operationFailed))
@@ -75,6 +76,26 @@ class ServerEditorUiTest {
         compose.onNodeWithText(copy.srvTestAgent).performClick()
         assertError(copy.srvHostInvalid)
         compose.onNodeWithText(copy.srvNameRequired).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h740dp")
+    fun `responsive editor fields and actions remain reachable on a phone width`() {
+        openEditor()
+        field(copy.srvCpuAlert).assertIsDisplayed()
+        field(copy.srvMemAlert).assertIsDisplayed()
+        compose.onNodeWithText(copy.save).assertIsDisplayed()
+        compose.onNodeWithText(copy.srvTestAgent).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w400dp-h900dp")
+    fun `responsive editor keeps the wide form contract at four hundred dp`() {
+        openEditor()
+        field(copy.srvCpuAlert).assertIsDisplayed()
+        field(copy.srvMemAlert).assertIsDisplayed()
+        compose.onNodeWithText(copy.save).assertIsDisplayed()
+        compose.onNodeWithText(copy.srvTestAgent).assertIsDisplayed()
     }
 
     @Test fun `editing several fields preserves all previous input and repeated actions see latest changes`() {

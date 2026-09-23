@@ -49,6 +49,13 @@ class CommandLayoutTest {
     }
 
     @Test
+    fun `responsive form stacks at 320 and 400 dp but keeps the wide rail`() {
+        assertTrue(320.dp < CommandBreakpoints.formStack)
+        assertTrue(400.dp < CommandBreakpoints.formStack)
+        assertTrue(1000.dp >= CommandBreakpoints.formStack)
+    }
+
+    @Test
     fun `elevation tokens stay ordered and intentionally bounded`() {
         assertEquals(0.dp, CommandElevation.flat)
         assertTrue(CommandElevation.raised > CommandElevation.flat)

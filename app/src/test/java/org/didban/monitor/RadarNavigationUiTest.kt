@@ -121,16 +121,31 @@ class RadarNavigationUiTest {
         val server = ServerConfig(9, "Node X", "node-x.example")
         compose.setContent {
             CommandTheme(themeMode = "dark", language = "fa") {
-                CommandRadarScreen(copy, server, {}, {})
+                CommandRadarScreen(copy, server, {}, {}, probeStatus = { "" })
             }
         }
         // Static guidance renders immediately: what to enter and which check types exist.
         compose.onNodeWithText(copy.radarTargetBody).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("TCP").assertExists()
         compose.onNodeWithText("HTTP").assertExists()
-        // The failed load settles into a helpful empty state (invalid pins fail locally, no Agent needed).
+        // The injected empty payload makes the state deterministic and does not need an Agent.
         compose.waitUntil(10_000) { compose.onAllNodesWithText(copy.radarNoPointsBody).fetchSemanticsNodes().isNotEmpty() }
         // Empty form shows the local validation message; the settled load cannot overwrite it.
+        compose.onNodeWithText(copy.addTarget).performScrollTo().performClick()
+        compose.onNodeWithText(copy.radarTargetIncomplete).assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h740dp")
+    fun `radar target fields and validation remain reachable on a phone width`() {
+        val server = ServerConfig(10, "Node Phone", "node-phone.example")
+        compose.setContent {
+            CommandTheme(themeMode = "dark", language = "fa") {
+                CommandRadarScreen(copy, server, {}, {}, probeStatus = { "" })
+            }
+        }
+        compose.onNode(hasText(copy.host, substring = true) and hasSetTextAction()).performScrollTo().assertIsDisplayed()
+        compose.onNode(hasText(copy.port, substring = true) and hasSetTextAction()).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText(copy.addTarget).performScrollTo().performClick()
         compose.onNodeWithText(copy.radarTargetIncomplete).assertIsDisplayed()
     }
