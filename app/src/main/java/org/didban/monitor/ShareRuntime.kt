@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.Build
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.net.Inet4Address
@@ -80,6 +81,7 @@ internal object ShareNetworks {
     fun vpnOwnerLabel(context: Context, network: Network?): String? {
         if (network == null) return null
         val manager = context.getSystemService(ConnectivityManager::class.java) ?: return null
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         val uid = runCatching { manager.getNetworkCapabilities(network)?.ownerUid }.getOrNull() ?: return null
         return runCatching {
             context.packageManager.getPackagesForUid(uid)?.firstOrNull()
