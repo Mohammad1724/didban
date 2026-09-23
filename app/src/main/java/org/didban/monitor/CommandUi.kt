@@ -97,11 +97,9 @@ internal class CommandResponsiveRowScope internal constructor(
     fun item(weight: Float? = null, width: Dp? = null): Modifier {
         if (stacked) return Modifier.fillMaxWidth()
         val base = width?.let { Modifier.width(it) } ?: Modifier
-        return if (weight != null && rowScope != null) {
-            with(rowScope) { base.weight(weight) }
-        } else {
-            base
-        }
+        if (weight == null) return base
+        val scope = rowScope ?: return base
+        return with(scope) { base.weight(weight) }
     }
 }
 
