@@ -44,7 +44,7 @@ class CommandCopyCoverageTest {
     @Test
     fun `no screen hardcodes Persian text`() {
         assumeTrue("source tree not reachable from the test working directory", sourceDir != null)
-        val offenders = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt") && f.name.endsWith(".kt") }
+        val offenders = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt") && f.name.endsWith(".kt") }
             ?.filter { it.name != "CommandTokens.kt" }   // the fa table itself
             ?.flatMap { f -> literalsIn(f).map { (line, s) -> "${f.name}:$line \"$s\"" } }
             .orEmpty()
@@ -61,7 +61,7 @@ class CommandCopyCoverageTest {
         // up — or a screen can stop using one. Either way the table should not
         // carry strings nothing renders.
         assumeTrue("source tree not reachable from the test working directory", sourceDir != null)
-        val used = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt") && f.name.endsWith(".kt") }
+        val used = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt") && f.name.endsWith(".kt") }
             ?.filter { it.name != "CommandTokens.kt" }
             ?.joinToString("") { it.readText() }
             .orEmpty()

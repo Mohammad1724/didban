@@ -68,8 +68,10 @@ class CommandRedesignScreenshotTest {
         shot("fa-light-monitoring")
         compose.onNodeWithTag("primary-tools").performClick()
         shot("fa-light-tools")
-        compose.onNodeWithText(copy.cfScanner).performClick()
-        shot("fa-light-scanner")
+        compose.onNodeWithText(copy.networkTools).performClick()
+        shot("fa-light-network")
+        compose.onNodeWithText(copy.netQReachable).performClick()
+        shot("fa-light-check-host")
         compose.onNodeWithTag("primary-settings").performClick()
         shot("fa-light-settings")
     }
@@ -88,8 +90,10 @@ class CommandRedesignScreenshotTest {
         compose.onNodeWithTag("primary-monitoring").performClick()
         shot("fa-dark-monitoring")
         compose.onNodeWithTag("primary-tools").performClick()
-        compose.onNodeWithText(copy.cfScanner).performClick()
-        shot("fa-dark-scanner")
+        compose.onNodeWithText(copy.networkTools).performClick()
+        shot("fa-dark-network")
+        compose.onNodeWithText(copy.netQReachable).performClick()
+        shot("fa-dark-check-host")
         compose.onNodeWithTag("primary-settings").performClick()
         shot("fa-dark-settings")
     }
@@ -97,7 +101,7 @@ class CommandRedesignScreenshotTest {
         val copy = CommandCopy.forLanguage("fa")
         open("fa", "light")
         compose.onNodeWithTag("primary-tools").performClick()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTitle))
+        // The launcher keeps the independent tools visible on the phone-sized fixture.
         compose.onNodeWithText(copy.shareTitle).performClick()
         shot("fa-light-share")
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTvTitle))
@@ -108,7 +112,7 @@ class CommandRedesignScreenshotTest {
         val copy = CommandCopy.forLanguage("fa")
         open("fa", "dark")
         compose.onNodeWithTag("primary-tools").performClick()
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.shareTitle))
+        // The launcher keeps the independent tools visible on the phone-sized fixture.
         compose.onNodeWithText(copy.shareTitle).performClick()
         shot("fa-dark-share")
     }

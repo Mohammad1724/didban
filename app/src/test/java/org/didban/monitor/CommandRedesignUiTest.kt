@@ -40,9 +40,10 @@ class CommandRedesignUiTest {
         app()
         compose.onNodeWithTag("primary-servers").assertIsSelected()
         compose.onNodeWithTag("primary-tools").performClick().assertIsSelected()
-        compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // header + tab, no duplicate content title
-        compose.onNodeWithText(copy.cfScanner).assertIsDisplayed()
-        compose.onNodeWithText(copy.realitySni).assertExists()
+        compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // page title + selected bottom navigation item
+        compose.onNodeWithText(copy.cfScanner).assertDoesNotExist() // network diagnostics have one canonical home
+        compose.onNodeWithText(copy.networkTools).performClick()
+        compose.onNodeWithText(copy.netQReachable).assertIsDisplayed()
         compose.onNodeWithTag("primary-settings").performClick().assertIsSelected()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))
         compose.onNodeWithText(copy.vault).assertIsDisplayed()
