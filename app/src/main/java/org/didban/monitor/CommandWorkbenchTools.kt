@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -215,7 +216,7 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
     var realitySni by remember { mutableStateOf("yahoo.com") }
     var realityPort by remember { mutableStateOf("12000") }
     var fallbackPort by remember { mutableStateOf("13000") }
-    var selectedArtifact by remember { mutableStateOf("HAProxy") }
+    var selectedArtifact by remember { mutableStateOf("haproxy") }
     var output by remember { mutableStateOf("") }
 
     fun config() = SinglePortConfig(
@@ -233,11 +234,18 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
     fun generate() {
         val cfg = config()
         output = when (selectedArtifact) {
-            "Bash deploy" -> SinglePortEngine.generateBashScript(cfg)
-            "Docker Compose" -> SinglePortEngine.generateDockerCompose(cfg)
+            "bash-deploy" -> SinglePortEngine.generateBashScript(cfg)
+            "docker-compose" -> SinglePortEngine.generateDockerCompose(cfg)
             else -> SinglePortEngine.generateHaproxyCfg(cfg)
         }
     }
+
+    val artifactOptions = listOf(
+        "haproxy" to copy.wtArtifactHaproxy,
+        "bash-deploy" to copy.wtArtifactBashDeploy,
+        "docker-compose" to copy.wtArtifactDockerCompose
+    )
+    val selectedArtifactLabel = artifactOptions.firstOrNull { it.first == selectedArtifact }?.second ?: copy.wtArtifactHaproxy
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
@@ -259,21 +267,57 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtRoutingContract, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Text(copy.spFormHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtBindPort) })
-                        OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtInspectSec) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtBindPort) })
+                                OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtInspectSec) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtBindPort) })
+                                OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtInspectSec) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtPanelSni) })
-                        OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtPanelSni) })
+                                OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtPanelSni) })
+                                OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(subDomain, { subDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
-                        OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(subDomain, { subDomain = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
+                                OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(subDomain, { subDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
+                                OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(realitySni, { realitySni = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRealitySni) })
-                        OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(realitySni, { realitySni = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtRealitySni) })
+                                OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(realitySni, { realitySni = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRealitySni) })
+                                OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
+                            }
+                        }
                     }
                     OutlinedTextField(fallbackPort, { fallbackPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtFallbackPort) })
                 }
@@ -281,15 +325,15 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
         }
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                listOf("HAProxy", "Bash deploy", "Docker Compose").forEach { artifact ->
-                    CommandSecondaryButton(artifact, { selectedArtifact = artifact }, enabled = selectedArtifact != artifact)
+                artifactOptions.forEach { (artifact, label) ->
+                    CommandSecondaryButton(label, { selectedArtifact = artifact }, enabled = selectedArtifact != artifact)
                 }
             }
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                 Text(copy.spArtifactHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                CommandPrimaryButton(copy.spGenerateVerb + " " + selectedArtifact, ::generate, icon = Icons.Rounded.Tune)
+                CommandPrimaryButton(copy.spGenerateVerb + " " + selectedArtifactLabel, ::generate, icon = Icons.Rounded.Tune)
             }
         }
         item {
@@ -342,7 +386,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         scope.launch {
             try { subscriptionInfo = ProxyEngine.fetchSubscription(subscription) }
             catch (e: Exception) {
-                error = SecretRedactor.redact(e.message ?: "Subscription failed", listOf(subscription)).take(300)
+                error = SecretRedactor.redact(e.message ?: copy.wtSubscriptionFailed, listOf(subscription)).take(300)
             }
             finally { busy = false }
         }
@@ -352,18 +396,18 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                 CommandBackButton(copy.back, onBack)
-                CommandSectionTitle(copy.proxy, "parse · probe · inspect", modifier = Modifier.weight(1f))
+                CommandSectionTitle(copy.proxy, copy.wtProxyModeSubtitle, modifier = Modifier.weight(1f))
             }
         }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtSingleConfig, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(uri, { uri = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text("VLESS / VMess / Trojan / SS URI") })
+                    OutlinedTextField(uri, { uri = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text(copy.wtProxyUriLabel) })
                     CommandPrimaryButton(if (busy) copy.waitingForData else copy.wtParseProbe, ::inspectConfig, enabled = !busy, icon = Icons.Rounded.Bolt)
                     parsed?.let { cfg ->
-                        CommandStatusMark(if (probe?.second == true) "reachable" else if (probe != null) "unreachable" else "parsed", if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
-                        probe?.let { result -> Text("TCP/TLS latency: ${if (result.first >= 0) "${result.first} ms" else "failed"}", color = CommandColors.textSecondary) }
+                        CommandStatusMark(if (probe?.second == true) copy.wtProxyReachable else if (probe != null) copy.wtProxyUnreachable else copy.wtProxyParsed, if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
+                        probe?.let { result -> Text(copy.wtProxyLatency.replace("%1", if (result.first >= 0) "${result.first} ms" else copy.failed), color = CommandColors.textSecondary) }
                         CommandTextButton(copy.wtCopyNormalized, { SensitiveClipboard.copy(context, "Didban proxy configuration", cfg.rawUri) }, Icons.Rounded.ContentCopy)
                     }
                 }
@@ -372,7 +416,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                    Text("Subscription", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                    Text(copy.wtSubscription, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(subscription, { subscription = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionUrl) })
                     CommandSecondaryButton(if (busy) copy.waitingForData else copy.wtFetchSubscription, ::inspectSubscription, enabled = !busy)
                     subscriptionInfo?.let { info ->
@@ -433,7 +477,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             try {
                 files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC, hostKeyPolicy)
                 status = copy.hostKeysStatus.replace("%d", files.size.toString())
-            } catch (e: Exception) { error = e.message ?: "SFTP browse failed" }
+            } catch (e: Exception) { error = e.message ?: copy.wtSftpBrowseFailed }
             finally { loading = false }
         }
     }
@@ -447,7 +491,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             error = null
             scope.launch {
                 try { content = SftpEngine.readFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, item.path, hostKeyPolicy = hostKeyPolicy); activeFile = item.path }
-                catch (e: Exception) { error = e.message ?: "File read failed" }
+                catch (e: Exception) { error = e.message ?: copy.wtFileReadFailed }
                 finally { loading = false }
             }
         }
@@ -458,8 +502,8 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         loading = true
         error = null
         scope.launch {
-            try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content, hostKeyPolicy); status = "Saved $file" }
-            catch (e: Exception) { error = e.message ?: "File save failed" }
+            try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content, hostKeyPolicy); status = copy.wtFileSaved.replace("%1", file) }
+            catch (e: Exception) { error = e.message ?: copy.wtFileSaveFailed }
             finally { loading = false }
         }
     }
@@ -480,9 +524,18 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), modifier = Modifier.fillMaxWidth()) {
                             servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f)) }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            if (maxWidth < CommandBreakpoints.formStack) {
+                                Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                    OutlinedTextField(user, { user = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiUser) })
+                                    OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.port) })
+                                }
+                            } else {
+                                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
+                                    OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                                }
+                            }
                         }
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
@@ -502,7 +555,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                         if (files.isEmpty()) Text(copy.waitingForData, color = CommandColors.textSecondary)
                         files.forEach { item ->
                             Row(Modifier.fillMaxWidth().clickable { openItem(item) }.padding(vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                                Text(if (item.isDirectory) "DIR" else "FILE", color = if (item.isDirectory) CommandColors.info else CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                                Text(if (item.isDirectory) copy.wtDirectory else copy.wtFile, color = if (item.isDirectory) CommandColors.info else CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
                                 Text(item.name, Modifier.weight(1f), color = CommandColors.textPrimary)
                                 Text(item.formattedSize, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                             }
@@ -515,7 +568,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(activeFile ?: "", Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            CommandTextButton("Copy", { if (content.isNotEmpty()) SensitiveClipboard.copy(context, "Didban remote file", content) }, Icons.Rounded.ContentCopy)
+                            CommandTextButton(copy.copyAction, { if (content.isNotEmpty()) SensitiveClipboard.copy(context, "Didban remote file", content) }, Icons.Rounded.ContentCopy)
                         }
                         OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(280.dp), textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
                         CommandPrimaryButton(copy.wtSaveRemoteFile, ::save, enabled = !loading, icon = Icons.Rounded.Security)

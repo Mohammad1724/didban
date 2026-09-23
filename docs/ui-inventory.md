@@ -70,3 +70,9 @@
 - جایگزینی `RoundedCornerShape`/`dp`های دستی در shell و primitiveها با `CommandRadii`, `CommandSpacing`, `CommandMetrics`.
 - تست عرض ۳۲۰dp، font scale ۱٫۵، RTL/LTR، text truncation و touch target حداقل ۴۸dp.
 - بررسی stateهایی که در Composable با `remember` نگه‌داری می‌شوند؛ draftهای حساس نباید `rememberSaveable` شوند و state عملیاتی باید با route/server scope پاک شود.
+
+## slice بعدی — Workbench copy و responsive
+
+- `CommandWorkbenchTools.kt`: labelهای artifactهای Single-Port، وضعیت Proxy، Subscription و SFTP از `CommandCopy` می‌آیند؛ شناسهٔ داخلی artifactها از label قابل مشاهده جدا شد.
+- فرم Single-Port و ردیف user/port در SFTP در عرض کمتر از `CommandBreakpoints.formStack` عمودی می‌شوند؛ نام‌های فنی VLESS، VMess، Trojan، SS، HAProxy و Docker Compose حفظ شده‌اند.
+- Network Tools و DNS در این بازبینی primitiveهای state/loading و فرم responsive خود را داشتند؛ بازبینی بعدی `CommandTunnelEditorScreen.kt` روی ردیف‌های چندفیلدی باقی‌مانده متمرکز می‌شود.

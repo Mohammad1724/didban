@@ -850,6 +850,23 @@ interface CommandCopy {
     val wtRemoteEntries: String
     val wtTextEditorMax: String
     val wtSaveRemoteFile: String
+    val wtArtifactHaproxy: String
+    val wtArtifactBashDeploy: String
+    val wtArtifactDockerCompose: String
+    val wtProxyModeSubtitle: String
+    val wtProxyUriLabel: String
+    val wtProxyReachable: String
+    val wtProxyUnreachable: String
+    val wtProxyParsed: String
+    val wtProxyLatency: String
+    val wtSubscription: String
+    val wtSubscriptionFailed: String
+    val wtSftpBrowseFailed: String
+    val wtFileReadFailed: String
+    val wtFileSaved: String
+    val wtFileSaveFailed: String
+    val wtDirectory: String
+    val wtFile: String
     val tunNewConfiguration: String
     val tunSavedTunnels: String
     val tunIdentityEngine: String
@@ -1688,6 +1705,23 @@ internal object CommandCopyFa : CommandCopy {
     override val wtRemoteEntries = "ورودی‌های راه دور"
     override val wtTextEditorMax = "ویرایشگر متن · حداکثر ۴ مگابایت"
     override val wtSaveRemoteFile = "ذخیرهٔ فایل راه دور"
+    override val wtArtifactHaproxy = "HAProxy"
+    override val wtArtifactBashDeploy = "Bash deploy"
+    override val wtArtifactDockerCompose = "Docker Compose"
+    override val wtProxyModeSubtitle = "parse · probe · inspect"
+    override val wtProxyUriLabel = "VLESS / VMess / Trojan / SS URI"
+    override val wtProxyReachable = "قابل دسترسی"
+    override val wtProxyUnreachable = "غیرقابل دسترسی"
+    override val wtProxyParsed = "پارس شد"
+    override val wtProxyLatency = "تأخیر TCP/TLS: %1"
+    override val wtSubscription = "اشتراک"
+    override val wtSubscriptionFailed = "دریافت اشتراک ناموفق بود"
+    override val wtSftpBrowseFailed = "مرور SFTP ناموفق بود"
+    override val wtFileReadFailed = "خواندن فایل ناموفق بود"
+    override val wtFileSaved = "فایل %1 ذخیره شد"
+    override val wtFileSaveFailed = "ذخیرهٔ فایل ناموفق بود"
+    override val wtDirectory = "پوشه"
+    override val wtFile = "فایل"
     override val tunNewConfiguration = "تنظیمات جدید"
     override val tunSavedTunnels = "تونل‌های ذخیره‌شده"
     override val tunIdentityEngine = "هویت و موتور"
@@ -2519,6 +2553,23 @@ internal object CommandCopyEn : CommandCopy {
     override val wtRemoteEntries = "Remote entries"
     override val wtTextEditorMax = "Text editor · max 4 MB"
     override val wtSaveRemoteFile = "Save remote file"
+    override val wtArtifactHaproxy = "HAProxy"
+    override val wtArtifactBashDeploy = "Bash deploy"
+    override val wtArtifactDockerCompose = "Docker Compose"
+    override val wtProxyModeSubtitle = "parse · probe · inspect"
+    override val wtProxyUriLabel = "VLESS / VMess / Trojan / SS URI"
+    override val wtProxyReachable = "reachable"
+    override val wtProxyUnreachable = "unreachable"
+    override val wtProxyParsed = "parsed"
+    override val wtProxyLatency = "TCP/TLS latency: %1"
+    override val wtSubscription = "Subscription"
+    override val wtSubscriptionFailed = "Subscription fetch failed"
+    override val wtSftpBrowseFailed = "SFTP browse failed"
+    override val wtFileReadFailed = "File read failed"
+    override val wtFileSaved = "Saved %1"
+    override val wtFileSaveFailed = "File save failed"
+    override val wtDirectory = "DIR"
+    override val wtFile = "FILE"
     override val tunNewConfiguration = "new configuration"
     override val tunSavedTunnels = "Saved tunnels"
     override val tunIdentityEngine = "Identity and engine"
