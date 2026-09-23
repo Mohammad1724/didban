@@ -34,12 +34,10 @@ fun CommandWorkbenchIndexScreen(
     copy: CommandCopy,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
-    CommandToolIndex(copy.uiTools, copy.uiToolsIntro,
-        listOf(copy.uiPathTools to independentToolRoutes.take(2),
-            copy.uiNetworkTools to independentToolRoutes.subList(2, 5),
-            copy.uiMoreTools to independentToolRoutes.drop(5)),
-        copy, Icons.Rounded.Tune, onNavigate)
-
+    // Network diagnostics have one home: the Network tools index. The main
+    // Tools launcher intentionally contains only utilities that are not
+    // repeated there.
+    CommandWorkbenchLauncherScreen(copy, onNavigate)
 }
 
 @Composable

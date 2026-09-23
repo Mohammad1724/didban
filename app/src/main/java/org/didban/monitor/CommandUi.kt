@@ -220,7 +220,7 @@ fun CommandPrimaryButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier.heightIn(min = CommandMetrics.controlMinHeight),
         shape = RoundedCornerShape(CommandRadii.control),
         colors = ButtonDefaults.buttonColors(
             containerColor = CommandColors.accent,
@@ -230,7 +230,7 @@ fun CommandPrimaryButton(
         )
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, modifier = Modifier.size(CommandMetrics.iconSmall))
             Spacer(Modifier.width(CommandSpacing.xs))
         }
         Text(text, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
@@ -248,7 +248,7 @@ fun CommandSecondaryButton(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = 48.dp),
+        modifier = modifier.heightIn(min = CommandMetrics.controlMinHeight),
         shape = RoundedCornerShape(CommandRadii.control),
         border = BorderStroke(1.dp, if (enabled) CommandColors.borderStrong else CommandColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
@@ -257,7 +257,7 @@ fun CommandSecondaryButton(
         )
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = null, modifier = Modifier.size(CommandMetrics.iconSmall))
             Spacer(Modifier.width(CommandSpacing.xs))
         }
         Text(text, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)
@@ -274,14 +274,14 @@ fun CommandTextButton(
 ) {
     Row(
         modifier = modifier
-            .heightIn(min = 48.dp)
+            .heightIn(min = CommandMetrics.controlMinHeight)
             .clip(RoundedCornerShape(CommandRadii.control))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
     ) {
-        if (icon != null) Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(17.dp))
+        if (icon != null) Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconSmall))
         Text(
             text,
             color = CommandColors.accent,
@@ -302,14 +302,14 @@ fun CommandIconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .size(48.dp)
+            .size(CommandMetrics.touchTarget)
             .semantics { role = Role.Button }
     ) {
         Icon(
             icon,
             contentDescription = contentDescription,
             tint = if (enabled) CommandColors.textPrimary else CommandColors.textTertiary,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(CommandMetrics.iconMedium)
         )
     }
 }
@@ -341,7 +341,7 @@ fun CommandStateBlock(
             .padding(CommandSpacing.md)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(CommandMetrics.iconMedium))
             Spacer(Modifier.width(CommandSpacing.sm))
             Text(
                 title,

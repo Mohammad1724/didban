@@ -88,6 +88,32 @@ private fun checkHostTone(node: CheckHostNode): CommandHealthTone = when (node.s
     else -> CommandHealthTone.UNKNOWN
 }
 
+@Composable
+private fun CheckHostInfoRow(label: String, value: String) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            label,
+            modifier = Modifier.width(108.dp),
+            color = CommandColors.textSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            value.ifBlank { "—" },
+            modifier = Modifier.weight(1f),
+            color = CommandColors.textPrimary,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
 /**
  * Check-Host style global reachability. It deliberately has no ServerConfig:
  * the checks run on check-host.net's public vantage points and therefore work
@@ -109,6 +135,7 @@ fun CommandCheckHostScreen(
     var type by rememberSaveable { mutableStateOf("ping") }
     var port by rememberSaveable { mutableStateOf("443") }
     var nodes by remember { mutableStateOf<List<CheckHostNode>>(emptyList()) }
+    var info by remember { mutableStateOf<GeoIpData?>(null) }
     var running by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
@@ -127,10 +154,16 @@ fun CommandCheckHostScreen(
 
         error = null
         nodes = emptyList()
+        info = null
         running = true
         val requestedType = type
         job = scope.launch {
             try {
+                if (requestedType == "info") {
+                    info = IpInfoService.lookup(normalized)
+                    return@launch
+                }
+
                 val (requestId, startedNodes) = startCheck(normalized, requestedType, CHECK_HOST_MAX_NODES)
                 if (startedNodes.isEmpty()) throw IllegalStateException(copy.checkHostNoNodes)
                 nodes = startedNodes.toList()
@@ -163,8 +196,8 @@ fun CommandCheckHostScreen(
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(CommandSpacing.md),
-        contentPadding = PaddingValues(CommandSpacing.md)
+        verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+        contentPadding = PaddingValues(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs)
     ) {
         item {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -175,7 +208,7 @@ fun CommandCheckHostScreen(
 
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                Column(Modifier.padding(CommandSpacing.sm), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                     Text(copy.checkHostInput, style = MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(
                         value = target,
@@ -187,10 +220,23 @@ fun CommandCheckHostScreen(
                         placeholder = { Text("example.com / 1.1.1.1") }
                     )
                     CommandChipRow(
-                        options = listOf("PING" to "ping", "HTTP" to "http", "TCP" to "tcp", "UDP" to "udp", "DNS" to "dns"),
+                        options = listOf(
+                            "INFO" to "info",
+                            "PING" to "ping",
+                            "HTTP" to "http",
+                            "TCP" to "tcp",
+                            "UDP" to "udp",
+                            "DNS" to "dns"
+                        ),
                         selected = type,
-                        onSelect = { type = it },
-                        enabled = !running
+                        onSelect = {
+                            type = it
+                            nodes = emptyList()
+                            info = null
+                            error = null
+                        },
+                        enabled = !running,
+                        compact = true
                     )
                     if (type == "tcp" || type == "udp") {
                         OutlinedTextField(
@@ -221,6 +267,26 @@ fun CommandCheckHostScreen(
             item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
         }
 
+        info?.let { data ->
+            item {
+                CommandSurface(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(CommandSpacing.sm), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xxs)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(copy.checkHostInfo, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                            Text("${data.flag} ${data.country.ifBlank { "—" }}", color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        CheckHostInfoRow(copy.subnetIpLabel, "${data.ip} · ${data.ipVersion}")
+                        CheckHostInfoRow(copy.netDomainLabel, data.domainName)
+                        CheckHostInfoRow(copy.netReverseDnsLabel, data.reverseDns)
+                        CheckHostInfoRow(copy.netIspLabel, data.isp.ifBlank { data.org })
+                        CheckHostInfoRow(copy.netAsnLabel, data.asn)
+                        CheckHostInfoRow(copy.netRegionLabel, listOf(data.region, data.city).filter { it.isNotBlank() }.joinToString(" / "))
+                        CheckHostInfoRow(copy.netDnsRecordsLabel, data.dnsRecords.size.toString())
+                    }
+                }
+            }
+        }
+
         if (nodes.isNotEmpty()) {
             item {
                 CommandSectionTitle(
@@ -230,9 +296,26 @@ fun CommandCheckHostScreen(
             }
             items(nodes, key = { it.nodeKey }) { node ->
                 CommandSurface(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                    Column(Modifier.padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), verticalArrangement = Arrangement.spacedBy(CommandSpacing.xxs)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(node.flag, modifier = Modifier.padding(end = CommandSpacing.xs))
+                            Text(
+                                node.location.ifBlank { node.nodeKey },
+                                modifier = Modifier.weight(1f),
+                                color = CommandColors.textPrimary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                node.resultText,
+                                color = CommandColors.textPrimary,
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             CommandStatusMark(
                                 when (node.state) {
                                     1 -> copy.online
@@ -240,24 +323,16 @@ fun CommandCheckHostScreen(
                                     else -> copy.waitingForData
                                 },
                                 checkHostTone(node),
-                                modifier = Modifier.weight(1f),
-                                detail = node.location.ifBlank { node.nodeKey }
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                node.nodeKey,
+                                color = CommandColors.textTertiary,
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
-                            node.resultText,
-                            color = CommandColors.textPrimary,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            node.nodeKey,
-                            color = CommandColors.textTertiary,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
             }

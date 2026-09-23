@@ -7,15 +7,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,35 +20,22 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.view.WindowCompat
 
 fun Context.findActivity(): Activity? {
     var ctx: Context? = this
@@ -139,109 +120,82 @@ fun CrashRecoveryScreen(
     consecutiveCount: Int = 0
 ) {
     val context = LocalContext.current
+    val language = remember { Prefs.getLanguage(context) }
+    val themeMode = remember { Prefs.getThemeMode(context) }
+    val copy = remember(language) { CommandCopy.forLanguage(language) }
     var copied by remember { mutableStateOf(false) }
 
-    DidbanTheme(dark = true) {
-        DidbanBackground {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp)
-                    .navigationBarsPadding(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+    // The recovery path is part of the product shell too: it must not switch
+    // to a second visual language while the rest of the app uses CommandTheme.
+    CommandTheme(themeMode = themeMode, language = language) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .commandAtmosphere()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(CommandSpacing.lg),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CommandStateBlock(
+                title = copy.crashTitle,
+                body = copy.crashBody,
+                tone = CommandHealthTone.OFFLINE,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // H8: make a detected cannot-start loop explicit to the user.
+            if (consecutiveCount >= CrashPolicy.CRASH_LOOP_THRESHOLD) {
+                Spacer(Modifier.height(CommandSpacing.sm))
+                CommandStateBlock(
+                    title = copy.crashLoopTitle,
+                    body = copy.crashLoopBody.replace("%1", consecutiveCount.toString()),
+                    tone = CommandHealthTone.ATTENTION,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(CommandSpacing.md))
+
+            CommandSurface(
+                raised = true,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                IconBadge(
-                    icon = Icons.Rounded.WarningAmber,
-                    tint = Ds.warn,
-                    background = Ds.warnDim,
-                    size = 64.dp,
-                    iconSize = 32.dp
-                )
-
-                Spacer(Modifier.height(18.dp))
-
                 Text(
-                    "Didban Crash Diagnostic",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Ds.textPrimary
-                )
-
-                Spacer(Modifier.height(6.dp))
-
-                Text(
-                    "The previous session encountered an unhandled exception. Details are captured below:",
-                    fontSize = 12.sp,
-                    color = Ds.textSecondary,
-                    lineHeight = 17.sp
-                )
-
-                // H8: make a detected cannot-start loop explicit to the user.
-                if (consecutiveCount >= CrashPolicy.CRASH_LOOP_THRESHOLD) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(
-                        "$consecutiveCount consecutive crashes at startup were detected — " +
-                                "auto-restart is disabled. Use Reset & Launch to try again.",
-                        fontSize = 12.sp,
-                        color = Ds.warn,
-                        fontWeight = FontWeight.SemiBold,
-                        lineHeight = 16.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Ds.surfaceLow,
-                    border = BorderStroke(1.dp, Ds.hairline),
+                    trace,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp)
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            trace,
-                            fontSize = 10.sp,
-                            fontFamily = Telemetry,
-                            color = Ds.textTertiary,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .horizontalScroll(rememberScrollState())
-                        )
-                    }
-                }
+                        .height(240.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(CommandSpacing.md),
+                    color = CommandColors.textTertiary,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace)
+                )
+            }
 
-                Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(CommandSpacing.md))
 
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    SoftButton(
-                        text = if (copied) "Copied!" else "Copy Log",
-                        icon = Icons.Rounded.ContentCopy,
-                        onClick = {
-                            SensitiveClipboard.copy(context, "Didban crash diagnostic", trace)
-                            copied = true
-                        },
-                        modifier = Modifier.weight(1f).height(44.dp)
-                    )
-
-                    PrimaryButton(
-                        text = "Reset & Launch",
-                        icon = Icons.Rounded.Refresh,
-                        onClick = onReset,
-                        modifier = Modifier.weight(1.3f).height(44.dp)
-                    )
-                }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
+            ) {
+                CommandSecondaryButton(
+                    text = if (copied) copy.crashCopied else copy.crashCopyLog,
+                    onClick = {
+                        SensitiveClipboard.copy(context, copy.crashTitle, trace)
+                        copied = true
+                    },
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Rounded.ContentCopy
+                )
+                CommandPrimaryButton(
+                    text = copy.crashResetLaunch,
+                    onClick = onReset,
+                    modifier = Modifier.weight(1.3f),
+                    icon = Icons.Rounded.Refresh
+                )
             }
         }
     }

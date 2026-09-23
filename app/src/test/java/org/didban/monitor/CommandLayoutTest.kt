@@ -42,6 +42,16 @@ class CommandLayoutTest {
     }
 
     @Test
+    fun `interaction metrics keep controls usable`() {
+        assertTrue(CommandMetrics.touchTarget >= 48.dp)
+        assertTrue(CommandMetrics.controlMinHeight >= CommandMetrics.touchTarget)
+        assertTrue(CommandMetrics.compactRowMinHeight >= CommandMetrics.touchTarget)
+        assertTrue(CommandMetrics.iconSmall < CommandMetrics.iconMedium)
+        assertTrue(CommandMetrics.iconMedium < CommandMetrics.iconLarge)
+        assertEquals(56.dp, CommandMetrics.launcherIcon)
+    }
+
+    @Test
     fun `pills and bars are fully rounded`() {
         assertTrue(CommandRadii.pill >= 100.dp)
         assertTrue(CommandRadii.bar >= 100.dp)

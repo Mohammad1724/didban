@@ -20,6 +20,9 @@ class CommandRedesignTest {
         assertTrue(independentToolRoutes.all { it.primary() == CommandPrimary.TOOLS })
         assertTrue(settingsToolRoutes.all { it.primary() == CommandPrimary.SETTINGS })
         assertTrue(serverToolRoutes.intersect(independentToolRoutes.toSet()).isEmpty())
+        assertEquals(5, networkToolRoutes.distinct().size)
+        assertEquals(5, workbenchUtilityRoutes.distinct().size)
+        assertTrue(networkToolRoutes.intersect(workbenchUtilityRoutes.toSet()).isEmpty())
         assertTrue(serverToolRoutes.containsAll(listOf(CommandRoute.SSH, CommandRoute.SFTP, CommandRoute.BANDWIDTH, CommandRoute.SECURITY)))
         assertEquals(CommandPrimary.MONITORING, CommandRoute.RADAR.primary())
     }

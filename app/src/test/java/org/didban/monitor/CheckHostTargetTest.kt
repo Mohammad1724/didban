@@ -16,6 +16,11 @@ class CheckHostTargetTest {
         assertEquals("[2001:db8::1]:443", normalizeCheckHostTarget("2001:db8::1", "tcp", "443"))
     }
 
+    @Test fun `Info accepts domains and raw IPv6 without inventing a port`() {
+        assertEquals("example.com", normalizeCheckHostTarget("https://example.com/path", "info", "443"))
+        assertEquals("2001:db8::1", normalizeCheckHostTarget("2001:db8::1", "info", "443"))
+    }
+
     @Test fun `empty malformed and invalid TCP targets are rejected`() {
         assertNull(normalizeCheckHostTarget("", "ping", "443"))
         assertEquals("example.com", normalizeCheckHostTarget("example.com/path?x=1", "ping", "443"))

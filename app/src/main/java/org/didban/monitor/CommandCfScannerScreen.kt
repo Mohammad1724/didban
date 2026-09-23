@@ -3,10 +3,13 @@ package org.didban.monitor
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +43,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -376,25 +380,38 @@ internal fun <T> CommandChipRow(
     options: List<Pair<String, T>>,
     selected: T,
     onSelect: (T) -> Unit,
-    enabled: Boolean
+    enabled: Boolean,
+    compact: Boolean = false
 ) {
     Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+        (if (compact) Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()) else Modifier.fillMaxWidth()),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) CommandSpacing.xs else CommandSpacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         options.forEach { (label, value) ->
             val active = value == selected
+            val buttonModifier = if (compact) {
+                Modifier.widthIn(min = 48.dp).heightIn(min = 42.dp)
+            } else {
+                Modifier.weight(1f).heightIn(min = 48.dp)
+            }
             Surface(
                 color = if (active) CommandColors.infoSurface else CommandColors.surface,
                 border = androidx.compose.foundation.BorderStroke(1.dp, if (active) CommandColors.accent else CommandColors.borderStrong),
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.control),
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                modifier = buttonModifier
                     .selectable(active, enabled = enabled, role = Role.RadioButton, onClick = { onSelect(value) })
             ) {
-                Box(Modifier.padding(vertical = 12.dp, horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                    Text(label, color = if (active) CommandColors.accent else CommandColors.textSecondary,
-                        style = MaterialTheme.typography.labelLarge, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Box(Modifier.padding(vertical = if (compact) 8.dp else 12.dp, horizontal = if (compact) 6.dp else 8.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        label,
+                        color = if (active) CommandColors.accent else CommandColors.textSecondary,
+                        style = if (compact) MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp) else MaterialTheme.typography.labelLarge,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

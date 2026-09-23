@@ -373,14 +373,14 @@ fun CommandCenterApp(
                             onBack = ::goBack,
                             onHelp = { helpVisible = true; exitHintVisible = false; lastBackPressAt = 0L })
                         if (route == CommandRoute.RADAR && selectedServer != null) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.md)) {
                                 CommandSecondaryButton(selectedServer.name, { serverPickerOpen = true })
                             }
                         }
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().then(
                         if (route == CommandRoute.FLEET || route == CommandRoute.CF_SCANNER || route == CommandRoute.REALITY_SNI)
-                            Modifier else Modifier.padding(horizontal = 16.dp)
+                            Modifier else Modifier.padding(horizontal = CommandSpacing.md)
                     )) {
                         CompositionLocalProvider(LocalCommandHeader provides if (route == CommandRoute.FLEET) null else route.commandLabel(copy)) {
         CommandRouteContent(

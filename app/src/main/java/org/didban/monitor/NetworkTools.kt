@@ -353,7 +353,16 @@ object IpInfoService {
         .build()
 
     suspend fun lookup(targetInput: String = ""): GeoIpData = withContext(Dispatchers.IO) {
-        val clean = targetInput.trim().removePrefix("https://").removePrefix("http://").substringBefore("/").substringBefore(":")
+        val raw = targetInput.trim()
+            .replaceFirst(Regex("^https?://", RegexOption.IGNORE_CASE), "")
+            .substringBefore('/')
+            .substringBefore('?')
+            .substringBefore('#')
+        val clean = when {
+            raw.startsWith('[') -> raw.substringAfter('[').substringBefore(']')
+            raw.count { it == ':' } == 1 && raw.substringAfterLast(':').toIntOrNull() != null -> raw.substringBeforeLast(':')
+            else -> raw
+        }.trim().trimEnd('.')
         val isDomain = clean.isNotEmpty() && !clean.matches(Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) && !clean.contains(":")
 
         // Step 1: If input is a domain name, resolve to IP

@@ -169,6 +169,21 @@ object CommandSpacing {
 }
 
 /**
+ * Interaction sizes are part of the design contract, not per-screen guesses.
+ * Keep controls usable at the smallest supported phone width and with larger
+ * system fonts. Screens may choose a larger value, never a smaller one.
+ */
+object CommandMetrics {
+    val touchTarget = 48.dp
+    val controlMinHeight = 48.dp
+    val compactRowMinHeight = 56.dp
+    val iconSmall = 18.dp
+    val iconMedium = 22.dp
+    val iconLarge = 28.dp
+    val launcherIcon = 56.dp
+}
+
+/**
  * مقیاس شعاع گوشه‌ها — «زمرد» (۲۰۲۶-۰۹-۲۱).
  *
  * مالک پروژه گزارش داد بعضی کادرها هنوز مربع‌اند. ریشه دو چیز بود:
@@ -336,9 +351,9 @@ interface CommandCopy {
     val uiTools: String
     val uiServerIntro: String
     val uiToolsIntro: String
-    val uiPathTools: String
-    val uiNetworkTools: String
-    val uiMoreTools: String
+    val toolsTabAll: String
+    val toolsTabConnection: String
+    val toolsTabDevelopment: String
     val uiServerTools: String
     val uiScopedTools: String
     val uiResources: String
@@ -360,6 +375,13 @@ interface CommandCopy {
     val uiInput: String
     val uiManualFields: String
     val uiNoData: String
+    val crashTitle: String
+    val crashBody: String
+    val crashLoopTitle: String
+    val crashLoopBody: String
+    val crashCopyLog: String
+    val crashCopied: String
+    val crashResetLaunch: String
 
     val observe: String
     val fleet: String
@@ -928,6 +950,7 @@ interface CommandCopy {
     val netIndexBody: String
     val netQReachable: String
     val checkHostInput: String
+    val checkHostInfo: String
     val checkHostInvalidTarget: String
     val checkHostNoNodes: String
     val netQReachableTools: String
@@ -1082,9 +1105,9 @@ internal object CommandCopyFa : CommandCopy {
     override val uiTools = "ابزارها"
     override val uiServerIntro = "همهٔ سرورها، یک جای مشخص."
     override val uiToolsIntro = "ابزار مناسب را برای کاری که داری انتخاب کن."
-    override val uiPathTools = "پیداکردن مسیر مناسب"
-    override val uiNetworkTools = "عیب‌یابی شبکه"
-    override val uiMoreTools = "ابزارهای تخصصی"
+    override val toolsTabAll = "همه"
+    override val toolsTabConnection = "اتصال"
+    override val toolsTabDevelopment = "توسعه"
     override val uiServerTools = "مدیریت این سرور"
     override val uiScopedTools = "همهٔ ابزارهای زیر برای «%1» هستند."
     override val uiResources = "وضعیت منابع"
@@ -1106,6 +1129,13 @@ internal object CommandCopyFa : CommandCopy {
     override val uiInput = "ورودی"
     override val uiManualFields = "ورود دستی اطلاعات اتصال"
     override val uiNoData = "هنوز داده‌ای نداریم"
+    override val crashTitle = "گزارش خطای دیدبان"
+    override val crashBody = "اجرای قبلی با یک خطای پیش‌بینی‌نشده متوقف شد. جزئیات فنی زیر ثبت شده است."
+    override val crashLoopTitle = "توقف اجرای خودکار"
+    override val crashLoopBody = "%1 بار پیاپی خطا هنگام شروع برنامه ثبت شد. برای تلاش دوباره «بازنشانی و اجرا» را بزنید."
+    override val crashCopyLog = "کپی گزارش"
+    override val crashCopied = "گزارش کپی شد"
+    override val crashResetLaunch = "بازنشانی و اجرا"
 
     override val observe = "پایش"
     override val fleet = "ناوگان"
@@ -1673,6 +1703,7 @@ internal object CommandCopyFa : CommandCopy {
     override val netIndexBody = "عیب‌یابی دسترسی، شبکه، TLS، DNS و کیفیت اتصال."
     override val netQReachable = "تست دسترسی به مقصد"
     override val checkHostInput = "ورودی Check-Host"
+    override val checkHostInfo = "اطلاعات IP"
     override val checkHostInvalidTarget = "یک دامنه یا IP معتبر وارد کنید."
     override val checkHostNoNodes = "از Check-Host هیچ نقطه‌ای برای این درخواست دریافت نشد."
     override val netQReachableTools = "از چندین نقطهٔ عمومی Check-Host؛ بدون نیاز به افزودن سرور"
@@ -1820,9 +1851,9 @@ internal object CommandCopyEn : CommandCopy {
     override val uiTools = "Tools"
     override val uiServerIntro = "All your servers in one place."
     override val uiToolsIntro = "Choose the right tool for your task."
-    override val uiPathTools = "Find a connection"
-    override val uiNetworkTools = "Troubleshoot the network"
-    override val uiMoreTools = "Advanced utilities"
+    override val toolsTabAll = "All"
+    override val toolsTabConnection = "Connection"
+    override val toolsTabDevelopment = "Development"
     override val uiServerTools = "Manage this server"
     override val uiScopedTools = "All tools below act on “%1”."
     override val uiResources = "Resource usage"
@@ -1844,6 +1875,13 @@ internal object CommandCopyEn : CommandCopy {
     override val uiInput = "Input"
     override val uiManualFields = "Enter connection details manually"
     override val uiNoData = "No measurements yet"
+    override val crashTitle = "Didban crash report"
+    override val crashBody = "The previous session stopped because of an unexpected error. Technical details are captured below."
+    override val crashLoopTitle = "Automatic launch paused"
+    override val crashLoopBody = "%1 consecutive startup crashes were detected. Choose “Reset and launch” to try again."
+    override val crashCopyLog = "Copy report"
+    override val crashCopied = "Report copied"
+    override val crashResetLaunch = "Reset and launch"
 
     override val observe = "Observe"
     override val fleet = "Fleet"
@@ -2411,6 +2449,7 @@ internal object CommandCopyEn : CommandCopy {
     override val netIndexBody = "Diagnose reachability, network, TLS, DNS and connection quality."
     override val netQReachable = "Test destination reachability"
     override val checkHostInput = "Check-Host input"
+    override val checkHostInfo = "IP info"
     override val checkHostInvalidTarget = "Enter a valid domain or IP address."
     override val checkHostNoNodes = "Check-Host returned no test locations for this request."
     override val netQReachableTools = "From public Check-Host locations; no server required"
