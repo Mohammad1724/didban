@@ -36,8 +36,8 @@ fun CommandWorkbenchIndexScreen(
 ) {
     CommandToolIndex(copy.uiTools, copy.uiToolsIntro,
         listOf(copy.uiPathTools to independentToolRoutes.take(2),
-            copy.uiNetworkTools to independentToolRoutes.subList(2, 4),
-            copy.uiMoreTools to independentToolRoutes.drop(4)),
+            copy.uiNetworkTools to independentToolRoutes.subList(2, 5),
+            copy.uiMoreTools to independentToolRoutes.drop(5)),
         copy, Icons.Rounded.Tune, onNavigate)
 
 }

@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 fun CommandNetworkIndexScreen(
     copy: CommandCopy,
     onOpenSuite: () -> Unit,
-    onOpenRadar: () -> Unit,
+    onOpenCheckHost: () -> Unit,
     onOpenDns: () -> Unit,
     onOpenCfScanner: () -> Unit,
     onOpenRealitySni: () -> Unit
@@ -43,7 +43,7 @@ fun CommandNetworkIndexScreen(
         title = copy.networkTools,
         subtitle = copy.netIndexBody,
         rows = listOf(
-            Triple(copy.netQReachable, copy.netQReachableTools, onOpenRadar) to Icons.Rounded.Public,
+            Triple(copy.netQReachable, copy.netQReachableTools, onOpenCheckHost) to Icons.Rounded.Public,
             Triple(copy.netQNetworkLayer, copy.netQNetworkLayerTools, onOpenSuite) to Icons.Rounded.NetworkCheck,
             Triple(copy.netQTls, copy.netQTlsTools, onOpenSuite) to Icons.Rounded.Security,
             Triple(copy.netQDns, copy.netQDnsTools, onOpenDns) to Icons.Rounded.Dns,

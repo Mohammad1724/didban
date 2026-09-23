@@ -186,7 +186,7 @@ object CheckHostService {
                     }
                 }
 
-                "tcp" -> {
+                "tcp", "udp" -> {
                     val first = resArr.optJSONObject(0) ?: return Pair("no data", 2)
                     if (first.has("error")) {
                         return Pair("error: ${first.optString("error")}", 2)
@@ -195,6 +195,8 @@ object CheckHostService {
                         val timeMs = (first.optDouble("time", 0.0) * 1000).toInt()
                         return Pair("open · ${timeMs}ms", 1)
                     }
+                    val status = first.optString("status", "")
+                    if (status.isNotBlank()) return Pair(status, 1)
                     return Pair("failed", 2)
                 }
 

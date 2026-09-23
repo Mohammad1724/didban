@@ -231,6 +231,26 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "این شبکهٔ عمومی نقاط تست نیست؛ Agent سازگار لازم است. همگام‌سازی مقاصد، تنظیمات بررسی روی Agentها را تغییر می‌دهد و نتیجه ممکن است با تأخیر برسد.",
             "This is not a public network of test locations; compatible Agents are required. Sync changes Agent probe targets and results may take time to arrive."
         )
+        CommandRoute.CHECK_HOST -> h(
+            "برای بررسی یک دامنه یا IP از چندین نقطهٔ عمومی Check-Host است و به افزودن سرور یا نصب Agent نیاز ندارد.",
+            "Check a domain or IP from multiple public Check-Host locations without adding a server or installing an Agent.",
+            listOf(
+                "دامنه یا IP را وارد کنید؛ برای TCP یا UDP می‌توانید پورت را هم مشخص کنید.",
+                "نوع بررسی Ping، HTTP، TCP، UDP یا DNS را انتخاب و اجرا را بزنید.",
+                "نتیجهٔ هر نقطه و زمان پاسخ آن را جداگانه بخوانید؛ وضعیت در حال انتظار یعنی پاسخ هنوز کامل نشده است.",
+                "برای مقصدی که مجوز بررسی آن را دارید استفاده کنید؛ نتیجهٔ نقاط عمومی با شبکهٔ گوشی یا سرور شخصی یکسان نیست.",
+            ),
+            listOf(
+                "Enter a domain or IP; for TCP or UDP you can also specify a port.",
+                "Choose Ping, HTTP, TCP, UDP or DNS, then run the check.",
+                "Read each location and its response time separately; pending means the response is not complete yet.",
+                "Use it only for destinations you are authorized to check; public vantage points differ from your phone or server.",
+            ),
+            "این ابزار با API واقعی check-host.net کار می‌کند و نتیجهٔ ساختگی یا وابسته به ناوگان سرورها نمایش نمی‌دهد.",
+            "This tool uses the real check-host.net API; it does not show fake data or depend on your server fleet.",
+            "محدودیت یا تأخیر خود Check-Host، فیلترینگ مسیر و تفاوت نوع تست می‌تواند نتیجه را تغییر دهد؛ یک نتیجه را حکم قطعی سلامت کل سرویس ندانید.",
+            "Check-Host limits, path filtering and the selected check type can change the result; one result is not proof that the whole service is healthy."
+        )
         CommandRoute.BANDWIDTH -> h(
             "برای اندازه‌گیری سرعت انتقال داده بین گوشی و سرور انتخاب‌شده است؛ کمک می‌کند کندی مسیر را بررسی کنید، نه اینکه قدرت CPU سرور را بسنجید.",
             "Measure data transfer speed between your phone and the selected server, helping diagnose a slow path rather than server CPU performance.",

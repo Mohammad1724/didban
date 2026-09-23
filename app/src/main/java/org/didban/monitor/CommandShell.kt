@@ -117,6 +117,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     PROCESSES("processes", CommandWorkspace.OPERATE),
     SERVICES("services", CommandWorkspace.OPERATE),
     RADAR("radar", CommandWorkspace.DIAGNOSE),
+    CHECK_HOST("check-host", CommandWorkspace.DIAGNOSE),
     BANDWIDTH("bandwidth", CommandWorkspace.DIAGNOSE),
     CF_SCANNER("cf-scanner", CommandWorkspace.DIAGNOSE),
     REALITY_SNI("reality-sni", CommandWorkspace.DIAGNOSE),
@@ -175,6 +176,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.PROCESSES -> copy.processes
     CommandRoute.SERVICES -> copy.services
     CommandRoute.RADAR -> copy.radar
+    CommandRoute.CHECK_HOST -> copy.netQReachable
     CommandRoute.BANDWIDTH -> copy.bandwidth
     CommandRoute.CF_SCANNER -> copy.cfScanner
     CommandRoute.REALITY_SNI -> copy.realitySni
@@ -207,7 +209,7 @@ internal fun CommandRoute.navIcon(): ImageVector = when (this) {
     CommandRoute.DOCKER -> Icons.Rounded.Widgets
     CommandRoute.PROCESSES -> Icons.AutoMirrored.Rounded.ListAlt
     CommandRoute.SERVICES -> Icons.Rounded.Tune
-    CommandRoute.RADAR -> Icons.Rounded.Public
+    CommandRoute.RADAR, CommandRoute.CHECK_HOST -> Icons.Rounded.Public
     CommandRoute.BANDWIDTH -> Icons.Rounded.Speed
     CommandRoute.CF_SCANNER -> Icons.Rounded.TravelExplore
     CommandRoute.REALITY_SNI -> Icons.Rounded.VerifiedUser
@@ -508,12 +510,13 @@ private fun CommandRouteContent(
             CommandRoute.PROCESSES -> key(selectedServer) { CommandProcessesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.SERVICES -> key(selectedServer) { CommandServicesScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.RADAR -> CommandRadarScreen(copy, selectedServer, onSelectServer, { onBack() })
+            CommandRoute.CHECK_HOST -> CommandCheckHostScreen(copy) { onBack() }
             CommandRoute.BANDWIDTH -> key(selectedServer) { CommandBandwidthScreen(copy, selectedServer, onSelectServer, onBack = onBack) }
             CommandRoute.CF_SCANNER -> CommandCfScannerScreen(copy, onBack = onBack)
             CommandRoute.REALITY_SNI -> CommandRealitySniScreen(copy, onBack = onBack)
             CommandRoute.UPTIME -> CommandUptimeScreen(copy, onOpenEditor = { onNavigate(CommandRoute.UPTIME_EDITOR, null) }, onOpenRadar = { onNavigate(CommandRoute.RADAR, selectedServer) })
             CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
-            CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.RADAR, selectedServer) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
+            CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.CHECK_HOST, null) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
             CommandRoute.NETWORK_TOOLS_EDITOR -> key(selectedServer) { CommandNetworkToolsScreen(copy, selectedServer) { onBack() } }
             CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
             CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }

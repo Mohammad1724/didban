@@ -927,6 +927,9 @@ interface CommandCopy {
     val backupSummary: String
     val netIndexBody: String
     val netQReachable: String
+    val checkHostInput: String
+    val checkHostInvalidTarget: String
+    val checkHostNoNodes: String
     val netQReachableTools: String
     val netQNetworkLayer: String
     val netQNetworkLayerTools: String
@@ -1669,7 +1672,10 @@ internal object CommandCopyFa : CommandCopy {
     override val backupSummary = "%1 سرور · %2 تونل · %3 Monitor · %4"
     override val netIndexBody = "عیب‌یابی دسترسی، شبکه، TLS، DNS و کیفیت اتصال."
     override val netQReachable = "تست دسترسی به مقصد"
-    override val netQReachableTools = "از دید این سرور: TCP، HTTP، SSL و Check-Host"
+    override val checkHostInput = "ورودی Check-Host"
+    override val checkHostInvalidTarget = "یک دامنه یا IP معتبر وارد کنید."
+    override val checkHostNoNodes = "از Check-Host هیچ نقطه‌ای برای این درخواست دریافت نشد."
+    override val netQReachableTools = "از چندین نقطهٔ عمومی Check-Host؛ بدون نیاز به افزودن سرور"
     override val netQNetworkLayer = "عیب‌یابی لایهٔ شبکه"
     override val netQNetworkLayerTools = "TCP Ping، تشخیص DPI و Port Scanner"
     override val netQTls = "بررسی گواهی TLS"
@@ -2404,7 +2410,10 @@ internal object CommandCopyEn : CommandCopy {
     override val backupSummary = "%1 servers · %2 tunnels · %3 monitors · %4"
     override val netIndexBody = "Diagnose reachability, network, TLS, DNS and connection quality."
     override val netQReachable = "Test destination reachability"
-    override val netQReachableTools = "From this server: TCP, HTTP, SSL and Check-Host"
+    override val checkHostInput = "Check-Host input"
+    override val checkHostInvalidTarget = "Enter a valid domain or IP address."
+    override val checkHostNoNodes = "Check-Host returned no test locations for this request."
+    override val netQReachableTools = "From public Check-Host locations; no server required"
     override val netQNetworkLayer = "Troubleshoot the network layer"
     override val netQNetworkLayerTools = "TCP ping, DPI detection and port scanner"
     override val netQTls = "Inspect the TLS certificate"
