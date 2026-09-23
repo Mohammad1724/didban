@@ -2,6 +2,7 @@ package org.didban.monitor
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -342,17 +343,44 @@ fun CommandTunnelEditorScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.tunEndpoints, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(iranHost, { iranHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunIranHost) })
-                        OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(iranHost, { iranHost = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunIranHost) })
+                                OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.port) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(iranHost, { iranHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunIranHost) })
+                                OutlinedTextField(iranPort, { iranPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunForeignHost) })
-                        OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunForeignHost) })
+                                OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.port) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(foreignHost, { foreignHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunForeignHost) })
+                                OutlinedTextField(foreignPort, { foreignPort = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunCorePort) })
-                        OutlinedTextField(token, { token = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.tunRealToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunCorePort) })
+                                OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunRealToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(corePort, { corePort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunCorePort) })
+                                OutlinedTextField(token, { token = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.tunRealToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                            }
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton(copy.tunGenerateToken, { token = TunnelEngine.generateRandomToken(24) }, icon = Icons.Rounded.Tune)
@@ -366,38 +394,96 @@ fun CommandTunnelEditorScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.tunAdvancedParams, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(preset, { preset = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunPreset) })
-                        OutlinedTextField(kcpMode, { kcpMode = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunKcpMode) })
-                        OutlinedTextField(encryption, { encryption = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunEncryption) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(preset, { preset = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunPreset) })
+                                OutlinedTextField(kcpMode, { kcpMode = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunKcpMode) })
+                                OutlinedTextField(encryption, { encryption = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunEncryption) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(preset, { preset = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunPreset) })
+                                OutlinedTextField(kcpMode, { kcpMode = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunKcpMode) })
+                                OutlinedTextField(encryption, { encryption = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunEncryption) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(wsPath, { wsPath = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsPath) })
-                        OutlinedTextField(wsHost, { wsHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsHost) })
-                        OutlinedTextField(mtu, { mtu = it.filter(Char::isDigit).take(4) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.tunMtu) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(wsPath, { wsPath = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunWsPath) })
+                                OutlinedTextField(wsHost, { wsHost = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunWsHost) })
+                                OutlinedTextField(mtu, { mtu = it.filter(Char::isDigit).take(4) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunMtu) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(wsPath, { wsPath = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsPath) })
+                                OutlinedTextField(wsHost, { wsHost = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunWsHost) })
+                                OutlinedTextField(mtu, { mtu = it.filter(Char::isDigit).take(4) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.tunMtu) })
+                            }
+                        }
                     }
                     OutlinedTextField(multiPorts, { multiPorts = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunMultiPortHint) })
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.lg), modifier = Modifier.fillMaxWidth()) {
-                        CommandBooleanSetting(copy.tunAcceptUdp, acceptUdp) { acceptUdp = it }
-                        CommandBooleanSetting(copy.tunProxyProtocol, proxyProtocol) { proxyProtocol = it }
-                        CommandBooleanSetting(copy.tunAutoSync, autoSync) { autoSync = it }
-                        CommandBooleanSetting(copy.tunEnabled, enabled) { enabled = it }
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                CommandBooleanSetting(copy.tunAcceptUdp, acceptUdp) { acceptUdp = it }
+                                CommandBooleanSetting(copy.tunProxyProtocol, proxyProtocol) { proxyProtocol = it }
+                                CommandBooleanSetting(copy.tunAutoSync, autoSync) { autoSync = it }
+                                CommandBooleanSetting(copy.tunEnabled, enabled) { enabled = it }
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.lg), modifier = Modifier.fillMaxWidth()) {
+                                CommandBooleanSetting(copy.tunAcceptUdp, acceptUdp) { acceptUdp = it }
+                                CommandBooleanSetting(copy.tunProxyProtocol, proxyProtocol) { proxyProtocol = it }
+                                CommandBooleanSetting(copy.tunAutoSync, autoSync) { autoSync = it }
+                                CommandBooleanSetting(copy.tunEnabled, enabled) { enabled = it }
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(spoofSrcIp, { spoofSrcIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofSource) })
-                        OutlinedTextField(spoofPeerIp, { spoofPeerIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofPeer) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(spoofSrcIp, { spoofSrcIp = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunSpoofSource) })
+                                OutlinedTextField(spoofPeerIp, { spoofPeerIp = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunSpoofPeer) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(spoofSrcIp, { spoofSrcIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofSource) })
+                                OutlinedTextField(spoofPeerIp, { spoofPeerIp = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunSpoofPeer) })
+                            }
+                        }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(virtualIpIran, { virtualIpIran = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualIranIp) })
-                        OutlinedTextField(virtualIpForeign, { virtualIpForeign = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualForeignIp) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(virtualIpIran, { virtualIpIran = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunVirtualIranIp) })
+                                OutlinedTextField(virtualIpForeign, { virtualIpForeign = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.tunVirtualForeignIp) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(virtualIpIran, { virtualIpIran = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualIranIp) })
+                                OutlinedTextField(virtualIpForeign, { virtualIpForeign = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.tunVirtualForeignIp) })
+                            }
+                        }
                     }
                 }
             }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                CommandPrimaryButton(copy.save, ::saveOnly, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
-                CommandSecondaryButton(copy.tunGenerate, ::generate, Modifier.weight(1f), Icons.Rounded.Tune, enabled = !busy)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth < CommandBreakpoints.formStack) {
+                    Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        CommandPrimaryButton(copy.save, ::saveOnly, Modifier.fillMaxWidth(), Icons.Rounded.Save, enabled = !busy)
+                        CommandSecondaryButton(copy.tunGenerate, ::generate, Modifier.fillMaxWidth(), Icons.Rounded.Tune, enabled = !busy)
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        CommandPrimaryButton(copy.save, ::saveOnly, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
+                        CommandSecondaryButton(copy.tunGenerate, ::generate, Modifier.weight(1f), Icons.Rounded.Tune, enabled = !busy)
+                    }
+                }
             }
         }
         if (selectedId != null) {

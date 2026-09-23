@@ -76,3 +76,9 @@
 - `CommandWorkbenchTools.kt`: labelهای artifactهای Single-Port، وضعیت Proxy، Subscription و SFTP از `CommandCopy` می‌آیند؛ شناسهٔ داخلی artifactها از label قابل مشاهده جدا شد.
 - فرم Single-Port و ردیف user/port در SFTP در عرض کمتر از `CommandBreakpoints.formStack` عمودی می‌شوند؛ نام‌های فنی VLESS، VMess، Trojan، SS، HAProxy و Docker Compose حفظ شده‌اند.
 - Network Tools و DNS در این بازبینی primitiveهای state/loading و فرم responsive خود را داشتند؛ بازبینی بعدی `CommandTunnelEditorScreen.kt` روی ردیف‌های چندفیلدی باقی‌مانده متمرکز می‌شود.
+
+## slice بعدی — Tunnel Editor responsive contract
+
+- `CommandTunnelEditorScreen.kt`: endpoint، token، advanced-parameter، spoof/virtual-IP و action rows در عرض کمتر از `CommandBreakpoints.formStack` به stack عمودی می‌روند.
+- در عرض بزرگ، نسبت‌های قبلی fieldها حفظ می‌شود؛ در عرض کوچک هیچ field یا action اصلی به فشردگی اجباری وابسته نیست.
+- confirmation عملیاتی این صفحه از قبل primitive مشترک داشت؛ این slice فقط رفتار responsive فرم و hierarchy action را تکمیل می‌کند.
