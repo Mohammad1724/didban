@@ -109,7 +109,7 @@ fun CommandRadarScreen(
     server: ServerConfig?,
     onSelectServer: () -> Unit,
     onBack: () -> Unit,
-    probeStatus: suspend (ServerConfig) -> String = { target -> ApiClient().probeStatus(target) }
+    probeStatus: suspend (ServerConfig) -> JSONObject = { target -> ApiClient().probeStatus(target) }
 ) {
     // A new connection gets fresh callbacks/state and cancels the previous screen scope.
     // An old response must never populate the newly selected server's Radar.
@@ -122,7 +122,7 @@ private fun CommandRadarContent(
     server: ServerConfig?,
     onSelectServer: () -> Unit,
     onBack: () -> Unit,
-    probeStatus: suspend (ServerConfig) -> String
+    probeStatus: suspend (ServerConfig) -> JSONObject
 ) {
     val scope = rememberCoroutineScope()
     var points by remember(server?.id) { mutableStateOf<List<CommandProbePoint>>(emptyList()) }

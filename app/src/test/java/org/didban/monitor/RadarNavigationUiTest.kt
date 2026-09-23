@@ -7,6 +7,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.junit4.createComposeRule
+import org.json.JSONObject
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -121,7 +122,7 @@ class RadarNavigationUiTest {
         val server = ServerConfig(9, "Node X", "node-x.example")
         compose.setContent {
             CommandTheme(themeMode = "dark", language = "fa") {
-                CommandRadarScreen(copy, server, {}, {}, probeStatus = { "" })
+                CommandRadarScreen(copy, server, {}, {}, probeStatus = { JSONObject() })
             }
         }
         // Static guidance renders immediately: what to enter and which check types exist.
@@ -141,7 +142,7 @@ class RadarNavigationUiTest {
         val server = ServerConfig(10, "Node Phone", "node-phone.example")
         compose.setContent {
             CommandTheme(themeMode = "dark", language = "fa") {
-                CommandRadarScreen(copy, server, {}, {}, probeStatus = { "" })
+                CommandRadarScreen(copy, server, {}, {}, probeStatus = { JSONObject() })
             }
         }
         compose.onNode(hasText(copy.host, substring = true) and hasSetTextAction()).performScrollTo().assertIsDisplayed()
