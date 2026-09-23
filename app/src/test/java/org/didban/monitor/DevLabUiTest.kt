@@ -51,20 +51,20 @@ class DevLabUiTest {
 
     @Test fun `generator explains its purpose`() {
         openLab()
-        selectTool("Generator")
+        selectTool(copy.wtToolGenerator)
         scrollListTo(copy.genTitle)
         compose.onNodeWithText(copy.genTitle).assertExists()
         compose.onNodeWithText(copy.devLabBody).assertExists()
-        compose.onNodeWithText(copy.runVerb + " Generator").assertExists()
+        compose.onNodeWithText(copy.runVerb + " " + copy.wtToolGenerator).assertExists()
     }
 
     @Test fun `subnet accepts a domain and shows its range`() {
         openLab()
-        selectTool("Subnet")
+        selectTool(copy.wtToolSubnet)
         scrollListTo(copy.subnetHint)
         compose.onNodeWithText(copy.subnetHint).assertExists()
         compose.onNode(hasText(copy.uiInput) and hasSetTextAction()).performTextInput("localhost")
-        runTool("Subnet")
+        runTool(copy.wtToolSubnet)
         // Compose the output card via its stable title, then wait for the async answer.
         scrollListTo(copy.outputTitle)
         compose.waitUntil(10_000) {
@@ -74,10 +74,10 @@ class DevLabUiTest {
 
     @Test fun `subnet rejects a bad prefix with a localized error`() {
         openLab()
-        selectTool("Subnet")
+        selectTool(copy.wtToolSubnet)
         scrollListTo(copy.subnetHint)
         compose.onNode(hasText(copy.uiInput) and hasSetTextAction()).performTextInput("999.1.1.1/99")
-        runTool("Subnet")
+        runTool(copy.wtToolSubnet)
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText(copy.subnetErrPrefix).fetchSemanticsNodes().isNotEmpty()
         }
