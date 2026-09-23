@@ -137,7 +137,7 @@ internal fun CommandLayerSurface(
     val palette = LocalCommandPalette.current
     val dark = palette.canvas.luminance() < .5f
     val material = commandGlassMaterial(palette, chrome, raised)
-    val radius = if (chrome) 28.dp else 24.dp
+    val radius = if (chrome) CommandRadii.hero else CommandRadii.card
     val shape = RoundedCornerShape(radius)
     CompositionLocalProvider(LocalContentColor provides CommandColors.textPrimary) {
         Column(

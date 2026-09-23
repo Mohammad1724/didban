@@ -84,24 +84,24 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
             .border(1.dp, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(CommandRadii.tile))
             .testTag("primary-${section.name.lowercase()}")
             .selectable(active, role = Role.Tab, onClick = { onNavigate(section.root) })
-            .padding(horizontal = 4.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.width(48.dp).height(30.dp).clip(RoundedCornerShape(CommandRadii.icon))
+            .padding(horizontal = CommandSpacing.xxs, vertical = CommandSpacing.xs), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.width(CommandMetrics.touchTarget).height(CommandSpacing.xl).clip(RoundedCornerShape(CommandRadii.icon))
                 .background(Color.Transparent), contentAlignment = Alignment.Center) {
-                Icon(section.icon(), null, tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(21.dp))
+                Icon(section.icon(), null, tint = if (active) CommandColors.accent else CommandColors.textSecondary, modifier = Modifier.size(CommandMetrics.iconMedium))
             }
             Text(section.label(copy), color = if (active) CommandColors.accent else CommandColors.textSecondary,
                 style = MaterialTheme.typography.labelMedium, maxLines = 2)
         }
     }
     if (rail) {
-        CommandLayerSurface(Modifier.padding(8.dp), chrome = true) {
-            Column(Modifier.width(96.dp).fillMaxHeight().padding(8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        CommandLayerSurface(Modifier.padding(CommandSpacing.xs), chrome = true) {
+            Column(Modifier.width(CommandMetrics.navigationRailWidth).fillMaxHeight().padding(CommandSpacing.xs), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                 CommandPrimary.values().forEach { entry(it, Modifier.fillMaxWidth()) }
             }
         }
     } else {
-        CommandLayerSurface(Modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 8.dp), chrome = true) {
-            Row(Modifier.fillMaxWidth().padding(6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        CommandLayerSurface(Modifier.navigationBarsPadding().padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), chrome = true) {
+            Row(Modifier.fillMaxWidth().padding(CommandSpacing.xxs), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xxs)) {
                 CommandPrimary.values().forEach { entry(it, Modifier.weight(1f)) }
             }
         }
@@ -111,8 +111,8 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
 @Composable
 internal fun CommandPageChrome(title: String, copy: CommandCopy, language: String,
     showBack: Boolean, onBack: () -> Unit, onHelp: () -> Unit) {
-    CommandLayerSurface(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), chrome = true) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    CommandLayerSurface(Modifier.padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), chrome = true) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
             if (showBack) CommandIconButton(Icons.AutoMirrored.Rounded.ArrowBack, copy.back, onBack)
             Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = CommandColors.textPrimary)
             CommandHelpButton(language, onHelp)

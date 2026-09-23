@@ -45,12 +45,29 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+private enum class DeveloperTool {
+    BASE64,
+    JSON,
+    HASH,
+    SUBNET,
+    JWT,
+    GENERATOR
+}
+
+private fun DeveloperTool.label(copy: CommandCopy): String = when (this) {
+    DeveloperTool.BASE64 -> copy.wtToolBase64
+    DeveloperTool.JSON -> copy.wtToolJson
+    DeveloperTool.HASH -> copy.wtToolHash
+    DeveloperTool.SUBNET -> copy.wtToolSubnet
+    DeveloperTool.JWT -> copy.wtToolJwt
+    DeveloperTool.GENERATOR -> copy.wtToolGenerator
+}
+
 @Composable
 fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    val tools = listOf("Base64 / URL", "JSON", "Hash", "Subnet", "JWT", "Generator")
-    var selected by remember { mutableStateOf(tools.first()) }
+    var selected by remember { mutableStateOf(DeveloperTool.BASE64) }
     var input by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
@@ -99,40 +116,41 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
     }
 
     fun execute() {
-        if (selected == "Subnet") {
+        if (selected == DeveloperTool.SUBNET) {
             runSubnet()
             return
         }
         error = null
         output = try {
             when (selected) {
-                "Base64 / URL" -> buildString {
-                    appendLine("Base64 encode")
+                DeveloperTool.BASE64 -> buildString {
+                    appendLine(copy.wtBase64Encode)
                     appendLine(DevLabTools.base64Encode(input))
                     appendLine()
-                    appendLine("Base64 decode")
+                    appendLine(copy.wtBase64Decode)
                     appendLine(DevLabTools.base64Decode(input))
                     appendLine()
-                    appendLine("URL encode")
+                    appendLine(copy.wtUrlEncode)
                     appendLine(DevLabTools.urlEncode(input))
                     appendLine()
-                    appendLine("URL decode")
+                    appendLine(copy.wtUrlDecode)
                     appendLine(DevLabTools.urlDecode(input))
                 }
-                "JSON" -> "Formatted\n${DevLabTools.formatJson(input)}\n\nMinified\n${DevLabTools.minifyJson(input)}"
-                "Hash" -> buildString {
+                DeveloperTool.JSON -> "${copy.wtFormatted}\n${DevLabTools.formatJson(input)}\n\n${copy.wtMinified}\n${DevLabTools.minifyJson(input)}"
+                DeveloperTool.HASH -> buildString {
                     appendLine("MD5  ${DevLabTools.hash(input, "MD5")}")
                     appendLine("SHA-256  ${DevLabTools.hash(input, "SHA-256")}")
                     appendLine("SHA-512  ${DevLabTools.hash(input, "SHA-512")}")
-                    appendLine("Detected: ${DevLabTools.identifyHash(input)}")
+                    appendLine("${copy.wtHashDetected}: ${DevLabTools.identifyHash(input)}")
                 }
-                "JWT" -> DevLabTools.decodeJwt(input).let { result ->
-                    "Header\n${result.header}\n\nPayload\n${result.payload}\n\nExpired: ${result.isExpired}\nExpiry: ${result.expiryDate ?: "not provided"}"
+                DeveloperTool.JWT -> DevLabTools.decodeJwt(input).let { result ->
+                    "${copy.wtHeader}\n${result.header}\n\n${copy.wtPayload}\n${result.payload}\n\n${copy.wtExpired}: ${result.isExpired}\n${copy.wtExpiry}: ${result.expiryDate ?: copy.wtNotProvided}"
                 }
-                else -> "${copy.genPasswordLabel}\n${DevLabTools.generatePassword()}\n\n${copy.genUuidLabel}\n${DevLabTools.generateUuid()}"
+                DeveloperTool.GENERATOR -> "${copy.genPasswordLabel}\n${DevLabTools.generatePassword()}\n\n${copy.genUuidLabel}\n${DevLabTools.generateUuid()}"
+                DeveloperTool.SUBNET -> ""
             }
         } catch (e: Exception) {
-            error = e.message ?: "Tool failed"
+            error = e.message ?: copy.operationFailed
             ""
         }
     }
@@ -146,8 +164,8 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
         }
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                tools.forEach { tool ->
-                    CommandSecondaryButton(tool, { selected = tool; error = null }, enabled = selected != tool)
+                DeveloperTool.values().forEach { tool ->
+                    CommandSecondaryButton(tool.label(copy), { selected = tool; error = null }, enabled = selected != tool)
                 }
             }
         }
@@ -155,20 +173,20 @@ fun CommandDeveloperLabScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtInputTransform, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    if (selected == "Generator") {
+                    if (selected == DeveloperTool.GENERATOR) {
                         Text(copy.genTitle, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Text(copy.devLabBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                    } else if (selected == "Subnet") {
+                    } else if (selected == DeveloperTool.SUBNET) {
                         OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiInput) }, placeholder = { Text(copy.subnetPlaceholder) })
                         Text(copy.subnetHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     } else {
                         OutlinedTextField(input, { input = it }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.uiInput) })
                     }
-                    CommandPrimaryButton(copy.runVerb + " " + selected, ::execute, icon = Icons.Rounded.PlayArrow, enabled = !busy)
+                    CommandPrimaryButton("${copy.runVerb} ${selected.label(copy)}", ::execute, icon = Icons.Rounded.PlayArrow, enabled = !busy)
                 }
             }
         }
-        if (error != null) item { CommandStateBlock(copy.wtInvalidInput, error ?: "", CommandHealthTone.OFFLINE) }
+        if (error != null) item { CommandStateBlock(copy.wtInvalidInput, error ?: "", CommandHealthTone.OFFLINE, copy.retry, ::execute) }
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md)) {

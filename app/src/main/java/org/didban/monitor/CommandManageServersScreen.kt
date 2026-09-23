@@ -20,11 +20,9 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +35,6 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -220,8 +217,8 @@ fun CommandManageServersScreen(
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Connections", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        CommandTextButton("New", ::reset, icon = Icons.Rounded.Refresh)
+                        Text(copy.srvConnections, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        CommandTextButton(copy.srvNewConnection, ::reset, icon = Icons.Rounded.Refresh)
                     }
                     if (records.isEmpty()) {
                         Text(copy.noServersBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
@@ -280,7 +277,7 @@ fun CommandManageServersScreen(
                         OutlinedTextField(memAlert, { memAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.srvMemAlert) })
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandPrimaryButton("Save", ::save, icon = Icons.Rounded.Save, enabled = !busy)
+                        CommandPrimaryButton(copy.save, ::save, icon = Icons.Rounded.Save, enabled = !busy)
                         CommandSecondaryButton(copy.srvTestAgent, { test(buildServer()) }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
                     }
                 }
@@ -310,7 +307,7 @@ fun CommandManageServersScreen(
                             Text(copy.srvDossierHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
                         CommandTextButton(copy.srvOpenDossier, { onOpenServer(selected) }, icon = Icons.Rounded.Security)
-                        CommandTextButton("Delete", { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline)
+                        CommandTextButton(copy.delete, { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline)
                     }
                 }
             }
@@ -321,44 +318,45 @@ fun CommandManageServersScreen(
     val serverToDelete = deleteServer
     if (serverToDelete != null) {
         val server = serverToDelete
-        AlertDialog(
-            onDismissRequest = { if (!busy) deleteServer = null },
-            title = { Text(copy.srvDeleteTitle, fontWeight = FontWeight.Bold) },
-            text = { Text("${copy.srvDeleteBody.replace("%1", server.name)}\n\n${server.name} · ${server.host}:${server.port} · #${server.id}") },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (busy) return@TextButton
+        CommandDestructiveDialog(
+            title = copy.srvDeleteTitle,
+            body = "${copy.srvDeleteBody.replace("%1", server.name)}\n\n${server.name} · ${server.host}:${server.port} · #${server.id}",
+            confirmLabel = copy.delete,
+            dismissLabel = copy.cancel,
+            onDismiss = { if (!busy) deleteServer = null },
+            enabled = !busy,
+            onConfirm = {
+                if (!busy) {
                     if (initialLoad.error != null) {
                         deleteServer = null
                         error = securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
-                        return@TextButton
-                    }
-                    busy = true
-                    val current = records.firstOrNull { it.id == server.id }
-                    runCatching {
-                        check(current != null && current.name == server.name && current.host == server.host && current.token == server.token) {
-                            securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
+                    } else {
+                        busy = true
+                        val current = records.firstOrNull { it.id == server.id }
+                        runCatching {
+                            check(current != null && current.name == server.name && current.host == server.host && current.token == server.token) {
+                                securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_BLOCKED)
+                            }
+                            val next = records.filterNot { it.id == server.id }
+                            Prefs.saveServers(context, next)
+                            next
+                        }.onSuccess { next ->
+                            HttpClientPool.evictForServer(server)
+                            records = next
+                            deleteServer = null
+                            reset()
+                            message = copy.srvLocalDeleted
+                        }.onFailure {
+                            deleteServer = null
+                            error = SecretRedactor.redact(
+                                it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED),
+                                listOf(server.token, server.adminToken)
+                            ).take(300)
                         }
-                        val next = records.filterNot { it.id == server.id }
-                        Prefs.saveServers(context, next)
-                        next
-                    }.onSuccess { next ->
-                        HttpClientPool.evictForServer(server)
-                        records = next
-                        deleteServer = null
-                        reset()
-                        message = copy.srvLocalDeleted
-                    }.onFailure {
-                        deleteServer = null
-                        error = SecretRedactor.redact(
-                            it.message ?: securityMessage(Prefs.getLanguage(context), SecurityMessage.SERVER_DELETE_FAILED),
-                            listOf(server.token, server.adminToken)
-                        ).take(300)
+                        busy = false
                     }
-                    busy = false
-                }, enabled = !busy) { Text(copy.delete, color = CommandColors.danger) }
-            },
-            dismissButton = { TextButton(onClick = { deleteServer = null }, enabled = !busy) { Text(copy.cancel) } }
+                }
+            }
         )
     }
 }

@@ -8,7 +8,8 @@
 - رنگ‌ها: `CommandColors` و `CommandPalette` در `CommandTokens.kt`
 - فاصله‌ها: `CommandSpacing`
 - شعاع‌ها: `CommandRadii`
-- اندازه‌های تعاملی: `CommandMetrics`
+- اندازه‌های تعاملی: `CommandMetrics` و نقاط شکست `CommandBreakpoints`
+- elevation: `CommandElevation`؛ glass به‌صورت آگاهانه shadow renderer ندارد و elevation فقط قرارداد معنایی است.
 - کامپوننت‌های مشترک: `CommandUi.kt`, `CommandGlass.kt`, `CommandRedesign.kt`
 - متن قابل مشاهده: `CommandCopy`؛ از متن hardcoded در صفحه‌ها استفاده نشود.
 
@@ -27,6 +28,8 @@
 | دکمهٔ اصلی/فرعی | `CommandPrimaryButton` / `CommandSecondaryButton` |
 | عنوان بخش | `CommandSectionTitle` |
 | وضعیت | `CommandStateBlock` یا `CommandStatusMark` |
+| loading | `CommandLoadingState` / `CommandInlineLoading` |
+| confirmation | `CommandConfirmDialog` / `CommandDestructiveDialog` |
 
 هیچ صفحه‌ای نباید برای کنترل تعاملی کمتر از ۴۸dp تعیین کند. مقدار دستی فقط وقتی مجاز است که از token بزرگ‌تر باشد و دلیلش در کد روشن باشد.
 

@@ -32,12 +32,15 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.WarningAmber
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -368,6 +371,107 @@ fun CommandStateBlock(
 }
 
 @Composable
+fun CommandLoadingState(
+    title: String,
+    body: String? = null,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = CommandSpacing.xxl, horizontal = CommandSpacing.lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(CommandMetrics.iconLarge),
+            color = CommandColors.accent,
+            strokeWidth = 3.dp
+        )
+        Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+        if (!body.isNullOrBlank()) {
+            Text(
+                body,
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = CommandColors.textSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+fun CommandInlineLoading(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = CommandMetrics.touchTarget),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(CommandMetrics.iconSmall),
+            color = CommandColors.accent,
+            strokeWidth = 2.dp
+        )
+        Text(text, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+fun CommandConfirmDialog(
+    title: String,
+    body: String,
+    confirmLabel: String,
+    dismissLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    destructive: Boolean = false,
+    enabled: Boolean = true
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = { Text(body) },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = enabled) {
+                Text(confirmLabel, color = if (destructive) CommandColors.danger else CommandColors.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = enabled) { Text(dismissLabel) }
+        }
+    )
+}
+
+@Composable
+fun CommandDestructiveDialog(
+    title: String,
+    body: String,
+    confirmLabel: String,
+    dismissLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    enabled: Boolean = true
+) {
+    CommandConfirmDialog(
+        title = title,
+        body = body,
+        confirmLabel = confirmLabel,
+        dismissLabel = dismissLabel,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        destructive = true,
+        enabled = enabled
+    )
+}
+
+@Composable
 fun CommandEmptyState(
     title: String,
     body: String,
@@ -553,7 +657,7 @@ fun CommandRingGauge(
 fun CommandTelemetryOrbit(
     tones: List<CommandHealthTone>,
     modifier: Modifier = Modifier,
-    caption: String? = null
+    caption: String
 ) {
     val nodeColors = tones.take(8).map { it.color() }
     val orbitBorder = CommandColors.border
@@ -601,7 +705,7 @@ fun CommandTelemetryOrbit(
             androidx.compose.material3.Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(23.dp))
         }
         Text(
-            caption ?: if (tones.isEmpty()) "NO TELEMETRY" else "${tones.size} NODES",
+            caption,
             color = CommandColors.textTertiary,
             style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
             modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)

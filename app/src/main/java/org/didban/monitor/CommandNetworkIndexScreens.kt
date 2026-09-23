@@ -84,12 +84,12 @@ private fun CommandNetworkIndex(
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
-                        .size(48.dp)
-                        .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                        .border(1.dp, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(14.dp)),
+                        .size(CommandMetrics.touchTarget)
+                        .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon))
+                        .border(1.dp, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(24.dp))
+                    Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
                 }
                 Spacer(Modifier.width(CommandSpacing.sm))
                 Column(Modifier.weight(1f)) {
@@ -111,7 +111,7 @@ private fun CommandNetworkIndex(
                                 .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(23.dp))
+                            Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
                             Spacer(Modifier.width(CommandSpacing.sm))
                             Column(Modifier.weight(1f)) {
                                 Text(content.first, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)

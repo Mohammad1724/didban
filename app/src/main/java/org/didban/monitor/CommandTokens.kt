@@ -158,6 +158,14 @@ object CommandColors {
     val focus: Color @Composable get() = LocalCommandPalette.current.focus
 }
 
+object CommandBreakpoints {
+    /** Smallest supported content width; layout and font-scale tests target it. */
+    val phoneMin = 320.dp
+    /** At this width the bottom navigation can become a rail. */
+    val formStack = 420.dp
+    val rail = 840.dp
+}
+
 object CommandSpacing {
     val xxs = 4.dp
     val xs = 8.dp
@@ -173,6 +181,13 @@ object CommandSpacing {
  * Keep controls usable at the smallest supported phone width and with larger
  * system fonts. Screens may choose a larger value, never a smaller one.
  */
+/** Elevation tokens are explicit even though glass surfaces avoid renderer shadows. */
+object CommandElevation {
+    val flat = 0.dp
+    val raised = 4.dp
+    val dialog = 8.dp
+}
+
 object CommandMetrics {
     val touchTarget = 48.dp
     val controlMinHeight = 48.dp
@@ -181,6 +196,7 @@ object CommandMetrics {
     val iconMedium = 22.dp
     val iconLarge = 28.dp
     val launcherIcon = 56.dp
+    val navigationRailWidth = 96.dp
 }
 
 /**
@@ -716,6 +732,8 @@ interface CommandCopy {
     val svcLoad: String
     val svcNoLiveData: String
     val svcOnlySystemdUnits: String
+    val svcCount: String
+    val svcLogs: String
     val svcRawSsh: String
     val setPollIntervalSec: String
     val setResetVault: String
@@ -770,6 +788,24 @@ interface CommandCopy {
     val wtRealitySni: String
     val wtFallbackPort: String
     val wtGeneratedArtifact: String
+    val wtToolBase64: String
+    val wtToolJson: String
+    val wtToolHash: String
+    val wtToolSubnet: String
+    val wtToolJwt: String
+    val wtToolGenerator: String
+    val wtBase64Encode: String
+    val wtBase64Decode: String
+    val wtUrlEncode: String
+    val wtUrlDecode: String
+    val wtFormatted: String
+    val wtMinified: String
+    val wtHashDetected: String
+    val wtHeader: String
+    val wtPayload: String
+    val wtExpired: String
+    val wtExpiry: String
+    val wtNotProvided: String
     val runVerb: String
     val outputTitle: String
     val genTitle: String
@@ -829,6 +865,30 @@ interface CommandCopy {
     val tunVirtualForeignIp: String
     val tunRemoteOps: String
     val tunGeneratedEvidence: String
+    val tunNew: String
+    val tunCore: String
+    val tunTransport: String
+    val tunEndpoints: String
+    val tunPreset: String
+    val tunEncryption: String
+    val tunMtu: String
+    val tunAcceptUdp: String
+    val tunProxyProtocol: String
+    val tunAutoSync: String
+    val tunEnabled: String
+    val tunGenerate: String
+    val tunOperation: String
+    val tunCopyArtifact: String
+    val tunArtifactIranConfig: String
+    val tunArtifactForeignConfig: String
+    val tunArtifactIranInstall: String
+    val tunArtifactForeignInstall: String
+    val tunArtifactDockerIran: String
+    val tunArtifactDockerForeign: String
+    val tunReachable: String
+    val tunUnreachable: String
+    val tunDefaultName: String
+    val tunFallbackName: String
     val srvNewConnection: String
     val srvEditConnection: String
     val srvAgentHost: String
@@ -850,6 +910,7 @@ interface CommandCopy {
     val srvSavedActions: String
     val srvOpenDossier: String
     val srvSavedCount: String
+    val srvConnections: String
     val dnsNoToken: String
     val dnsZonesLoadFailed: String
     val dnsRecordsLoadFailed: String
@@ -1020,6 +1081,37 @@ interface CommandCopy {
     val netNoOpenPorts: String
     val netOnlyAnsweredPorts: String
     val netProbeBody: String
+    val netModeDpi: String
+    val netModePorts: String
+    val netModeCertificate: String
+    val netModeGeoDns: String
+    val netRunMode: String
+    val netCopyResult: String
+    val netOpenPortsFound: String
+    val netOpen: String
+    val netTlsCertificateSummary: String
+    val netTcpReachable: String
+    val netTlsReachable: String
+    val netFiltered: String
+    val netLatency: String
+    val netSubject: String
+    val netIssuer: String
+    val netValid: String
+    val netSerial: String
+    val netSignature: String
+    val netFingerprint: String
+    val netSan: String
+    val netYes: String
+    val netNo: String
+    val dnsOperation: String
+    val dnsZones: String
+    val dnsRecords: String
+    val dnsNewRecord: String
+    val dnsContent: String
+    val dnsTtl: String
+    val dnsProxied: String
+    val dnsLookup: String
+    val dnsNoIsp: String
     val svcNoPassword: String
     val svcFetching: String
     val svcReadingJournal: String
@@ -1469,6 +1561,8 @@ internal object CommandCopyFa : CommandCopy {
     override val svcLoad = "بارگذاری سرویس‌ها"
     override val svcNoLiveData = "دادهٔ زنده‌ای از سرویس‌ها نیست"
     override val svcOnlySystemdUnits = "فقط unitهایی که systemd برمی‌گرداند نمایش داده می‌شوند."
+    override val svcCount = "%1 از %2 سرویس"
+    override val svcLogs = "لاگ‌ها"
     override val svcRawSsh = "نتیجهٔ خام SSH"
     override val setPollIntervalSec = "فاصلهٔ polling (ثانیه)"
     override val setResetVault = "بازنشانی Vault"
@@ -1523,6 +1617,24 @@ internal object CommandCopyFa : CommandCopy {
     override val wtRealitySni = "SNI REALITY"
     override val wtFallbackPort = "پورت محلی fallback"
     override val wtGeneratedArtifact = "فایل ساخته‌شده"
+    override val wtToolBase64 = "Base64 / URL"
+    override val wtToolJson = "JSON"
+    override val wtToolHash = "Hash"
+    override val wtToolSubnet = "Subnet"
+    override val wtToolJwt = "JWT"
+    override val wtToolGenerator = "سازنده"
+    override val wtBase64Encode = "کدگذاری Base64"
+    override val wtBase64Decode = "گشایش Base64"
+    override val wtUrlEncode = "کدگذاری URL"
+    override val wtUrlDecode = "گشایش URL"
+    override val wtFormatted = "قالب‌بندی‌شده"
+    override val wtMinified = "فشرده"
+    override val wtHashDetected = "تشخیص"
+    override val wtHeader = "Header"
+    override val wtPayload = "Payload"
+    override val wtExpired = "منقضی‌شده"
+    override val wtExpiry = "انقضا"
+    override val wtNotProvided = "ارائه نشده"
     override val runVerb = "اجرا"
     override val outputTitle = "خروجی"
     override val genTitle = "سازندهٔ گذرواژه و شناسهٔ یکتا"
@@ -1582,6 +1694,30 @@ internal object CommandCopyFa : CommandCopy {
     override val tunVirtualForeignIp = "IP مجازی خارج"
     override val tunRemoteOps = "عملیات راه دور"
     override val tunGeneratedEvidence = "شواهد تولیدشده"
+    override val tunNew = "جدید"
+    override val tunCore = "Core"
+    override val tunTransport = "Transport"
+    override val tunEndpoints = "نقاط اتصال"
+    override val tunPreset = "Preset"
+    override val tunEncryption = "Encryption"
+    override val tunMtu = "MTU"
+    override val tunAcceptUdp = "پذیرش UDP"
+    override val tunProxyProtocol = "Proxy protocol"
+    override val tunAutoSync = "همگام‌سازی خودکار"
+    override val tunEnabled = "فعال"
+    override val tunGenerate = "تولید"
+    override val tunOperation = "نتیجهٔ عملیات"
+    override val tunCopyArtifact = "کپی"
+    override val tunArtifactIranConfig = "تنظیمات ایران"
+    override val tunArtifactForeignConfig = "تنظیمات خارج"
+    override val tunArtifactIranInstall = "نصب ایران"
+    override val tunArtifactForeignInstall = "نصب خارج"
+    override val tunArtifactDockerIran = "Docker ایران"
+    override val tunArtifactDockerForeign = "Docker خارج"
+    override val tunReachable = "تونل در دسترس است · %1 ms"
+    override val tunUnreachable = "تونل در دسترس نیست"
+    override val tunDefaultName = "تونل جدید"
+    override val tunFallbackName = "تونل %1"
     override val srvNewConnection = "اتصال جدید"
     override val srvEditConnection = "ویرایش اتصال"
     override val srvAgentHost = "آدرس ایجنت"
@@ -1603,6 +1739,7 @@ internal object CommandCopyFa : CommandCopy {
     override val srvSavedActions = "عملیات‌های ذخیره‌شده"
     override val srvOpenDossier = "بازکردن پرونده"
     override val srvSavedCount = "%1 اتصال ذخیره‌شده"
+    override val srvConnections = "اتصال‌ها"
     override val dnsNoToken = "Cloudflare API token وارد نشده است."
     override val dnsZonesLoadFailed = "Zoneها بارگذاری نشدند."
     override val dnsRecordsLoadFailed = "Recordها بارگذاری نشدند."
@@ -1773,6 +1910,37 @@ internal object CommandCopyFa : CommandCopy {
     override val netNoOpenPorts = "هیچ پورت باز از مجموعهٔ common portها پاسخ نداد."
     override val netOnlyAnsweredPorts = "فقط پورت‌هایی که واقعاً پاسخ دادند نمایش داده می‌شوند."
     override val netProbeBody = "Probe از دستگاه فعلی اجرا می‌شود؛ نتیجه فقط پس از پاسخ واقعی شبکه نمایش داده می‌شود."
+    override val netModeDpi = "DPI / TLS"
+    override val netModePorts = "اسکن پورت"
+    override val netModeCertificate = "گواهی TLS"
+    override val netModeGeoDns = "GeoIP / DNS"
+    override val netRunMode = "اجرای %1"
+    override val netCopyResult = "کپی نتیجه"
+    override val netOpenPortsFound = "%1 پورت باز پیدا شد"
+    override val netOpen = "باز"
+    override val netTlsCertificateSummary = "گواهی TLS · %1 روز اعتبار باقی مانده"
+    override val netTcpReachable = "دسترسی TCP: %1"
+    override val netTlsReachable = "دسترسی TLS: %1"
+    override val netFiltered = "فیلترشده: %1"
+    override val netLatency = "تأخیر: %1 ms"
+    override val netSubject = "Subject"
+    override val netIssuer = "Issuer"
+    override val netValid = "اعتبار"
+    override val netSerial = "Serial"
+    override val netSignature = "Signature"
+    override val netFingerprint = "Fingerprint SHA-256"
+    override val netSan = "SAN"
+    override val netYes = "بله"
+    override val netNo = "خیر"
+    override val dnsOperation = "نتیجهٔ عملیات"
+    override val dnsZones = "Zoneها"
+    override val dnsRecords = "Recordها · %1"
+    override val dnsNewRecord = "Record جدید"
+    override val dnsContent = "Content"
+    override val dnsTtl = "TTL"
+    override val dnsProxied = "Proxied"
+    override val dnsLookup = "Lookup"
+    override val dnsNoIsp = "بدون ISP"
     override val svcNoPassword = "رمز SSH وارد نشده است."
     override val svcFetching = "در حال دریافت سرویس‌ها"
     override val svcReadingJournal = "در حال خواندن Journal"
@@ -2215,6 +2383,8 @@ internal object CommandCopyEn : CommandCopy {
     override val svcLoad = "Load services"
     override val svcNoLiveData = "No live service data"
     override val svcOnlySystemdUnits = "Only units returned by systemd are shown."
+    override val svcCount = "%1 of %2 services"
+    override val svcLogs = "Logs"
     override val svcRawSsh = "raw SSH result"
     override val setPollIntervalSec = "Poll interval (seconds)"
     override val setResetVault = "Reset Vault"
@@ -2269,6 +2439,24 @@ internal object CommandCopyEn : CommandCopy {
     override val wtRealitySni = "REALITY SNI"
     override val wtFallbackPort = "Fallback local port"
     override val wtGeneratedArtifact = "Generated file"
+    override val wtToolBase64 = "Base64 / URL"
+    override val wtToolJson = "JSON"
+    override val wtToolHash = "Hash"
+    override val wtToolSubnet = "Subnet"
+    override val wtToolJwt = "JWT"
+    override val wtToolGenerator = "Generator"
+    override val wtBase64Encode = "Base64 encode"
+    override val wtBase64Decode = "Base64 decode"
+    override val wtUrlEncode = "URL encode"
+    override val wtUrlDecode = "URL decode"
+    override val wtFormatted = "Formatted"
+    override val wtMinified = "Minified"
+    override val wtHashDetected = "Detected"
+    override val wtHeader = "Header"
+    override val wtPayload = "Payload"
+    override val wtExpired = "Expired"
+    override val wtExpiry = "Expiry"
+    override val wtNotProvided = "not provided"
     override val runVerb = "Run"
     override val outputTitle = "Output"
     override val genTitle = "Password & UUID generator"
@@ -2328,6 +2516,30 @@ internal object CommandCopyEn : CommandCopy {
     override val tunVirtualForeignIp = "Virtual foreign IP"
     override val tunRemoteOps = "Remote operations"
     override val tunGeneratedEvidence = "Generated evidence"
+    override val tunNew = "New"
+    override val tunCore = "Core"
+    override val tunTransport = "Transport"
+    override val tunEndpoints = "Endpoints"
+    override val tunPreset = "Preset"
+    override val tunEncryption = "Encryption"
+    override val tunMtu = "MTU"
+    override val tunAcceptUdp = "Accept UDP"
+    override val tunProxyProtocol = "Proxy protocol"
+    override val tunAutoSync = "Auto sync"
+    override val tunEnabled = "Enabled"
+    override val tunGenerate = "Generate"
+    override val tunOperation = "Operation result"
+    override val tunCopyArtifact = "Copy"
+    override val tunArtifactIranConfig = "Iran config"
+    override val tunArtifactForeignConfig = "Foreign config"
+    override val tunArtifactIranInstall = "Iran install"
+    override val tunArtifactForeignInstall = "Foreign install"
+    override val tunArtifactDockerIran = "Docker Iran"
+    override val tunArtifactDockerForeign = "Docker Foreign"
+    override val tunReachable = "Tunnel reachable · %1 ms"
+    override val tunUnreachable = "Tunnel unreachable"
+    override val tunDefaultName = "New tunnel"
+    override val tunFallbackName = "Tunnel %1"
     override val srvNewConnection = "New connection"
     override val srvEditConnection = "Edit connection"
     override val srvAgentHost = "Agent host"
@@ -2349,6 +2561,7 @@ internal object CommandCopyEn : CommandCopy {
     override val srvSavedActions = "Saved actions"
     override val srvOpenDossier = "Open dossier"
     override val srvSavedCount = "%1 saved connections"
+    override val srvConnections = "Connections"
     override val dnsNoToken = "No Cloudflare API token entered."
     override val dnsZonesLoadFailed = "Zones failed to load."
     override val dnsRecordsLoadFailed = "Records failed to load."
@@ -2519,6 +2732,37 @@ internal object CommandCopyEn : CommandCopy {
     override val netNoOpenPorts = "No port in the common set responded."
     override val netOnlyAnsweredPorts = "Only ports that actually responded are shown."
     override val netProbeBody = "The probe runs from this device; results appear only after a real network response."
+    override val netModeDpi = "DPI / TLS"
+    override val netModePorts = "Port scan"
+    override val netModeCertificate = "TLS certificate"
+    override val netModeGeoDns = "GeoIP / DNS"
+    override val netRunMode = "Run %1"
+    override val netCopyResult = "Copy result"
+    override val netOpenPortsFound = "%1 open ports found"
+    override val netOpen = "Open"
+    override val netTlsCertificateSummary = "TLS certificate · %1 days remaining"
+    override val netTcpReachable = "TCP reachable: %1"
+    override val netTlsReachable = "TLS reachable: %1"
+    override val netFiltered = "Filtered: %1"
+    override val netLatency = "Latency: %1 ms"
+    override val netSubject = "Subject"
+    override val netIssuer = "Issuer"
+    override val netValid = "Valid"
+    override val netSerial = "Serial"
+    override val netSignature = "Signature"
+    override val netFingerprint = "Fingerprint SHA-256"
+    override val netSan = "SAN"
+    override val netYes = "Yes"
+    override val netNo = "No"
+    override val dnsOperation = "Operation result"
+    override val dnsZones = "Zones"
+    override val dnsRecords = "Records · %1"
+    override val dnsNewRecord = "New record"
+    override val dnsContent = "Content"
+    override val dnsTtl = "TTL"
+    override val dnsProxied = "Proxied"
+    override val dnsLookup = "Lookup"
+    override val dnsNoIsp = "No ISP"
     override val svcNoPassword = "No SSH password entered."
     override val svcFetching = "Fetching services"
     override val svcReadingJournal = "Reading journal"

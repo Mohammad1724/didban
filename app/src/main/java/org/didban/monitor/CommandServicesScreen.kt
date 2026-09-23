@@ -195,7 +195,7 @@ fun CommandServicesScreen(
             if (services.isEmpty() && !loading && error == null) {
                 item { CommandStateBlock(copy.svcNoLiveData, copy.svcLoadHint.replace("%1", server?.host ?: copy.svcSelectedServer), CommandHealthTone.UNKNOWN) }
             } else {
-                item { CommandStatusMark("${visibleServices.size} / ${services.size} services", CommandHealthTone.INFO, detail = copy.svcOnlySystemdUnits) }
+                item { CommandStatusMark(copy.svcCount.replace("%1", visibleServices.size.toString()).replace("%2", services.size.toString()), CommandHealthTone.INFO, detail = copy.svcOnlySystemdUnits) }
                 items(visibleServices, key = { it.unit }) { service ->
                     val tone = when {
                         service.active == "failed" || service.sub == "failed" -> CommandHealthTone.OFFLINE
@@ -210,10 +210,10 @@ fun CommandServicesScreen(
                                 detail = "${service.active} (${service.sub}) · ${service.description}"
                             )
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                                CommandSecondaryButton("Start", { pendingAction = PendingServiceAction(service.unit, "start", server?.id) }, enabled = !loading, icon = Icons.Rounded.PlayArrow)
-                                CommandSecondaryButton("Stop", { pendingAction = PendingServiceAction(service.unit, "stop", server?.id) }, enabled = !loading, icon = Icons.Rounded.Stop)
-                                CommandSecondaryButton("Restart", { pendingAction = PendingServiceAction(service.unit, "restart", server?.id) }, enabled = !loading, icon = Icons.Rounded.Refresh)
-                                CommandSecondaryButton("Logs", { runAction(PendingServiceAction(service.unit, "logs", server?.id)) }, enabled = !loading, icon = Icons.Rounded.Terminal)
+                                CommandSecondaryButton(copy.start, { pendingAction = PendingServiceAction(service.unit, "start", server?.id) }, enabled = !loading, icon = Icons.Rounded.PlayArrow)
+                                CommandSecondaryButton(copy.stop, { pendingAction = PendingServiceAction(service.unit, "stop", server?.id) }, enabled = !loading, icon = Icons.Rounded.Stop)
+                                CommandSecondaryButton(copy.restart, { pendingAction = PendingServiceAction(service.unit, "restart", server?.id) }, enabled = !loading, icon = Icons.Rounded.Refresh)
+                                CommandSecondaryButton(copy.svcLogs, { runAction(PendingServiceAction(service.unit, "logs", server?.id)) }, enabled = !loading, icon = Icons.Rounded.Terminal)
                             }
                         }
                     }

@@ -2,6 +2,7 @@ package org.didban.monitor
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,11 +39,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-private enum class NetworkDiagnosticMode(val label: String) {
-    DPI("DPI / TLS"),
-    PORTS("Port scan"),
-    CERTIFICATE("TLS certificate"),
-    GEO_DNS("GeoIP / DNS")
+private enum class NetworkDiagnosticMode {
+    DPI,
+    PORTS,
+    CERTIFICATE,
+    GEO_DNS
+}
+
+private fun NetworkDiagnosticMode.label(copy: CommandCopy): String = when (this) {
+    NetworkDiagnosticMode.DPI -> copy.netModeDpi
+    NetworkDiagnosticMode.PORTS -> copy.netModePorts
+    NetworkDiagnosticMode.CERTIFICATE -> copy.netModeCertificate
+    NetworkDiagnosticMode.GEO_DNS -> copy.netModeGeoDns
 }
 
 @Composable
@@ -59,6 +67,7 @@ fun CommandNetworkToolsScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<String?>(null) }
+    var summaryTone by remember { mutableStateOf(CommandHealthTone.INFO) }
     var detail by remember { mutableStateOf("") }
     var portResults by remember { mutableStateOf<List<PortScanResult>>(emptyList()) }
 
@@ -72,6 +81,7 @@ fun CommandNetworkToolsScreen(
         loading = true
         error = null
         summary = null
+        summaryTone = CommandHealthTone.INFO
         detail = ""
         portResults = emptyList()
         scope.launch {
@@ -80,7 +90,15 @@ fun CommandNetworkToolsScreen(
                     NetworkDiagnosticMode.DPI -> {
                         val result = CensorshipTester.diagnose(clean, targetPort)
                         summary = result.diagnosis
-                        detail = "TCP reachable: ${result.tcpReachable}\nTLS reachable: ${result.tlsReachable}\nFiltered: ${result.isFiltered}\nLatency: ${result.latencyMs} ms\n\n${result.details}"
+                        summaryTone = if (result.isFiltered) CommandHealthTone.OFFLINE else CommandHealthTone.INFO
+                        val yes = { value: Boolean -> if (value) copy.netYes else copy.netNo }
+                        detail = listOf(
+                            copy.netTcpReachable.replace("%1", yes(result.tcpReachable)),
+                            copy.netTlsReachable.replace("%1", yes(result.tlsReachable)),
+                            copy.netFiltered.replace("%1", yes(result.isFiltered)),
+                            copy.netLatency.replace("%1", result.latencyMs.toString()),
+                            result.details
+                        ).joinToString("\n")
                     }
                     NetworkDiagnosticMode.PORTS -> {
                         val found = mutableListOf<PortScanResult>()
@@ -88,17 +106,28 @@ fun CommandNetworkToolsScreen(
                             if (result.isOpen) found.add(result)
                         }
                         portResults = found.sortedBy { it.port }
-                        summary = "${portResults.size} open ports found"
+                        summary = copy.netOpenPortsFound.replace("%1", portResults.size.toString())
+                        summaryTone = if (portResults.isEmpty()) CommandHealthTone.ATTENTION else CommandHealthTone.HEALTHY
                         detail = if (portResults.isEmpty()) copy.netNoOpenPorts else copy.netOnlyAnsweredPorts
                     }
                     NetworkDiagnosticMode.CERTIFICATE -> {
                         val cert = SslInspector.inspect(clean, targetPort)
-                        summary = "TLS certificate · ${cert.daysRemaining} days remaining"
-                        detail = "Subject: ${cert.subject}\nIssuer: ${cert.issuer}\nValid: ${cert.validFrom} → ${cert.validTo}\nSerial: ${cert.serialNumber}\nSignature: ${cert.sigAlg}\nFingerprint SHA-256: ${cert.fingerprintSha256}\nSAN: ${cert.sans.joinToString()}"
+                        summary = copy.netTlsCertificateSummary.replace("%1", cert.daysRemaining.toString())
+                        summaryTone = if (cert.daysRemaining < 0) CommandHealthTone.OFFLINE else if (cert.daysRemaining < 30) CommandHealthTone.ATTENTION else CommandHealthTone.HEALTHY
+                        detail = listOf(
+                            "${copy.netSubject}: ${cert.subject}",
+                            "${copy.netIssuer}: ${cert.issuer}",
+                            "${copy.netValid}: ${cert.validFrom} → ${cert.validTo}",
+                            "${copy.netSerial}: ${cert.serialNumber}",
+                            "${copy.netSignature}: ${cert.sigAlg}",
+                            "${copy.netFingerprint}: ${cert.fingerprintSha256}",
+                            "${copy.netSan}: ${cert.sans.joinToString()}"
+                        ).joinToString("\n")
                     }
                     NetworkDiagnosticMode.GEO_DNS -> {
                         val info = IpInfoService.lookup(clean)
                         summary = "${info.flag} ${info.country} · ${info.ip}"
+                        summaryTone = CommandHealthTone.INFO
                         detail = "${copy.netDomainLabel}: ${info.domainName.ifBlank { "—" }}\n${copy.netReverseDnsLabel}: ${info.reverseDns.ifBlank { "—" }}\n${copy.netIspLabel}: ${info.isp.ifBlank { "—" }}\n${copy.netAsnLabel}: ${info.asn.ifBlank { "—" }}\n${copy.netRegionLabel}: ${info.region} / ${info.city}\n${copy.netDnsRecordsLabel}: ${info.dnsRecords.size}"
                     }
                 }
@@ -120,7 +149,7 @@ fun CommandNetworkToolsScreen(
         item {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
                 NetworkDiagnosticMode.values().forEach { candidate ->
-                    CommandSecondaryButton(candidate.label, { mode = candidate }, enabled = mode != candidate)
+                    CommandSecondaryButton(candidate.label(copy), { mode = candidate }, enabled = mode != candidate)
                 }
             }
         }
@@ -128,25 +157,42 @@ fun CommandNetworkToolsScreen(
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.netProbeInput, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.netHostDomain) })
-                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        if (maxWidth < CommandBreakpoints.formStack) {
+                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                                OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.netHostDomain) })
+                                OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.port) })
+                            }
+                        } else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(host, { host = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.netHostDomain) })
+                                OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                            }
+                        }
                     }
                     Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                    CommandPrimaryButton(if (loading) copy.waitingForData else "Run ${mode.label}", ::run, enabled = !loading, icon = Icons.Rounded.PlayArrow)
+                    CommandPrimaryButton(
+                        if (loading) copy.waitingForData else copy.netRunMode.replace("%1", mode.label(copy)),
+                        ::run,
+                        enabled = !loading,
+                        icon = Icons.Rounded.PlayArrow
+                    )
                 }
             }
         }
-        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, ::run) }
+        if (loading && summary == null && error == null) item {
+            CommandLoadingState(copy.waitingForData, copy.netProbeBody)
+        }
         if (summary != null) {
             item {
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         val currentSummary = summary.orEmpty()
-                        CommandStatusMark(currentSummary, if (currentSummary.contains("failed", true) || currentSummary.contains("filtered", true)) CommandHealthTone.OFFLINE else CommandHealthTone.INFO)
+                        CommandStatusMark(currentSummary, summaryTone)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(detail, Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 30, overflow = TextOverflow.Ellipsis)
-                            CommandTextButton("Copy", { clipboard.setText(AnnotatedString(detail)) }, icon = Icons.Rounded.ContentCopy)
+                            CommandTextButton(copy.netCopyResult, { clipboard.setText(AnnotatedString(detail)) }, icon = Icons.Rounded.ContentCopy)
                         }
                     }
                 }
@@ -157,7 +203,7 @@ fun CommandNetworkToolsScreen(
             items(portResults, key = { it.port }) { result ->
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        CommandStatusMark("OPEN", CommandHealthTone.HEALTHY, Modifier.weight(1f), "${result.port} · ${result.service}")
+                        CommandStatusMark(copy.netOpen, CommandHealthTone.HEALTHY, Modifier.weight(1f), "${result.port} · ${result.service}")
                         Text("${result.latencyMs} ms", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                     }
                 }

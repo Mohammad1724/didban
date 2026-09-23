@@ -364,7 +364,7 @@ fun CommandCenterApp(
         )
 
         BoxWithConstraints(Modifier.fillMaxSize().commandAtmosphere()) {
-            val wide = maxWidth >= 840.dp
+            val wide = maxWidth >= CommandBreakpoints.rail
             @Composable fun page() {
                 Column(Modifier.fillMaxSize()) {
                     if (route != CommandRoute.FLEET) {
