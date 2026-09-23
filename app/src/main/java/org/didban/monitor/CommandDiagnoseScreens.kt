@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -30,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
@@ -272,9 +270,9 @@ private fun CommandRadarContent(
                             FilterChip(targetMode == "tcp", { targetMode = "tcp" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("TCP") })
                             FilterChip(targetMode == "http", { targetMode = "http" }, shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.pill), label = { Text("HTTP") })
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = Modifier.weight(1f), singleLine = true)
-                            OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = Modifier.width(110.dp), singleLine = true)
+                        CommandResponsiveRow {
+                            OutlinedTextField(targetHost, { targetHost = it }, label = { Text(copy.host) }, placeholder = { Text(copy.radarTargetHostHint) }, modifier = item(weight = 1f), singleLine = true)
+                            OutlinedTextField(targetPort, { targetPort = it.filter(Char::isDigit).take(5) }, label = { Text(copy.port) }, modifier = item(width = CommandMetrics.formAuxFieldWidth), singleLine = true)
                         }
                         CommandPrimaryButton(copy.addTarget, ::syncTarget, enabled = !loading)
                     }

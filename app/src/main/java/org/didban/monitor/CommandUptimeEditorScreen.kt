@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -40,7 +39,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @Composable
@@ -183,16 +181,16 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                             CommandSecondaryButton(candidate, { type = candidate }, enabled = type != candidate)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(target, { target = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upTargetUrlHost) }, placeholder = { Text(copy.radarTargetHostHint) })
-                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                    CommandResponsiveRow {
+                        OutlinedTextField(target, { target = it }, item(weight = 1f), singleLine = true, label = { Text(copy.upTargetUrlHost) }, placeholder = { Text(copy.radarTargetHostHint) })
+                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.upIntervalSeconds) })
+                    CommandResponsiveRow {
+                        OutlinedTextField(interval, { interval = it.filter(Char::isDigit).take(5) }, item(weight = 1f), singleLine = true, label = { Text(copy.upIntervalSeconds) })
                         // The keyword field only makes sense for KEYWORD
                         // checks; showing it always confused HTTP/TCP users.
                         if (type == "KEYWORD") {
-                            OutlinedTextField(keyword, { keyword = it }, Modifier.weight(2f), singleLine = true, label = { Text(copy.upKeywordHint) })
+                            OutlinedTextField(keyword, { keyword = it }, item(weight = 2f), singleLine = true, label = { Text(copy.upKeywordHint) })
                         }
                     }
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -207,9 +205,9 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
             }
         }
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                CommandPrimaryButton(copy.save, ::save, Modifier.weight(1f), Icons.Rounded.Save, enabled = !busy)
-                CommandSecondaryButton(copy.upTestNow, ::test, Modifier.weight(1f), Icons.Rounded.PlayArrow, enabled = !busy)
+            CommandResponsiveRow {
+                CommandPrimaryButton(copy.save, ::save, modifier = item(weight = 1f), icon = Icons.Rounded.Save, enabled = !busy)
+                CommandSecondaryButton(copy.upTestNow, ::test, modifier = item(weight = 1f), icon = Icons.Rounded.PlayArrow, enabled = !busy)
             }
         }
         if (selected != null) {
@@ -221,9 +219,9 @@ fun CommandUptimeEditorScreen(copy: CommandCopy, onBack: () -> Unit) {
                             if (selected.lastStatus == 1) CommandHealthTone.HEALTHY else if (selected.lastStatus == 0) CommandHealthTone.OFFLINE else CommandHealthTone.UNKNOWN,
                             detail = "${selected.lastLatencyMs} ms · ${selected.intervalSec}s"
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            CommandSecondaryButton(if (selected.isPaused) copy.upResume else copy.upPause, { UptimeEngine.togglePause(context, selected.id) }, icon = if (selected.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause)
-                            CommandTextButton(copy.delete, { deleteTarget = selected }, icon = Icons.Rounded.DeleteOutline)
+                        CommandResponsiveRow {
+                            CommandSecondaryButton(if (selected.isPaused) copy.upResume else copy.upPause, { UptimeEngine.togglePause(context, selected.id) }, modifier = item(), icon = if (selected.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause)
+                            CommandTextButton(copy.delete, { deleteTarget = selected }, modifier = item(), icon = Icons.Rounded.DeleteOutline)
                         }
                         if (selected.incidents.isNotEmpty()) {
                             Text(copy.upIncidentCount.replace("%1", selected.incidents.size.toString()), color = CommandColors.warning, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)

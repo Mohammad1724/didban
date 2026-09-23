@@ -179,14 +179,14 @@ fun CommandServicesScreen(
                                 CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id)
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                        CommandResponsiveRow {
+                            OutlinedTextField(user, { user = it }, item(weight = 1f), singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
                         }
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            OutlinedTextField(query, { query = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.svcFilter) })
-                            CommandPrimaryButton(if (loading) (operation ?: copy.waitingForData) else copy.svcLoad, ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
+                        CommandResponsiveRow {
+                            OutlinedTextField(query, { query = it }, item(weight = 1f), singleLine = true, label = { Text(copy.svcFilter) })
+                            CommandPrimaryButton(if (loading) (operation ?: copy.waitingForData) else copy.svcLoad, ::refresh, modifier = item(), enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
                         }
                     }
                 }

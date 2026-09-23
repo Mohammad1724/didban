@@ -301,16 +301,16 @@ fun CommandSecurityScreen(
                             enabled = !busy,
                             icon = Icons.Rounded.Shield
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        CommandResponsiveRow {
                             OutlinedTextField(
                                 portToAllow, { portToAllow = it.filter(Char::isDigit).take(5) },
-                                modifier = Modifier.weight(1f), singleLine = true,
+                                modifier = item(weight = 1f), singleLine = true,
                                 label = { Text(copy.securityPortToAllow) }
                             )
                             CommandSecondaryButton(copy.securityAllow, {
                                 val port = SecurityValidation.validatePort(portToAllow)
                                 if (port == null) error = copy.securityBadPort else { pendingPort = port; pendingPortServerId = server?.id }
-                            }, enabled = !busy, icon = Icons.Rounded.Add)
+                            }, modifier = item(), enabled = !busy, icon = Icons.Rounded.Add)
                         }
                         if (firewallOutput.isNotBlank()) {
                             CommandRule()

@@ -187,20 +187,20 @@ internal fun CommandBandwidthScreen(
                 item {
                     CommandSurface(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                            CommandResponsiveRow {
                                 CommandMetricTile(
                                     copy.download,
                                     "${"%,.1f".format(r.downloadMbps)}",
                                     "Mbps",
                                     toneFor(r.downloadMbps),
-                                    Modifier.weight(1f)
+                                    item(weight = 1f)
                                 )
                                 CommandMetricTile(
                                     copy.upload,
                                     "${"%,.1f".format(r.uploadMbps)}",
                                     "Mbps",
                                     toneFor(r.uploadMbps),
-                                    Modifier.weight(1f)
+                                    item(weight = 1f)
                                 )
                             }
                             CommandRule()

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -41,7 +40,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -122,9 +120,9 @@ fun CommandSshScreen(
                                 CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f))
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(user, { user = it }, modifier = Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, modifier = Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                        CommandResponsiveRow {
+                            OutlinedTextField(user, { user = it }, modifier = item(weight = 1f), singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, modifier = item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
                         }
                         OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     }

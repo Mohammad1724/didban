@@ -249,17 +249,17 @@ internal fun CommandServerEditor(
                             CommandSecondaryButton(copy.srvFetchFingerprint, ::fetchFingerprint, enabled = !busy && draft.host.isNotBlank())
                         }
                         item {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(draft.cpuAlert, { input -> change { current -> current.copy(cpuAlert = input.filter(Char::isDigit).take(3)) } }, Modifier.weight(1f), enabled = !busy, singleLine = true, label = { Text(copy.srvCpuAlert) })
-                                OutlinedTextField(draft.memAlert, { input -> change { current -> current.copy(memAlert = input.filter(Char::isDigit).take(3)) } }, Modifier.weight(1f), enabled = !busy, singleLine = true, label = { Text(copy.srvMemAlert) })
+                            CommandResponsiveRow {
+                                OutlinedTextField(draft.cpuAlert, { input -> change { current -> current.copy(cpuAlert = input.filter(Char::isDigit).take(3)) } }, item(weight = 1f), enabled = !busy, singleLine = true, label = { Text(copy.srvCpuAlert) })
+                                OutlinedTextField(draft.memAlert, { input -> change { current -> current.copy(memAlert = input.filter(Char::isDigit).take(3)) } }, item(weight = 1f), enabled = !busy, singleLine = true, label = { Text(copy.srvMemAlert) })
                             }
                         }
                         if (error != null) item { CommandStateBlock(copy.operationFailed, error.orEmpty(), CommandHealthTone.OFFLINE) }
                         if (message != null) item { CommandStateBlock(copy.srvConnectionResult, message.orEmpty(), CommandHealthTone.INFO) }
                     }
-                    Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandPrimaryButton(copy.save, ::save, enabled = !busy, modifier = Modifier.weight(1f))
-                        CommandSecondaryButton(if (busy) copy.srvConnecting else copy.srvTestAgent, ::test, enabled = !busy, modifier = Modifier.weight(1f))
+                    CommandResponsiveRow(Modifier.padding(top = CommandSpacing.sm)) {
+                        CommandPrimaryButton(copy.save, ::save, enabled = !busy, modifier = item(weight = 1f))
+                        CommandSecondaryButton(if (busy) copy.srvConnecting else copy.srvTestAgent, ::test, enabled = !busy, modifier = item(weight = 1f))
                     }
                 }
             }

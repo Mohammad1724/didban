@@ -7,9 +7,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,6 +61,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.cos
@@ -77,6 +80,54 @@ fun CommandPage(
             .padding(horizontal = CommandSpacing.md),
         content = content
     )
+}
+
+/**
+ * Shared form geometry: two or more siblings stay in one row on wide content,
+ * but become full-width siblings below the product form breakpoint. The
+ * screen supplies only semantic slots; breakpoint logic and spacing live here.
+ *
+ * `item(weight = ...)` is applied only in the wide Row. On a narrow device the
+ * same slot is full width, so no field or action is squeezed into a fixed row.
+ */
+internal class CommandResponsiveRowScope internal constructor(
+    private val stacked: Boolean,
+    private val rowScope: RowScope?
+) {
+    fun item(weight: Float? = null, width: Dp? = null): Modifier {
+        if (stacked) return Modifier.fillMaxWidth()
+        val base = width?.let { Modifier.width(it) } ?: Modifier
+        return if (weight != null && rowScope != null) {
+            with(rowScope) { base.weight(weight) }
+        } else {
+            base
+        }
+    }
+}
+
+@Composable
+internal fun CommandResponsiveRow(
+    modifier: Modifier = Modifier,
+    content: @Composable CommandResponsiveRowScope.() -> Unit
+) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        if (maxWidth < CommandBreakpoints.formStack) {
+            Column(
+                Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
+            ) {
+                CommandResponsiveRowScope(stacked = true, rowScope = null).content()
+            }
+        } else {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CommandResponsiveRowScope(stacked = false, rowScope = this).content()
+            }
+        }
+    }
 }
 
 @Composable

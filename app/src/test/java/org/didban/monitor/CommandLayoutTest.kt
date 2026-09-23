@@ -63,6 +63,8 @@ class CommandLayoutTest {
         assertTrue(CommandMetrics.compactRowMinHeight >= CommandMetrics.touchTarget)
         assertTrue(CommandMetrics.iconSmall < CommandMetrics.iconMedium)
         assertTrue(CommandMetrics.iconMedium < CommandMetrics.iconLarge)
+        assertTrue(CommandMetrics.formAuxFieldWidth >= 96.dp)
+        assertTrue(CommandMetrics.formAuxFieldWidth <= 144.dp)
         assertEquals(56.dp, CommandMetrics.launcherIcon)
     }
 

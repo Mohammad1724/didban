@@ -1,7 +1,6 @@
 package org.didban.monitor
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -267,57 +266,21 @@ fun CommandSinglePortScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtRoutingContract, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     Text(copy.spFormHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        if (maxWidth < CommandBreakpoints.formStack) {
-                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtBindPort) })
-                                OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtInspectSec) })
-                            }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtBindPort) })
-                                OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtInspectSec) })
-                            }
-                        }
+                    CommandResponsiveRow {
+                        OutlinedTextField(bindPort, { bindPort = it.filter(Char::isDigit).take(5) }, item(weight = 1f), singleLine = true, label = { Text(copy.wtBindPort) })
+                        OutlinedTextField(inspectDelay, { inspectDelay = it.filter(Char::isDigit).take(2) }, item(weight = 1f), singleLine = true, label = { Text(copy.wtInspectSec) })
                     }
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        if (maxWidth < CommandBreakpoints.formStack) {
-                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtPanelSni) })
-                                OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(panelDomain, { panelDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtPanelSni) })
-                                OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        }
+                    CommandResponsiveRow {
+                        OutlinedTextField(panelDomain, { panelDomain = it }, item(weight = 1f), singleLine = true, label = { Text(copy.wtPanelSni) })
+                        OutlinedTextField(panelPort, { panelPort = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        if (maxWidth < CommandBreakpoints.formStack) {
-                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(subDomain, { subDomain = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
-                                OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(subDomain, { subDomain = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
-                                OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        }
+                    CommandResponsiveRow {
+                        OutlinedTextField(subDomain, { subDomain = it }, item(weight = 1f), singleLine = true, label = { Text(copy.wtSubscriptionSni) })
+                        OutlinedTextField(subPort, { subPort = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        if (maxWidth < CommandBreakpoints.formStack) {
-                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(realitySni, { realitySni = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtRealitySni) })
-                                OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(realitySni, { realitySni = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRealitySni) })
-                                OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, Modifier.width(110.dp), singleLine = true, label = { Text(copy.spLocalPort) })
-                            }
-                        }
+                    CommandResponsiveRow {
+                        OutlinedTextField(realitySni, { realitySni = it }, item(weight = 1f), singleLine = true, label = { Text(copy.wtRealitySni) })
+                        OutlinedTextField(realityPort, { realityPort = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.spLocalPort) })
                     }
                     OutlinedTextField(fallbackPort, { fallbackPort = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtFallbackPort) })
                 }
@@ -524,23 +487,14 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), modifier = Modifier.fillMaxWidth()) {
                             servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f)) }
                         }
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            if (maxWidth < CommandBreakpoints.formStack) {
-                                Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                    OutlinedTextField(user, { user = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiUser) })
-                                    OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.port) })
-                                }
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedTextField(user, { user = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiUser) })
-                                    OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
-                                }
-                            }
+                        CommandResponsiveRow {
+                            OutlinedTextField(user, { user = it }, item(weight = 1f), singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
                         }
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                            OutlinedTextField(path, { path = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.wtRemotePath) })
-                            CommandPrimaryButton(if (loading) copy.waitingForData else copy.refresh, ::refresh, enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
+                        CommandResponsiveRow {
+                            OutlinedTextField(path, { path = it }, item(weight = 1f), singleLine = true, label = { Text(copy.wtRemotePath) })
+                            CommandPrimaryButton(if (loading) copy.waitingForData else copy.refresh, ::refresh, modifier = item(), enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
                         }
                         Text(copy.sftpBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }

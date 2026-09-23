@@ -82,3 +82,10 @@
 - `CommandTunnelEditorScreen.kt`: endpoint، token، advanced-parameter، spoof/virtual-IP و action rows در عرض کمتر از `CommandBreakpoints.formStack` به stack عمودی می‌روند.
 - در عرض بزرگ، نسبت‌های قبلی fieldها حفظ می‌شود؛ در عرض کوچک هیچ field یا action اصلی به فشردگی اجباری وابسته نیست.
 - confirmation عملیاتی این صفحه از قبل primitive مشترک داشت؛ این slice فقط رفتار responsive فرم و hierarchy action را تکمیل می‌کند.
+
+## slice بعدی — shared responsive form contract
+
+- `CommandResponsiveRow` در `CommandUi.kt` اکنون مالک breakpoint، فاصله و تبدیل row به stack برای فرم‌های محصول است؛ صفحه‌ها دیگر threshold و branch محلی تکرار نمی‌کنند.
+- `CommandMetrics.formAuxFieldWidth` عرض مرجع کنترل‌های کمکی wide مثل port و TTL است؛ در عرض کمتر از `CommandBreakpoints.formStack` همان کنترل full-width می‌شود.
+- این primitive در فرم‌های Manage Servers، Server Editor، Tunnel Editor، Uptime، Services، Security، DNS، Network Tools، Check-Host، Cloudflare Scanner، Workbench/SFTP، Radar و Bandwidth به کار می‌رود.
+- این slice رفتار عملیاتی، ownership مسیرها و visible copy را تغییر نمی‌دهد؛ فقط قرارداد هندسی responsive را از سطح صفحه به design system منتقل می‌کند.

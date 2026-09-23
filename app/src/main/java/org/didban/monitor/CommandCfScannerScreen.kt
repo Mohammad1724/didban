@@ -217,23 +217,23 @@ internal fun CommandCfScannerScreen(
                         onSelect = { mode = it },
                         enabled = !running
                     )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandNumberField(copy.port, port, { port = it.filter(Char::isDigit).take(5) }, !running, Modifier.weight(1f))
-                        CommandNumberField(copy.cfCount, count, { count = it.filter(Char::isDigit).take(5) }, !running, Modifier.weight(1f))
+                    CommandResponsiveRow {
+                        CommandNumberField(copy.port, port, { port = it.filter(Char::isDigit).take(5) }, !running, item(weight = 1f))
+                        CommandNumberField(copy.cfCount, count, { count = it.filter(Char::isDigit).take(5) }, !running, item(weight = 1f))
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandNumberField(copy.cfTries, tries, { tries = it.filter(Char::isDigit).take(2) }, !running, Modifier.weight(1f))
-                        CommandNumberField(copy.cfTimeout, timeoutMs, { timeoutMs = it.filter(Char::isDigit).take(5) }, !running, Modifier.weight(1f))
+                    CommandResponsiveRow {
+                        CommandNumberField(copy.cfTries, tries, { tries = it.filter(Char::isDigit).take(2) }, !running, item(weight = 1f))
+                        CommandNumberField(copy.cfTimeout, timeoutMs, { timeoutMs = it.filter(Char::isDigit).take(5) }, !running, item(weight = 1f))
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandNumberField(copy.cfConcurrency, concurrency, { concurrency = it.filter(Char::isDigit).take(3) }, !running, Modifier.weight(1f))
+                    CommandResponsiveRow {
+                        CommandNumberField(copy.cfConcurrency, concurrency, { concurrency = it.filter(Char::isDigit).take(3) }, !running, item(weight = 1f))
                         OutlinedTextField(
                             value = sniOverride,
                             onValueChange = { sniOverride = it },
                             label = { Text(copy.cfSniOverride) },
                             singleLine = true,
                             enabled = !running,
-                            modifier = Modifier.weight(1f)
+                            modifier = item(weight = 1f)
                         )
                     }
                     Text(copy.cfSettingsHint, color = CommandColors.textTertiary,

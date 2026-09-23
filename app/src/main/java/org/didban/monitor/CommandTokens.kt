@@ -195,6 +195,8 @@ object CommandMetrics {
     val iconSmall = 18.dp
     val iconMedium = 22.dp
     val iconLarge = 28.dp
+    /** Wide-layout auxiliary field width (ports, TTL and similar controls). */
+    val formAuxFieldWidth = 112.dp
     val launcherIcon = 56.dp
     val navigationRailWidth = 96.dp
 }

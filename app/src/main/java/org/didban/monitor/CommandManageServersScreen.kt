@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -36,7 +35,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 @Composable
@@ -257,9 +255,9 @@ fun CommandManageServersScreen(
                         )
                         CommandRule()
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(name, { name = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.uiName) })
-                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, Modifier.width(100.dp), singleLine = true, label = { Text(copy.port) })
+                    CommandResponsiveRow {
+                        OutlinedTextField(name, { name = it }, item(weight = 1f), singleLine = true, label = { Text(copy.uiName) })
+                        OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
                     }
                     OutlinedTextField(host, { host = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentHost) })
                     OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvAgentToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
@@ -272,13 +270,13 @@ fun CommandManageServersScreen(
                     if (useTls) {
                         OutlinedTextField(fingerprint, { fingerprint = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.srvTlsFingerprint) }, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(cpuAlert, { cpuAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.srvCpuAlert) })
-                        OutlinedTextField(memAlert, { memAlert = it.filter(Char::isDigit).take(3) }, Modifier.weight(1f), singleLine = true, label = { Text(copy.srvMemAlert) })
+                    CommandResponsiveRow {
+                        OutlinedTextField(cpuAlert, { cpuAlert = it.filter(Char::isDigit).take(3) }, item(weight = 1f), singleLine = true, label = { Text(copy.srvCpuAlert) })
+                        OutlinedTextField(memAlert, { memAlert = it.filter(Char::isDigit).take(3) }, item(weight = 1f), singleLine = true, label = { Text(copy.srvMemAlert) })
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandPrimaryButton(copy.save, ::save, icon = Icons.Rounded.Save, enabled = !busy)
-                        CommandSecondaryButton(copy.srvTestAgent, { test(buildServer()) }, icon = Icons.Rounded.PlayArrow, enabled = !busy)
+                    CommandResponsiveRow {
+                        CommandPrimaryButton(copy.save, ::save, modifier = item(), icon = Icons.Rounded.Save, enabled = !busy)
+                        CommandSecondaryButton(copy.srvTestAgent, { test(buildServer()) }, modifier = item(), icon = Icons.Rounded.PlayArrow, enabled = !busy)
                     }
                 }
             }

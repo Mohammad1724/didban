@@ -11,6 +11,7 @@
 - اندازه‌های تعاملی: `CommandMetrics` و نقاط شکست `CommandBreakpoints`
 - elevation: `CommandElevation`؛ glass به‌صورت آگاهانه shadow renderer ندارد و elevation فقط قرارداد معنایی است.
 - کامپوننت‌های مشترک: `CommandUi.kt`, `CommandGlass.kt`, `CommandRedesign.kt`
+- `CommandResponsiveRow` در `CommandUi.kt` مالک تبدیل فرم‌های چندفیلدی/چنداکشنی به stack زیر `CommandBreakpoints.formStack` است؛ صفحه‌ها نباید threshold محلی بسازند.
 - متن قابل مشاهده: `CommandCopy`؛ از متن hardcoded در صفحه‌ها استفاده نشود.
 
 `DidbanTheme`، `Ds`، `Ui.kt` و `AeroTheme` در مسیر اصلی محصول منبع طراحی جدید نیستند. تا پایان مهاجرت فقط به‌عنوان legacy/compatibility باقی می‌مانند و صفحهٔ جدید نباید به آن‌ها وابسته شود.
@@ -25,6 +26,8 @@
 | سطح اصلی | `CommandSurface` |
 | ردیف متراکم | حداقل ارتفاع `CommandMetrics.compactRowMinHeight` |
 | کنترل قابل لمس | حداقل `CommandMetrics.touchTarget` |
+| ردیف responsive فرم | `CommandResponsiveRow`؛ stack زیر `CommandBreakpoints.formStack` |
+| عرض wide کنترل کمکی | `CommandMetrics.formAuxFieldWidth`؛ در narrow full-width |
 | دکمهٔ اصلی/فرعی | `CommandPrimaryButton` / `CommandSecondaryButton` |
 | عنوان بخش | `CommandSectionTitle` |
 | وضعیت | `CommandStateBlock` یا `CommandStatusMark` |

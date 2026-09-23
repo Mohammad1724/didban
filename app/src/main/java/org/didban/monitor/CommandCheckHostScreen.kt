@@ -242,21 +242,22 @@ fun CommandCheckHostScreen(
                         OutlinedTextField(
                             value = port,
                             onValueChange = { port = it.filter(Char::isDigit).take(5) },
-                            modifier = Modifier.width(128.dp),
+                            modifier = Modifier.width(CommandMetrics.formAuxFieldWidth),
                             enabled = !running,
                             singleLine = true,
                             label = { Text(copy.port) }
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    CommandResponsiveRow {
                         CommandPrimaryButton(
                             if (running) copy.waitingForData else copy.test,
                             ::runCheck,
+                            modifier = item(),
                             enabled = !running,
                             icon = Icons.Rounded.PlayArrow
                         )
                         if (running) {
-                            CommandSecondaryButton(copy.stop, ::stopCheck, icon = Icons.Rounded.Stop)
+                            CommandSecondaryButton(copy.stop, ::stopCheck, modifier = item(), icon = Icons.Rounded.Stop)
                         }
                     }
                 }

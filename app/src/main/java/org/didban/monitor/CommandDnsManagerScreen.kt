@@ -2,7 +2,6 @@ package org.didban.monitor
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
@@ -160,36 +158,31 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.dnsConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsApiToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        val compact = maxWidth < CommandBreakpoints.formStack
-                        val saveToken: @Composable () -> Unit = {
-                            CommandPrimaryButton(
-                                copy.dnsSaveToken,
-                                {
-                                    runCatching { Prefs.setCfToken(context, tokenDraft) }
-                                        .onSuccess {
-                                            apiToken = tokenDraft.trim()
-                                            message = copy.dnsTokenSaved
-                                            error = null
-                                        }
-                                        .onFailure {
-                                            error = it.message ?: copy.operationFailed
-                                            message = null
-                                        }
-                                },
-                                modifier = if (compact) Modifier.fillMaxWidth() else Modifier,
-                                icon = Icons.Rounded.Save
-                            )
-                            CommandSecondaryButton(
-                                if (busy) copy.waitingForData else copy.dnsLoadZones,
-                                ::loadZones,
-                                modifier = if (compact) Modifier.fillMaxWidth() else Modifier,
-                                enabled = !busy,
-                                icon = Icons.Rounded.Refresh
-                            )
-                        }
-                        if (compact) Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) { saveToken() }
-                        else Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) { saveToken() }
+                    CommandResponsiveRow {
+                        CommandPrimaryButton(
+                            copy.dnsSaveToken,
+                            {
+                                runCatching { Prefs.setCfToken(context, tokenDraft) }
+                                    .onSuccess {
+                                        apiToken = tokenDraft.trim()
+                                        message = copy.dnsTokenSaved
+                                        error = null
+                                    }
+                                    .onFailure {
+                                        error = it.message ?: copy.operationFailed
+                                        message = null
+                                    }
+                            },
+                            modifier = item(),
+                            icon = Icons.Rounded.Save
+                        )
+                        CommandSecondaryButton(
+                            if (busy) copy.waitingForData else copy.dnsLoadZones,
+                            ::loadZones,
+                            modifier = item(),
+                            enabled = !busy,
+                            icon = Icons.Rounded.Refresh
+                        )
                     }
                     Text(copy.dnsTokenBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
@@ -237,23 +230,11 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         }
                         OutlinedTextField(recordName, { recordName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiName) })
                         OutlinedTextField(recordContent, { recordContent = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text(copy.dnsContent) })
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            if (maxWidth < CommandBreakpoints.formStack) {
-                                Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                    OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsTtl) })
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Switch(recordProxied, { recordProxied = it })
-                                        Text(copy.dnsProxied, color = CommandColors.textSecondary)
-                                    }
-                                }
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, Modifier.width(130.dp), singleLine = true, label = { Text(copy.dnsTtl) })
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Switch(recordProxied, { recordProxied = it })
-                                        Text(copy.dnsProxied, color = CommandColors.textSecondary)
-                                    }
-                                }
+                        CommandResponsiveRow {
+                            OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.dnsTtl) })
+                            Row(item(), verticalAlignment = Alignment.CenterVertically) {
+                                Switch(recordProxied, { recordProxied = it })
+                                Text(copy.dnsProxied, color = CommandColors.textSecondary)
                             }
                         }
                         CommandPrimaryButton(if (busy) copy.waitingForData else copy.dnsSaveRecord, ::saveRecord, enabled = !busy, icon = Icons.Rounded.Save)
@@ -265,18 +246,9 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.dnsDiagnosis, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        if (maxWidth < CommandBreakpoints.formStack) {
-                            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                                OutlinedTextField(lookup, { lookup = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsDomainOrIp) })
-                                CommandPrimaryButton(copy.dnsLookup, ::runLookup, enabled = !busy, icon = Icons.Rounded.Dns, modifier = Modifier.fillMaxWidth())
-                            }
-                        } else {
-                            Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm), modifier = Modifier.fillMaxWidth()) {
-                                OutlinedTextField(lookup, { lookup = it }, Modifier.weight(1f), singleLine = true, label = { Text(copy.dnsDomainOrIp) })
-                                CommandPrimaryButton(copy.dnsLookup, ::runLookup, enabled = !busy, icon = Icons.Rounded.Dns)
-                            }
-                        }
+                    CommandResponsiveRow {
+                        OutlinedTextField(lookup, { lookup = it }, item(weight = 1f), singleLine = true, label = { Text(copy.dnsDomainOrIp) })
+                        CommandPrimaryButton(copy.dnsLookup, ::runLookup, enabled = !busy, icon = Icons.Rounded.Dns, modifier = item())
                     }
                     lookupResult?.let { result ->
                         CommandStatusMark("${result.flag} ${result.country} · ${result.ip}", CommandHealthTone.INFO, detail = "${result.reverseDns.ifBlank { copy.dnsNoPtr }} · ${result.isp.ifBlank { copy.dnsNoIsp }}")
