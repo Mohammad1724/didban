@@ -42,6 +42,21 @@ class CommandLayoutTest {
     }
 
     @Test
+    fun `responsive breakpoints keep a phone floor and one rail threshold`() {
+        assertTrue(CommandBreakpoints.phoneMin >= 320.dp)
+        assertTrue(CommandBreakpoints.formStack > CommandBreakpoints.phoneMin)
+        assertTrue(CommandBreakpoints.rail > CommandBreakpoints.formStack)
+    }
+
+    @Test
+    fun `elevation tokens stay ordered and intentionally bounded`() {
+        assertEquals(0.dp, CommandElevation.flat)
+        assertTrue(CommandElevation.raised > CommandElevation.flat)
+        assertTrue(CommandElevation.dialog >= CommandElevation.raised)
+        assertTrue(CommandElevation.dialog <= 8.dp)
+    }
+
+    @Test
     fun `interaction metrics keep controls usable`() {
         assertTrue(CommandMetrics.touchTarget >= 48.dp)
         assertTrue(CommandMetrics.controlMinHeight >= CommandMetrics.touchTarget)
