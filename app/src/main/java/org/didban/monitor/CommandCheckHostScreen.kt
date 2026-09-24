@@ -148,6 +148,8 @@ fun CommandCheckHostScreen(
         if (running) return
         val normalized = normalizeCheckHostTarget(target, type, port)
         if (normalized == null) {
+            nodes = emptyList()
+            info = null
             error = if (target.isBlank()) copy.netNoHost else copy.checkHostInvalidTarget
             return
         }
@@ -265,7 +267,10 @@ fun CommandCheckHostScreen(
         }
 
         if (error != null) {
-            item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+            item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, ::runCheck) }
+        }
+        if (running) item {
+            CommandLoadingState(copy.waitingForData, copy.netQReachableTools)
         }
 
         info?.let { data ->
