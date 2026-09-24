@@ -195,9 +195,12 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.dnsZones, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    if (zones.isEmpty()) Text(copy.dnsNoZonesYet, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                        zones.forEach { zone -> CommandSecondaryButton("${zone.name} · ${zone.status}", { loadRecords(zone) }, enabled = selectedZone?.id != zone.id) }
+                    if (zones.isEmpty()) {
+                        CommandEmptyState(copy.dnsZones, copy.dnsNoZonesYet)
+                    } else {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                            zones.forEach { zone -> CommandSecondaryButton("${zone.name} · ${zone.status}", { loadRecords(zone) }, enabled = selectedZone?.id != zone.id) }
+                        }
                     }
                 }
             }
@@ -210,7 +213,12 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                             Text(copy.dnsRecords.replace("%1", selectedZone?.name.orEmpty()), Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                             CommandTextButton(copy.dnsNewRecord, { selectedRecord = null; recordName = ""; recordContent = "" }, icon = Icons.Rounded.Add)
                         }
-                        if (records.isEmpty()) Text(copy.dnsZoneEmpty, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                        if (records.isEmpty()) {
+                            CommandEmptyState(
+                                title = copy.dnsRecords.replace("%1", selectedZone?.name.orEmpty()),
+                                body = copy.dnsZoneEmpty
+                            )
+                        }
                         records.forEach { record ->
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 CommandStatusMark(record.type, CommandHealthTone.INFO, Modifier.weight(1f), "${record.name} → ${record.content}")
