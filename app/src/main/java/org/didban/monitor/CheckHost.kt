@@ -10,6 +10,43 @@ import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+enum class CheckHostResultKind {
+    PENDING,
+    NO_DATA,
+    TIMEOUT,
+    PING_SUMMARY,
+    HTTP_SUMMARY,
+    RAW,
+    FAILED,
+    ERROR,
+    OPEN,
+    NO_RECORDS,
+    OK,
+    INVALID_RESPONSE
+}
+
+data class CheckHostResult(
+    val kind: CheckHostResultKind,
+    val first: String = "",
+    val second: String = "",
+    val milliseconds: Long = 0
+) {
+    fun english(): String = when (kind) {
+        CheckHostResultKind.PENDING -> "…"
+        CheckHostResultKind.NO_DATA -> "no data"
+        CheckHostResultKind.TIMEOUT -> "$first/$second · timeout"
+        CheckHostResultKind.PING_SUMMARY -> "$first/$second · ${milliseconds}ms"
+        CheckHostResultKind.HTTP_SUMMARY -> "$first · ${milliseconds}ms"
+        CheckHostResultKind.RAW -> first
+        CheckHostResultKind.FAILED -> "failed"
+        CheckHostResultKind.ERROR -> "error: $first"
+        CheckHostResultKind.OPEN -> "open · ${milliseconds}ms"
+        CheckHostResultKind.NO_RECORDS -> "no records"
+        CheckHostResultKind.OK -> "OK"
+        CheckHostResultKind.INVALID_RESPONSE -> "invalid response"
+    }
+}
+
 data class CheckHostNode(
     val nodeKey: String,
     val countryCode: String,
@@ -17,6 +54,7 @@ data class CheckHostNode(
     val city: String,
     val flag: String,
     var resultText: String = "…",
+    var result: CheckHostResult = CheckHostResult(CheckHostResultKind.PENDING),
     var state: Int = 0 // 0 = pending, 1 = ok, 2 = fail
 ) {
     val location: String
@@ -139,8 +177,9 @@ object CheckHostService {
                     continue
                 }
 
-                val (resText, state) = parseNodeResult(type, resArr)
-                node.resultText = resText
+                val (result, state) = parseNodeResult(type, resArr)
+                node.result = result
+                node.resultText = result.english()
                 node.state = state
             }
 
@@ -148,11 +187,12 @@ object CheckHostService {
         }
     }
 
-    private fun parseNodeResult(type: String, resArr: JSONArray): Pair<String, Int> {
+    private fun parseNodeResult(type: String, resArr: JSONArray): Pair<CheckHostResult, Int> {
         try {
             when (type.lowercase(Locale.US)) {
                 "ping" -> {
-                    val first = resArr.optJSONArray(0) ?: return Pair("no data", 2)
+                    val first = resArr.optJSONArray(0)
+                        ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
                     var total = 0
                     var ok = 0
                     var sum = 0.0
@@ -164,57 +204,76 @@ object CheckHostService {
                             sum += att.optDouble(1, 0.0)
                         }
                     }
-                    if (ok == 0) return Pair("0/$total · timeout", 2)
-                    val avgMs = (sum / ok * 1000).toInt()
-                    return Pair("$ok/$total · ${avgMs}ms", 1)
+                    if (ok == 0) {
+                        return CheckHostResult(
+                            CheckHostResultKind.TIMEOUT,
+                            first = "0",
+                            second = total.toString()
+                        ) to 2
+                    }
+                    val avgMs = (sum / ok * 1000).toLong()
+                    return CheckHostResult(
+                        CheckHostResultKind.PING_SUMMARY,
+                        first = ok.toString(),
+                        second = total.toString(),
+                        milliseconds = avgMs
+                    ) to 1
                 }
 
                 "http" -> {
-                    val first = resArr.optJSONArray(0) ?: return Pair("no data", 2)
+                    val first = resArr.optJSONArray(0)
+                        ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
                     val success = first.optInt(0, 0) == 1
                     val timeSec = first.optDouble(1, 0.0)
-                    val timeMs = (timeSec * 1000).toInt()
+                    val timeMs = (timeSec * 1000).toLong()
                     val code = first.optString(3, "")
                     val status = first.optString(2, "")
 
                     return if (success) {
                         val head = if (code.isNotEmpty()) code else "OK"
-                        Pair("$head · ${timeMs}ms", 1)
+                        CheckHostResult(CheckHostResultKind.HTTP_SUMMARY, first = head, milliseconds = timeMs) to 1
                     } else {
-                        val msg = if (status.isNotEmpty()) status else (if (code.isNotEmpty()) code else "failed")
-                        Pair(msg, 2)
+                        if (status.isNotEmpty()) {
+                            CheckHostResult(CheckHostResultKind.RAW, first = status) to 2
+                        } else if (code.isNotEmpty()) {
+                            CheckHostResult(CheckHostResultKind.RAW, first = code) to 2
+                        } else {
+                            CheckHostResult(CheckHostResultKind.FAILED) to 2
+                        }
                     }
                 }
 
                 "tcp", "udp" -> {
-                    val first = resArr.optJSONObject(0) ?: return Pair("no data", 2)
+                    val first = resArr.optJSONObject(0)
+                        ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
                     if (first.has("error")) {
-                        return Pair("error: ${first.optString("error")}", 2)
+                        return CheckHostResult(CheckHostResultKind.ERROR, first = first.optString("error")) to 2
                     }
                     if (first.has("time")) {
-                        val timeMs = (first.optDouble("time", 0.0) * 1000).toInt()
-                        return Pair("open · ${timeMs}ms", 1)
+                        val timeMs = (first.optDouble("time", 0.0) * 1000).toLong()
+                        return CheckHostResult(CheckHostResultKind.OPEN, milliseconds = timeMs) to 1
                     }
                     val status = first.optString("status", "")
-                    if (status.isNotBlank()) return Pair(status, 1)
-                    return Pair("failed", 2)
+                    if (status.isNotBlank()) return CheckHostResult(CheckHostResultKind.RAW, first = status) to 1
+                    return CheckHostResult(CheckHostResultKind.FAILED) to 2
                 }
 
                 "dns" -> {
-                    val first = resArr.optJSONObject(0) ?: return Pair("no data", 2)
+                    val first = resArr.optJSONObject(0)
+                        ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
                     val aList = mutableListOf<String>()
                     val aArr = first.optJSONArray("A")
                     if (aArr != null) {
                         for (i in 0 until aArr.length()) aList.add(aArr.optString(i))
                     }
-                    if (aList.isEmpty()) return Pair("no records", 2)
-                    return Pair(aList.joinToString(", "), 1)
+                    if (aList.isEmpty()) return CheckHostResult(CheckHostResultKind.NO_RECORDS) to 2
+                    return CheckHostResult(CheckHostResultKind.RAW, first = aList.joinToString(", ")) to 1
                 }
 
-                else -> return Pair("OK", 1)
+                else -> return CheckHostResult(CheckHostResultKind.OK) to 1
             }
         } catch (_: Exception) {
-            return Pair("invalid response", 2)
+            return CheckHostResult(CheckHostResultKind.INVALID_RESPONSE) to 2
         }
     }
 }

@@ -63,7 +63,12 @@ class CheckHostUiTest {
             pollResults = { _, _, nodes ->
                 nodes.forEach {
                     it.state = 1
-                    it.resultText = "12 ms"
+                    it.result = CheckHostResult(
+                        CheckHostResultKind.PING_SUMMARY,
+                        first = "1",
+                        second = "1",
+                        milliseconds = 12
+                    )
                 }
                 true
             }

@@ -1062,6 +1062,15 @@ interface CommandCopy {
     val checkHostInfo: String
     val checkHostInvalidTarget: String
     val checkHostNoNodes: String
+    val checkHostResultNoData: String
+    val checkHostResultTimeout: String
+    val checkHostResultPing: String
+    val checkHostResultHttp: String
+    val checkHostResultError: String
+    val checkHostResultOpen: String
+    val checkHostResultNoRecords: String
+    val checkHostResultOk: String
+    val checkHostResultInvalid: String
     val netQReachableTools: String
     val netQNetworkLayer: String
     val netQNetworkLayerTools: String
@@ -1957,6 +1966,15 @@ internal object CommandCopyFa : CommandCopy {
     override val checkHostInfo = "اطلاعات IP"
     override val checkHostInvalidTarget = "یک دامنه یا IP معتبر وارد کنید."
     override val checkHostNoNodes = "از Check-Host هیچ نقطه‌ای برای این درخواست دریافت نشد."
+    override val checkHostResultNoData = "داده‌ای از این نقطه دریافت نشد"
+    override val checkHostResultTimeout = "%1/%2 · مهلت تمام شد"
+    override val checkHostResultPing = "%1/%2 · %3"
+    override val checkHostResultHttp = "%1 · %2"
+    override val checkHostResultError = "خطا: %1"
+    override val checkHostResultOpen = "باز · %1"
+    override val checkHostResultNoRecords = "رکوردی پیدا نشد"
+    override val checkHostResultOk = "موفق"
+    override val checkHostResultInvalid = "پاسخ نامعتبر"
     override val netQReachableTools = "از چندین نقطهٔ عمومی Check-Host؛ بدون نیاز به افزودن سرور"
     override val netQNetworkLayer = "عیب‌یابی لایهٔ شبکه"
     override val netQNetworkLayerTools = "TCP Ping، تشخیص DPI و Port Scanner"
@@ -2845,6 +2863,15 @@ internal object CommandCopyEn : CommandCopy {
     override val checkHostInfo = "IP info"
     override val checkHostInvalidTarget = "Enter a valid domain or IP address."
     override val checkHostNoNodes = "Check-Host returned no test locations for this request."
+    override val checkHostResultNoData = "No data from this location"
+    override val checkHostResultTimeout = "%1/%2 · timeout"
+    override val checkHostResultPing = "%1/%2 · %3"
+    override val checkHostResultHttp = "%1 · %2"
+    override val checkHostResultError = "Error: %1"
+    override val checkHostResultOpen = "Open · %1"
+    override val checkHostResultNoRecords = "No records"
+    override val checkHostResultOk = "OK"
+    override val checkHostResultInvalid = "Invalid response"
     override val netQReachableTools = "From public Check-Host locations; no server required"
     override val netQNetworkLayer = "Troubleshoot the network layer"
     override val netQNetworkLayerTools = "TCP ping, DPI detection and port scanner"

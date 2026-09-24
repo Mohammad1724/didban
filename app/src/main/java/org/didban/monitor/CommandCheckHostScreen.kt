@@ -88,6 +88,28 @@ private fun checkHostTone(node: CheckHostNode): CommandHealthTone = when (node.s
     else -> CommandHealthTone.UNKNOWN
 }
 
+private fun CheckHostResult.localized(copy: CommandCopy): String = when (kind) {
+    CheckHostResultKind.PENDING -> "…"
+    CheckHostResultKind.NO_DATA -> copy.checkHostResultNoData
+    CheckHostResultKind.TIMEOUT -> copy.checkHostResultTimeout
+        .replace("%1", first)
+        .replace("%2", second)
+    CheckHostResultKind.PING_SUMMARY -> copy.checkHostResultPing
+        .replace("%1", first)
+        .replace("%2", second)
+        .replace("%3", copy.latencyValue(milliseconds))
+    CheckHostResultKind.HTTP_SUMMARY -> copy.checkHostResultHttp
+        .replace("%1", first)
+        .replace("%2", copy.latencyValue(milliseconds))
+    CheckHostResultKind.RAW -> first
+    CheckHostResultKind.FAILED -> copy.failed
+    CheckHostResultKind.ERROR -> copy.checkHostResultError.replace("%1", first)
+    CheckHostResultKind.OPEN -> copy.checkHostResultOpen.replace("%1", copy.latencyValue(milliseconds))
+    CheckHostResultKind.NO_RECORDS -> copy.checkHostResultNoRecords
+    CheckHostResultKind.OK -> copy.checkHostResultOk
+    CheckHostResultKind.INVALID_RESPONSE -> copy.checkHostResultInvalid
+}
+
 @Composable
 private fun CheckHostInfoRow(label: String, value: String) {
     Row(
@@ -314,7 +336,7 @@ fun CommandCheckHostScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                node.resultText,
+                                node.result.localized(copy),
                                 color = CommandColors.textPrimary,
                                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry),
                                 maxLines = 1,
