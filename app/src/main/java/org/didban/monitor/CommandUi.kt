@@ -68,6 +68,9 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
+internal fun CommandCopy.latencyValue(milliseconds: Long): String =
+    if (milliseconds < 0) "—" else netLatencyValue.replace("%1", milliseconds.toString())
+
 @Composable
 fun CommandPage(
     modifier: Modifier = Modifier,

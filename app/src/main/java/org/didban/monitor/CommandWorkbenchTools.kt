@@ -370,7 +370,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     CommandPrimaryButton(if (busy) copy.waitingForData else copy.wtParseProbe, ::inspectConfig, enabled = !busy, icon = Icons.Rounded.Bolt)
                     parsed?.let { cfg ->
                         CommandStatusMark(if (probe?.second == true) copy.wtProxyReachable else if (probe != null) copy.wtProxyUnreachable else copy.wtProxyParsed, if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
-                        probe?.let { result -> Text(copy.wtProxyLatency.replace("%1", if (result.first >= 0) "${result.first} ms" else copy.failed), color = CommandColors.textSecondary) }
+                        probe?.let { result -> Text(copy.wtProxyLatency.replace("%1", if (result.first >= 0) copy.latencyValue(result.first.toLong()) else copy.failed), color = CommandColors.textSecondary) }
                         CommandTextButton(copy.wtCopyNormalized, { SensitiveClipboard.copy(context, "Didban proxy configuration", cfg.rawUri) }, Icons.Rounded.ContentCopy)
                     }
                 }

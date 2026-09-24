@@ -289,7 +289,7 @@ fun CommandManageServersScreen(
                 val metrics = currentTestResult
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        CommandStatusMark(copy.srvAgentOnline, CommandHealthTone.HEALTHY, detail = "${metrics.hostname} · CPU ${Fmt.pct(metrics.cpuUsage)} · RAM ${Fmt.pct(metrics.memPct)}")
+                        CommandStatusMark(copy.srvAgentOnline, CommandHealthTone.HEALTHY, detail = "${metrics.hostname} · ${copy.cpu} ${Fmt.pct(metrics.cpuUsage)} · ${copy.memory} ${Fmt.pct(metrics.memPct)}")
                         Text("${copy.metricUptime} ${metrics.uptime}s · ${copy.metricLoad} ${metrics.load1} · ${metrics.disks.size} ${copy.metricDisks} · ${metrics.nets.size} ${copy.metricInterfaces}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                     }
                 }

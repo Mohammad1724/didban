@@ -317,11 +317,11 @@ fun CommandProcessesScreen(
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(process.name, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge, maxLines = 1)
-                                    Text("PID ${process.pid} · ${process.user}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                                    Text("${copy.processId} ${process.pid} · ${process.user}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text("${Fmt.pct(process.cpu)} CPU", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium.copy(fontFamily = Telemetry))
-                                    Text("${Fmt.pct(process.memPct)} RAM", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                                    Text("${Fmt.pct(process.cpu)} ${copy.cpu}", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium.copy(fontFamily = Telemetry))
+                                    Text("${Fmt.pct(process.memPct)} ${copy.memory}", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                                 }
                             }
                         }
@@ -356,7 +356,7 @@ fun CommandProcessesScreen(
         if (process != null) {
             CommandDestructiveDialog(
                 title = copy.stop,
-                body = "PID ${process.pid} · $killSignal",
+                body = "${copy.processId} ${process.pid} · $killSignal",
                 confirmLabel = copy.run,
                 dismissLabel = copy.close,
                 onDismiss = { if (!acting) killConfirm = null },

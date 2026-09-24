@@ -431,6 +431,7 @@ interface CommandCopy {
     val tunnels: String
     val docker: String
     val processes: String
+    val processId: String
     val services: String
     val radar: String
     val uptime: String
@@ -1309,6 +1310,7 @@ internal object CommandCopyFa : CommandCopy {
     override val tunnels = "تونل‌ها"
     override val docker = "Docker"
     override val processes = "پردازش‌ها"
+    override val processId = "شناسهٔ پردازش"
     override val services = "سرویس‌ها"
     override val radar = "رادار و مقایسهٔ دسترسی"
     override val uptime = "پایش سایت و سرویس"
@@ -2179,6 +2181,7 @@ internal object CommandCopyEn : CommandCopy {
     override val tunnels = "Tunnels"
     override val docker = "Docker"
     override val processes = "Processes"
+    override val processId = "Process ID"
     override val services = "Services"
     override val radar = "Server Radar"
     override val uptime = "Uptime"

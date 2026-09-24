@@ -314,7 +314,7 @@ private fun CommandServerDetails(
                         CommandMetricTile(copy.cpu, Fmt.pct(metrics.cpuUsage), "${server.cpuAlert}%", health.tone(), Modifier.weight(1f))
                         CommandMetricTile(copy.memory, Fmt.pct(metrics.memPct), "${Fmt.bytes(metrics.memUsed)} / ${Fmt.bytes(metrics.memTotal)}", health.tone(), Modifier.weight(1f))
                     }
-                    Text("${copy.metricUptime}: ${Fmt.uptime(metrics.uptime)} · ${copy.metricLoad}: ${metrics.load1} · ${copy.latency}: ${state.latencyMs.toInt()} ms", color = CommandColors.textSecondary)
+                    Text("${copy.metricUptime}: ${Fmt.uptime(metrics.uptime)} · ${copy.metricLoad}: ${metrics.load1} · ${copy.latency}: ${copy.latencyValue(state.latencyMs.toLong())}", color = CommandColors.textSecondary)
                     if (metrics.agentVersion.isNotBlank()) {
                         Text("${copy.agentVersion}: ${metrics.agentVersion}", color = CommandColors.textSecondary)
                         if (isAgentOutdated(metrics.agentVersion)) {

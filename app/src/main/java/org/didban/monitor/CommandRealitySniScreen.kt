@@ -294,7 +294,7 @@ internal fun CommandRealitySniScreen(
                             )
                         }
                         Text(
-                            "${r.tlsVersion.ifEmpty { "—" }} · ${r.alpn.ifEmpty { "no ALPN" }} · ${r.totalMs} ms",
+                            "${r.tlsVersion.ifEmpty { "—" }} · ${r.alpn.ifEmpty { copy.realityNotNegotiated }} · ${copy.latencyValue(r.totalMs)}",
                             color = CommandColors.textTertiary,
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry)
                         )
@@ -408,14 +408,14 @@ private fun RealityDetailBody(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
         CommandSectionTitle(copy.realityTiming)
-        CommandMetricLine(copy.realityDns, if (r.dnsMs < 0) "—" else "${r.dnsMs} ms", CommandHealthTone.INFO)
-        CommandMetricLine(copy.realityTcp, if (r.tcpMs < 0) "—" else "${r.tcpMs} ms", CommandHealthTone.INFO)
+        CommandMetricLine(copy.realityDns, copy.latencyValue(r.dnsMs), CommandHealthTone.INFO)
+        CommandMetricLine(copy.realityTcp, copy.latencyValue(r.tcpMs), CommandHealthTone.INFO)
         CommandMetricLine(
             copy.realityTls,
-            if (r.tlsMs < 0) "—" else "${r.tlsMs} ms",
+            copy.latencyValue(r.tlsMs),
             if (r.tlsMs in 0..300) CommandHealthTone.HEALTHY else CommandHealthTone.ATTENTION
         )
-        CommandMetricLine(copy.realityTotal, "${r.totalMs} ms", CommandHealthTone.INFO)
+        CommandMetricLine(copy.realityTotal, copy.latencyValue(r.totalMs), CommandHealthTone.INFO)
 
         CommandRule()
         CommandSectionTitle(copy.realityTlsDetails)

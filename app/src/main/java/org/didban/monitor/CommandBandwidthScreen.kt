@@ -204,8 +204,8 @@ internal fun CommandBandwidthScreen(
                                 )
                             }
                             CommandRule()
-                            CommandMetricLine(copy.latency, "${r.pingMs} ms", if (r.pingMs < 150) CommandHealthTone.HEALTHY else CommandHealthTone.ATTENTION)
-                            CommandMetricLine(copy.jitter, r.jitterMs?.let { "$it ms" } ?: "—", when { r.jitterMs == null -> CommandHealthTone.UNKNOWN; r.jitterMs < 40 -> CommandHealthTone.HEALTHY; else -> CommandHealthTone.ATTENTION })
+                            CommandMetricLine(copy.latency, copy.latencyValue(r.pingMs.toLong()), if (r.pingMs < 150) CommandHealthTone.HEALTHY else CommandHealthTone.ATTENTION)
+                            CommandMetricLine(copy.jitter, r.jitterMs?.let { copy.latencyValue(it.toLong()) } ?: "—", when { r.jitterMs == null -> CommandHealthTone.UNKNOWN; r.jitterMs < 40 -> CommandHealthTone.HEALTHY; else -> CommandHealthTone.ATTENTION })
                             CommandMetricLine(
                                 copy.packetLoss,
                                 "${r.packetLossPct}%",

@@ -407,7 +407,7 @@ private fun CommandServerRow(
             if (metrics != null) {
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        "${Fmt.pct(metrics.cpuUsage)} CPU",
+                        "${Fmt.pct(metrics.cpuUsage)} ${copy.cpu}",
                         style = androidx.compose.material3.MaterialTheme.typography.labelMedium.copy(fontFamily = Telemetry),
                         color = CommandColors.textPrimary
                     )
