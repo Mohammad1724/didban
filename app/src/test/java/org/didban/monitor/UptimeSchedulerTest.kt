@@ -80,4 +80,20 @@ class UptimeSchedulerTest {
         assertEquals(emptyList<Long>(), s.dueNow(now = 10L, ids = listOf(2L), pausedIds = emptySet()))
         assertEquals(listOf(2L), s.dueNow(now = 30_000L, ids = listOf(2L), pausedIds = emptySet()))
     }
+
+    @Test
+    fun `typed uptime failures survive storage and localize at the boundary`() {
+        val original = UptimeFailure(UptimeFailureKind.HTTP_STATUS, "503")
+        val restored = UptimeFailure.fromJson(original.toJson())
+        assertEquals(original, restored)
+        assertEquals("HTTP response was 503.", original.localized(CommandCopyEn))
+        assertEquals("پاسخ HTTP 503 بود.", original.localized(CommandCopyFa))
+
+        val incident = UptimeIncident(10L, error = "legacy", failure = original)
+        val restoredIncident = UptimeIncident.fromJson(incident.toJson())
+        assertEquals(original, restoredIncident.failure)
+        assertEquals("legacy", restoredIncident.error)
+        assertEquals("HTTP response was 503.", restoredIncident.localizedError(CommandCopyEn))
+        assertEquals("پاسخ HTTP 503 بود.", restoredIncident.localizedError(CommandCopyFa))
+    }
 }

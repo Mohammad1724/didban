@@ -1060,6 +1060,43 @@ interface CommandCopy {
     val alertsTriggerServerDown: String
     val alertsTriggerCpuSpike: String
     val alertsTriggerTunnelDown: String
+    val alertsMissingCredentials: String
+    val alertsTelegramTestSuccess: String
+    val alertsTelegramHttpFailure: String
+    val alertsConnectionFailure: String
+    val alertsDiscordWebhookInvalid: String
+    val alertsDiscordTestSuccess: String
+    val alertsDiscordHttpFailure: String
+    val alertsEventServerDown: String
+    val alertsEventServerRecovered: String
+    val alertsEventCpuSpike: String
+    val alertsEventRamSpike: String
+    val alertsEventDiskSpike: String
+    val alertsEventTunnelDrop: String
+    val alertsEventTunnelUp: String
+    val alertsEventUptimeFail: String
+    val alertsEventUptimeRecovered: String
+    val alertsEventSslExpiring: String
+    val alertsLevelCritical: String
+    val alertsLevelWarning: String
+    val alertsLevelResolved: String
+    val alertsLevelInfo: String
+    val alertsFieldTarget: String
+    val alertsFieldEvent: String
+    val alertsFieldDetails: String
+    val alertsFieldStatus: String
+    val alertsFieldTime: String
+    val alertsFieldSeverity: String
+    val alertsFieldTimestamp: String
+    val alertsTestTelegramTitle: String
+    val alertsTestTelegramBody: String
+    val alertsTestTelegramMode: String
+    val alertsTestTelegramFooter: String
+    val alertsTestDiscordTitle: String
+    val alertsTestDiscordDescription: String
+    val alertsTestDiscordStatus: String
+    val alertsTestDiscordTimestamp: String
+    val alertsTestDiscordFooter: String
     val backupSummary: String
     val netIndexBody: String
     val netQReachable: String
@@ -1129,6 +1166,16 @@ interface CommandCopy {
     val upTargetFirst: String
     val upCheckDone: String
     val upCheckFailed: String
+    val upKeywordNotFound: String
+    val upHttpFailure: String
+    val upTargetUnresolved: String
+    val upPrivateNetworkRequired: String
+    val upCertificateExpired: String
+    val upConnectionFailed: String
+    val upServiceDownTitle: String
+    val upServiceDownBody: String
+    val upServiceRecoveredTitle: String
+    val upServiceRecoveredBody: String
     val upNoMonitorYet: String
     val upEditorBody: String
     val upDeleteTitle: String
@@ -1970,6 +2017,43 @@ internal object CommandCopyFa : CommandCopy {
     override val alertsTriggerServerDown = "قطع شدن Server"
     override val alertsTriggerCpuSpike = "Spike CPU یا Memory"
     override val alertsTriggerTunnelDown = "افتادن Tunnel"
+    override val alertsMissingCredentials = "Bot Token یا Chat ID نمی‌تواند خالی باشد"
+    override val alertsTelegramTestSuccess = "پیام تست تلگرام با موفقیت ارسال شد! 🚀"
+    override val alertsTelegramHttpFailure = "خطای تلگرام: HTTP %1"
+    override val alertsConnectionFailure = "خطا در اتصال: %1"
+    override val alertsDiscordWebhookInvalid = "آدرس وب‌هوک دیسکورد نامعتبر است"
+    override val alertsDiscordTestSuccess = "پیام تست دیسکورد با موفقیت ارسال شد! 🚀"
+    override val alertsDiscordHttpFailure = "خطای دیسکورد: HTTP %1"
+    override val alertsEventServerDown = "سرور در دسترس نیست یا قطع شده است"
+    override val alertsEventServerRecovered = "سرور دوباره آنلاین شد"
+    override val alertsEventCpuSpike = "افزایش شدید CPU"
+    override val alertsEventRamSpike = "فشار زیاد حافظه"
+    override val alertsEventDiskSpike = "مصرف زیاد دیسک"
+    override val alertsEventTunnelDrop = "تونل دو-نقطه‌ای قطع شد"
+    override val alertsEventTunnelUp = "تونل دو-نقطه‌ای فعال شد"
+    override val alertsEventUptimeFail = "بررسی سرویس ناموفق بود"
+    override val alertsEventUptimeRecovered = "SLA سرویس بازیابی شد"
+    override val alertsEventSslExpiring = "گواهی SSL به‌زودی منقضی می‌شود"
+    override val alertsLevelCritical = "بحرانی"
+    override val alertsLevelWarning = "هشدار"
+    override val alertsLevelResolved = "رفع‌شده"
+    override val alertsLevelInfo = "اطلاعات"
+    override val alertsFieldTarget = "مقصد"
+    override val alertsFieldEvent = "رخداد"
+    override val alertsFieldDetails = "جزئیات"
+    override val alertsFieldStatus = "وضعیت"
+    override val alertsFieldTime = "زمان"
+    override val alertsFieldSeverity = "شدت"
+    override val alertsFieldTimestamp = "زمان ثبت"
+    override val alertsTestTelegramTitle = "🛰️ دیدبان — آزمون ارتباط موفق"
+    override val alertsTestTelegramBody = "✅ اتصال ربات تلگرام با موفقیت برقرار شد!"
+    override val alertsTestTelegramMode = "هشدارهای بلادرنگ فعال است."
+    override val alertsTestTelegramFooter = "موتور هشدار دیدبان"
+    override val alertsTestDiscordTitle = "🛰️ دیدبان — آزمون اتصال"
+    override val alertsTestDiscordDescription = "✅ اتصال Webhook دیسکورد با موفقیت برقرار شد!\nهشدارهای بلادرنگ فعال هستند."
+    override val alertsTestDiscordStatus = "آنلاین 🟢"
+    override val alertsTestDiscordTimestamp = "زمان"
+    override val alertsTestDiscordFooter = "موتور پایش دیدبان"
     override val backupSummary = "%1 سرور · %2 تونل · %3 Monitor · %4"
     override val netIndexBody = "عیب‌یابی دسترسی، شبکه، TLS، DNS و کیفیت اتصال."
     override val netQReachable = "تست دسترسی به مقصد"
@@ -2039,6 +2123,16 @@ internal object CommandCopyFa : CommandCopy {
     override val upTargetFirst = "ابتدا target را وارد کنید."
     override val upCheckDone = "Check واقعی انجام شد: %1 · %2 ms"
     override val upCheckFailed = "Check ناموفق بود."
+    override val upKeywordNotFound = "کلیدواژهٔ «%1» پیدا نشد."
+    override val upHttpFailure = "پاسخ HTTP %1 بود."
+    override val upTargetUnresolved = "مقصد resolve نشد."
+    override val upPrivateNetworkRequired = "مقصد شبکهٔ خصوصی نیاز به اجازهٔ صریح دارد."
+    override val upCertificateExpired = "گواهی منقضی شده است."
+    override val upConnectionFailed = "اتصال ناموفق بود: %1"
+    override val upServiceDownTitle = "🔴 سرویس قطع شد: %1"
+    override val upServiceDownBody = "خطا: %1"
+    override val upServiceRecoveredTitle = "🟢 سرویس بازیابی شد: %1"
+    override val upServiceRecoveredBody = "سرویس دوباره آنلاین است؛ مدت قطعی: %1 ثانیه"
     override val upNoMonitorYet = "هنوز پایشی ذخیره نشده است. با فرم زیر اولین پایش را بسازید."
     override val upEditorBody = "بررسی‌ها واقعاً روی همین مقصد اجرا و نتیجهٔ واقعی ثبت می‌شود."
     override val upDeleteTitle = "Delete monitor؟"
@@ -2873,6 +2967,43 @@ internal object CommandCopyEn : CommandCopy {
     override val alertsTriggerServerDown = "Server went down"
     override val alertsTriggerCpuSpike = "CPU or memory spike"
     override val alertsTriggerTunnelDown = "Tunnel went down"
+    override val alertsMissingCredentials = "Bot Token or Chat ID cannot be empty"
+    override val alertsTelegramTestSuccess = "Telegram test message sent successfully! 🚀"
+    override val alertsTelegramHttpFailure = "Telegram error: HTTP %1"
+    override val alertsConnectionFailure = "Connection error: %1"
+    override val alertsDiscordWebhookInvalid = "The Discord webhook URL is invalid"
+    override val alertsDiscordTestSuccess = "Discord test message sent successfully! 🚀"
+    override val alertsDiscordHttpFailure = "Discord error: HTTP %1"
+    override val alertsEventServerDown = "Server unreachable or down"
+    override val alertsEventServerRecovered = "Server back online"
+    override val alertsEventCpuSpike = "High CPU spike"
+    override val alertsEventRamSpike = "High memory pressure"
+    override val alertsEventDiskSpike = "High disk usage"
+    override val alertsEventTunnelDrop = "Dual-node tunnel dropped"
+    override val alertsEventTunnelUp = "Dual-node tunnel active"
+    override val alertsEventUptimeFail = "Service probe failed"
+    override val alertsEventUptimeRecovered = "Service SLA restored"
+    override val alertsEventSslExpiring = "SSL certificate expiring soon"
+    override val alertsLevelCritical = "CRITICAL"
+    override val alertsLevelWarning = "WARNING"
+    override val alertsLevelResolved = "RESOLVED"
+    override val alertsLevelInfo = "INFO"
+    override val alertsFieldTarget = "Target"
+    override val alertsFieldEvent = "Event"
+    override val alertsFieldDetails = "Details"
+    override val alertsFieldStatus = "Status"
+    override val alertsFieldTime = "Time"
+    override val alertsFieldSeverity = "Severity"
+    override val alertsFieldTimestamp = "Timestamp"
+    override val alertsTestTelegramTitle = "🛰️ Didban — connection test passed"
+    override val alertsTestTelegramBody = "✅ Telegram bot connection established successfully!"
+    override val alertsTestTelegramMode = "Real-time alerts are active."
+    override val alertsTestTelegramFooter = "Didban Alert Engine"
+    override val alertsTestDiscordTitle = "🛰️ Didban — connection test"
+    override val alertsTestDiscordDescription = "✅ Discord Webhook connection established successfully!\nReal-time alerts are active."
+    override val alertsTestDiscordStatus = "ONLINE 🟢"
+    override val alertsTestDiscordTimestamp = "Timestamp"
+    override val alertsTestDiscordFooter = "Didban Monitoring Engine"
     override val backupSummary = "%1 servers · %2 tunnels · %3 monitors · %4"
     override val netIndexBody = "Diagnose reachability, network, TLS, DNS and connection quality."
     override val netQReachable = "Test destination reachability"
@@ -2942,6 +3073,16 @@ internal object CommandCopyEn : CommandCopy {
     override val upTargetFirst = "Enter a target first."
     override val upCheckDone = "Real check completed: %1 · %2 ms"
     override val upCheckFailed = "The check failed."
+    override val upKeywordNotFound = "Keyword '%1' was not found."
+    override val upHttpFailure = "HTTP response was %1."
+    override val upTargetUnresolved = "The target did not resolve."
+    override val upPrivateNetworkRequired = "A private network target requires explicit permission."
+    override val upCertificateExpired = "The certificate has expired."
+    override val upConnectionFailed = "Connection failed: %1"
+    override val upServiceDownTitle = "🔴 Service down: %1"
+    override val upServiceDownBody = "Error: %1"
+    override val upServiceRecoveredTitle = "🟢 Service recovered: %1"
+    override val upServiceRecoveredBody = "Service is back online; downtime: %1 seconds"
     override val upNoMonitorYet = "No monitor saved yet. Build the first one with the form below."
     override val upEditorBody = "Checks really run against this target and record the real result."
     override val upDeleteTitle = "Delete monitor?"

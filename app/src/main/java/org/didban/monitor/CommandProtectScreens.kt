@@ -445,7 +445,7 @@ fun CommandAlertsScreen(
                     CommandSecondaryButton(copy.alertsTestTelegram, {
                         testing = true
                         scope.launch {
-                            val response = AlertEngine.testTelegram(telegramToken, telegramChat)
+                            val response = AlertEngine.testTelegram(telegramToken, telegramChat, copy)
                             message = response.second
                             messageIsError = !response.first
                             testing = false
@@ -463,7 +463,7 @@ fun CommandAlertsScreen(
                     CommandSecondaryButton(copy.alertsTestDiscord, {
                         testing = true
                         scope.launch {
-                            val response = AlertEngine.testDiscord(discordUrl)
+                            val response = AlertEngine.testDiscord(discordUrl, copy)
                             message = response.second
                             messageIsError = !response.first
                             testing = false

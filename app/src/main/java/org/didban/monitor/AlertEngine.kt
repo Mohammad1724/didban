@@ -74,23 +74,26 @@ object AlertEngine {
     /**
      * Test Telegram Bot connection
      */
-    suspend fun testTelegram(botToken: String, chatId: String): Pair<Boolean, String> =
-        withContext(Dispatchers.IO) {
+    suspend fun testTelegram(
+        botToken: String,
+        chatId: String,
+        copy: CommandCopy = CommandCopyEn
+    ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
             val token = botToken.trim()
             val chat = chatId.trim()
             if (token.isEmpty() || chat.isEmpty()) {
-                return@withContext Pair(false, "Bot Token یا Chat ID نمی‌تواند خالی باشد")
+                return@withContext Pair(false, copy.alertsMissingCredentials)
             }
 
             val url = "https://api.telegram.org/bot$token/sendMessage"
             val text = """
-                🛰️ <b>دیدبان — تست ارتباط موفق</b>
+                ${copy.alertsTestTelegramTitle}
                 ━━━━━━━━━━━━━━━━━━
-                ✅ اتصال ربات تلگرام با موفقیت برقرار شد!
-                📊 <b>حالت:</b> هشدارهای بلادرنگ فعال است.
-                ⏱ <b>زمان:</b> ${getFormattedTime()}
+                ${copy.alertsTestTelegramBody}
+                📊 <b>${copy.alertsFieldSeverity}:</b> ${copy.alertsTestTelegramMode}
+                ⏱ <b>${copy.alertsFieldTime}:</b> ${getFormattedTime()}
                 ━━━━━━━━━━━━━━━━━━
-                <i>Didban Sentinel Alert Engine</i>
+                <i>${copy.alertsTestTelegramFooter}</i>
             """.trimIndent()
 
             val json = JSONObject().apply {
@@ -107,46 +110,48 @@ object AlertEngine {
                     // Do not surface the provider's raw body: gateways may
                     // echo request metadata and it is not needed for diagnosis.
                     if (resp.isSuccessful) {
-                        Pair(true, "پیام تست تلگرام با موفقیت ارسال شد! 🚀")
+                        Pair(true, copy.alertsTelegramTestSuccess)
                     } else {
-                        Pair(false, "خطای تلگرام: HTTP ${resp.code}")
+                        Pair(false, copy.alertsTelegramHttpFailure.replace("%1", resp.code.toString()))
                     }
                 }
             } catch (e: Exception) {
-                Pair(false, "خطا در اتصال به سرور تلگرام: ${SecretRedactor.redact(e.message ?: "network error", listOf(token))}")
+                Pair(false, copy.alertsConnectionFailure.replace("%1", SecretRedactor.redact(e.message ?: "network error", listOf(token))))
             }
         }
 
     /**
      * Test Discord Webhook connection
      */
-    suspend fun testDiscord(webhookUrl: String): Pair<Boolean, String> =
-        withContext(Dispatchers.IO) {
+    suspend fun testDiscord(
+        webhookUrl: String,
+        copy: CommandCopy = CommandCopyEn
+    ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
             val url = try {
                 validatedDiscordWebhook(webhookUrl)
             } catch (_: Exception) {
-                return@withContext Pair(false, "آدرس وبهوک دیسکورد نامعتبر است")
+                return@withContext Pair(false, copy.alertsDiscordWebhookInvalid)
             }
 
             val embed = JSONObject().apply {
-                put("title", "🛰️ Didban Sentinel — Connection Test")
-                put("description", "✅ Discord Webhook connection established successfully!\nReal-time ops alerts are now active.")
+                put("title", copy.alertsTestDiscordTitle)
+                put("description", copy.alertsTestDiscordDescription)
                 put("color", 0x00F2FE) // Cyber Cyan
                 val fields = JSONArray().apply {
                     put(JSONObject().apply {
-                        put("name", "Status")
-                        put("value", "ONLINE 🟢")
+                        put("name", copy.alertsFieldStatus)
+                        put("value", copy.alertsTestDiscordStatus)
                         put("inline", true)
                     })
                     put(JSONObject().apply {
-                        put("name", "Timestamp")
+                        put("name", copy.alertsTestDiscordTimestamp)
                         put("value", getFormattedTime())
                         put("inline", true)
                     })
                 }
                 put("fields", fields)
                 put("footer", JSONObject().apply {
-                    put("text", "Didban Monitoring Engine")
+                    put("text", copy.alertsTestDiscordFooter)
                 })
             }
 
@@ -161,13 +166,13 @@ object AlertEngine {
                 val request = Request.Builder().url(url).post(reqBody).build()
                 httpClient.newCall(request).execute().use { resp ->
                     if (resp.isSuccessful || resp.code == 204) {
-                        Pair(true, "پیام تست دیسکورد با موفقیت ارسال شد! 🚀")
+                        Pair(true, copy.alertsDiscordTestSuccess)
                     } else {
-                        Pair(false, "خطای دیسکورد: HTTP ${resp.code}")
+                        Pair(false, copy.alertsDiscordHttpFailure.replace("%1", resp.code.toString()))
                     }
                 }
             } catch (e: Exception) {
-                Pair(false, "خطا در اتصال به دیسکورد: ${SecretRedactor.redact(e.message ?: "network error", listOf(url))}")
+                Pair(false, copy.alertsConnectionFailure.replace("%1", SecretRedactor.redact(e.message ?: "network error", listOf(url))))
             }
         }
 
@@ -182,6 +187,7 @@ object AlertEngine {
         level: AlertLevel = AlertLevel.WARNING,
         forceBypassCooldown: Boolean = false
     ) = withContext(Dispatchers.IO) {
+        val copy = CommandCopy.forLanguage(Prefs.getLanguage(ctx))
         // 1. Check cooldown
         val key = "${type.name}:$targetName"
         val now = System.currentTimeMillis()
@@ -204,23 +210,23 @@ object AlertEngine {
         }
 
         val levelName = when (level) {
-            AlertLevel.CRITICAL -> "CRITICAL"
-            AlertLevel.WARNING -> "WARNING"
-            AlertLevel.RESOLVED -> "RESOLVED"
-            AlertLevel.INFO -> "INFO"
+            AlertLevel.CRITICAL -> copy.alertsLevelCritical
+            AlertLevel.WARNING -> copy.alertsLevelWarning
+            AlertLevel.RESOLVED -> copy.alertsLevelResolved
+            AlertLevel.INFO -> copy.alertsLevelInfo
         }
 
         val eventTitle = when (type) {
-            AlertType.SERVER_DOWN -> "Server Unreachable / Down"
-            AlertType.SERVER_RECOVERED -> "Server Back Online"
-            AlertType.CPU_SPIKE -> "High CPU Spike"
-            AlertType.RAM_SPIKE -> "High Memory Pressure"
-            AlertType.DISK_SPIKE -> "High Disk Usage"
-            AlertType.TUNNEL_DROP -> "Dual-Node Tunnel Dropped"
-            AlertType.TUNNEL_UP -> "Dual-Node Tunnel Active"
-            AlertType.UPTIME_FAIL -> "Service Probe Failed"
-            AlertType.UPTIME_RECOVERED -> "Service SLA Restored"
-            AlertType.SSL_EXPIRING -> "SSL Certificate Expiring Soon"
+            AlertType.SERVER_DOWN -> copy.alertsEventServerDown
+            AlertType.SERVER_RECOVERED -> copy.alertsEventServerRecovered
+            AlertType.CPU_SPIKE -> copy.alertsEventCpuSpike
+            AlertType.RAM_SPIKE -> copy.alertsEventRamSpike
+            AlertType.DISK_SPIKE -> copy.alertsEventDiskSpike
+            AlertType.TUNNEL_DROP -> copy.alertsEventTunnelDrop
+            AlertType.TUNNEL_UP -> copy.alertsEventTunnelUp
+            AlertType.UPTIME_FAIL -> copy.alertsEventUptimeFail
+            AlertType.UPTIME_RECOVERED -> copy.alertsEventUptimeRecovered
+            AlertType.SSL_EXPIRING -> copy.alertsEventSslExpiring
         }
 
         val embedColor = when (level) {
@@ -238,12 +244,12 @@ object AlertEngine {
                 val tgHtml = """
                     $levelEmoji <b>Didban Alert — $levelName</b>
                     ━━━━━━━━━━━━━━━━━━
-                    📌 <b>Target:</b> $targetName
-                    ⚡ <b>Event:</b> $eventTitle
-                    📝 <b>Details:</b> $targetDetail
-                    ⏱ <b>Time:</b> ${getFormattedTime()}
+                    📌 <b>${copy.alertsFieldTarget}:</b> $targetName
+                    ⚡ <b>${copy.alertsFieldEvent}:</b> $eventTitle
+                    📝 <b>${copy.alertsFieldDetails}:</b> $targetDetail
+                    ⏱ <b>${copy.alertsFieldTime}:</b> ${getFormattedTime()}
                     ━━━━━━━━━━━━━━━━━━
-                    <i>Didban Sentinel Monitoring</i>
+                    <i>${copy.alertsTestTelegramFooter}</i>
                 """.trimIndent()
 
                 try {
@@ -266,23 +272,23 @@ object AlertEngine {
             if (webhook.isNotEmpty()) {
                 val embed = JSONObject().apply {
                     put("title", "$levelEmoji Didban Alert — $eventTitle")
-                    put("description", "**Target:** `$targetName`\n**Details:** $targetDetail")
+                    put("description", "**${copy.alertsFieldTarget}:** `$targetName`\n**${copy.alertsFieldDetails}:** $targetDetail")
                     put("color", embedColor)
                     val fields = JSONArray().apply {
                         put(JSONObject().apply {
-                            put("name", "Severity")
+                            put("name", copy.alertsFieldSeverity)
                             put("value", levelName)
                             put("inline", true)
                         })
                         put(JSONObject().apply {
-                            put("name", "Timestamp")
+                            put("name", copy.alertsFieldTimestamp)
                             put("value", getFormattedTime())
                             put("inline", true)
                         })
                     }
                     put("fields", fields)
                     put("footer", JSONObject().apply {
-                        put("text", "Didban Sentinel Alert Engine")
+                        put("text", copy.alertsTestTelegramFooter)
                     })
                 }
 

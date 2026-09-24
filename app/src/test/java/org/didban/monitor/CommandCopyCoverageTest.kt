@@ -12,7 +12,8 @@ import java.io.File
  * The Command shell grew 191 hardcoded Persian strings inside screen files
  * while shipping a language switch, so English mode showed a half-translated
  * UI and nothing in the build noticed. Every user-facing string now lives in
- * [CommandCopy]; this test keeps it that way by scanning the sources.
+ * [CommandCopy]; this test keeps it that way by scanning screens and
+ * notification/alert engines.
  */
 class CommandCopyCoverageTest {
 
@@ -44,7 +45,7 @@ class CommandCopyCoverageTest {
     @Test
     fun `no screen hardcodes Persian text`() {
         assumeTrue("source tree not reachable from the test working directory", sourceDir != null)
-        val offenders = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt") && f.name.endsWith(".kt") }
+        val offenders = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt" || f.name == "AlertEngine.kt" || f.name == "UptimeEngine.kt") && f.name.endsWith(".kt") }
             ?.filter { it.name != "CommandTokens.kt" }   // the fa table itself
             ?.flatMap { f -> literalsIn(f).map { (line, s) -> "${f.name}:$line \"$s\"" } }
             .orEmpty()
@@ -61,7 +62,7 @@ class CommandCopyCoverageTest {
         // up — or a screen can stop using one. Either way the table should not
         // carry strings nothing renders.
         assumeTrue("source tree not reachable from the test working directory", sourceDir != null)
-        val used = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt") && f.name.endsWith(".kt") }
+        val used = sourceDir!!.listFiles { f -> (f.name.startsWith("Command") || f.name == "MonitorService.kt" || f.name == "MainActivity.kt" || f.name == "AlertEngine.kt" || f.name == "UptimeEngine.kt") && f.name.endsWith(".kt") }
             ?.filter { it.name != "CommandTokens.kt" }
             ?.joinToString("") { it.readText() }
             .orEmpty()

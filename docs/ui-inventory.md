@@ -100,3 +100,5 @@
 - یافته‌های تشخیصی REALITY دیگر `String`های انگلیسی در engine نیستند: `RealityFinding` typed است و blocker/warning/note در screen به copy فارسی/انگلیسی map می‌شود؛ فهرست String انگلیسی فقط برای سازگاری تست‌ها باقی مانده است.
 - نتیجه‌های هر node در Check-Host نیز `CheckHostResult` typed شده‌اند؛ parser دیگر متن‌های `no data`، timeout، open، error و latency را برای نمایش UI تولید نمی‌کند و screen آن‌ها را با copy و formatter latency محلی می‌کند.
 - خطا و موفقیت Backup/Restore به `BackupMessage` typed شده‌اند؛ `CommandBackupScreen` دیگر پیام‌های فارسی engine را مستقیم نمایش نمی‌دهد و summary، password، structure و restore result را از `CommandCopy` می‌گیرد.
+- failureهای Uptime اکنون `UptimeFailure` typed هستند و همراه incident به‌صورت سازگار با داده‌های قدیمی ذخیره می‌شوند؛ متن خطا، title/body اعلان و نام channel هنگام render/dispatch از `CommandCopy` انتخاب می‌شود.
+- تست و dispatch هشدارهای Telegram/Discord نیز از `CommandCopy` استفاده می‌کنند؛ event title، severity، field label و provider result در فارسی/انگلیسی یکسان و قابل‌ممیزی هستند.

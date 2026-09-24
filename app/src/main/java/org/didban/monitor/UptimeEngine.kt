@@ -50,11 +50,51 @@ data class Heartbeat(
     }
 }
 
+enum class UptimeFailureKind {
+    KEYWORD_NOT_FOUND,
+    HTTP_STATUS,
+    TARGET_UNRESOLVED,
+    PRIVATE_NETWORK,
+    CERTIFICATE_EXPIRED,
+    CONNECTION
+}
+
+data class UptimeFailure(
+    val kind: UptimeFailureKind,
+    val detail: String = ""
+) {
+    fun localized(copy: CommandCopy): String = when (kind) {
+        UptimeFailureKind.KEYWORD_NOT_FOUND -> copy.upKeywordNotFound.replace("%1", detail)
+        UptimeFailureKind.HTTP_STATUS -> copy.upHttpFailure.replace("%1", detail)
+        UptimeFailureKind.TARGET_UNRESOLVED -> copy.upTargetUnresolved
+        UptimeFailureKind.PRIVATE_NETWORK -> copy.upPrivateNetworkRequired
+        UptimeFailureKind.CERTIFICATE_EXPIRED -> copy.upCertificateExpired
+        UptimeFailureKind.CONNECTION -> copy.upConnectionFailed.replace("%1", detail.ifBlank { copy.upCheckFailed })
+    }
+
+    fun toJson() = JSONObject().apply {
+        put("kind", kind.name)
+        if (detail.isNotBlank()) put("detail", detail)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject): UptimeFailure? = runCatching {
+            UptimeFailure(
+                kind = UptimeFailureKind.valueOf(o.optString("kind")),
+                detail = o.optString("detail")
+            )
+        }.getOrNull()
+    }
+}
+
 data class UptimeIncident(
     val startTime: Long,
     var endTime: Long? = null,
-    val error: String = ""
+    val error: String = "",
+    val failure: UptimeFailure? = null
 ) {
+    fun localizedError(copy: CommandCopy): String = failure?.localized(copy) ?: error
+
     val durationSec: Long
         get() {
             val end = endTime ?: System.currentTimeMillis()
@@ -65,13 +105,15 @@ data class UptimeIncident(
         put("st", startTime)
         if (endTime != null) put("et", endTime)
         put("err", error)
+        failure?.let { put("failure", it.toJson()) }
     }
 
     companion object {
         fun fromJson(o: JSONObject) = UptimeIncident(
             startTime = o.optLong("st"),
             endTime = if (o.has("et")) o.optLong("et") else null,
-            error = o.optString("err")
+            error = o.optString("err"),
+            failure = o.optJSONObject("failure")?.let { UptimeFailure.fromJson(it) }
         )
     }
 }
@@ -154,6 +196,8 @@ data class UptimeTarget(
         }
     }
 }
+
+private class UptimeFailureException(val failure: UptimeFailure) : Exception()
 
 // ── Background Uptime Monitor Runner ─────────────────────────────────────────
 
@@ -346,9 +390,10 @@ object UptimeEngine {
     }
 
     suspend fun checkTarget(target: UptimeTarget, ctx: Context? = null): Heartbeat = withContext(Dispatchers.IO) {
+        val copy = ctx?.let { CommandCopy.forLanguage(Prefs.getLanguage(it)) } ?: CommandCopyEn
         val t0 = System.currentTimeMillis()
         var isUp = false
-        var errMsg = ""
+        var failure: UptimeFailure? = null
 
         try {
             when (target.type.uppercase()) {
@@ -368,14 +413,14 @@ object UptimeEngine {
                                     isUp = true
                                 } else {
                                     isUp = false
-                                    errMsg = "Keyword '${target.keyword}' not found"
+                                    failure = UptimeFailure(UptimeFailureKind.KEYWORD_NOT_FOUND, target.keyword)
                                 }
                             } else {
                                 isUp = true
                             }
                         } else {
                             isUp = false
-                            errMsg = "HTTP ${resp.code}"
+                            failure = UptimeFailure(UptimeFailureKind.HTTP_STATUS, resp.code.toString())
                         }
                     }
                 }
@@ -383,9 +428,9 @@ object UptimeEngine {
                 "TCP", "PING" -> {
                     val port = if (target.port > 0) target.port else 80
                     val addresses = InetAddress.getAllByName(target.target.trim()).toList()
-                    require(addresses.isNotEmpty()) { "Target did not resolve" }
+                    if (addresses.isEmpty()) throw UptimeFailureException(UptimeFailure(UptimeFailureKind.TARGET_UNRESOLVED))
                     if (!target.allowPrivateNetwork) {
-                        require(addresses.all(NetworkTargetPolicy::isPublicAddress)) { "Private network target requires explicit permission" }
+                        if (!addresses.all(NetworkTargetPolicy::isPublicAddress)) throw UptimeFailureException(UptimeFailure(UptimeFailureKind.PRIVATE_NETWORK))
                     }
                     Socket().use { s ->
                         // Connect to the already validated address to avoid a
@@ -398,28 +443,32 @@ object UptimeEngine {
                 "SSL" -> {
                     val port = if (target.port > 0) target.port else 443
                     val addresses = InetAddress.getAllByName(target.target.trim()).toList()
-                    require(addresses.isNotEmpty()) { "Target did not resolve" }
+                    if (addresses.isEmpty()) throw UptimeFailureException(UptimeFailure(UptimeFailureKind.TARGET_UNRESOLVED))
                     if (!target.allowPrivateNetwork) {
-                        require(addresses.all(NetworkTargetPolicy::isPublicAddress)) { "Private network target requires explicit permission" }
+                        if (!addresses.all(NetworkTargetPolicy::isPublicAddress)) throw UptimeFailureException(UptimeFailure(UptimeFailureKind.PRIVATE_NETWORK))
                     }
                     val cert = SslInspector.inspect(target.target.trim(), port, 5000, addresses.first())
                     isUp = !cert.isExpired
-                    if (cert.isExpired) errMsg = "Certificate expired"
+                    if (cert.isExpired) failure = UptimeFailure(UptimeFailureKind.CERTIFICATE_EXPIRED)
                 }
 
                 else -> isUp = true
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
+        } catch (known: UptimeFailureException) {
+            isUp = false
+            failure = known.failure
         } catch (e: Exception) {
             isUp = false
-            errMsg = e.message ?: "Connection failed"
+            failure = UptimeFailure(UptimeFailureKind.CONNECTION, e.message.orEmpty())
         }
 
         // Cancelling monitoring is not a failed target and must not produce a down alert.
         currentCoroutineContext().ensureActive()
         val latency = System.currentTimeMillis() - t0
         val statusInt = if (isUp) 1 else 0
+        val failureText = failure?.localized(copy) ?: copy.upCheckFailed
 
         // Handle State Transition & Notifications
         val previousStatus = target.lastStatus
@@ -435,14 +484,20 @@ object UptimeEngine {
 
         if (previousStatus == 1 && statusInt == 0) {
             // Transition UP -> DOWN
-            target.incidents.add(UptimeIncident(startTime = System.currentTimeMillis(), error = errMsg))
+            target.incidents.add(UptimeIncident(startTime = System.currentTimeMillis(), error = failure?.detail.orEmpty(), failure = failure))
             if (ctx != null) {
-                notifyUser(ctx, "🔴 Service Down: ${target.name}", "Error: $errMsg", target.id.toInt())
+                notifyUser(
+                    ctx,
+                    copy,
+                    copy.upServiceDownTitle.replace("%1", target.name),
+                    copy.upServiceDownBody.replace("%1", failureText),
+                    target.id.toInt()
+                )
                 AlertEngine.dispatchAlert(
                     ctx,
                     AlertType.UPTIME_FAIL,
                     target.name,
-                    "پایش سلامت ناموفق بود: $errMsg",
+                    copy.upServiceDownBody.replace("%1", failureText),
                     AlertLevel.CRITICAL
                 )
             }
@@ -452,12 +507,18 @@ object UptimeEngine {
             ongoing?.endTime = System.currentTimeMillis()
             if (ctx != null) {
                 val dur = ongoing?.durationSec ?: 0
-                notifyUser(ctx, "🟢 Service Recovered: ${target.name}", "Service is back online (was down for ${dur}s)", target.id.toInt())
+                notifyUser(
+                    ctx,
+                    copy,
+                    copy.upServiceRecoveredTitle.replace("%1", target.name),
+                    copy.upServiceRecoveredBody.replace("%1", dur.toString()),
+                    target.id.toInt()
+                )
                 AlertEngine.dispatchAlert(
                     ctx,
                     AlertType.UPTIME_RECOVERED,
                     target.name,
-                    "سرویس با موفقیت به مدار بازگشت (مدت زمان قطعی: ${dur} ثانیه)",
+                    copy.upServiceRecoveredBody.replace("%1", dur.toString()),
                     AlertLevel.RESOLVED
                 )
             }
@@ -466,11 +527,11 @@ object UptimeEngine {
         hb
     }
 
-    private fun notifyUser(ctx: Context, title: String, message: String, notificationId: Int) {
+    private fun notifyUser(ctx: Context, copy: CommandCopy, title: String, message: String, notificationId: Int) {
         try {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val chan = NotificationChannel("didban_uptime", "Uptime Alerts", NotificationManager.IMPORTANCE_HIGH)
+                val chan = NotificationChannel("didban_uptime", copy.uptime, NotificationManager.IMPORTANCE_HIGH)
                 nm.createNotificationChannel(chan)
             }
             val notif = NotificationCompat.Builder(ctx, "didban_uptime")
