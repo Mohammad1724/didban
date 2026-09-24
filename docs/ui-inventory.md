@@ -90,3 +90,4 @@
 - این primitive در فرم‌های Manage Servers، Server Editor، Tunnel Editor، Uptime، Services، Security، DNS، Network Tools، Check-Host، Cloudflare Scanner، Workbench/SFTP، Radar و Bandwidth به کار می‌رود.
 - برای Server Editor و Radar تست‌های Compose در عرض‌های `320dp` و `400dp` اضافه شده‌اند؛ قرارداد breakpoint wide نیز در `CommandLayoutTest` قفل شده و Radar از probe تزریقی برای deterministic بودن state test استفاده می‌کند.
 - این slice رفتار عملیاتی، ownership مسیرها و visible copy را تغییر نمی‌دهد؛ فقط قرارداد هندسی responsive را از سطح صفحه به design system منتقل می‌کند.
+- Network Tools اکنون قرارداد state مشترک و قابل‌تست دارد: loading با cancel، empty result برای port scan، offline/error با retry و پاک‌سازی نتیجه هنگام تغییر mode؛ عملیات واقعی از طریق runner تزریق‌پذیر تست می‌شود.

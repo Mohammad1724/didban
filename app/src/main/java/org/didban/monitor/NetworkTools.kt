@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -80,6 +81,8 @@ object PortScanner {
                 val lat = System.currentTimeMillis() - t0
                 PortScanResult(port, serviceName, isOpen = true, latencyMs = lat)
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             PortScanResult(port, serviceName, isOpen = false, latencyMs = -1)
         }
