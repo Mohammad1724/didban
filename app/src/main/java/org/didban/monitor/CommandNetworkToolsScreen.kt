@@ -71,6 +71,30 @@ object DefaultNetworkToolsRunner : NetworkToolsRunner {
         IpInfoService.lookup(target)
 }
 
+private fun localizedCensorshipResult(
+    result: CensorshipDiagnosticResult,
+    copy: CommandCopy
+): Pair<String, String> {
+    val value = result.details.ifBlank { copy.netDiagFailed }
+    return when (result.diagnosis) {
+        CensorshipDiagnosis.TCP_TIMEOUT -> copy.netDpiTcpTimeout to copy.netDpiTcpTimeoutBody
+        CensorshipDiagnosis.TCP_RESET -> copy.netDpiTcpReset to copy.netDpiTcpResetBody
+        CensorshipDiagnosis.PORT_CLOSED -> copy.netDpiPortClosed.replace("%1", result.port.toString()) to
+            copy.netDpiPortClosedBody.replace("%1", result.port.toString())
+        CensorshipDiagnosis.TCP_ERROR -> copy.netDpiTcpError.replace("%1", value) to
+            copy.netDpiTcpErrorBody.replace("%1", value)
+        CensorshipDiagnosis.TLS_HEALTHY -> copy.netDpiTlsHealthy to
+            copy.netDpiTlsHealthyBody.replace("%1", value)
+        CensorshipDiagnosis.PLAIN_TCP -> copy.netDpiPlainTcp.replace("%1", result.port.toString()) to
+            copy.netDpiPlainTcpBody.replace("%1", result.port.toString())
+        CensorshipDiagnosis.TLS_FILTERED -> copy.netDpiTlsFiltered to
+            copy.netDpiTlsFilteredBody.replace("%1", value)
+        CensorshipDiagnosis.SSH_OPEN -> copy.netDpiSshOpen to copy.netDpiSshOpenBody
+        CensorshipDiagnosis.PORT_OPEN -> copy.netDpiPortOpen.replace("%1", result.port.toString()) to
+            copy.netDpiPortOpenBody.replace("%1", result.port.toString())
+    }
+}
+
 @Composable
 fun CommandNetworkToolsScreen(
     copy: CommandCopy,
@@ -124,7 +148,8 @@ fun CommandNetworkToolsScreen(
                 when (requestedMode) {
                     NetworkDiagnosticMode.DPI -> {
                         val result = runner.diagnose(clean, targetPort)
-                        summary = result.diagnosis
+                        val localized = localizedCensorshipResult(result, copy)
+                        summary = localized.first
                         summaryTone = if (result.isFiltered) CommandHealthTone.OFFLINE else CommandHealthTone.INFO
                         val yes = { value: Boolean -> if (value) copy.netYes else copy.netNo }
                         detail = listOf(
@@ -132,7 +157,7 @@ fun CommandNetworkToolsScreen(
                             copy.netTlsReachable.replace("%1", yes(result.tlsReachable)),
                             copy.netFiltered.replace("%1", yes(result.isFiltered)),
                             copy.netLatency.replace("%1", result.latencyMs.toString()),
-                            result.details
+                            localized.second
                         ).joinToString("\n")
                     }
                     NetworkDiagnosticMode.PORTS -> {

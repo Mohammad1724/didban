@@ -1133,6 +1133,24 @@ interface CommandCopy {
     val netSan: String
     val netYes: String
     val netNo: String
+    val netDpiTcpTimeout: String
+    val netDpiTcpTimeoutBody: String
+    val netDpiTcpReset: String
+    val netDpiTcpResetBody: String
+    val netDpiPortClosed: String
+    val netDpiPortClosedBody: String
+    val netDpiTcpError: String
+    val netDpiTcpErrorBody: String
+    val netDpiTlsHealthy: String
+    val netDpiTlsHealthyBody: String
+    val netDpiPlainTcp: String
+    val netDpiPlainTcpBody: String
+    val netDpiTlsFiltered: String
+    val netDpiTlsFilteredBody: String
+    val netDpiSshOpen: String
+    val netDpiSshOpenBody: String
+    val netDpiPortOpen: String
+    val netDpiPortOpenBody: String
     val dnsOperation: String
     val dnsZones: String
     val dnsRecords: String
@@ -1991,6 +2009,24 @@ internal object CommandCopyFa : CommandCopy {
     override val netSan = "SAN"
     override val netYes = "بله"
     override val netNo = "خیر"
+    override val netDpiTcpTimeout = "Timeout TCP؛ مقصد یا پورت ممکن است فیلتر باشد"
+    override val netDpiTcpTimeoutBody = "سرور پاسخی نداد؛ ممکن است مسیر یا فایروال پکت‌ها را حذف کرده باشد."
+    override val netDpiTcpReset = "TCP RST؛ احتمال فیلتر هوشمند DPI"
+    override val netDpiTcpResetBody = "اتصال با پاسخ TCP RST قطع شد."
+    override val netDpiPortClosed = "مقصد در دسترس است؛ پورت %1 بسته است"
+    override val netDpiPortClosedBody = "مقصد پاسخ داد، اما سرویسی روی پورت %1 گوش نمی‌دهد."
+    override val netDpiTcpError = "خطای اتصال TCP: %1"
+    override val netDpiTcpErrorBody = "اتصال TCP کامل نشد: %1"
+    override val netDpiTlsHealthy = "ارتباط TLS سالم و بدون فیلتر است"
+    override val netDpiTlsHealthyBody = "هندشیک TLS با گواهی %1 موفق شد."
+    override val netDpiPlainTcp = "پورت %1 باز است، اما سرویس TLS ندارد"
+    override val netDpiPlainTcpBody = "اتصال شبکه برقرار است؛ سرویس روی پورت %1 گواهی TLS ارائه نکرد."
+    override val netDpiTlsFiltered = "اختلال یا فیلتر در TLS / SNI"
+    override val netDpiTlsFilteredBody = "TCP برقرار شد اما TLS تکمیل نشد: %1"
+    override val netDpiSshOpen = "پورت SSH 22 باز و در دسترس است"
+    override val netDpiSshOpenBody = "اتصال TCP به سرویس SSH برقرار شد."
+    override val netDpiPortOpen = "پورت %1 باز و در دسترس است"
+    override val netDpiPortOpenBody = "اتصال TCP به پورت %1 موفق شد."
     override val dnsOperation = "نتیجهٔ عملیات"
     override val dnsZones = "Zoneها"
     override val dnsRecords = "Recordها · %1"
@@ -2842,6 +2878,24 @@ internal object CommandCopyEn : CommandCopy {
     override val netSan = "SAN"
     override val netYes = "Yes"
     override val netNo = "No"
+    override val netDpiTcpTimeout = "TCP timeout; destination or port may be filtered"
+    override val netDpiTcpTimeoutBody = "The server did not respond; the route or a firewall may be dropping packets."
+    override val netDpiTcpReset = "TCP reset; possible DPI filtering"
+    override val netDpiTcpResetBody = "The connection was closed with a TCP RST response."
+    override val netDpiPortClosed = "Destination is reachable; port %1 is closed"
+    override val netDpiPortClosedBody = "The destination responded, but no service is listening on port %1."
+    override val netDpiTcpError = "TCP connection error: %1"
+    override val netDpiTcpErrorBody = "The TCP connection did not complete: %1"
+    override val netDpiTlsHealthy = "TLS connection is healthy and unfiltered"
+    override val netDpiTlsHealthyBody = "TLS handshake succeeded with certificate %1."
+    override val netDpiPlainTcp = "Port %1 is open, but the service is not using TLS"
+    override val netDpiPlainTcpBody = "The network connection is healthy; the service on port %1 did not provide a TLS certificate."
+    override val netDpiTlsFiltered = "TLS / SNI handshake failed or was filtered"
+    override val netDpiTlsFilteredBody = "TCP connected, but TLS did not complete: %1"
+    override val netDpiSshOpen = "SSH port 22 is open and reachable"
+    override val netDpiSshOpenBody = "A TCP connection to the SSH service succeeded."
+    override val netDpiPortOpen = "Port %1 is open and reachable"
+    override val netDpiPortOpenBody = "A TCP connection to port %1 succeeded."
     override val dnsOperation = "Operation result"
     override val dnsZones = "Zones"
     override val dnsRecords = "Records · %1"

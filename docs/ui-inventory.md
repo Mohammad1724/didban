@@ -92,3 +92,4 @@
 - این slice رفتار عملیاتی، ownership مسیرها و visible copy را تغییر نمی‌دهد؛ فقط قرارداد هندسی responsive را از سطح صفحه به design system منتقل می‌کند.
 - Network Tools اکنون قرارداد state مشترک و قابل‌تست دارد: loading با cancel، empty result برای port scan، offline/error با retry و پاک‌سازی نتیجه هنگام تغییر mode؛ عملیات واقعی از طریق runner تزریق‌پذیر تست می‌شود.
 - Check-Host نیز در همین قرارداد قرار گرفت: loading صریح، cancel موجود، خطای offline با retry و پاک‌سازی نتیجهٔ قبلی هنگام ورودی نامعتبر؛ تست UI آن بدون fleet یا درخواست زنده اجرا می‌شود.
+- نتایج DPI/TLS در Network Tools دیگر متن فارسی hardcoded در engine نیستند؛ outcome تایپ‌شده به copy فارسی/انگلیسی map می‌شود تا نتیجهٔ عملیاتی نیز locale parity داشته باشد.

@@ -64,7 +64,7 @@ class NetworkToolsUiTest {
         }
         compose.onNodeWithText(copy.retry).performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText("healthy").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(copy.netDpiTlsHealthy).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText(copy.operationFailed).assertDoesNotExist()
         assertEquals(2, runner.diagnoseCalls)
@@ -99,7 +99,7 @@ class NetworkToolsUiTest {
                 failNextDiagnosis = false
                 error("offline")
             }
-            return CensorshipDiagnosticResult(host, port, true, true, false, "healthy", 12, "details")
+            return CensorshipDiagnosticResult(host, port, true, true, false, CensorshipDiagnosis.TLS_HEALTHY, 12, "certificate")
         }
 
         override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) {

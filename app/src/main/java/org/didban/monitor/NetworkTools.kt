@@ -196,13 +196,25 @@ object SslInspector {
 
 // ── Censorship & DPI / Handshake Diagnostic ──────────────────────────────────
 
+enum class CensorshipDiagnosis {
+    TCP_TIMEOUT,
+    TCP_RESET,
+    PORT_CLOSED,
+    TCP_ERROR,
+    TLS_HEALTHY,
+    PLAIN_TCP,
+    TLS_FILTERED,
+    SSH_OPEN,
+    PORT_OPEN
+}
+
 data class CensorshipDiagnosticResult(
     val host: String,
     val port: Int,
     val tcpReachable: Boolean,
     val tlsReachable: Boolean,
     val isFiltered: Boolean,
-    val diagnosis: String,
+    val diagnosis: CensorshipDiagnosis,
     val latencyMs: Long,
     val details: String
 )
@@ -213,7 +225,7 @@ object CensorshipTester {
         var tcpOk = false
         var tlsOk = false
         var isFiltered = false
-        var diagnosis = ""
+        var diagnosis = CensorshipDiagnosis.TCP_ERROR
         var detail = ""
 
         val isTlsPort = port in listOf(443, 8443, 2053, 2083, 2087, 2096, 9443)
@@ -227,40 +239,40 @@ object CensorshipTester {
         } catch (e: SocketTimeoutException) {
             tcpOk = false
             isFiltered = true
-            diagnosis = "🔴 آی‌پی یا پورت کاملاً فیلتر است (TCP SYN Timeout)"
-            detail = "هیچ پاسخی از سرور دریافت نشد؛ پکت‌ها توسط سیستم فیلترینگ یا بلک‌هول دراپ شده‌اند."
+            diagnosis = CensorshipDiagnosis.TCP_TIMEOUT
+            detail = ""
         } catch (e: IOException) {
             val msg = e.message ?: ""
             if (msg.contains("reset", ignoreCase = true) || msg.contains("RST", ignoreCase = true)) {
                 tcpOk = false
                 isFiltered = true
-                diagnosis = "🔴 فیلتر هوشمند DPI (تزریق پکت جعلی TCP RST)"
-                detail = "فایروال فیلترینگ (DPI) در میانه مسیر پکت جعلی TCP RST ارسال کرده و اتصال را قطع کرد."
+                diagnosis = CensorshipDiagnosis.TCP_RESET
+                detail = ""
             } else if (msg.contains("refused", ignoreCase = true)) {
                 // Connection Refused means the server OS responded! The IP is reachable and NOT filtered!
                 tcpOk = true
                 tlsOk = false
                 isFiltered = false
-                diagnosis = "🟢 آی‌پی سالم و در دسترس است (پورت $port هنوز بسته است)"
-                detail = "پکت با موفقیت به سرور در خارج رسید و سیستم‌عامل سرور پاسخ داد (Connection Refused). این یعنی آی‌پی اصلاً فیلتر نیست ولی برنامه‌ای روی پورت $port اجرا نیست. برای تست سرور خام می‌توانید پورت 22 (SSH) را تست کنید."
+                diagnosis = CensorshipDiagnosis.PORT_CLOSED
+                detail = ""
             } else {
                 tcpOk = false
                 isFiltered = true
-                diagnosis = "🔴 خطا در اتصال TCP: $msg"
+                diagnosis = CensorshipDiagnosis.TCP_ERROR
                 detail = msg
             }
         }
 
         // Step 2: Protocol Handshake Test (if TCP succeeded and not connection refused)
-        if (tcpOk && !diagnosis.contains("Connection Refused")) {
+        if (tcpOk && diagnosis != CensorshipDiagnosis.PORT_CLOSED) {
             if (isTlsPort) {
                 // Test TLS Handshake
                 try {
                     val cert = SslInspector.inspect(host, port, timeoutMs)
                     tlsOk = true
                     isFiltered = false
-                    diagnosis = "🟢 ارتباط کاملاً سالم و بدون فیلتر است (No DPI Filter)"
-                    detail = "هندشیک TCP و مذاکره امن TLS با گواهی '${cert.subject}' با موفقیت و بدون دستکاری انجام شد."
+                    diagnosis = CensorshipDiagnosis.TLS_HEALTHY
+                    detail = cert.subject
                 } catch (e: Exception) {
                     val errMsg = e.message ?: ""
                     if (errMsg.contains("No certificate returned", ignoreCase = true) ||
@@ -270,27 +282,27 @@ object CensorshipTester {
                         // Plain TCP service listening on 443 without SSL
                         tlsOk = false
                         isFiltered = false
-                        diagnosis = "🟢 پورت باز و آزاد است (سرویس بدون SSL روی پورت $port فعال است)"
-                        detail = "پورت $port باز است اما سرویس روی آن گواهی SSL/TLS ارائه نمی‌دهد. اتصال شبکه کاملاً برقرار و سالم است."
+                        diagnosis = CensorshipDiagnosis.PLAIN_TCP
+                        detail = ""
                     } else {
                         tlsOk = false
                         isFiltered = true
-                        diagnosis = "🔴 اختلال و فیلتر روی هندشیک TLS / SNI"
-                        detail = "اتصال اولیه TCP برقرار شد اما تبادل امن TLS توسط فیلترینگ قطع یا تایم‌اوت گردید ($errMsg)."
+                        diagnosis = CensorshipDiagnosis.TLS_FILTERED
+                        detail = errMsg
                     }
                 }
             } else if (port == 22) {
                 // SSH port
                 tlsOk = true
                 isFiltered = false
-                diagnosis = "🟢 پورت SSH (22) کاملاً باز و آزاد است"
-                detail = "ارتباط مستقیم با سرور لینوکسی با موفقیت برقرار شد. آی‌پی کاملاً سالم و آماده استفاده است."
+                diagnosis = CensorshipDiagnosis.SSH_OPEN
+                detail = ""
             } else {
                 // Other TCP ports
                 tlsOk = true
                 isFiltered = false
-                diagnosis = "🟢 پورت $port کاملاً باز و در دسترس است"
-                detail = "اتصال TCP پورت $port بدون هیچ‌گونه پکت‌لاس یا فیلترینگ برقرار گردید."
+                diagnosis = CensorshipDiagnosis.PORT_OPEN
+                detail = ""
             }
         }
 
