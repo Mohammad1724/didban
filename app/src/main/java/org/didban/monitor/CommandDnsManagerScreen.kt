@@ -254,7 +254,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         CommandStatusMark("${result.flag} ${result.country} · ${result.ip}", CommandHealthTone.INFO, detail = "${result.reverseDns.ifBlank { copy.dnsNoPtr }} · ${result.isp.ifBlank { copy.dnsNoIsp }}")
                         if (result.dnsRecords.isEmpty()) Text(copy.dnsNoPublicAnswer, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         result.dnsRecords.take(30).forEach { record ->
-                            Text("${record.type} ${record.name} → ${record.data} · ${copy.dnsTtl} ${record.ttl}", color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(copy.dnsRecordSummary.replace("%1", record.type).replace("%2", record.name).replace("%3", record.data).replace("%4", record.ttl.toString()), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace), maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

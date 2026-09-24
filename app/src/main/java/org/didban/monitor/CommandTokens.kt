@@ -1039,6 +1039,7 @@ interface CommandCopy {
     val netIndexBody: String
     val netQReachable: String
     val checkHostInput: String
+    val checkHostTargetHint: String
     val checkHostInfo: String
     val checkHostInvalidTarget: String
     val checkHostNoNodes: String
@@ -1122,6 +1123,7 @@ interface CommandCopy {
     val netTlsReachable: String
     val netFiltered: String
     val netLatency: String
+    val netLatencyValue: String
     val netSubject: String
     val netIssuer: String
     val netValid: String
@@ -1137,6 +1139,7 @@ interface CommandCopy {
     val dnsNewRecord: String
     val dnsContent: String
     val dnsTtl: String
+    val dnsRecordSummary: String
     val dnsProxied: String
     val dnsLookup: String
     val dnsNoIsp: String
@@ -1894,6 +1897,7 @@ internal object CommandCopyFa : CommandCopy {
     override val netIndexBody = "عیب‌یابی دسترسی، شبکه، TLS، DNS و کیفیت اتصال."
     override val netQReachable = "تست دسترسی به مقصد"
     override val checkHostInput = "ورودی Check-Host"
+    override val checkHostTargetHint = "example.com / 1.1.1.1"
     override val checkHostInfo = "اطلاعات IP"
     override val checkHostInvalidTarget = "یک دامنه یا IP معتبر وارد کنید."
     override val checkHostNoNodes = "از Check-Host هیچ نقطه‌ای برای این درخواست دریافت نشد."
@@ -1977,6 +1981,7 @@ internal object CommandCopyFa : CommandCopy {
     override val netTlsReachable = "دسترسی TLS: %1"
     override val netFiltered = "فیلترشده: %1"
     override val netLatency = "تأخیر: %1 ms"
+    override val netLatencyValue = "%1 ms"
     override val netSubject = "Subject"
     override val netIssuer = "Issuer"
     override val netValid = "اعتبار"
@@ -1992,6 +1997,7 @@ internal object CommandCopyFa : CommandCopy {
     override val dnsNewRecord = "Record جدید"
     override val dnsContent = "Content"
     override val dnsTtl = "TTL"
+    override val dnsRecordSummary = "%1 %2 → %3 · TTL %4"
     override val dnsProxied = "Proxied"
     override val dnsLookup = "Lookup"
     override val dnsNoIsp = "بدون ISP"
@@ -2742,6 +2748,7 @@ internal object CommandCopyEn : CommandCopy {
     override val netIndexBody = "Diagnose reachability, network, TLS, DNS and connection quality."
     override val netQReachable = "Test destination reachability"
     override val checkHostInput = "Check-Host input"
+    override val checkHostTargetHint = "example.com / 1.1.1.1"
     override val checkHostInfo = "IP info"
     override val checkHostInvalidTarget = "Enter a valid domain or IP address."
     override val checkHostNoNodes = "Check-Host returned no test locations for this request."
@@ -2825,6 +2832,7 @@ internal object CommandCopyEn : CommandCopy {
     override val netTlsReachable = "TLS reachable: %1"
     override val netFiltered = "Filtered: %1"
     override val netLatency = "Latency: %1 ms"
+    override val netLatencyValue = "%1 ms"
     override val netSubject = "Subject"
     override val netIssuer = "Issuer"
     override val netValid = "Valid"
@@ -2840,6 +2848,7 @@ internal object CommandCopyEn : CommandCopy {
     override val dnsNewRecord = "New record"
     override val dnsContent = "Content"
     override val dnsTtl = "TTL"
+    override val dnsRecordSummary = "%1 %2 → %3 · TTL %4"
     override val dnsProxied = "Proxied"
     override val dnsLookup = "Lookup"
     override val dnsNoIsp = "No ISP"

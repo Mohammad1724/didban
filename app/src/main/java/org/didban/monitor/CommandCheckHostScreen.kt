@@ -219,7 +219,7 @@ fun CommandCheckHostScreen(
                         enabled = !running,
                         singleLine = true,
                         label = { Text(copy.netHostDomain) },
-                        placeholder = { Text("example.com / 1.1.1.1") }
+                        placeholder = { Text(copy.checkHostTargetHint) }
                     )
                     CommandChipRow(
                         options = listOf(

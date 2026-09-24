@@ -257,7 +257,7 @@ fun CommandNetworkToolsScreen(
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
                         CommandStatusMark(copy.netOpen, CommandHealthTone.HEALTHY, Modifier.weight(1f), "${result.port} · ${result.service}")
-                        Text("${result.latencyMs} ms", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
+                        Text(copy.netLatencyValue.replace("%1", result.latencyMs.toString()), color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))
                     }
                 }
             }
