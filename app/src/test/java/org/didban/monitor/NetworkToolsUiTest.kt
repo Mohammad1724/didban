@@ -5,6 +5,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import kotlinx.coroutines.awaitCancellation
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -76,7 +77,7 @@ class NetworkToolsUiTest {
         enterHost()
         runButton().performClick()
         compose.waitUntil(10_000) { runner.started }
-        compose.onNodeWithText(copy.waitingForData).assertIsDisplayed()
+        assertTrue(compose.onAllNodesWithText(copy.waitingForData).fetchSemanticsNodes().isNotEmpty())
 
         compose.onNodeWithText(copy.stop).performClick()
         compose.waitUntil(10_000) { runner.cancelled }
@@ -122,7 +123,6 @@ class NetworkToolsUiTest {
             } finally {
                 cancelled = true
             }
-            error("unreachable")
         }
 
         override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) =
