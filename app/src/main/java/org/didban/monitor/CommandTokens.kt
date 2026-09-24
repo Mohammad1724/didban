@@ -391,6 +391,7 @@ interface CommandCopy {
     val uiSshPassword: String
     val uiCommand: String
     val uiInput: String
+    val uiEvidence: String
     val uiManualFields: String
     val uiNoData: String
     val crashTitle: String
@@ -1268,6 +1269,7 @@ internal object CommandCopyFa : CommandCopy {
     override val uiSshPassword = "رمز SSH"
     override val uiCommand = "فرمان"
     override val uiInput = "ورودی"
+    override val uiEvidence = "شواهد"
     override val uiManualFields = "ورود دستی اطلاعات اتصال"
     override val uiNoData = "هنوز داده‌ای نداریم"
     override val crashTitle = "گزارش خطای دیدبان"
@@ -2137,6 +2139,7 @@ internal object CommandCopyEn : CommandCopy {
     override val uiSshPassword = "SSH password"
     override val uiCommand = "Command"
     override val uiInput = "Input"
+    override val uiEvidence = "Evidence"
     override val uiManualFields = "Enter connection details manually"
     override val uiNoData = "No measurements yet"
     override val crashTitle = "Didban crash report"

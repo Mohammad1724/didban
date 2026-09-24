@@ -131,7 +131,7 @@ fun CommandSshScreen(
             item {
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Text("Input", style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                        Text(copy.uiInput, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         OutlinedTextField(command, { command = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, label = { Text(copy.uiCommand) })
                         CommandPrimaryButton(if (running) copy.waitingForData else copy.run, ::execute, enabled = !running && server != null, icon = Icons.Rounded.PlayArrow)
                     }
@@ -142,7 +142,7 @@ fun CommandSshScreen(
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Evidence", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                            Text(copy.uiEvidence, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                             CommandTextButton(copy.copyAction, { clipboard.setText(AnnotatedString(output)) }, Icons.Rounded.ContentCopy)
                         }
                         Spacer(Modifier.height(CommandSpacing.sm))

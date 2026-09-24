@@ -95,3 +95,4 @@
 - نتایج DPI/TLS در Network Tools دیگر متن فارسی hardcoded در engine نیستند؛ outcome تایپ‌شده به copy فارسی/انگلیسی map می‌شود تا نتیجهٔ عملیاتی نیز locale parity داشته باشد.
 - DNS Manager برای zone و record خالی از `CommandEmptyState` مشترک استفاده می‌کند؛ تست UI آن بدون token یا حساب Cloudflare، empty و local error/retry را قفل می‌کند.
 - عملیات DNS یک retry contextual برای همان action و cancel مشترک دارد؛ تغییرات token، zone، record و lookup هنگام busy قفل می‌شوند تا نتیجهٔ یک operation روی ورودی بعدی overwrite نشود.
+- عنوان‌های عمومی Workbench و Services مثل Input و Evidence اکنون از `CommandCopy` می‌آیند؛ visible copy این دو workspace دیگر به انگلیسی hardcode نشده است.

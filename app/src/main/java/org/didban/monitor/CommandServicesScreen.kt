@@ -224,7 +224,7 @@ fun CommandServicesScreen(
                     CommandSurface(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(CommandSpacing.md)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Evidence", Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
+                                Text(copy.uiEvidence, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                                 Text(copy.svcRawSsh, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                             }
                             Spacer(Modifier.height(CommandSpacing.sm))
