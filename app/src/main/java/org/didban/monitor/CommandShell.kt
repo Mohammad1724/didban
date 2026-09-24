@@ -517,7 +517,7 @@ private fun CommandRouteContent(
             CommandRoute.UPTIME -> CommandUptimeScreen(copy, onOpenEditor = { onNavigate(CommandRoute.UPTIME_EDITOR, null) }, onOpenRadar = { onNavigate(CommandRoute.RADAR, selectedServer) })
             CommandRoute.UPTIME_EDITOR -> CommandUptimeEditorScreen(copy) { onBack() }
             CommandRoute.NETWORK_TOOLS -> CommandNetworkIndexScreen(copy, { onNavigate(CommandRoute.NETWORK_TOOLS_EDITOR, selectedServer) }, { onNavigate(CommandRoute.CHECK_HOST, null) }, { onNavigate(CommandRoute.DNS, null) }, { onNavigate(CommandRoute.CF_SCANNER, null) }, { onNavigate(CommandRoute.REALITY_SNI, null) })
-            CommandRoute.NETWORK_TOOLS_EDITOR -> key(selectedServer) { CommandNetworkToolsScreen(copy, selectedServer) { onBack() } }
+            CommandRoute.NETWORK_TOOLS_EDITOR -> key(selectedServer) { CommandNetworkToolsScreen(copy, selectedServer, onBack = { onBack() }) }
             CommandRoute.DNS -> CommandDnsIndexScreen(copy, { onNavigate(CommandRoute.DNS_EDITOR, null) }, { onNavigate(CommandRoute.NETWORK_TOOLS, selectedServer) })
             CommandRoute.DNS_EDITOR -> CommandDnsManagerScreen(copy) { onBack() }
             CommandRoute.VAULT -> CommandVaultScreen(copy) { onBack() }
