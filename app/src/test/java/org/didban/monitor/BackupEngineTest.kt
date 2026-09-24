@@ -1,14 +1,16 @@
 package org.didban.monitor
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
 class BackupEngineTest {
     @Test
-    fun `inspect rejects oversized input before parsing`() {
+    fun `inspect rejects oversized input before parsing with a typed message`() {
         val raw = "x".repeat(8 * 1024 * 1024 + 1)
         val preview = BackupEngine.inspectBackup(raw)
         assertFalse(preview.isValid)
+        assertEquals(BackupMessageKind.TOO_LARGE, preview.error?.kind)
     }
 
     @Test

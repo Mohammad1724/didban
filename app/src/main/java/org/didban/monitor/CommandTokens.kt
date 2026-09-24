@@ -1046,6 +1046,12 @@ interface CommandCopy {
     val backupText: String
     val backupValid: String
     val backupInvalid: String
+    val backupTooLarge: String
+    val backupEmpty: String
+    val backupPasswordRequired: String
+    val backupPasswordInvalid: String
+    val backupRestoreSuccess: String
+    val backupRestoreFailed: String
     val alertsChannelsBody: String
     val alertsEnableTelegram: String
     val alertsTelegram: String
@@ -1950,6 +1956,12 @@ internal object CommandCopyFa : CommandCopy {
     override val backupText = "متن Backup"
     override val backupValid = "ساختار معتبر"
     override val backupInvalid = "ساختار نامعتبر"
+    override val backupTooLarge = "حجم Backup بیش از حد مجاز است."
+    override val backupEmpty = "متن Backup خالی است."
+    override val backupPasswordRequired = "این Backup رمزنگاری شده است؛ رمز آن را وارد کنید."
+    override val backupPasswordInvalid = "رمز اشتباه است یا Backup آسیب دیده است."
+    override val backupRestoreSuccess = "بازیابی موفق بود: %1 سرور، %2 تونل و %3 مانیتور آپ‌تایم."
+    override val backupRestoreFailed = "پردازش یا ذخیرهٔ امن Backup ناموفق بود."
     override val alertsChannelsBody = "کانال‌ها و Triggerهای واقعی"
     override val alertsEnableTelegram = "فعال‌سازی Telegram"
     override val alertsTelegram = "Telegram"
@@ -2847,6 +2859,12 @@ internal object CommandCopyEn : CommandCopy {
     override val backupText = "Backup text"
     override val backupValid = "Valid structure"
     override val backupInvalid = "Invalid structure"
+    override val backupTooLarge = "Backup is too large."
+    override val backupEmpty = "Backup text is empty."
+    override val backupPasswordRequired = "This backup is encrypted; enter its password."
+    override val backupPasswordInvalid = "The password is wrong or the backup is damaged."
+    override val backupRestoreSuccess = "Restore completed: %1 servers, %2 tunnels and %3 uptime monitors."
+    override val backupRestoreFailed = "Could not process or securely save backup data."
     override val alertsChannelsBody = "Real channels and triggers"
     override val alertsEnableTelegram = "Enable Telegram"
     override val alertsTelegram = "Telegram"

@@ -7,6 +7,33 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+enum class BackupMessageKind {
+    TOO_LARGE,
+    EMPTY,
+    PASSWORD_REQUIRED,
+    PASSWORD_INVALID,
+    INVALID_STRUCTURE,
+    RESTORE_SUCCESS,
+    RESTORE_FAILED
+}
+
+data class BackupMessage(
+    val kind: BackupMessageKind,
+    val servers: Int = 0,
+    val tunnels: Int = 0,
+    val uptime: Int = 0
+) {
+    fun english(): String = when (kind) {
+        BackupMessageKind.TOO_LARGE -> "Backup is too large."
+        BackupMessageKind.EMPTY -> "Backup text is empty."
+        BackupMessageKind.PASSWORD_REQUIRED -> "This backup is encrypted; enter its password."
+        BackupMessageKind.PASSWORD_INVALID -> "The password is wrong or the backup is damaged."
+        BackupMessageKind.INVALID_STRUCTURE -> "Invalid backup structure."
+        BackupMessageKind.RESTORE_SUCCESS -> "Restore completed: $servers servers, $tunnels tunnels, $uptime uptime monitors."
+        BackupMessageKind.RESTORE_FAILED -> "Could not process or securely save backup data."
+    }
+}
+
 data class BackupPreview(
     val isValid: Boolean,
     val isEncrypted: Boolean,
@@ -16,7 +43,8 @@ data class BackupPreview(
     val hasVault: Boolean = false,
     val hasCfToken: Boolean = false,
     val timestamp: Long = 0L,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val error: BackupMessage? = null
 )
 
 data class RestoreResult(
@@ -25,7 +53,8 @@ data class RestoreResult(
     val tunnelsRestored: Int = 0,
     val uptimeRestored: Int = 0,
     val vaultRestored: Boolean = false,
-    val message: String
+    val message: String,
+    val messageKey: BackupMessage? = null
 )
 
 enum class RestoreMode {
@@ -104,31 +133,37 @@ object BackupEngine {
      */
     fun inspectBackup(raw: String, password: String? = null): BackupPreview {
         if (raw.length > MAX_BACKUP_CHARS) {
-            return BackupPreview(isValid = false, isEncrypted = raw.startsWith(ENC_PREFIX), errorMessage = "حجم بکاپ بیش از حد مجاز است.")
+            val message = BackupMessage(BackupMessageKind.TOO_LARGE)
+            return BackupPreview(isValid = false, isEncrypted = raw.startsWith(ENC_PREFIX), errorMessage = message.english(), error = message)
         }
         val trimmed = raw.trim()
         if (trimmed.isBlank()) {
-            return BackupPreview(isValid = false, isEncrypted = false, errorMessage = "رشته بکاپ خالی است")
+            val message = BackupMessage(BackupMessageKind.EMPTY)
+            return BackupPreview(isValid = false, isEncrypted = false, errorMessage = message.english(), error = message)
         }
 
         val isEncrypted = trimmed.startsWith(ENC_PREFIX)
 
         val jsonStr = if (isEncrypted) {
             if (password.isNullOrBlank()) {
+                val message = BackupMessage(BackupMessageKind.PASSWORD_REQUIRED)
                 return BackupPreview(
                     isValid = false,
                     isEncrypted = true,
-                    errorMessage = "این بکاپ رمزنگاری شده است. لطفاً رمز عبور را وارد کنید."
+                    errorMessage = message.english(),
+                    error = message
                 )
             }
             try {
                 val encPayload = trimmed.removePrefix(ENC_PREFIX)
                 EncryptedVault.decrypt(encPayload, password).also { require(it.length <= MAX_BACKUP_CHARS) { "Decrypted backup is too large" } }
             } catch (e: Exception) {
+                val message = BackupMessage(BackupMessageKind.PASSWORD_INVALID)
                 return BackupPreview(
                     isValid = false,
                     isEncrypted = true,
-                    errorMessage = "رمز عبور نادرست است یا داده‌های بکاپ آسیب دیده‌اند."
+                    errorMessage = message.english(),
+                    error = message
                 )
             }
         } else {
@@ -156,7 +191,8 @@ object BackupEngine {
                 timestamp = ts
             )
         } catch (e: Exception) {
-            BackupPreview(isValid = false, isEncrypted = isEncrypted, errorMessage = "ساختار فایل بکاپ نامعتبر است.")
+            val message = BackupMessage(BackupMessageKind.INVALID_STRUCTURE)
+            BackupPreview(isValid = false, isEncrypted = isEncrypted, errorMessage = message.english(), error = message)
         }
     }
 
@@ -170,20 +206,23 @@ object BackupEngine {
         mode: RestoreMode = RestoreMode.Merge
     ): RestoreResult {
         if (raw.length > MAX_BACKUP_CHARS) {
-            return RestoreResult(success = false, message = "حجم بکاپ بیش از حد مجاز است.")
+            val message = BackupMessage(BackupMessageKind.TOO_LARGE)
+            return RestoreResult(success = false, message = message.english(), messageKey = message)
         }
         val trimmed = raw.trim()
         val isEncrypted = trimmed.startsWith(ENC_PREFIX)
 
         val jsonStr = if (isEncrypted) {
             if (password.isNullOrBlank()) {
-                return RestoreResult(success = false, message = "رمز عبور بکاپ وارد نشده است.")
+                val message = BackupMessage(BackupMessageKind.PASSWORD_REQUIRED)
+                return RestoreResult(success = false, message = message.english(), messageKey = message)
             }
             try {
                 val encPayload = trimmed.removePrefix(ENC_PREFIX)
                 EncryptedVault.decrypt(encPayload, password).also { require(it.length <= MAX_BACKUP_CHARS) { "Decrypted backup is too large" } }
             } catch (e: Exception) {
-                return RestoreResult(success = false, message = "رمز عبور اشتباه است یا فایل بکاپ خراب است.")
+                val message = BackupMessage(BackupMessageKind.PASSWORD_INVALID)
+                return RestoreResult(success = false, message = message.english(), messageKey = message)
             }
         } else {
             trimmed
@@ -285,18 +324,26 @@ object BackupEngine {
             // One commit: no partially-restored servers/tunnels/settings.
             SecureStorage.putTransaction(ctx, "didban", secrets, values)
 
+            val message = BackupMessage(
+                BackupMessageKind.RESTORE_SUCCESS,
+                servers = incomingServers.size,
+                tunnels = incomingTunnels.size,
+                uptime = incomingUptime.size
+            )
             RestoreResult(
                 success = true,
                 serversRestored = incomingServers.size,
                 tunnelsRestored = incomingTunnels.size,
                 uptimeRestored = incomingUptime.size,
                 vaultRestored = vaultRestored,
-                message = "✅ بازیابی با موفقیت انجام شد: ${incomingServers.size} سرور، ${incomingTunnels.size} تانل، ${incomingUptime.size} مانیتور آپ‌تایم."
+                message = message.english(),
+                messageKey = message
             )
         } catch (_: Exception) {
             // JSON/crypto exceptions can quote the malformed source, which may
             // contain credentials from a legacy plaintext backup.
-            RestoreResult(success = false, message = "خطا در پردازش یا ذخیره امن اطلاعات بکاپ")
+            val message = BackupMessage(BackupMessageKind.RESTORE_FAILED)
+            RestoreResult(success = false, message = message.english(), messageKey = message)
         }
     }
 

@@ -241,6 +241,19 @@ fun CommandVaultScreen(
 
 }
 
+private fun BackupMessage.localized(copy: CommandCopy): String = when (kind) {
+    BackupMessageKind.TOO_LARGE -> copy.backupTooLarge
+    BackupMessageKind.EMPTY -> copy.backupEmpty
+    BackupMessageKind.PASSWORD_REQUIRED -> copy.backupPasswordRequired
+    BackupMessageKind.PASSWORD_INVALID -> copy.backupPasswordInvalid
+    BackupMessageKind.INVALID_STRUCTURE -> copy.backupInvalid
+    BackupMessageKind.RESTORE_SUCCESS -> copy.backupRestoreSuccess
+        .replace("%1", servers.toString())
+        .replace("%2", tunnels.toString())
+        .replace("%3", uptime.toString())
+    BackupMessageKind.RESTORE_FAILED -> copy.backupRestoreFailed
+}
+
 @Composable
 fun CommandBackupScreen(
     copy: CommandCopy,
@@ -322,7 +335,7 @@ fun CommandBackupScreen(
                     val currentPreview = preview
                     if (currentPreview != null) {
                         val p = currentPreview
-                        CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.errorMessage)
+                        CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.error?.localized(copy) ?: p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
                         CommandPrimaryButton(copy.backupRestoreAction.replace("%1", if (mode == RestoreMode.Merge) copy.backupModeMerge else copy.backupModeOverwrite), {
                             if (raw == inspectedRaw) pendingRestore = PendingRestoreRequest(raw, restorePassword.takeIf { it.isNotBlank() }, mode, p)
@@ -357,7 +370,7 @@ fun CommandBackupScreen(
                         val restored = withContext(Dispatchers.Default) {
                             BackupEngine.restoreBackup(context, request.raw, request.password, request.mode)
                         }
-                        result = restored.message.take(500)
+                        result = restored.messageKey?.localized(copy)?.take(500) ?: restored.message.take(500)
                         resultSuccess = restored.success
                         if (restored.success) {
                             pendingRestore = null
