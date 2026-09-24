@@ -94,3 +94,4 @@
 - Check-Host نیز در همین قرارداد قرار گرفت: loading صریح، cancel موجود، خطای offline با retry و پاک‌سازی نتیجهٔ قبلی هنگام ورودی نامعتبر؛ تست UI آن بدون fleet یا درخواست زنده اجرا می‌شود.
 - نتایج DPI/TLS در Network Tools دیگر متن فارسی hardcoded در engine نیستند؛ outcome تایپ‌شده به copy فارسی/انگلیسی map می‌شود تا نتیجهٔ عملیاتی نیز locale parity داشته باشد.
 - DNS Manager برای zone و record خالی از `CommandEmptyState` مشترک استفاده می‌کند؛ تست UI آن بدون token یا حساب Cloudflare، empty و local error/retry را قفل می‌کند.
+- عملیات DNS یک retry contextual برای همان action و cancel مشترک دارد؛ تغییرات token، zone، record و lookup هنگام busy قفل می‌شوند تا نتیجهٔ یک operation روی ورودی بعدی overwrite نشود.

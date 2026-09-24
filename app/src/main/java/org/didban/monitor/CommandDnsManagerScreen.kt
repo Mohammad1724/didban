@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Composable
@@ -55,45 +57,73 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
     var lookup by remember { mutableStateOf("") }
     var lookupResult by remember { mutableStateOf<GeoIpData?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var job by remember { mutableStateOf<Job?>(null) }
+    var retryAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var message by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var deleteRecord by remember { mutableStateOf<CfRecord?>(null) }
     var deleteZoneId by remember { mutableStateOf<String?>(null) }
 
+    fun cancel() {
+        job?.cancel()
+        job = null
+        busy = false
+    }
+
     fun loadZones() {
+        if (busy) return
         if (apiToken.isBlank()) {
             error = copy.dnsNoToken
+            retryAction = ::loadZones
             return
         }
         busy = true
         error = null
-        scope.launch {
+        message = null
+        retryAction = ::loadZones
+        job = scope.launch {
             try {
                 val loadedZones = CloudflareService.listZones(apiToken)
                 zones = loadedZones
                 val first = loadedZones.firstOrNull()
                 selectedZone = first
                 records = if (first == null) emptyList() else CloudflareService.listRecords(apiToken, first.id)
+                retryAction = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 error = e.message ?: copy.dnsZonesLoadFailed
             } finally {
                 busy = false
+                job = null
             }
         }
     }
 
     fun loadRecords(zone: CfZone) {
+        if (busy) return
         selectedZone = zone
         selectedRecord = null
         recordName = ""
         recordContent = ""
         busy = true
         error = null
-        scope.launch {
-            runCatching { CloudflareService.listRecords(apiToken, zone.id) }
-                .onSuccess { records = it; message = copy.dnsRecordsLoaded.replace("%1", it.size.toString()) }
-                .onFailure { error = it.message ?: copy.dnsRecordsLoadFailed }
-            busy = false
+        message = null
+        retryAction = { loadRecords(zone) }
+        job = scope.launch {
+            try {
+                val loaded = CloudflareService.listRecords(apiToken, zone.id)
+                records = loaded
+                message = copy.dnsRecordsLoaded.replace("%1", loaded.size.toString())
+                retryAction = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = e.message ?: copy.dnsRecordsLoadFailed
+            } finally {
+                busy = false
+                job = null
+            }
         }
     }
 
@@ -110,12 +140,15 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         val zone = selectedZone
         if (zone == null || recordName.isBlank() || recordContent.isBlank()) {
             error = copy.dnsRecordFieldsRequired
+            retryAction = ::saveRecord
             return
         }
         busy = true
         error = null
-        scope.launch {
-            runCatching {
+        message = null
+        retryAction = ::saveRecord
+        job = scope.launch {
+            try {
                 CloudflareService.saveRecord(
                     apiToken = apiToken,
                     zoneId = zone.id,
@@ -126,11 +159,17 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     proxied = recordProxied,
                     ttl = recordTtl.toIntOrNull()?.coerceIn(1, 86400) ?: 1
                 )
-            }.onSuccess {
                 message = if (selectedRecord == null) copy.dnsRecordCreated else copy.dnsRecordUpdated
-                loadRecords(zone)
-            }.onFailure { error = it.message ?: copy.dnsRecordSaveFailed }
-            busy = false
+                records = CloudflareService.listRecords(apiToken, zone.id)
+                retryAction = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = e.message ?: copy.dnsRecordSaveFailed
+            } finally {
+                busy = false
+                job = null
+            }
         }
     }
 
@@ -138,14 +177,56 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
         if (lookup.isBlank()) return
         busy = true
         error = null
-        scope.launch {
-            runCatching { IpInfoService.lookup(lookup) }
-                .onSuccess { lookupResult = it }
-                .onFailure { error = it.message ?: copy.dnsLookupFailed }
-            busy = false
+        message = null
+        lookupResult = null
+        retryAction = ::runLookup
+        job = scope.launch {
+            try {
+                lookupResult = IpInfoService.lookup(lookup)
+                retryAction = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = e.message ?: copy.dnsLookupFailed
+            } finally {
+                busy = false
+                job = null
+            }
         }
     }
 
+    fun deleteRecordNow(zone: CfZone, record: CfRecord) {
+        if (busy) return
+        busy = true
+        error = null
+        message = null
+        retryAction = { deleteRecordNow(zone, record) }
+        job = scope.launch {
+            try {
+                val current = CloudflareService.listRecords(apiToken, zone.id)
+                    .firstOrNull { it.id == record.id }
+                check(current != null && current.type == record.type && current.name == record.name) {
+                    copy.dnsRecordDeleteFailed
+                }
+                CloudflareService.deleteRecord(apiToken, zone.id, current.id)
+                message = copy.dnsRecordDeleted
+                records = CloudflareService.listRecords(apiToken, zone.id)
+                retryAction = null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: Exception) {
+                error = SecretRedactor.redact(
+                    e.message ?: copy.dnsRecordDeleteFailed,
+                    listOf(apiToken)
+                ).take(300)
+            } finally {
+                busy = false
+                job = null
+            }
+        }
+    }
+
+    val retry = retryAction
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
             Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +238,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.dnsConnection, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.dnsApiToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                    OutlinedTextField(tokenDraft, { tokenDraft = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.dnsApiToken) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     CommandResponsiveRow {
                         CommandPrimaryButton(
                             copy.dnsSaveToken,
@@ -167,6 +248,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                                         apiToken = tokenDraft.trim()
                                         message = copy.dnsTokenSaved
                                         error = null
+                                        retryAction = null
                                     }
                                     .onFailure {
                                         error = it.message ?: copy.operationFailed
@@ -174,6 +256,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                                     }
                             },
                             modifier = item(),
+                            enabled = !busy,
                             icon = Icons.Rounded.Save
                         )
                         CommandSecondaryButton(
@@ -183,12 +266,15 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                             enabled = !busy,
                             icon = Icons.Rounded.Refresh
                         )
+                        if (busy) {
+                            CommandSecondaryButton(copy.stop, ::cancel, modifier = item())
+                        }
                     }
                     Text(copy.dnsTokenBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }
             }
         }
-        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, ::loadZones) }
+        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, retry) }
         if (message != null) item { CommandStateBlock(copy.dnsOperation, message ?: "", CommandHealthTone.INFO) }
         if (busy) item { CommandInlineLoading(copy.waitingForData) }
         item {
@@ -199,7 +285,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         CommandEmptyState(copy.dnsZones, copy.dnsNoZonesYet)
                     } else {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                            zones.forEach { zone -> CommandSecondaryButton("${zone.name} · ${zone.status}", { loadRecords(zone) }, enabled = selectedZone?.id != zone.id) }
+                            zones.forEach { zone -> CommandSecondaryButton("${zone.name} · ${zone.status}", { loadRecords(zone) }, enabled = !busy && selectedZone?.id != zone.id) }
                         }
                     }
                 }
@@ -211,7 +297,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(copy.dnsRecords.replace("%1", selectedZone?.name.orEmpty()), Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                            CommandTextButton(copy.dnsNewRecord, { selectedRecord = null; recordName = ""; recordContent = "" }, icon = Icons.Rounded.Add)
+                            CommandTextButton(copy.dnsNewRecord, { selectedRecord = null; recordName = ""; recordContent = "" }, enabled = !busy, icon = Icons.Rounded.Add)
                         }
                         if (records.isEmpty()) {
                             CommandEmptyState(
@@ -222,8 +308,8 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                         records.forEach { record ->
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 CommandStatusMark(record.type, CommandHealthTone.INFO, Modifier.weight(1f), "${record.name} → ${record.content}")
-                                CommandTextButton(copy.edit, { chooseRecord(record) })
-                                CommandTextButton(copy.delete, { deleteRecord = record; deleteZoneId = selectedZone?.id }, icon = Icons.Rounded.DeleteOutline)
+                                CommandTextButton(copy.edit, { chooseRecord(record) }, enabled = !busy)
+                                CommandTextButton(copy.delete, { deleteRecord = record; deleteZoneId = selectedZone?.id }, enabled = !busy, icon = Icons.Rounded.DeleteOutline)
                             }
                         }
                     }
@@ -234,14 +320,14 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Text(if (selectedRecord == null) copy.dnsCreateRecord else copy.dnsEditRecord, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                            listOf("A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA").forEach { candidate -> CommandSecondaryButton(candidate, { recordType = candidate }, enabled = recordType != candidate) }
+                            listOf("A", "AAAA", "CNAME", "TXT", "MX", "NS", "CAA").forEach { candidate -> CommandSecondaryButton(candidate, { recordType = candidate }, enabled = !busy && recordType != candidate) }
                         }
-                        OutlinedTextField(recordName, { recordName = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiName) })
-                        OutlinedTextField(recordContent, { recordContent = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text(copy.dnsContent) })
+                        OutlinedTextField(recordName, { recordName = it }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.uiName) })
+                        OutlinedTextField(recordContent, { recordContent = it }, Modifier.fillMaxWidth(), enabled = !busy, minLines = 2, label = { Text(copy.dnsContent) })
                         CommandResponsiveRow {
-                            OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.dnsTtl) })
+                            OutlinedTextField(recordTtl, { recordTtl = it.filter(Char::isDigit).take(6) }, item(width = CommandMetrics.formAuxFieldWidth), enabled = !busy, singleLine = true, label = { Text(copy.dnsTtl) })
                             Row(item(), verticalAlignment = Alignment.CenterVertically) {
-                                Switch(recordProxied, { recordProxied = it })
+                                Switch(recordProxied, { recordProxied = it }, enabled = !busy)
                                 Text(copy.dnsProxied, color = CommandColors.textSecondary)
                             }
                         }
@@ -255,7 +341,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.dnsDiagnosis, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     CommandResponsiveRow {
-                        OutlinedTextField(lookup, { lookup = it }, item(weight = 1f), singleLine = true, label = { Text(copy.dnsDomainOrIp) })
+                        OutlinedTextField(lookup, { lookup = it }, item(weight = 1f), enabled = !busy, singleLine = true, label = { Text(copy.dnsDomainOrIp) })
                         CommandPrimaryButton(copy.dnsLookup, ::runLookup, enabled = !busy, icon = Icons.Rounded.Dns, modifier = item())
                     }
                     lookupResult?.let { result ->
@@ -285,24 +371,7 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                 val zone = selectedZone
                 deleteRecord = null
                 if (zone != null && zone.id == deleteZoneId && !busy) {
-                    busy = true
-                    scope.launch {
-                        runCatching {
-                            val current = CloudflareService.listRecords(apiToken, zone.id)
-                                .firstOrNull { it.id == record.id }
-                            check(current != null && current.type == record.type && current.name == record.name) {
-                                copy.dnsRecordDeleteFailed
-                            }
-                            CloudflareService.deleteRecord(apiToken, zone.id, current.id)
-                        }.onSuccess { message = copy.dnsRecordDeleted; loadRecords(zone) }
-                            .onFailure {
-                                error = SecretRedactor.redact(
-                                    it.message ?: copy.dnsRecordDeleteFailed,
-                                    listOf(apiToken)
-                                ).take(300)
-                            }
-                        busy = false
-                    }
+                    deleteRecordNow(zone, record)
                 }
             }
         )
