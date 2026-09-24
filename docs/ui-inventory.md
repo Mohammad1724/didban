@@ -97,3 +97,4 @@
 - عملیات DNS یک retry contextual برای همان action و cancel مشترک دارد؛ تغییرات token، zone، record و lookup هنگام busy قفل می‌شوند تا نتیجهٔ یک operation روی ورودی بعدی overwrite نشود.
 - عنوان‌های عمومی Workbench و Services مثل Input و Evidence اکنون از `CommandCopy` می‌آیند؛ visible copy این دو workspace دیگر به انگلیسی hardcode نشده است.
 - برچسب‌های telemetry مشترک CPU، Memory، Process ID و latency در Observe، Server Hub، Processes، Bandwidth، Reality SNI و Proxy Inspector از `CommandCopy`/formatter مشترک می‌آیند؛ واحدها و نام‌گذاری بین سطوح محصول یکسان مانده‌اند.
+- یافته‌های تشخیصی REALITY دیگر `String`های انگلیسی در engine نیستند: `RealityFinding` typed است و blocker/warning/note در screen به copy فارسی/انگلیسی map می‌شود؛ فهرست String انگلیسی فقط برای سازگاری تست‌ها باقی مانده است.

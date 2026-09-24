@@ -92,16 +92,68 @@ data class RealityProbeResult(
 
 enum class RealityVerdict { GOOD, USABLE, RISKY, REJECT }
 
+enum class RealityFindingKind {
+    PROBE_FAILED,
+    TLS13_REQUIRED,
+    TLS13_UNVERIFIED,
+    CERTIFICATE_INVALID,
+    CERTIFICATE_EXPIRED,
+    SNI_NOT_IN_SAN,
+    REDIRECT,
+    CLOUDFLARE,
+    NO_HTTP2,
+    ALPN_UNVERIFIED,
+    CDN,
+    CERTIFICATE_EXPIRING,
+    HTTP_CLIENT_ERROR,
+    SLOW_HANDSHAKE,
+    POST_QUANTUM_UNVERIFIED,
+    CERTIFICATE_CHAIN,
+    TLS_HTTP2
+}
+
+/** A typed diagnostic; the screen owns its localized rendering. */
+data class RealityFinding(
+    val kind: RealityFindingKind,
+    val first: String = "",
+    val second: String = "",
+    val number: Long = 0
+) {
+    fun english(): String = when (kind) {
+        RealityFindingKind.PROBE_FAILED -> "Probe failed: $first"
+        RealityFindingKind.TLS13_REQUIRED -> "TLS 1.3 is required for REALITY; this donor negotiated ${first.ifEmpty { "nothing" }}"
+        RealityFindingKind.TLS13_UNVERIFIED -> "This Android version cannot negotiate TLS 1.3, so the donor's 1.3 support is unverified — re-test from a server"
+        RealityFindingKind.CERTIFICATE_INVALID -> "Certificate does not validate: ${first.ifEmpty { "unknown reason" }}"
+        RealityFindingKind.CERTIFICATE_EXPIRED -> "Certificate expired $number days ago"
+        RealityFindingKind.SNI_NOT_IN_SAN -> "The SNI is not covered by the certificate's SANs — the disguise gives itself away"
+        RealityFindingKind.REDIRECT -> "Redirects with HTTP $first to ${second.ifEmpty { "another host" }} — redirects break the REALITY handshake"
+        RealityFindingKind.CLOUDFLARE -> "Resolves to a Cloudflare edge: your server would become an open Cloudflare port-forwarder"
+        RealityFindingKind.NO_HTTP2 -> "No HTTP/2 (ALPN \"${first.ifEmpty { "none" }}\") — the advertised ALPN will not match the real site"
+        RealityFindingKind.ALPN_UNVERIFIED -> "ALPN cannot be negotiated on this Android version, so HTTP/2 support is unverified"
+        RealityFindingKind.CDN -> "Appears to sit behind a CDN (${first.ifEmpty { "header fingerprint" }}) — donor latency and fingerprints will not be stable"
+        RealityFindingKind.CERTIFICATE_EXPIRING -> "Certificate expires in $number days; the donor will need replacing"
+        RealityFindingKind.HTTP_CLIENT_ERROR -> "HEAD returned HTTP $number; many sites refuse HEAD or data-centre IPs, and REALITY only borrows the TLS layer, so this is not a defect"
+        RealityFindingKind.SLOW_HANDSHAKE -> "Handshake took $number ms from this device — REALITY pays this on every connection"
+        RealityFindingKind.POST_QUANTUM_UNVERIFIED -> "Post-quantum key exchange cannot be detected from Android's TLS stack; verify on the server before trusting this donor"
+        RealityFindingKind.CERTIFICATE_CHAIN -> "Certificate chain is $number bytes, $first key"
+        RealityFindingKind.TLS_HTTP2 -> "TLS 1.3 + h2 negotiated, which is the combination REALITY expects"
+    }
+}
+
 /**
  * The judgement, kept separate from the probe so the rules can be tested
- * without a network.
+ * without a network. The string lists remain an English compatibility view;
+ * UI code renders the typed findings through [CommandCopy].
  */
 data class RealityAssessment(
     val verdict: RealityVerdict,
     val score: Int,               // 0..100
     val blockers: List<String>,   // hard fails: do not use this donor
     val warnings: List<String>,   // works, but there is a real downside
-    val notes: List<String>       // informational
+    val notes: List<String>,      // informational
+    val blockerFindings: List<RealityFinding> = emptyList(),
+    val warningFindings: List<RealityFinding> = emptyList(),
+    val noteFindings: List<RealityFinding> = emptyList()
 )
 
 object RealityCriteria {
@@ -148,45 +200,74 @@ object RealityCriteria {
         val blockers = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         val notes = mutableListOf<String>()
+        val blockerFindings = mutableListOf<RealityFinding>()
+        val warningFindings = mutableListOf<RealityFinding>()
+        val noteFindings = mutableListOf<RealityFinding>()
+
+        fun addBlocker(finding: RealityFinding) {
+            blockerFindings += finding
+            blockers += finding.english()
+        }
+        fun addWarning(finding: RealityFinding) {
+            warningFindings += finding
+            warnings += finding.english()
+        }
+        fun addNote(finding: RealityFinding) {
+            noteFindings += finding
+            notes += finding.english()
+        }
 
         if (r.error.isNotEmpty()) {
-            return RealityAssessment(RealityVerdict.REJECT, 0,
-                listOf("Probe failed: ${r.error}"), emptyList(), emptyList())
+            val finding = RealityFinding(RealityFindingKind.PROBE_FAILED, first = r.error)
+            return RealityAssessment(
+                RealityVerdict.REJECT,
+                0,
+                listOf(finding.english()),
+                emptyList(),
+                emptyList(),
+                blockerFindings = listOf(finding)
+            )
         }
 
         // ── hard requirements ──────────────────────────────────────────────
         if (!r.isTls13) {
             if (r.platformTls13Capable) {
-                blockers.add("TLS 1.3 is required for REALITY; this donor negotiated ${r.tlsVersion.ifEmpty { "nothing" }}")
+                addBlocker(RealityFinding(RealityFindingKind.TLS13_REQUIRED, first = r.tlsVersion))
             } else {
-                warnings.add("This Android version cannot negotiate TLS 1.3, so the donor's 1.3 support is unverified — re-test from a server")
+                addWarning(RealityFinding(RealityFindingKind.TLS13_UNVERIFIED))
             }
         }
-        if (!r.certValid) blockers.add("Certificate does not validate: ${r.certError.ifEmpty { "unknown reason" }}")
-        if (r.certExpired) blockers.add("Certificate expired ${-r.certDaysRemaining} days ago")
-        if (!r.sniMatchesSan) blockers.add("The SNI is not covered by the certificate's SANs — the disguise gives itself away")
-        if (r.isRedirect) blockers.add("Redirects with HTTP ${r.httpStatus} to ${r.redirectLocation.ifEmpty { "another host" }} — redirects break the REALITY handshake")
-        if (r.behindCloudflare) blockers.add("Resolves to a Cloudflare edge: your server would become an open Cloudflare port-forwarder")
+        if (!r.certValid) addBlocker(RealityFinding(RealityFindingKind.CERTIFICATE_INVALID, first = r.certError))
+        if (r.certExpired) addBlocker(RealityFinding(RealityFindingKind.CERTIFICATE_EXPIRED, number = -r.certDaysRemaining))
+        if (!r.sniMatchesSan) addBlocker(RealityFinding(RealityFindingKind.SNI_NOT_IN_SAN))
+        if (r.isRedirect) addBlocker(RealityFinding(RealityFindingKind.REDIRECT, first = r.httpStatus.toString(), second = r.redirectLocation))
+        if (r.behindCloudflare) addBlocker(RealityFinding(RealityFindingKind.CLOUDFLARE))
 
         // ── real downsides ─────────────────────────────────────────────────
         if (!r.hasH2) {
             if (r.platformAlpnCapable) {
-                warnings.add("No HTTP/2 (ALPN \"${r.alpn.ifEmpty { "none" }}\") — the advertised ALPN will not match the real site")
+                addWarning(RealityFinding(RealityFindingKind.NO_HTTP2, first = r.alpn))
             } else {
-                notes.add("ALPN cannot be negotiated on this Android version, so HTTP/2 support is unverified")
+                addNote(RealityFinding(RealityFindingKind.ALPN_UNVERIFIED))
             }
         }
-        if (r.behindCdn && !r.behindCloudflare) warnings.add("Appears to sit behind a CDN (${r.serverHeader.ifEmpty { "header fingerprint" }}) — donor latency and fingerprints will not be stable")
-        if (r.certExpiringSoon) warnings.add("Certificate expires in ${r.certDaysRemaining} days; the donor will need replacing")
-        if (r.httpStatus in 400..499) {
-            notes.add("HEAD returned HTTP ${r.httpStatus}; many sites refuse HEAD or data-centre IPs, and REALITY only borrows the TLS layer, so this is not a defect")
+        if (r.behindCdn && !r.behindCloudflare) {
+            addWarning(RealityFinding(RealityFindingKind.CDN, first = r.serverHeader))
         }
-        if (r.totalMs > 900) warnings.add("Handshake took ${r.totalMs} ms from this device — REALITY pays this on every connection")
+        if (r.certExpiringSoon) {
+            addWarning(RealityFinding(RealityFindingKind.CERTIFICATE_EXPIRING, number = r.certDaysRemaining))
+        }
+        if (r.httpStatus in 400..499) {
+            addNote(RealityFinding(RealityFindingKind.HTTP_CLIENT_ERROR, number = r.httpStatus.toLong()))
+        }
+        if (r.totalMs > 900) {
+            addWarning(RealityFinding(RealityFindingKind.SLOW_HANDSHAKE, number = r.totalMs))
+        }
 
         // ── informational ──────────────────────────────────────────────────
-        notes.add("Post-quantum key exchange cannot be detected from Android's TLS stack; verify on the server before trusting this donor")
-        notes.add("Certificate chain is ${r.certChainBytes} bytes, ${r.certPublicKeyAlg} key")
-        if (r.hasH2 && r.isTls13) notes.add("TLS 1.3 + h2 negotiated, which is the combination REALITY expects")
+        addNote(RealityFinding(RealityFindingKind.POST_QUANTUM_UNVERIFIED))
+        addNote(RealityFinding(RealityFindingKind.CERTIFICATE_CHAIN, first = r.certPublicKeyAlg, number = r.certChainBytes.toLong()))
+        if (r.hasH2 && r.isTls13) addNote(RealityFinding(RealityFindingKind.TLS_HTTP2))
 
         val score = score(r, blockers.size, warnings.size)
         val verdict = when {
@@ -195,7 +276,16 @@ object RealityCriteria {
             warnings.size <= 2 -> RealityVerdict.USABLE
             else -> RealityVerdict.RISKY
         }
-        return RealityAssessment(verdict, score, blockers, warnings, notes)
+        return RealityAssessment(
+            verdict,
+            score,
+            blockers,
+            warnings,
+            notes,
+            blockerFindings,
+            warningFindings,
+            noteFindings
+        )
     }
 
     /**

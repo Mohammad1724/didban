@@ -145,6 +145,16 @@ class RealitySniTest {
     }
 
     @Test
+    fun `assessment keeps typed findings beside the compatibility strings`() {
+        val a = RealityCriteria.evaluate(good(tlsVersion = "TLSv1.2", alpn = "http/1.1"))
+        assertEquals(a.blockers, a.blockerFindings.map { it.english() })
+        assertEquals(a.warnings, a.warningFindings.map { it.english() })
+        assertEquals(a.notes, a.noteFindings.map { it.english() })
+        assertTrue(a.blockerFindings.any { it.kind == RealityFindingKind.TLS13_REQUIRED })
+        assertTrue(a.warningFindings.any { it.kind == RealityFindingKind.NO_HTTP2 })
+    }
+
+    @Test
     fun `an invalid certificate is a hard blocker`() {
         val a = RealityCriteria.evaluate(good(certValid = false, certError = "anchor not trusted"))
         assertEquals(RealityVerdict.REJECT, a.verdict)

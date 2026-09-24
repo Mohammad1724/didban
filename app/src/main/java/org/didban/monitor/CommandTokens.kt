@@ -689,6 +689,23 @@ interface CommandCopy {
     val realityServerHeader: String
     val realityYes: String
     val realityNo: String
+    val realityFindingProbeFailed: String
+    val realityFindingTlsRequired: String
+    val realityFindingTlsUnverified: String
+    val realityFindingCertificateInvalid: String
+    val realityFindingCertificateExpired: String
+    val realityFindingSniMismatch: String
+    val realityFindingRedirect: String
+    val realityFindingCloudflare: String
+    val realityFindingNoHttp2: String
+    val realityFindingAlpnUnverified: String
+    val realityFindingCdn: String
+    val realityFindingCertificateExpiring: String
+    val realityFindingHttpClientError: String
+    val realityFindingSlowHandshake: String
+    val realityFindingPostQuantum: String
+    val realityFindingCertificateChain: String
+    val realityFindingTlsHttp2: String
     val metricUptime: String
     val metricLoad: String
     val metricDisks: String
@@ -1567,6 +1584,23 @@ internal object CommandCopyFa : CommandCopy {
     override val realityServerHeader = "هدر Server"
     override val realityYes = "بله"
     override val realityNo = "خیر"
+    override val realityFindingProbeFailed = "بررسی شکست خورد: %1"
+    override val realityFindingTlsRequired = "REALITY به TLS 1.3 نیاز دارد؛ این دونر %1 را مذاکره کرد"
+    override val realityFindingTlsUnverified = "این نسخهٔ اندروید نمی‌تواند TLS 1.3 مذاکره کند؛ پشتیبانی TLS 1.3 دونر تأیید نشده است — از یک سرور دوباره بررسی کنید"
+    override val realityFindingCertificateInvalid = "گواهی اعتبارسنجی نشد: %1"
+    override val realityFindingCertificateExpired = "گواهی %1 روز پیش منقضی شده است"
+    override val realityFindingSniMismatch = "SNI در SANهای گواهی پوشش داده نشده است؛ این disguise خودش را لو می‌دهد"
+    override val realityFindingRedirect = "به HTTP %1 به %2 redirect می‌شود؛ redirectها handshake REALITY را خراب می‌کنند"
+    override val realityFindingCloudflare = "به لبهٔ Cloudflare resolve می‌شود؛ سرور شما به یک port-forwarder باز برای Cloudflare تبدیل می‌شود"
+    override val realityFindingNoHttp2 = "HTTP/2 ندارد (ALPN «%1»)؛ ALPN اعلام‌شده با سایت واقعی یکسان نیست"
+    override val realityFindingAlpnUnverified = "در این نسخهٔ اندروید ALPN قابل مذاکره نیست؛ پشتیبانی HTTP/2 تأیید نشده است"
+    override val realityFindingCdn = "به نظر می‌رسد پشت CDN است (%1)؛ latency و fingerprintهای دونر پایدار نخواهند بود"
+    override val realityFindingCertificateExpiring = "گواهی %1 روز دیگر منقضی می‌شود؛ دونر نیاز به تعویض دارد"
+    override val realityFindingHttpClientError = "HEAD پاسخ HTTP %1 داد؛ بسیاری سایت‌ها HEAD یا IP دیتاسنتری را رد می‌کنند و REALITY فقط لایهٔ TLS را قرض می‌گیرد، پس این نقص نیست"
+    override val realityFindingSlowHandshake = "Handshake از این دستگاه %1 ms طول کشید؛ REALITY این هزینه را در هر اتصال می‌پردازد"
+    override val realityFindingPostQuantum = "تبادل کلید پساکوانتومی از TLS اندروید قابل تشخیص نیست؛ قبل از اعتماد به این دونر، آن را روی سرور بررسی کنید"
+    override val realityFindingCertificateChain = "زنجیرهٔ گواهی %1 بایت و کلید %2 است"
+    override val realityFindingTlsHttp2 = "TLS 1.3 + h2 مذاکره شد؛ این همان ترکیبی است که REALITY انتظار دارد"
     override val metricUptime = "آپ‌تایم"
     override val metricLoad = "بار"
     override val metricDisks = "دیسک"
@@ -2438,6 +2472,23 @@ internal object CommandCopyEn : CommandCopy {
     override val realityServerHeader = "Server header"
     override val realityYes = "Yes"
     override val realityNo = "No"
+    override val realityFindingProbeFailed = "Probe failed: %1"
+    override val realityFindingTlsRequired = "TLS 1.3 is required for REALITY; this donor negotiated %1"
+    override val realityFindingTlsUnverified = "This Android version cannot negotiate TLS 1.3, so the donor's 1.3 support is unverified — re-test from a server"
+    override val realityFindingCertificateInvalid = "Certificate does not validate: %1"
+    override val realityFindingCertificateExpired = "Certificate expired %1 days ago"
+    override val realityFindingSniMismatch = "The SNI is not covered by the certificate's SANs — the disguise gives itself away"
+    override val realityFindingRedirect = "Redirects with HTTP %1 to %2 — redirects break the REALITY handshake"
+    override val realityFindingCloudflare = "Resolves to a Cloudflare edge: your server would become an open Cloudflare port-forwarder"
+    override val realityFindingNoHttp2 = "No HTTP/2 (ALPN \"%1\") — the advertised ALPN will not match the real site"
+    override val realityFindingAlpnUnverified = "ALPN cannot be negotiated on this Android version, so HTTP/2 support is unverified"
+    override val realityFindingCdn = "Appears to sit behind a CDN (%1) — donor latency and fingerprints will not be stable"
+    override val realityFindingCertificateExpiring = "Certificate expires in %1 days; the donor will need replacing"
+    override val realityFindingHttpClientError = "HEAD returned HTTP %1; many sites refuse HEAD or data-centre IPs, and REALITY only borrows the TLS layer, so this is not a defect"
+    override val realityFindingSlowHandshake = "Handshake took %1 ms from this device — REALITY pays this on every connection"
+    override val realityFindingPostQuantum = "Post-quantum key exchange cannot be detected from Android's TLS stack; verify on the server before trusting this donor"
+    override val realityFindingCertificateChain = "Certificate chain is %1 bytes, %2 key"
+    override val realityFindingTlsHttp2 = "TLS 1.3 + h2 negotiated, which is the combination REALITY expects"
     override val metricUptime = "Uptime"
     override val metricLoad = "Load"
     override val metricDisks = "disks"

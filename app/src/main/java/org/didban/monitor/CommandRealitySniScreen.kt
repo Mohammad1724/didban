@@ -276,17 +276,17 @@ internal fun CommandRealitySniScreen(
                                 "${copy.realityScore}: ${a.score}"
                             )
                         }
-                        if (a.blockers.isNotEmpty()) {
+                        if (a.blockerFindings.isNotEmpty()) {
                             Text(
-                                a.blockers.first(),
+                                a.blockerFindings.first().localized(copy),
                                 color = CommandColors.danger,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        } else if (a.warnings.isNotEmpty()) {
+                        } else if (a.warningFindings.isNotEmpty()) {
                             Text(
-                                a.warnings.first(),
+                                a.warningFindings.first().localized(copy),
                                 color = CommandColors.warning,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 2,
@@ -318,6 +318,30 @@ private fun verdictTone(v: RealityVerdict): CommandHealthTone = when (v) {
     RealityVerdict.REJECT -> CommandHealthTone.OFFLINE
 }
 
+private fun RealityFinding.localized(copy: CommandCopy): String = when (kind) {
+    RealityFindingKind.PROBE_FAILED -> copy.realityFindingProbeFailed.replace("%1", first)
+    RealityFindingKind.TLS13_REQUIRED -> copy.realityFindingTlsRequired.replace("%1", first.ifEmpty { copy.unknownState })
+    RealityFindingKind.TLS13_UNVERIFIED -> copy.realityFindingTlsUnverified
+    RealityFindingKind.CERTIFICATE_INVALID -> copy.realityFindingCertificateInvalid.replace("%1", first.ifEmpty { copy.unknownState })
+    RealityFindingKind.CERTIFICATE_EXPIRED -> copy.realityFindingCertificateExpired.replace("%1", number.toString())
+    RealityFindingKind.SNI_NOT_IN_SAN -> copy.realityFindingSniMismatch
+    RealityFindingKind.REDIRECT -> copy.realityFindingRedirect
+        .replace("%1", first)
+        .replace("%2", second.ifEmpty { copy.unknownState })
+    RealityFindingKind.CLOUDFLARE -> copy.realityFindingCloudflare
+    RealityFindingKind.NO_HTTP2 -> copy.realityFindingNoHttp2.replace("%1", first.ifEmpty { copy.realityNotNegotiated })
+    RealityFindingKind.ALPN_UNVERIFIED -> copy.realityFindingAlpnUnverified
+    RealityFindingKind.CDN -> copy.realityFindingCdn.replace("%1", first.ifEmpty { copy.unknownState })
+    RealityFindingKind.CERTIFICATE_EXPIRING -> copy.realityFindingCertificateExpiring.replace("%1", number.toString())
+    RealityFindingKind.HTTP_CLIENT_ERROR -> copy.realityFindingHttpClientError.replace("%1", number.toString())
+    RealityFindingKind.SLOW_HANDSHAKE -> copy.realityFindingSlowHandshake.replace("%1", number.toString())
+    RealityFindingKind.POST_QUANTUM_UNVERIFIED -> copy.realityFindingPostQuantum
+    RealityFindingKind.CERTIFICATE_CHAIN -> copy.realityFindingCertificateChain
+        .replace("%1", number.toString())
+        .replace("%2", first)
+    RealityFindingKind.TLS_HTTP2 -> copy.realityFindingTlsHttp2
+}
+
 @Composable
 private fun RealityVerdictCard(
     copy: CommandCopy,
@@ -342,30 +366,30 @@ private fun RealityVerdictCard(
             if (r.resolvedIp.isNotEmpty()) {
                 CommandMetricLine(copy.realityResolved, r.resolvedIp, CommandHealthTone.INFO)
             }
-            if (a.blockers.isNotEmpty()) {
+            if (a.blockerFindings.isNotEmpty()) {
                 CommandRule()
                 Text(copy.realityBlockers, color = CommandColors.danger,
                     style = MaterialTheme.typography.labelLarge)
-                a.blockers.forEach {
-                    Text("• $it", color = CommandColors.textSecondary,
+                a.blockerFindings.forEach {
+                    Text("• ${it.localized(copy)}", color = CommandColors.textSecondary,
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (a.warnings.isNotEmpty()) {
+            if (a.warningFindings.isNotEmpty()) {
                 CommandRule()
                 Text(copy.realityWarnings, color = CommandColors.warning,
                     style = MaterialTheme.typography.labelLarge)
-                a.warnings.forEach {
-                    Text("• $it", color = CommandColors.textSecondary,
+                a.warningFindings.forEach {
+                    Text("• ${it.localized(copy)}", color = CommandColors.textSecondary,
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (a.notes.isNotEmpty()) {
+            if (a.noteFindings.isNotEmpty()) {
                 CommandRule()
                 Text(copy.realityNotes, color = CommandColors.textTertiary,
                     style = MaterialTheme.typography.labelLarge)
-                a.notes.forEach {
-                    Text("• $it", color = CommandColors.textTertiary,
+                a.noteFindings.forEach {
+                    Text("• ${it.localized(copy)}", color = CommandColors.textTertiary,
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
