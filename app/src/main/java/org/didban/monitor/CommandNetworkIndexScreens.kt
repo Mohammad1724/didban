@@ -5,12 +5,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +31,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun CommandNetworkIndexScreen(
@@ -74,6 +80,49 @@ fun CommandDnsIndexScreen(
 }
 
 @Composable
+private fun CommandNetworkIndexHeader(title: String, subtitle: String, sourceLabel: String) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(top = CommandSpacing.md)) {
+        val narrow = maxWidth < CommandBreakpoints.formStack
+        if (narrow) {
+            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    NetworkIndexHeaderIcon()
+                    Spacer(Modifier.width(CommandSpacing.sm))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(subtitle, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                CommandTelemetryPill(sourceLabel, CommandHealthTone.INFO, Modifier.align(Alignment.End))
+            }
+        } else {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                NetworkIndexHeaderIcon()
+                Spacer(Modifier.width(CommandSpacing.sm))
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(subtitle, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+                CommandTelemetryPill(sourceLabel, CommandHealthTone.INFO)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetworkIndexHeaderIcon() {
+    Box(
+        Modifier
+            .size(CommandMetrics.touchTarget)
+            .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon))
+            .border(CommandMetrics.borderWidth, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
+    }
+}
+
+@Composable
 private fun CommandNetworkIndex(
     title: String,
     subtitle: String,
@@ -82,23 +131,7 @@ private fun CommandNetworkIndex(
 ) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
-            Row(Modifier.fillMaxWidth().padding(top = CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(CommandMetrics.touchTarget)
-                        .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon))
-                        .border(CommandMetrics.borderWidth, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
-                }
-                Spacer(Modifier.width(CommandSpacing.sm))
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary)
-                    Text(subtitle, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
-                }
-                CommandTelemetryPill(copy.sources, CommandHealthTone.INFO)
-            }
+            CommandNetworkIndexHeader(title, subtitle, copy.sources)
         }
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
@@ -108,7 +141,12 @@ private fun CommandNetworkIndex(
                         Row(
                             Modifier
                                 .fillMaxWidth()
+                                .heightIn(min = CommandMetrics.compactRowMinHeight)
+                                .testTag("network-index-row-$index")
                                 .clickable(role = Role.Button, onClick = content.third)
+                                .semantics(mergeDescendants = true) {
+                                    contentDescription = listOf(content.first, content.second)
+                                }
                                 .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md),
                             verticalAlignment = Alignment.CenterVertically
                         ) {

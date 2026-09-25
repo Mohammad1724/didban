@@ -71,6 +71,16 @@
 - grid لانچر بر اساس عرض مشترک design system در ۳۲۰dp دو ستون، در عرض فرم سه ستون و در عرض rail چهار ستون می‌شود؛ حداقل ارتفاع tile و border از token می‌آیند.
 - ردیف‌های Network Tools نقش button، فلش RTL-aware و spacing/radius مشترک دارند؛ indexهای عمومی نیز دیگر spacing دستی صفحه‌ای ندارند.
 
+## slice stage 4 — accessibility و responsive audit
+
+- primitiveهای وضعیت اکنون علاوه بر رنگ، glyph معنایی، label و `stateDescription` دارند؛ success، attention، offline، unknown و info برای screen reader و تشخیص بدون رنگ قابل تفکیک‌اند.
+- loadingهای مشترک با live region محترمانه اعلام می‌شوند و اندازه/ضخامت indicator از `CommandMetrics` می‌آید؛ status، telemetry، border و gaugeهای مشترک دیگر مقدارهای هندسی صفحه‌ای ندارند.
+- تب‌های واقعی Workbench `Role.Tab` و state انتخابی خود را حفظ می‌کنند؛ میان‌بر Network Tools `Role.Button` است، test tag مستقل دارد و در عرض ۳۲۰dp و font scale بزرگ حداقل ۴۸dp باقی می‌ماند.
+- tileهای launcher با label و summary به‌صورت یک action قابل‌فهم merge می‌شوند؛ ردیف‌های Network Tools نیز button semantics، content description ترکیبی و حداقل ارتفاع dense-row دارند.
+- هدر Network Tools در عرض کمتر از breakpoint فرم به دو ردیف تبدیل می‌شود تا عنوان، توضیح و source pill در RTL/LTR و فونت بزرگ روی هم نیفتند.
+- راهنمای صفحه از `CommandCopy` برای عنوان، بخش‌ها، Copy/Copied، Tip و Warning استفاده می‌کند؛ برچسب‌های قابل مشاهدهٔ راهنما دیگر داخل Composable hardcode نیستند.
+- تست deterministic جدید در `CommandAccessibilityUiTest.kt` قرارداد RTL، font scale ۱٫۵، role تب/دکمه، action بودن tile و touch target مشترک را پوشش می‌دهد.
+
 ## audit backlog
 
 - انتقال hardcodedهای قابل مشاهده در `CommandDnsManagerScreen.kt`, `CommandNetworkToolsScreen.kt`, `CommandManageServersScreen.kt`, `CommandWorkbenchTools.kt` و `CommandTunnelEditorScreen.kt` به `CommandCopy`.

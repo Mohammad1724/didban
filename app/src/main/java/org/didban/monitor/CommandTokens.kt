@@ -197,6 +197,19 @@ object CommandMetrics {
     val iconSmall = 18.dp
     val iconMedium = 22.dp
     val iconLarge = 28.dp
+    val statusIcon = 18.dp
+    val ringGauge = 142.dp
+    val ringStroke = 10.dp
+    val orbitHeight = 184.dp
+    val orbitCore = 50.dp
+    val progressStroke = 2.dp
+    val loadingStroke = 3.dp
+    val telemetryBarHeight = 5.dp
+    val telemetryBarFill = 2.dp
+    val telemetryLabelWidth = 31.dp
+    val telemetryValueWidth = 38.dp
+    val orbitNodeHalo = 10.dp
+    val orbitNode = 4.dp
     /** Wide-layout auxiliary field width (ports, TTL and similar controls). */
     val formAuxFieldWidth = 112.dp
     val launcherIcon = 56.dp
@@ -230,6 +243,8 @@ object CommandRadii {
     val field = 14.dp
     /** آیکون‌های مربعی کوچک. */
     val icon = 13.dp
+    /** سطح دیالوگ‌ها و sheetها. */
+    val dialog = 28.dp
     /** قرص‌ها و چیپ‌ها. */
     val pill = 999.dp
     /** نوارهای باریک پیشرفت. */
@@ -341,11 +356,11 @@ fun CommandTheme(
                 // هر پنج اسلات صریح مقدار می‌گیرند؛ otherwise M3 components
                 // (OutlinedTextField و منوها با extraSmall، دیالوگ‌ها با
                 // extraLarge) به پیش‌فرض ۴dp برمی‌گردند و گوشه‌تیز دیده می‌شوند.
-                extraSmall = RoundedCornerShape(12.dp),
+                extraSmall = RoundedCornerShape(CommandRadii.field),
                 small = RoundedCornerShape(CommandRadii.field),
                 medium = RoundedCornerShape(CommandRadii.tile),
                 large = RoundedCornerShape(CommandRadii.card),
-                extraLarge = RoundedCornerShape(28.dp)
+                extraLarge = RoundedCornerShape(CommandRadii.dialog)
             ),
             content = content
         )
@@ -488,6 +503,16 @@ interface CommandCopy {
     val selectServer: String
     val back: String
     val close: String
+    val help: String
+    val pageGuide: String
+    val pageGuidePurpose: String
+    val pageGuidePrerequisite: String
+    val pageGuideStart: String
+    val pageGuideCommands: String
+    val pageGuideTips: String
+    val pageGuideTip: String
+    val pageGuideWarning: String
+    val copied: String
     val language: String
     val theme: String
     val light: String
@@ -1466,6 +1491,16 @@ internal object CommandCopyFa : CommandCopy {
     override val selectServer = "انتخاب سرور"
     override val back = "بازگشت"
     override val close = "بستن"
+    override val help = "راهنما"
+    override val pageGuide = "راهنمای صفحه"
+    override val pageGuidePurpose = "این بخش برای چیست؟"
+    override val pageGuidePrerequisite = "چه چیزی لازم دارم؟"
+    override val pageGuideStart = "چطور شروع کنم؟"
+    override val pageGuideCommands = "دستورهای آماده"
+    override val pageGuideTips = "نکات و محدودیت‌ها"
+    override val pageGuideTip = "نکته"
+    override val pageGuideWarning = "هشدار"
+    override val copied = "کپی شد"
     override val language = "زبان"
     override val theme = "تم"
     override val light = "روشن"
@@ -2436,6 +2471,16 @@ internal object CommandCopyEn : CommandCopy {
     override val selectServer = "Select server"
     override val back = "Back"
     override val close = "Close"
+    override val help = "Help"
+    override val pageGuide = "Page guide"
+    override val pageGuidePurpose = "What is this for?"
+    override val pageGuidePrerequisite = "What do I need?"
+    override val pageGuideStart = "How do I start?"
+    override val pageGuideCommands = "Ready-to-copy commands"
+    override val pageGuideTips = "Tips and limitations"
+    override val pageGuideTip = "Tip"
+    override val pageGuideWarning = "Warning"
+    override val copied = "Copied"
     override val language = "Language"
     override val theme = "Theme"
     override val light = "Light"

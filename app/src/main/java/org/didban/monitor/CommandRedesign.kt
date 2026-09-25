@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 
 /** Presentation-only grouping. Persisted route keys and the existing Back stack stay intact. */
 internal enum class CommandPrimary(val root: CommandRoute) {
@@ -103,7 +104,9 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
     val selected = route.primary()
     @Composable fun entry(section: CommandPrimary, modifier: Modifier) {
         val active = section == selected
-        Column(modifier.clip(RoundedCornerShape(CommandRadii.tile))
+        Column(modifier
+            .heightIn(min = CommandMetrics.touchTarget)
+            .clip(RoundedCornerShape(CommandRadii.tile))
             .background(if (active) CommandColors.infoSurface else Color.Transparent)
             .border(CommandMetrics.borderWidth, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(CommandRadii.tile))
             .testTag("primary-${section.name.lowercase()}")
@@ -138,7 +141,14 @@ internal fun CommandPageChrome(title: String, copy: CommandCopy, language: Strin
     CommandLayerSurface(Modifier.padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), chrome = true) {
         Row(Modifier.fillMaxWidth().padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
             if (showBack) CommandIconButton(Icons.AutoMirrored.Rounded.ArrowBack, copy.back, onBack)
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = CommandColors.textPrimary)
+            Text(
+                title,
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.titleLarge,
+                color = CommandColors.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
             CommandHelpButton(language, onHelp)
         }
     }
@@ -167,6 +177,8 @@ internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: Str
         Row(
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = CommandMetrics.compactRowMinHeight)
+                .testTag("tool-${route.key}")
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(CommandSpacing.md),
             verticalAlignment = Alignment.CenterVertically,

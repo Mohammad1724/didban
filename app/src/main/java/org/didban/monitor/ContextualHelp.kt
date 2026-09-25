@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
@@ -43,7 +42,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 
 /** Structured, bilingual help shown from every command route. */
 data class HelpCommand(val label: String, val value: String)
@@ -60,44 +58,44 @@ data class CommandHelpContent(
 /** Visible, labelled help entry point with a 48dp minimum touch target. */
 @Composable
 internal fun CommandHelpButton(language: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.heightIn(min = 48.dp).testTag("page-help")) {
-        Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = null, modifier = Modifier.size(20.dp))
+    val copy = CommandCopy.forLanguage(language)
+    TextButton(onClick = onClick, modifier = Modifier.heightIn(min = CommandMetrics.touchTarget).testTag("page-help")) {
+        Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = null, modifier = Modifier.size(CommandMetrics.iconSmall))
         Spacer(Modifier.size(CommandSpacing.xs))
-        Text(if (language == "fa") "راهنما" else "Help", maxLines = 1)
+        Text(copy.help, maxLines = 1)
     }
 }
 
 @Composable
 fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, onDismiss: () -> Unit) {
     val content = route.helpContent(language)
-    val fa = language == "fa"
     val clipboard = LocalClipboardManager.current
     var copiedCommand by remember(route, language) { mutableStateOf<String?>(null) }
     key(route, language) {
         Dialog(onDismissRequest = onDismiss) {
             Surface(
                 modifier = Modifier.fillMaxWidth().fillMaxHeight(0.9f).testTag("page-guide"),
-                shape = RoundedCornerShape(20.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.dialog),
                 color = CommandColors.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, CommandColors.borderStrong)
+                border = androidx.compose.foundation.BorderStroke(CommandMetrics.borderWidth, CommandColors.borderStrong)
             ) {
                 Column(Modifier.padding(CommandSpacing.lg)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
-                            Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(28.dp))
+                        Box(Modifier.size(CommandMetrics.touchTarget), contentAlignment = Alignment.Center) {
+                            Icon(Icons.AutoMirrored.Rounded.HelpOutline, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconLarge))
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(if (fa) "راهنمای صفحه" else "Page guide", color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
+                            Text(copy.pageGuide, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelMedium)
                             Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
                         }
-                        IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, if (fa) "بستن" else "Close", tint = CommandColors.textSecondary) }
+                        IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, copy.close, tint = CommandColors.textSecondary) }
                     }
                     CommandRule(Modifier.padding(vertical = CommandSpacing.md))
                     LazyColumn(Modifier.weight(1f).testTag("help-body"), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
-                        item { Text(if (fa) "این بخش برای چیست؟" else "What is this for?", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
+                        item { Text(copy.pageGuidePurpose, color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
                         item { Text(content.summary, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyLarge) }
-                        content.prerequisite?.let { need -> item { HelpNote(Icons.Rounded.Lightbulb, if (fa) "چه چیزی لازم دارم؟" else "What do I need?", need, CommandColors.info) } }
-                        item { Text(if (fa) "چطور شروع کنم؟" else "How do I start?", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
+                        content.prerequisite?.let { need -> item { HelpNote(Icons.Rounded.Lightbulb, copy.pageGuidePrerequisite, need, CommandColors.info) } }
+                        item { Text(copy.pageGuideStart, color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
                         itemsIndexed(content.steps) { index, step ->
                             Row(verticalAlignment = Alignment.Top) {
                                 Text("${index + 1}", color = CommandColors.accent, modifier = Modifier.padding(end = CommandSpacing.sm), fontWeight = FontWeight.Bold)
@@ -107,18 +105,14 @@ fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, 
                             }
                         }
                         if (content.commands.isNotEmpty()) {
-                            item { Text(if (fa) "دستورهای آماده" else "Ready-to-copy commands", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
+                            item { Text(copy.pageGuideCommands, color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
                             itemsIndexed(content.commands) { _, command ->
                                 CommandSurface(Modifier.fillMaxWidth(), raised = true) {
                                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(command.label, color = CommandColors.textPrimary, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
                                             CommandTextButton(
-                                                if (copiedCommand == command.value) {
-                                                    if (fa) "کپی شد" else "Copied"
-                                                } else {
-                                                    if (fa) "کپی" else "Copy"
-                                                },
+                                                if (copiedCommand == command.value) copy.copied else copy.copyAction,
                                                 {
                                                     clipboard.setText(AnnotatedString(command.value))
                                                     copiedCommand = command.value
@@ -135,9 +129,9 @@ fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, 
                                 }
                             }
                         }
-                        item { Text(if (fa) "نکات و محدودیت‌ها" else "Tips and limitations", color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
-                        content.tip?.let { tip -> item { HelpNote(Icons.Rounded.Lightbulb, if (fa) "نکته" else "Tip", tip, CommandColors.info) } }
-                        content.warning?.let { warning -> item { HelpNote(Icons.Rounded.WarningAmber, if (fa) "هشدار" else "Warning", warning, CommandColors.warning) } }
+                        item { Text(copy.pageGuideTips, color = CommandColors.textPrimary, fontWeight = FontWeight.Bold) }
+                        content.tip?.let { tip -> item { HelpNote(Icons.Rounded.Lightbulb, copy.pageGuideTip, tip, CommandColors.info) } }
+                        content.warning?.let { warning -> item { HelpNote(Icons.Rounded.WarningAmber, copy.pageGuideWarning, warning, CommandColors.warning) } }
                         item { Spacer(Modifier.height(CommandSpacing.sm)) }
                     }
                 }
@@ -150,7 +144,7 @@ fun CommandHelpDialog(route: CommandRoute, language: String, copy: CommandCopy, 
 private fun HelpNote(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, body: String, color: Color) {
     CommandSurface(Modifier.fillMaxWidth(), raised = true) {
         Row(Modifier.padding(CommandSpacing.md), verticalAlignment = Alignment.Top) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(21.dp))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(CommandMetrics.iconMedium))
             Spacer(Modifier.size(CommandSpacing.sm))
             Column {
                 Text(title, color = color, fontWeight = FontWeight.Bold, style = androidx.compose.material3.MaterialTheme.typography.labelLarge)

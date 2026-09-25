@@ -17,7 +17,6 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.util.Date
 
@@ -26,15 +25,15 @@ fun CommandRefreshButton(copy: CommandCopy, running: Boolean, onClick: () -> Uni
     if (compact) {
         androidx.compose.material3.IconButton(onClick = onClick, enabled = enabled && !running) {
             if (running) CircularProgressIndicator(
-                modifier = Modifier.size(20.dp).semantics { contentDescription = copy.refreshing },
-                color = CommandColors.accent, strokeWidth = 2.dp
+                modifier = Modifier.size(CommandMetrics.iconMedium).semantics { contentDescription = copy.refreshing },
+                color = CommandColors.accent, strokeWidth = CommandMetrics.progressStroke
             ) else androidx.compose.material3.Icon(Icons.Rounded.Refresh, contentDescription = copy.refreshMetrics, tint = CommandColors.textPrimary)
         }
         return
     }
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (running) CircularProgressIndicator(
-            modifier = Modifier.size(18.dp), color = CommandColors.accent, strokeWidth = 2.dp
+            modifier = Modifier.size(CommandMetrics.iconSmall), color = CommandColors.accent, strokeWidth = CommandMetrics.progressStroke
         )
         CommandTextButton(
             if (running) copy.refreshing else copy.refresh,
@@ -71,7 +70,7 @@ fun CommandRefreshFeedback(copy: CommandCopy, state: RefreshState, scopeLabel: S
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
     ) {
-        if (state.running) CircularProgressIndicator(Modifier.size(18.dp), color = color, strokeWidth = 2.dp)
+        if (state.running) CircularProgressIndicator(Modifier.size(CommandMetrics.iconSmall), color = color, strokeWidth = CommandMetrics.progressStroke)
         Column(Modifier.weight(1f)) {
             Text(listOfNotNull(scopeLabel, title).joinToString(" · "), color = color,
                 style = androidx.compose.material3.MaterialTheme.typography.bodySmall)

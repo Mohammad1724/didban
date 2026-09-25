@@ -80,6 +80,12 @@
 
 تمام آیکون‌های تعاملی content description داشته باشند، تب‌ها role مناسب داشته باشند و layout با فونت بزرگ، RTL و عرض ۳۲۰dp هم قابل استفاده بماند.
 
+- وضعیت فقط با رنگ نمایش داده نمی‌شود: `CommandStatusMark` و `CommandTelemetryPill` از glyph، متن و `stateDescription` استفاده می‌کنند.
+- actionهای مشترک حداقل `CommandMetrics.touchTarget` را دارند؛ تب‌های واقعی `Role.Tab`، میان‌برها و ردیف‌های قابل‌اجرا `Role.Button` هستند.
+- tile یا row قابل‌اجرا باید label/summary قابل فهم داشته باشد و در صورت نیاز با `semantics(mergeDescendants = true)` به یک action واحد تبدیل شود.
+- loading مشترک با live region محترمانه اعلام می‌شود؛ تغییر وضعیت نباید فقط از طریق تغییر رنگ یا spinner قابل تشخیص باشد.
+- برای breakpointهای narrow، header و فرم باید stack شوند؛ هیچ صفحه‌ای نباید برای ۳۲۰dp یا font scale بزرگ به truncation اجباریِ label اصلی وابسته باشد.
+
 ## مالکیت مسیرها
 
 - `WORKBENCH_HOME`: ابزارهای عمومی و مدیریتی؛ Proxy، اشتراک VPN، Single-Port، Developer Lab و Batch.

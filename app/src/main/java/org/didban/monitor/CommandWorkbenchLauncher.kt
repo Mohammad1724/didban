@@ -32,8 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -92,7 +96,12 @@ internal fun CommandWorkbenchLauncherScreen(
                     val active = index == selectedTab
                     val destination = tab.destination
                     val tabModifier = Modifier
+                        .testTag("workbench-tab-$index")
+                        .heightIn(min = CommandMetrics.touchTarget)
                         .clip(RoundedCornerShape(CommandRadii.pill))
+                        .semantics {
+                            if (destination != null) stateDescription = copy.networkTools
+                        }
                         .then(
                             if (destination != null) {
                                 Modifier.clickable(role = Role.Button) { onNavigate(destination, null) }
@@ -110,7 +119,8 @@ internal fun CommandWorkbenchLauncherScreen(
                             tab.label,
                             modifier = Modifier.padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.xs),
                             style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -161,7 +171,11 @@ private fun WorkbenchLauncherTile(
         modifier
             .heightIn(min = CommandMetrics.launcherTileMinHeight)
             .clip(RoundedCornerShape(CommandRadii.card))
+            .testTag("workbench-tile-${route.key}")
             .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = listOf(route.commandLabel(copy), summary)
+            }
             .padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top

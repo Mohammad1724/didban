@@ -55,9 +55,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -207,15 +210,16 @@ fun CommandStatusMark(
 ) {
     val color = tone.color()
     Row(
-        modifier = modifier,
+        modifier = modifier.semantics { stateDescription = label },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
     ) {
-        Box(
-            Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(color)
+        // Shape and label carry the state too; color is never the only signal.
+        Icon(
+            tone.icon(),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(CommandMetrics.statusIcon)
         )
         Column {
             Text(
@@ -244,6 +248,14 @@ enum class CommandHealthTone {
     OFFLINE,
     UNKNOWN,
     INFO
+}
+
+private fun CommandHealthTone.icon(): ImageVector = when (this) {
+    CommandHealthTone.HEALTHY -> Icons.Rounded.CheckCircle
+    CommandHealthTone.ATTENTION -> Icons.Rounded.WarningAmber
+    CommandHealthTone.OFFLINE -> Icons.Rounded.ErrorOutline
+    CommandHealthTone.UNKNOWN -> Icons.Rounded.Info
+    CommandHealthTone.INFO -> Icons.Rounded.Info
 }
 
 @Composable
@@ -305,7 +317,7 @@ fun CommandSecondaryButton(
         enabled = enabled,
         modifier = modifier.heightIn(min = CommandMetrics.controlMinHeight),
         shape = RoundedCornerShape(CommandRadii.control),
-        border = BorderStroke(1.dp, if (enabled) CommandColors.borderStrong else CommandColors.border),
+        border = BorderStroke(CommandMetrics.borderWidth, if (enabled) CommandColors.borderStrong else CommandColors.border),
         colors = ButtonDefaults.outlinedButtonColors(
             contentColor = CommandColors.textPrimary,
             disabledContentColor = CommandColors.textTertiary
@@ -404,19 +416,14 @@ fun CommandStateBlock(
     onSecondAction: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val icon = when (tone) {
-        CommandHealthTone.HEALTHY -> Icons.Rounded.CheckCircle
-        CommandHealthTone.ATTENTION -> Icons.Rounded.WarningAmber
-        CommandHealthTone.OFFLINE -> Icons.Rounded.ErrorOutline
-        CommandHealthTone.UNKNOWN -> Icons.Rounded.Info
-        CommandHealthTone.INFO -> Icons.Rounded.Info
-    }
+    val icon = tone.icon()
     val color = tone.color()
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(tone.background(), RoundedCornerShape(CommandRadii.tile))
-            .border(1.dp, color.copy(alpha = 0.35f), RoundedCornerShape(CommandRadii.tile))
+            .border(CommandMetrics.borderWidth, color.copy(alpha = 0.35f), RoundedCornerShape(CommandRadii.tile))
+            .semantics { stateDescription = title }
             .padding(CommandSpacing.md)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -455,6 +462,7 @@ fun CommandLoadingState(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite }
             .padding(vertical = CommandSpacing.xxl, horizontal = CommandSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
@@ -462,7 +470,7 @@ fun CommandLoadingState(
         CircularProgressIndicator(
             modifier = Modifier.size(CommandMetrics.iconLarge),
             color = CommandColors.accent,
-            strokeWidth = 3.dp
+            strokeWidth = CommandMetrics.loadingStroke
         )
         Text(title, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
         if (!body.isNullOrBlank()) {
@@ -493,7 +501,7 @@ fun CommandInlineLoading(
         CircularProgressIndicator(
             modifier = Modifier.size(CommandMetrics.iconSmall),
             color = CommandColors.accent,
-            strokeWidth = 2.dp
+            strokeWidth = CommandMetrics.progressStroke
         )
         Text(text, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
     }
@@ -630,12 +638,14 @@ fun CommandTelemetryPill(
         modifier = modifier
             .clip(RoundedCornerShape(CommandRadii.pill))
             .background(tone.background())
-            .border(1.dp, color.copy(alpha = 0.28f), RoundedCornerShape(CommandRadii.pill))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .border(CommandMetrics.borderWidth, color.copy(alpha = 0.28f), RoundedCornerShape(CommandRadii.pill))
+            .semantics { stateDescription = text }
+            .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.xxs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xxs)
     ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(color))
+        // The glyph distinguishes status when color perception is unavailable.
+        Icon(tone.icon(), contentDescription = null, tint = color, modifier = Modifier.size(CommandMetrics.iconSmall))
         Text(
             text,
             color = color,
@@ -665,11 +675,11 @@ fun CommandMetricTile(
     Column(
         modifier = modifier
             .background(CommandColors.surface, RoundedCornerShape(CommandRadii.tile))
-            .border(1.dp, CommandColors.border, RoundedCornerShape(CommandRadii.tile))
-            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .border(CommandMetrics.borderWidth, CommandColors.border, RoundedCornerShape(CommandRadii.tile))
+            .padding(horizontal = CommandSpacing.sm, vertical = CommandSpacing.sm)
     ) {
         Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.height(CommandSpacing.xxs))
         Text(
             value,
             color = valueColor,
@@ -677,10 +687,10 @@ fun CommandMetricTile(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(CommandSpacing.xxs))
         Text(supporting, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(10.dp))
-        Box(Modifier.fillMaxWidth().height(2.dp).background(valueColor.copy(alpha = 0.72f), RoundedCornerShape(CommandRadii.bar)))
+        Spacer(Modifier.height(CommandSpacing.sm))
+        Box(Modifier.fillMaxWidth().height(CommandMetrics.telemetryBarFill).background(valueColor.copy(alpha = 0.72f), RoundedCornerShape(CommandRadii.bar)))
     }
 }
 
@@ -698,15 +708,15 @@ fun CommandRingGauge(
         else -> CommandColors.accent
     }
     val trackColor = CommandColors.track
-    Box(modifier = modifier.size(142.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier.size(CommandMetrics.ringGauge), contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
-            val stroke = 10.dp.toPx()
+            val strokePx = CommandMetrics.ringStroke.toPx()
             drawArc(
                 color = trackColor,
                 startAngle = -90f,
                 sweepAngle = 360f,
                 useCenter = false,
-                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
             )
             if (score != null) {
                 drawArc(
@@ -714,7 +724,7 @@ fun CommandRingGauge(
                     startAngle = -90f,
                     sweepAngle = 360f * progress,
                     useCenter = false,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
                 )
             }
         }
@@ -741,7 +751,7 @@ fun CommandTelemetryOrbit(
     val orbitCanvas = CommandColors.canvas
     Box(
         modifier = modifier
-            .height(184.dp)
+            .height(CommandMetrics.orbitHeight)
             .clip(RoundedCornerShape(CommandRadii.card))
             .background(
                 Brush.radialGradient(
@@ -749,42 +759,42 @@ fun CommandTelemetryOrbit(
                     radius = 420f
                 )
             )
-            .border(1.dp, CommandColors.border, RoundedCornerShape(CommandRadii.card)),
+            .border(CommandMetrics.borderWidth, CommandColors.border, RoundedCornerShape(CommandRadii.card)),
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = min(size.width, size.height) * 0.31f
             val secondaryRadius = radius * 0.62f
-            drawCircle(orbitBorderStrong.copy(alpha = 0.62f), radius, center, style = Stroke(1.dp.toPx()))
-            drawCircle(orbitBorder.copy(alpha = 0.9f), secondaryRadius, center, style = Stroke(1.dp.toPx()))
-            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), strokeWidth = 1.dp.toPx())
-            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius), strokeWidth = 1.dp.toPx())
+            drawCircle(orbitBorderStrong.copy(alpha = 0.62f), radius, center, style = Stroke(CommandMetrics.borderWidth.toPx()))
+            drawCircle(orbitBorder.copy(alpha = 0.9f), secondaryRadius, center, style = Stroke(CommandMetrics.borderWidth.toPx()))
+            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), strokeWidth = CommandMetrics.borderWidth.toPx())
+            drawLine(orbitBorder.copy(alpha = 0.72f), Offset(center.x, center.y - radius), Offset(center.x, center.y + radius), strokeWidth = CommandMetrics.borderWidth.toPx())
             nodeColors.forEachIndexed { index, color ->
                 val angle = (-Math.PI / 2.0) + (Math.PI * 2.0 * index / maxOf(nodeColors.size, 1))
                 val point = Offset(
                     center.x + cos(angle).toFloat() * radius,
                     center.y + sin(angle).toFloat() * radius
                 )
-                drawCircle(color.copy(alpha = 0.2f), 10.dp.toPx(), point)
-                drawCircle(color, 4.dp.toPx(), point)
+                drawCircle(color.copy(alpha = 0.2f), CommandMetrics.orbitNodeHalo.toPx(), point)
+                drawCircle(color, CommandMetrics.orbitNode.toPx(), point)
             }
         }
         Box(
             Modifier
-                .size(50.dp)
+                .size(CommandMetrics.orbitCore)
                 .clip(CircleShape)
                 .background(CommandColors.accent.copy(alpha = 0.10f))
-                .border(1.dp, CommandColors.accent.copy(alpha = 0.48f), CircleShape),
+                .border(CommandMetrics.borderWidth, CommandColors.accent.copy(alpha = 0.48f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            androidx.compose.material3.Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(23.dp))
+            androidx.compose.material3.Icon(Icons.Rounded.MonitorHeart, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconLarge))
         }
         Text(
             caption,
             color = CommandColors.textTertiary,
             style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry),
-            modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)
+            modifier = Modifier.align(Alignment.TopEnd).padding(CommandSpacing.sm)
         )
     }
 }
@@ -803,13 +813,13 @@ fun CommandTelemetryBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
     ) {
-        Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(31.dp))
-        Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(CommandRadii.bar)).background(CommandColors.track)) {
+        Text(label, color = CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(CommandMetrics.telemetryLabelWidth))
+        Box(Modifier.weight(1f).height(CommandMetrics.telemetryBarHeight).clip(RoundedCornerShape(CommandRadii.bar)).background(CommandColors.track)) {
             if (value != null) {
                 Box(Modifier.fillMaxWidth(value.coerceIn(0f, 100f) / 100f).fillMaxHeight().background(color, RoundedCornerShape(CommandRadii.bar)))
             }
         }
-        Text(value?.let { Fmt.pct(it) } ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(38.dp), textAlign = TextAlign.End)
+        Text(value?.let { Fmt.pct(it) } ?: "—", color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall.copy(fontFamily = Telemetry), modifier = Modifier.width(CommandMetrics.telemetryValueWidth), textAlign = TextAlign.End)
     }
 }
 

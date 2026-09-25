@@ -24,7 +24,7 @@ class CommandLayoutTest {
     @Test
     fun `no surface radius is smaller than the comfortable floor`() {
         val radii = mapOf(
-            "hero" to CommandRadii.hero, "card" to CommandRadii.card, "tile" to CommandRadii.tile,
+            "hero" to CommandRadii.hero, "dialog" to CommandRadii.dialog, "card" to CommandRadii.card, "tile" to CommandRadii.tile,
             "control" to CommandRadii.control, "field" to CommandRadii.field, "icon" to CommandRadii.icon
         )
         radii.forEach { (name, value) ->
@@ -33,7 +33,8 @@ class CommandLayoutTest {
     }
 
     @Test
-    fun `the scale stays ordered from hero down to icon`() {
+    fun `the scale stays ordered from dialog and hero down to icon`() {
+        assertTrue(CommandRadii.dialog > CommandRadii.hero)
         assertTrue(CommandRadii.hero >= CommandRadii.card)
         assertTrue(CommandRadii.card > CommandRadii.tile)
         assertTrue(CommandRadii.tile > CommandRadii.control)
@@ -75,6 +76,14 @@ class CommandLayoutTest {
         assertEquals(56.dp, CommandMetrics.launcherIcon)
         assertEquals(116.dp, CommandMetrics.launcherTileMinHeight)
         assertEquals(1.dp, CommandMetrics.borderWidth)
+        assertTrue(CommandMetrics.statusIcon >= CommandMetrics.iconSmall)
+        assertTrue(CommandMetrics.ringGauge >= 128.dp)
+        assertTrue(CommandMetrics.orbitHeight >= CommandMetrics.ringGauge)
+        assertTrue(CommandMetrics.progressStroke > 0.dp)
+        assertTrue(CommandMetrics.loadingStroke > CommandMetrics.progressStroke)
+        assertTrue(CommandMetrics.telemetryBarFill <= CommandMetrics.telemetryBarHeight)
+        assertTrue(CommandMetrics.telemetryValueWidth > CommandMetrics.telemetryLabelWidth)
+        assertTrue(CommandMetrics.orbitNodeHalo > CommandMetrics.orbitNode)
     }
 
     @Test
