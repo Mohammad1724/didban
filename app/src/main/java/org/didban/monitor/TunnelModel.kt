@@ -225,5 +225,22 @@ data class AutoDeployResult(
     val iranResult: AutoDeployServerResult?,
     val foreignResult: AutoDeployServerResult?,
     val overallSuccess: Boolean,
-    val summaryMessage: String
-)
+    val summaryMessage: String,
+    val validationFailed: Boolean = false
+) {
+    fun localizedSummary(copy: CommandCopy): String {
+        if (validationFailed) return copy.tunValidationFailed
+        if (overallSuccess && iranResult != null && foreignResult != null) return copy.tunDeployBothSuccess
+        if (overallSuccess && iranResult?.role == "iran") return copy.tunDeployIranSuccess
+        if (overallSuccess && foreignResult?.role == "foreign") return copy.tunDeployForeignSuccess
+
+        val failed = listOfNotNull(iranResult, foreignResult).firstOrNull { !it.success }
+        if (failed != null) {
+            val role = if (failed.role == "iran") copy.tunIranHost else copy.tunForeignHost
+            return copy.tunDeployServerFailure
+                .replace("%1", role)
+                .replace("%2", failed.message)
+        }
+        return copy.tunDeployReady
+    }
+}

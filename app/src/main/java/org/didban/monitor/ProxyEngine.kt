@@ -33,6 +33,25 @@ data class ParsedProxyConfig(
     var testStatus: String = "Ready"
 )
 
+enum class ProxyFailureKind {
+    INVALID_URL,
+    HTTP_STATUS,
+    NETWORK
+}
+
+data class ProxyFailure(
+    val kind: ProxyFailureKind,
+    val detail: String = ""
+) {
+    fun localized(copy: CommandCopy): String = when (kind) {
+        ProxyFailureKind.INVALID_URL -> copy.wtSubscriptionInvalidUrl
+        ProxyFailureKind.HTTP_STATUS -> copy.wtSubscriptionHttpFailure.replace("%1", detail)
+        ProxyFailureKind.NETWORK -> copy.wtSubscriptionNetworkFailure.replace("%1", detail.ifBlank { copy.wtSubscriptionFailed })
+    }
+}
+
+class ProxySubscriptionException(val failure: ProxyFailure) : Exception(failure.kind.name)
+
 data class SubscriptionInfo(
     val uploadBytes: Long = 0L,
     val downloadBytes: Long = 0L,
@@ -42,12 +61,23 @@ data class SubscriptionInfo(
 ) {
     val usedBytes: Long get() = uploadBytes + downloadBytes
     val usedFormatted: String get() = formatBytes(usedBytes)
-    val totalFormatted: String get() = if (totalBytes > 0) formatBytes(totalBytes) else "نامحدود"
-    val expireDateFormatted: String get() = if (expireTimestamp > 0) {
+
+    fun totalFormatted(copy: CommandCopy): String =
+        if (totalBytes > 0) formatBytes(totalBytes) else copy.wtUnlimited
+
+    /** Legacy Persian projection kept for callers outside the command screen. */
+    @Deprecated("Use totalFormatted(copy) so the active locale is explicit")
+    val totalFormatted: String get() = totalFormatted(CommandCopyFa)
+
+    fun expireDateFormatted(copy: CommandCopy): String = if (expireTimestamp > 0) {
         try {
             SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()).format(Date(expireTimestamp * 1000L))
-        } catch (_: Exception) { "—" }
-    } else "نامحدود"
+        } catch (_: Exception) { copy.unknownState }
+    } else copy.wtUnlimited
+
+    /** Legacy Persian projection kept for callers outside the command screen. */
+    @Deprecated("Use expireDateFormatted(copy) so the active locale is explicit")
+    val expireDateFormatted: String get() = expireDateFormatted(CommandCopyFa)
 
     private fun formatBytes(bytes: Long): String {
         if (bytes <= 0) return "0 GB"
@@ -230,7 +260,11 @@ object ProxyEngine {
      */
     suspend fun fetchSubscription(subUrl: String): SubscriptionInfo = withContext(Dispatchers.IO) {
         val cleanUrl = subUrl.trim()
-        val validatedUrl = NetworkTargetPolicy.requirePublicHttps(cleanUrl).toASCIIString()
+        val validatedUrl = try {
+            NetworkTargetPolicy.requirePublicHttps(cleanUrl).toASCIIString()
+        } catch (_: Exception) {
+            throw ProxySubscriptionException(ProxyFailure(ProxyFailureKind.INVALID_URL))
+        }
         val req = Request.Builder()
             .url(validatedUrl)
             .header("User-Agent", "v2rayNG/1.8.12 (Didban Sentinel)")
@@ -238,7 +272,9 @@ object ProxyEngine {
 
         try {
             httpClient.newCall(req).execute().use { resp ->
-                require(resp.isSuccessful) { "Subscription request failed with HTTP ${resp.code}" }
+                if (!resp.isSuccessful) {
+                    throw ProxySubscriptionException(ProxyFailure(ProxyFailureKind.HTTP_STATUS, resp.code.toString()))
+                }
                 val userInfoHeader = resp.header("Subscription-Userinfo") ?: resp.header("subscription-userinfo") ?: ""
                 var up = 0L
                 var down = 0L
@@ -277,10 +313,17 @@ object ProxyEngine {
                     configs = configs
                 )
             }
+        } catch (e: ProxySubscriptionException) {
+            throw e
         } catch (e: Exception) {
             // Subscription URLs commonly carry the account token in their
             // path/query; never propagate the URL through an exception.
-            throw Exception("خطا در دریافت ساب‌سکریپشن: ${SecretRedactor.redact(e.message ?: "network error", listOf(cleanUrl)).take(300)}")
+            throw ProxySubscriptionException(
+                ProxyFailure(
+                    ProxyFailureKind.NETWORK,
+                    SecretRedactor.redact(e.message ?: "network error", listOf(cleanUrl)).take(300)
+                )
+            )
         }
     }
 }

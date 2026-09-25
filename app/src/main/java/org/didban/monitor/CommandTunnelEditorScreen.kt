@@ -212,7 +212,10 @@ fun CommandTunnelEditorScreen(
                     message = copy.tunCodeGenerated
                 }
             }
-            .onFailure { error = SecretRedactor.redact(it.message ?: copy.tunCodeFailed, listOf(cfg.token)).take(300) }
+            .onFailure {
+                error = if (it is IllegalArgumentException) copy.tunValidationFailed
+                else SecretRedactor.redact(it.message ?: copy.tunCodeFailed, listOf(cfg.token)).take(300)
+            }
     }
 
     fun deploy(cfg: TunnelConfig) {
@@ -227,7 +230,7 @@ fun CommandTunnelEditorScreen(
                 .onSuccess { result ->
                     token = cfg.token
                     if (persist(cfg)) {
-                        val summary = SecretRedactor.redact(result.summaryMessage, listOf(cfg.token)).take(500)
+                        val summary = SecretRedactor.redact(result.localizedSummary(copy), listOf(cfg.token)).take(500)
                         if (result.overallSuccess) message = summary else error = summary
                         generated = null
                     }

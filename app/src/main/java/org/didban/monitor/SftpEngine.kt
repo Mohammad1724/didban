@@ -40,14 +40,17 @@ data class SftpFileItem(
     val gid: Int = 0,
     val modifiedTime: Long = 0L
 ) {
-    val formattedSize: String
-        get() {
-            if (isDirectory) return "پوشه"
-            if (size < 1024) return "$size B"
-            if (size < 1024 * 1024) return "${size / 1024} KB"
-            if (size < 1024 * 1024 * 1024) return "${String.format(Locale.US, "%.1f", size / (1024.0 * 1024.0))} MB"
-            return "${String.format(Locale.US, "%.2f", size / (1024.0 * 1024.0 * 1024.0))} GB"
-        }
+    fun formattedSize(copy: CommandCopy): String {
+        if (isDirectory) return copy.wtDirectory
+        if (size < 1024) return "$size B"
+        if (size < 1024 * 1024) return "${size / 1024} KB"
+        if (size < 1024 * 1024 * 1024) return "${String.format(Locale.US, "%.1f", size / (1024.0 * 1024.0))} MB"
+        return "${String.format(Locale.US, "%.2f", size / (1024.0 * 1024.0 * 1024.0))} GB"
+    }
+
+    /** Legacy Persian projection kept for compatibility; screens use the locale-aware overload. */
+    @Deprecated("Use formattedSize(copy) so the active locale is explicit")
+    val formattedSize: String get() = formattedSize(CommandCopyFa)
 
     val formattedDate: String
         get() {
@@ -83,11 +86,46 @@ enum class SftpSortMode {
     DATE_ASC
 }
 
+enum class SftpFailureKind {
+    BROWSE,
+    FILE_TOO_LARGE,
+    READ,
+    SAVE,
+    CREATE_FILE,
+    CREATE_DIRECTORY,
+    RENAME,
+    CHMOD,
+    DELETE,
+    UPLOAD,
+    DOWNLOAD
+}
+
+data class SftpFailure(
+    val kind: SftpFailureKind,
+    val detail: String = ""
+) {
+    fun localized(copy: CommandCopy): String = when (kind) {
+        SftpFailureKind.BROWSE -> copy.wtSftpBrowseFailed
+        SftpFailureKind.FILE_TOO_LARGE -> copy.wtSftpFileTooLarge.replace("%1", detail)
+        SftpFailureKind.READ -> copy.wtFileReadFailed
+        SftpFailureKind.SAVE -> copy.wtFileSaveFailed
+        SftpFailureKind.CREATE_FILE -> copy.wtSftpCreateFileFailed
+        SftpFailureKind.CREATE_DIRECTORY -> copy.wtSftpCreateDirectoryFailed
+        SftpFailureKind.RENAME -> copy.wtSftpRenameFailed
+        SftpFailureKind.CHMOD -> copy.wtSftpChmodFailed
+        SftpFailureKind.DELETE -> copy.wtSftpDeleteFailed
+        SftpFailureKind.UPLOAD -> copy.wtSftpUploadFailed
+        SftpFailureKind.DOWNLOAD -> copy.wtSftpDownloadFailed
+    }
+}
+
+class SftpFailureException(val failure: SftpFailure) : Exception(failure.kind.name)
+
 object SftpEngine {
 
-    private fun safeFailure(prefix: String, error: Exception, password: String): Exception {
+    private fun safeFailure(kind: SftpFailureKind, error: Exception, password: String): SftpFailureException {
         val detail = SecretRedactor.redact(error.message ?: "SFTP error", listOf(password)).take(500)
-        return Exception("$prefix: $detail")
+        return SftpFailureException(SftpFailure(kind, detail))
     }
 
     private suspend fun createSession(
@@ -190,7 +228,7 @@ object SftpEngine {
             }
             sortedList
         } catch (e: Exception) {
-            throw safeFailure("خطا در مرور پوشه SFTP", e, pass)
+            throw safeFailure(SftpFailureKind.BROWSE, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -219,14 +257,16 @@ object SftpEngine {
 
             val stat = sftp.stat(remotePath)
             if (stat.size > maxBytes) {
-                throw Exception("حجم فایل (${stat.size / 1024} KB) برای ادیتور متنی بسیار بزرگ است.")
+                throw SftpFailureException(SftpFailure(SftpFailureKind.FILE_TOO_LARGE, (stat.size / 1024).toString()))
             }
 
             val out = ByteArrayOutputStream()
             sftp.get(remotePath, out)
             out.toString("UTF-8")
+        } catch (e: SftpFailureException) {
+            throw e
         } catch (e: Exception) {
-            throw safeFailure("خطا در خواندن فایل", e, pass)
+            throw safeFailure(SftpFailureKind.READ, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -257,7 +297,7 @@ object SftpEngine {
             sftp.put(inStream, remotePath, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در ذخیره فایل روی سرور", e, pass)
+            throw safeFailure(SftpFailureKind.SAVE, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -286,7 +326,7 @@ object SftpEngine {
             sftp.put(emptyIn, remotePath, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در ایجاد فایل", e, pass)
+            throw safeFailure(SftpFailureKind.CREATE_FILE, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -314,7 +354,7 @@ object SftpEngine {
             sftp.mkdir(remotePath)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در ایجاد پوشه", e, pass)
+            throw safeFailure(SftpFailureKind.CREATE_DIRECTORY, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -343,7 +383,7 @@ object SftpEngine {
             sftp.rename(oldPath, newPath)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در تغییر نام / انتقال", e, pass)
+            throw safeFailure(SftpFailureKind.RENAME, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -373,7 +413,7 @@ object SftpEngine {
             sftp.chmod(octalPermissions, remotePath)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در تغییر دسترسی (chmod)", e, pass)
+            throw safeFailure(SftpFailureKind.CHMOD, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -406,7 +446,7 @@ object SftpEngine {
             }
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در حذف", e, pass)
+            throw safeFailure(SftpFailureKind.DELETE, e, pass)
         } finally {
             try { sftp?.disconnect() } catch (_: Exception) {}
             try { session?.disconnect() } catch (_: Exception) {}
@@ -452,7 +492,7 @@ object SftpEngine {
             sftp.put(inputStream, remotePath, monitor, ChannelSftp.OVERWRITE)
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در آپلود فایل", e, pass)
+            throw safeFailure(SftpFailureKind.UPLOAD, e, pass)
         } finally {
             try { inputStream.close() } catch (_: Exception) {}
             try { sftp?.disconnect() } catch (_: Exception) {}
@@ -502,7 +542,7 @@ object SftpEngine {
             outputStream.flush()
             true
         } catch (e: Exception) {
-            throw safeFailure("خطا در دانلود فایل", e, pass)
+            throw safeFailure(SftpFailureKind.DOWNLOAD, e, pass)
         } finally {
             try { outputStream.close() } catch (_: Exception) {}
             try { sftp?.disconnect() } catch (_: Exception) {}

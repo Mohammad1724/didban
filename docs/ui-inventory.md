@@ -102,3 +102,5 @@
 - خطا و موفقیت Backup/Restore به `BackupMessage` typed شده‌اند؛ `CommandBackupScreen` دیگر پیام‌های فارسی engine را مستقیم نمایش نمی‌دهد و summary، password، structure و restore result را از `CommandCopy` می‌گیرد.
 - failureهای Uptime اکنون `UptimeFailure` typed هستند و همراه incident به‌صورت سازگار با داده‌های قدیمی ذخیره می‌شوند؛ متن خطا، title/body اعلان و نام channel هنگام render/dispatch از `CommandCopy` انتخاب می‌شود.
 - تست و dispatch هشدارهای Telegram/Discord نیز از `CommandCopy` استفاده می‌کنند؛ event title، severity، field label و provider result در فارسی/انگلیسی یکسان و قابل‌ممیزی هستند.
+- Proxy subscription خطاهای URL/HTTP/network را به `ProxyFailure` typed تبدیل می‌کند؛ quota fallbackها و تاریخ انقضا دیگر به فارسی داخل model قفل نیستند و SFTP نیز `SftpFailure` typed با نگاشت locale-aware برای browse/read/write/create/rename/chmod/delete/upload/download دارد.
+- Tunnel deploy summary و validation به‌صورت compatibility-safe از `AutoDeployResult.localizedSummary(copy)` render می‌شوند؛ Security نیز fallback خطای فرمان و exit code را از `CommandCopy` می‌گیرد و raw output فقط به‌عنوان detail تشخیصی باقی می‌ماند.

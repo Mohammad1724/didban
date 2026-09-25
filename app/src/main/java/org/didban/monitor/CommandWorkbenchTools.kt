@@ -348,9 +348,8 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
         error = null
         scope.launch {
             try { subscriptionInfo = ProxyEngine.fetchSubscription(subscription) }
-            catch (e: Exception) {
-                error = SecretRedactor.redact(e.message ?: copy.wtSubscriptionFailed, listOf(subscription)).take(300)
-            }
+            catch (e: ProxySubscriptionException) { error = e.failure.localized(copy) }
+            catch (_: Exception) { error = copy.wtSubscriptionFailed }
             finally { busy = false }
         }
     }
@@ -383,7 +382,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     OutlinedTextField(subscription, { subscription = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionUrl) })
                     CommandSecondaryButton(if (busy) copy.waitingForData else copy.wtFetchSubscription, ::inspectSubscription, enabled = !busy)
                     subscriptionInfo?.let { info ->
-                        CommandStatusMark("${info.configs.size} ${copy.metricConfigs}", CommandHealthTone.INFO, detail = "${copy.metricUsed} ${info.usedFormatted} · ${copy.metricTotal} ${info.totalFormatted} · ${copy.metricExpire} ${info.expireDateFormatted}")
+                        CommandStatusMark("${info.configs.size} ${copy.metricConfigs}", CommandHealthTone.INFO, detail = "${copy.metricUsed} ${info.usedFormatted} · ${copy.metricTotal} ${info.totalFormatted(copy)} · ${copy.metricExpire} ${info.expireDateFormatted(copy)}")
                         info.configs.take(20).forEach { cfg ->
                             Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
                                 Text(cfg.remark, Modifier.weight(1f), color = CommandColors.textPrimary)
@@ -440,7 +439,8 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             try {
                 files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC, hostKeyPolicy)
                 status = copy.hostKeysStatus.replace("%d", files.size.toString())
-            } catch (e: Exception) { error = e.message ?: copy.wtSftpBrowseFailed }
+            } catch (e: SftpFailureException) { error = e.failure.localized(copy) }
+            catch (_: Exception) { error = copy.wtSftpBrowseFailed }
             finally { loading = false }
         }
     }
@@ -454,7 +454,8 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             error = null
             scope.launch {
                 try { content = SftpEngine.readFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, item.path, hostKeyPolicy = hostKeyPolicy); activeFile = item.path }
-                catch (e: Exception) { error = e.message ?: copy.wtFileReadFailed }
+                catch (e: SftpFailureException) { error = e.failure.localized(copy) }
+                catch (_: Exception) { error = copy.wtFileReadFailed }
                 finally { loading = false }
             }
         }
@@ -466,7 +467,8 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         error = null
         scope.launch {
             try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content, hostKeyPolicy); status = copy.wtFileSaved.replace("%1", file) }
-            catch (e: Exception) { error = e.message ?: copy.wtFileSaveFailed }
+            catch (e: SftpFailureException) { error = e.failure.localized(copy) }
+            catch (_: Exception) { error = copy.wtFileSaveFailed }
             finally { loading = false }
         }
     }
@@ -511,7 +513,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                             Row(Modifier.fillMaxWidth().clickable { openItem(item) }.padding(vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
                                 Text(if (item.isDirectory) copy.wtDirectory else copy.wtFile, color = if (item.isDirectory) CommandColors.info else CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
                                 Text(item.name, Modifier.weight(1f), color = CommandColors.textPrimary)
-                                Text(item.formattedSize, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+                                Text(item.formattedSize(copy), color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                             }
                         }
                     }

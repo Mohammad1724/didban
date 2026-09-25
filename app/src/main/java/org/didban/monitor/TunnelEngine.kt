@@ -1717,8 +1717,11 @@ services:
         } catch (e: IllegalArgumentException) {
             // H4: invalid field values - deploy nothing, surface the reason.
             return@withContext AutoDeployResult(
-                null, null, false,
-                "خطای اعتبارسنجی فیلدهای تانل — هیچ چیزی deploy نشد: ${e.message}"
+                iranResult = null,
+                foreignResult = null,
+                overallSuccess = false,
+                summaryMessage = "",
+                validationFailed = true
             )
         }
 

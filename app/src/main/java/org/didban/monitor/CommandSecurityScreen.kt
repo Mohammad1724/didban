@@ -141,7 +141,7 @@ fun CommandSecurityScreen(
             busy = false
             firewallOutput = res.stdout.ifBlank { res.stderr }
             if (!res.isSuccess && firewallOutput.isBlank()) {
-                error = safeError(res.errorMessage ?: res.stderr)
+                error = copy.securityCommandFailed.replace("%1", safeError(res.errorMessage ?: res.stderr).ifBlank { copy.unknownState })
             }
         }
     }
@@ -172,7 +172,7 @@ fun CommandSecurityScreen(
                 portToAllow = ""
                 inspectFirewall()
             } else {
-                error = safeError(res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" })
+                error = copy.securityCommandFailed.replace("%1", safeError(res.stderr.ifBlank { res.errorMessage ?: copy.securityExitCode.replace("%1", res.exitCode.toString()) }).ifBlank { copy.unknownState })
             }
         }
     }
@@ -197,7 +197,7 @@ fun CommandSecurityScreen(
                 error = if (out.contains("not found") || jailsRes.stdout.isBlank()) {
                     copy.securityNoFail2ban
                 } else {
-                    safeError(out)
+                    copy.securityCommandFailed.replace("%1", safeError(out).ifBlank { copy.unknownState })
                 }
                 return@launch
             }
@@ -243,7 +243,7 @@ fun CommandSecurityScreen(
                 notice = copy.securityUnbanned.replace("%s", item.ip)
                 refreshBans()
             } else {
-                error = safeError(res.stderr.ifBlank { res.errorMessage ?: "exit ${res.exitCode}" })
+                error = copy.securityCommandFailed.replace("%1", safeError(res.stderr.ifBlank { res.errorMessage ?: copy.securityExitCode.replace("%1", res.exitCode.toString()) }).ifBlank { copy.unknownState })
             }
         }
     }

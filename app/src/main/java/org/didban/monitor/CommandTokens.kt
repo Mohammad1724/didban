@@ -882,10 +882,22 @@ interface CommandCopy {
     val wtProxyLatency: String
     val wtSubscription: String
     val wtSubscriptionFailed: String
+    val wtSubscriptionInvalidUrl: String
+    val wtSubscriptionHttpFailure: String
+    val wtSubscriptionNetworkFailure: String
+    val wtUnlimited: String
     val wtSftpBrowseFailed: String
+    val wtSftpFileTooLarge: String
     val wtFileReadFailed: String
     val wtFileSaved: String
     val wtFileSaveFailed: String
+    val wtSftpCreateFileFailed: String
+    val wtSftpCreateDirectoryFailed: String
+    val wtSftpRenameFailed: String
+    val wtSftpChmodFailed: String
+    val wtSftpDeleteFailed: String
+    val wtSftpUploadFailed: String
+    val wtSftpDownloadFailed: String
     val wtDirectory: String
     val wtFile: String
     val tunNewConfiguration: String
@@ -999,6 +1011,12 @@ interface CommandCopy {
     val tunCodeFailed: String
     val tunDeploying: String
     val tunDeployFailed: String
+    val tunDeployBothSuccess: String
+    val tunDeployIranSuccess: String
+    val tunDeployForeignSuccess: String
+    val tunDeployServerFailure: String
+    val tunDeployReady: String
+    val tunValidationFailed: String
     val tunProbeFailed: String
     val tunActionFailedGeneric: String
     val tunEmptyBody: String
@@ -1295,6 +1313,8 @@ interface CommandCopy {
     val securityUnban: String
     val securityUnbanned: String
     val securityBadValue: String
+    val securityCommandFailed: String
+    val securityExitCode: String
     val radarSyncAll: String
     val radarSyncAllBody: String
     val radarSynced: String
@@ -1839,10 +1859,22 @@ internal object CommandCopyFa : CommandCopy {
     override val wtProxyLatency = "تأخیر TCP/TLS: %1"
     override val wtSubscription = "اشتراک"
     override val wtSubscriptionFailed = "دریافت اشتراک ناموفق بود"
+    override val wtSubscriptionInvalidUrl = "نشانی اشتراک معتبر نیست."
+    override val wtSubscriptionHttpFailure = "دریافت اشتراک با HTTP %1 ناموفق بود."
+    override val wtSubscriptionNetworkFailure = "اتصال به اشتراک ناموفق بود: %1"
+    override val wtUnlimited = "نامحدود"
     override val wtSftpBrowseFailed = "مرور SFTP ناموفق بود"
+    override val wtSftpFileTooLarge = "فایل %1 کیلوبایت است و برای ویرایشگر متن بزرگ است."
     override val wtFileReadFailed = "خواندن فایل ناموفق بود"
     override val wtFileSaved = "فایل %1 ذخیره شد"
     override val wtFileSaveFailed = "ذخیرهٔ فایل ناموفق بود"
+    override val wtSftpCreateFileFailed = "ایجاد فایل ناموفق بود"
+    override val wtSftpCreateDirectoryFailed = "ایجاد پوشه ناموفق بود"
+    override val wtSftpRenameFailed = "تغییر نام یا انتقال ناموفق بود"
+    override val wtSftpChmodFailed = "تغییر دسترسی فایل ناموفق بود"
+    override val wtSftpDeleteFailed = "حذف فایل یا پوشه ناموفق بود"
+    override val wtSftpUploadFailed = "آپلود فایل ناموفق بود"
+    override val wtSftpDownloadFailed = "دانلود فایل ناموفق بود"
     override val wtDirectory = "پوشه"
     override val wtFile = "فایل"
     override val tunNewConfiguration = "تنظیمات جدید"
@@ -1956,6 +1988,12 @@ internal object CommandCopyFa : CommandCopy {
     override val tunCodeFailed = "تولید کد ناموفق بود."
     override val tunDeploying = "در حال deploy از طریق Agent واقعی..."
     override val tunDeployFailed = "Deploy ناموفق بود."
+    override val tunDeployBothSuccess = "✅ تونل روی هر دو سرور ایران و خارج با موفقیت راه‌اندازی و روشن شد."
+    override val tunDeployIranSuccess = "✅ تونل روی سرور ایران با موفقیت فعال شد."
+    override val tunDeployForeignSuccess = "✅ تونل روی سرور خارج با موفقیت فعال شد."
+    override val tunDeployServerFailure = "%1: %2"
+    override val tunDeployReady = "دستورات آماده شد؛ برای همگام‌سازی خودکار، سرورها را در فهرست دیدبان اضافه کنید."
+    override val tunValidationFailed = "اعتبارسنجی فیلدهای تونل ناموفق بود؛ هیچ چیزی deploy نشد."
     override val tunProbeFailed = "Probe ناموفق بود."
     override val tunActionFailedGeneric = "Remote action ناموفق بود."
     override val tunEmptyBody = "هنوز تونلی ذخیره نشده است. فرم زیر برای ساخت اولین تنظیمات آماده است."
@@ -2252,6 +2290,8 @@ internal object CommandCopyFa : CommandCopy {
     override val securityUnban = "آزاد کن"
     override val securityUnbanned = "آدرس %s آزاد شد"
     override val securityBadValue = "آدرس IP یا نام زندان نامعتبر است"
+    override val securityCommandFailed = "اجرای فرمان ناموفق بود: %1"
+    override val securityExitCode = "کد خروج: %1"
     override val radarSyncAll = "همگام‌سازی پایش‌ها"
     override val radarSyncAllBody = "همهٔ پایش‌های آپ‌تایم را به این ایجنت می‌فرستد تا از دید سرور هم بررسی شوند."
     override val radarSynced = "%d پایش همگام شد"
@@ -2789,10 +2829,22 @@ internal object CommandCopyEn : CommandCopy {
     override val wtProxyLatency = "TCP/TLS latency: %1"
     override val wtSubscription = "Subscription"
     override val wtSubscriptionFailed = "Subscription fetch failed"
+    override val wtSubscriptionInvalidUrl = "The subscription URL is invalid."
+    override val wtSubscriptionHttpFailure = "Subscription fetch failed with HTTP %1."
+    override val wtSubscriptionNetworkFailure = "Could not reach the subscription: %1"
+    override val wtUnlimited = "Unlimited"
     override val wtSftpBrowseFailed = "SFTP browse failed"
+    override val wtSftpFileTooLarge = "The file is %1 KB and too large for the text editor."
     override val wtFileReadFailed = "File read failed"
     override val wtFileSaved = "Saved %1"
     override val wtFileSaveFailed = "File save failed"
+    override val wtSftpCreateFileFailed = "File creation failed"
+    override val wtSftpCreateDirectoryFailed = "Directory creation failed"
+    override val wtSftpRenameFailed = "Rename or move failed"
+    override val wtSftpChmodFailed = "Changing file permissions failed"
+    override val wtSftpDeleteFailed = "File or directory deletion failed"
+    override val wtSftpUploadFailed = "File upload failed"
+    override val wtSftpDownloadFailed = "File download failed"
     override val wtDirectory = "DIR"
     override val wtFile = "FILE"
     override val tunNewConfiguration = "new configuration"
@@ -2906,6 +2958,12 @@ internal object CommandCopyEn : CommandCopy {
     override val tunCodeFailed = "Generating the code failed."
     override val tunDeploying = "Deploying through the real agent…"
     override val tunDeployFailed = "Deploy failed."
+    override val tunDeployBothSuccess = "✅ Tunnel started successfully on both Iran and foreign servers."
+    override val tunDeployIranSuccess = "✅ Tunnel started successfully on the Iran server."
+    override val tunDeployForeignSuccess = "✅ Tunnel started successfully on the foreign server."
+    override val tunDeployServerFailure = "%1: %2"
+    override val tunDeployReady = "Commands are ready; add the servers to Didban for automatic synchronization."
+    override val tunValidationFailed = "Tunnel field validation failed; nothing was deployed."
     override val tunProbeFailed = "Probe failed."
     override val tunActionFailedGeneric = "The remote action failed."
     override val tunEmptyBody = "No tunnel has been saved yet. The form below is ready to create the first configuration."
@@ -3202,6 +3260,8 @@ internal object CommandCopyEn : CommandCopy {
     override val securityUnban = "Unban"
     override val securityUnbanned = "Unbanned %s"
     override val securityBadValue = "Invalid IP address or jail name"
+    override val securityCommandFailed = "Command failed: %1"
+    override val securityExitCode = "Exit code: %1"
     override val radarSyncAll = "Sync monitors"
     override val radarSyncAllBody = "Pushes every uptime monitor to this agent so each one is also checked from the server's vantage point."
     override val radarSynced = "Synced %d monitors"
