@@ -2,6 +2,7 @@ package org.didban.monitor
 
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpProgressMonitor
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
@@ -124,6 +125,7 @@ class SftpFailureException(val failure: SftpFailure) : Exception(failure.kind.na
 object SftpEngine {
 
     private fun safeFailure(kind: SftpFailureKind, error: Exception, password: String): SftpFailureException {
+        if (error is CancellationException) throw error
         val detail = SecretRedactor.redact(error.message ?: "SFTP error", listOf(password)).take(500)
         return SftpFailureException(SftpFailure(kind, detail))
     }

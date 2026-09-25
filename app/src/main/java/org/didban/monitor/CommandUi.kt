@@ -369,6 +369,30 @@ fun CommandIconButton(
     }
 }
 
+/**
+ * Owns the latest async operation for a command screen.
+ *
+ * Compose screens can cancel a coroutine and immediately start another one.
+ * A cancelled network call may still unwind later, so Job cancellation alone
+ * is not enough to prevent its finally block or late result from touching the
+ * state of the newer operation. Every state write after a suspension should
+ * be guarded with [owns].
+ */
+internal class CommandOperationGate {
+    private var latestId = 0L
+
+    fun begin(): Long {
+        latestId += 1L
+        return latestId
+    }
+
+    fun cancel() {
+        latestId += 1L
+    }
+
+    fun owns(id: Long): Boolean = latestId == id
+}
+
 @Composable
 fun CommandStateBlock(
     title: String,

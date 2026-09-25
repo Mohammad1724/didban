@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import com.jcraft.jsch.ChannelExec
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -105,6 +106,8 @@ object SshEngine {
                     else -> null
                 }
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             val dur = System.currentTimeMillis() - t0
             val safeError = SecretRedactor.redact(

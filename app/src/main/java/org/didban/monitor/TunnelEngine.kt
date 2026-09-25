@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -1766,6 +1767,8 @@ services:
                 val logs = resp.optString("logs", "")
                 foreignRes = AutoDeployServerResult(foreignServer.name, foreignServer.host, "foreign", success, status, msg, logs)
                 cfg.syncStatusForeign = if (success) "active" else "failed"
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 foreignRes = AutoDeployServerResult(foreignServer.name, foreignServer.host, "foreign", false, "unreachable", "عدم برقراری ارتباط با ایجنت سرور خارج: ${e.message}")
                 cfg.syncStatusForeign = "failed"
@@ -1801,6 +1804,8 @@ services:
                 val logs = resp.optString("logs", "")
                 iranRes = AutoDeployServerResult(iranServer.name, iranServer.host, "iran", success, status, msg, logs)
                 cfg.syncStatusIran = if (success) "active" else "failed"
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 iranRes = AutoDeployServerResult(iranServer.name, iranServer.host, "iran", false, "unreachable", "عدم برقراری ارتباط با ایجنت سرور ایران: ${e.message}")
                 cfg.syncStatusIran = "failed"
@@ -1861,6 +1866,8 @@ services:
                     "restart" -> apiClient.tunnelRestart(iranServer, idStr)
                     "delete" -> apiClient.tunnelDelete(iranServer, idStr)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) { ok = false }
         }
         if (foreignServer != null && cfg.core != TunnelCore.IPTABLES) {
@@ -1871,6 +1878,8 @@ services:
                     "restart" -> apiClient.tunnelRestart(foreignServer, idStr)
                     "delete" -> apiClient.tunnelDelete(foreignServer, idStr)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) { ok = false }
         }
         ok
@@ -1890,6 +1899,8 @@ services:
                 val lat = System.currentTimeMillis() - t0
                 Pair(true, lat)
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             Pair(false, -1L)
         }

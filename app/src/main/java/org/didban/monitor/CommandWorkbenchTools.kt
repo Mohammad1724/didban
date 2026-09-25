@@ -38,7 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -322,6 +324,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
     SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val operationGate = remember { CommandOperationGate() }
     var uri by remember { mutableStateOf("") }
     var subscription by remember { mutableStateOf("") }
     var parsed by remember { mutableStateOf<ParsedProxyConfig?>(null) }
@@ -329,28 +332,69 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
     var subscriptionInfo by remember { mutableStateOf<SubscriptionInfo?>(null) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var job by remember { mutableStateOf<Job?>(null) }
+    var retryAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    fun cancel() {
+        operationGate.cancel()
+        job?.cancel()
+        job = null
+        busy = false
+    }
 
     fun inspectConfig() {
+        if (busy) return
+        val operationId = operationGate.begin()
         error = null
+        retryAction = null
         probe = null
         val config = ProxyEngine.parseConfig(uri)
         parsed = config
         if (config == null) { error = copy.vaultConfigUnparseable; return }
         busy = true
-        scope.launch {
-            probe = ProxyEngine.probeConfig(config)
-            busy = false
+        job = scope.launch {
+            try {
+                val result = ProxyEngine.probeConfig(config)
+                if (operationGate.owns(operationId)) probe = result
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } finally {
+                if (operationGate.owns(operationId)) {
+                    busy = false
+                    job = null
+                }
+            }
         }
     }
     fun inspectSubscription() {
-        if (subscription.isBlank()) return
+        if (subscription.isBlank() || busy) return
+        val subscriptionUrl = subscription.trim()
+        val operationId = operationGate.begin()
         busy = true
         error = null
-        scope.launch {
-            try { subscriptionInfo = ProxyEngine.fetchSubscription(subscription) }
-            catch (e: ProxySubscriptionException) { error = e.failure.localized(copy) }
-            catch (_: Exception) { error = copy.wtSubscriptionFailed }
-            finally { busy = false }
+        retryAction = null
+        job = scope.launch {
+            try {
+                val result = ProxyEngine.fetchSubscription(subscriptionUrl)
+                if (operationGate.owns(operationId)) subscriptionInfo = result
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: ProxySubscriptionException) {
+                if (operationGate.owns(operationId)) {
+                    error = e.failure.localized(copy)
+                    retryAction = { inspectSubscription() }
+                }
+            } catch (_: Exception) {
+                if (operationGate.owns(operationId)) {
+                    error = copy.wtSubscriptionFailed
+                    retryAction = { inspectSubscription() }
+                }
+            } finally {
+                if (operationGate.owns(operationId)) {
+                    busy = false
+                    job = null
+                }
+            }
         }
     }
 
@@ -365,7 +409,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtSingleConfig, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(uri, { uri = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text(copy.wtProxyUriLabel) })
+                    OutlinedTextField(uri, { uri = it; retryAction = null }, Modifier.fillMaxWidth(), enabled = !busy, minLines = 3, label = { Text(copy.wtProxyUriLabel) })
                     CommandPrimaryButton(if (busy) copy.waitingForData else copy.wtParseProbe, ::inspectConfig, enabled = !busy, icon = Icons.Rounded.Bolt)
                     parsed?.let { cfg ->
                         CommandStatusMark(if (probe?.second == true) copy.wtProxyReachable else if (probe != null) copy.wtProxyUnreachable else copy.wtProxyParsed, if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
@@ -379,7 +423,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wtSubscription, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(subscription, { subscription = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.wtSubscriptionUrl) })
+                    OutlinedTextField(subscription, { subscription = it; retryAction = null }, Modifier.fillMaxWidth(), enabled = !busy, singleLine = true, label = { Text(copy.wtSubscriptionUrl) })
                     CommandSecondaryButton(if (busy) copy.waitingForData else copy.wtFetchSubscription, ::inspectSubscription, enabled = !busy)
                     subscriptionInfo?.let { info ->
                         CommandStatusMark("${info.configs.size} ${copy.metricConfigs}", CommandHealthTone.INFO, detail = "${copy.metricUsed} ${info.usedFormatted} · ${copy.metricTotal} ${info.totalFormatted(copy)} · ${copy.metricExpire} ${info.expireDateFormatted(copy)}")
@@ -393,7 +437,13 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                 }
             }
         }
-        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+        if (busy) item {
+            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                CommandLoadingState(copy.waitingForData)
+                CommandSecondaryButton(copy.cancel, ::cancel, modifier = Modifier.fillMaxWidth())
+            }
+        }
+        if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, retryAction) }
         item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 }
@@ -403,6 +453,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
     SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val operationGate = remember { CommandOperationGate() }
     val servers = remember { Prefs.loadServers(context) }
     var selectedId by rememberSaveable(initialServer?.id) {
         mutableStateOf(initialServer?.id ?: servers.firstOrNull()?.id)
@@ -418,6 +469,8 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
     var loading by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var job by remember { mutableStateOf<Job?>(null) }
+    var retryAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var prompt by remember { mutableStateOf<HostKeyPrompt?>(null) }
     val promptChannel = remember { Channel<Boolean>(Channel.RENDEZVOUS) }
     val promptGate = remember { Mutex() }
@@ -430,18 +483,55 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
         }
     }
 
+    fun cancel() {
+        operationGate.cancel()
+        job?.cancel()
+        job = null
+        prompt = null
+        promptChannel.trySend(false)
+        loading = false
+    }
+
     fun refresh() {
         val target = server ?: return
-        if (password.isBlank()) return
+        if (password.isBlank()) {
+            error = copy.securityNeedPassword
+            return
+        }
+        if (loading) return
+        val requestedPath = path
+        val requestedUser = user.ifBlank { "root" }
+        val requestedPort = port.toIntOrNull() ?: 22
+        val requestedPassword = password
+        val operationId = operationGate.begin()
         loading = true
         error = null
-        scope.launch {
+        retryAction = null
+        job = scope.launch {
             try {
-                files = SftpEngine.listFiles(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, path, true, SftpSortMode.NAME_ASC, hostKeyPolicy)
-                status = copy.hostKeysStatus.replace("%d", files.size.toString())
-            } catch (e: SftpFailureException) { error = e.failure.localized(copy) }
-            catch (_: Exception) { error = copy.wtSftpBrowseFailed }
-            finally { loading = false }
+                val result = SftpEngine.listFiles(target.host, requestedPort, requestedUser, requestedPassword, requestedPath, true, SftpSortMode.NAME_ASC, hostKeyPolicy)
+                if (operationGate.owns(operationId)) {
+                    files = result
+                    status = copy.hostKeysStatus.replace("%d", result.size.toString())
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: SftpFailureException) {
+                if (operationGate.owns(operationId)) {
+                    error = e.failure.localized(copy)
+                    retryAction = { refresh() }
+                }
+            } catch (_: Exception) {
+                if (operationGate.owns(operationId)) {
+                    error = copy.wtSftpBrowseFailed
+                    retryAction = { refresh() }
+                }
+            } finally {
+                if (operationGate.owns(operationId)) {
+                    loading = false
+                    job = null
+                }
+            }
         }
     }
     fun openItem(item: SftpFileItem) {
@@ -450,26 +540,76 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             path = item.path
             refresh()
         } else {
+            if (loading) return
+            val requestedUser = user.ifBlank { "root" }
+            val requestedPort = port.toIntOrNull() ?: 22
+            val requestedPassword = password
+            val operationId = operationGate.begin()
             loading = true
             error = null
-            scope.launch {
-                try { content = SftpEngine.readFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, item.path, hostKeyPolicy = hostKeyPolicy); activeFile = item.path }
-                catch (e: SftpFailureException) { error = e.failure.localized(copy) }
-                catch (_: Exception) { error = copy.wtFileReadFailed }
-                finally { loading = false }
+            retryAction = null
+            job = scope.launch {
+                try {
+                    val result = SftpEngine.readFile(target.host, requestedPort, requestedUser, requestedPassword, item.path, hostKeyPolicy = hostKeyPolicy)
+                    if (operationGate.owns(operationId)) {
+                        content = result
+                        activeFile = item.path
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (e: SftpFailureException) {
+                    if (operationGate.owns(operationId)) {
+                        error = e.failure.localized(copy)
+                        retryAction = { openItem(item) }
+                    }
+                } catch (_: Exception) {
+                    if (operationGate.owns(operationId)) {
+                        error = copy.wtFileReadFailed
+                        retryAction = { openItem(item) }
+                    }
+                } finally {
+                    if (operationGate.owns(operationId)) {
+                        loading = false
+                        job = null
+                    }
+                }
             }
         }
     }
     fun save() {
         val target = server ?: return
         val file = activeFile ?: return
+        if (loading) return
+        val requestedUser = user.ifBlank { "root" }
+        val requestedPort = port.toIntOrNull() ?: 22
+        val requestedPassword = password
+        val contentToSave = content
+        val operationId = operationGate.begin()
         loading = true
         error = null
-        scope.launch {
-            try { SftpEngine.saveFile(target.host, port.toIntOrNull() ?: 22, user.ifBlank { "root" }, password, file, content, hostKeyPolicy); status = copy.wtFileSaved.replace("%1", file) }
-            catch (e: SftpFailureException) { error = e.failure.localized(copy) }
-            catch (_: Exception) { error = copy.wtFileSaveFailed }
-            finally { loading = false }
+        retryAction = null
+        job = scope.launch {
+            try {
+                SftpEngine.saveFile(target.host, requestedPort, requestedUser, requestedPassword, file, contentToSave, hostKeyPolicy)
+                if (operationGate.owns(operationId)) status = copy.wtFileSaved.replace("%1", file)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (e: SftpFailureException) {
+                if (operationGate.owns(operationId)) {
+                    error = e.failure.localized(copy)
+                    retryAction = { save() }
+                }
+            } catch (_: Exception) {
+                if (operationGate.owns(operationId)) {
+                    error = copy.wtFileSaveFailed
+                    retryAction = { save() }
+                }
+            } finally {
+                if (operationGate.owns(operationId)) {
+                    loading = false
+                    job = null
+                }
+            }
         }
     }
 
@@ -487,22 +627,28 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), modifier = Modifier.fillMaxWidth()) {
-                            servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f)) }
+                            servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id && !loading, modifier = Modifier.weight(1f)) }
                         }
                         CommandResponsiveRow {
-                            OutlinedTextField(user, { user = it }, item(weight = 1f), singleLine = true, label = { Text(copy.uiUser) })
-                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), singleLine = true, label = { Text(copy.port) })
+                            OutlinedTextField(user, { user = it }, item(weight = 1f), enabled = !loading, singleLine = true, label = { Text(copy.uiUser) })
+                            OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), enabled = !loading, singleLine = true, label = { Text(copy.port) })
                         }
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
+                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), enabled = !loading, singleLine = true, label = { Text(copy.uiSshPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                         CommandResponsiveRow {
-                            OutlinedTextField(path, { path = it }, item(weight = 1f), singleLine = true, label = { Text(copy.wtRemotePath) })
+                            OutlinedTextField(path, { path = it; retryAction = null }, item(weight = 1f), enabled = !loading, singleLine = true, label = { Text(copy.wtRemotePath) })
                             CommandPrimaryButton(if (loading) copy.waitingForData else copy.refresh, ::refresh, modifier = item(), enabled = !loading && server != null, icon = Icons.Rounded.Refresh)
                         }
                         Text(copy.sftpBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                 }
             }
-            if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+            if (loading) item {
+                Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
+                    CommandLoadingState(copy.waitingForData)
+                    CommandSecondaryButton(copy.cancel, ::cancel, modifier = Modifier.fillMaxWidth())
+                }
+            }
+            if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE, copy.retry, retryAction) }
             if (status != null) item { CommandStatusMark(status ?: "", CommandHealthTone.INFO) }
             item {
                 CommandSurface(Modifier.fillMaxWidth()) {
@@ -526,7 +672,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                             Text(activeFile ?: "", Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                             CommandTextButton(copy.copyAction, { if (content.isNotEmpty()) SensitiveClipboard.copy(context, "Didban remote file", content) }, Icons.Rounded.ContentCopy)
                         }
-                        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(280.dp), textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
+                        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(280.dp), enabled = !loading, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
                         CommandPrimaryButton(copy.wtSaveRemoteFile, ::save, enabled = !loading, icon = Icons.Rounded.Security)
                     }
                 }
@@ -538,7 +684,7 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
     if (currentPrompt != null) {
         CommandHostKeyDialog(copy, currentPrompt, onDecision = { approved ->
             prompt = null
-            scope.launch { promptChannel.send(approved) }
+            promptChannel.trySend(approved)
         })
     }
 }

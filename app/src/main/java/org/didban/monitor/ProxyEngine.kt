@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import android.util.Base64
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -247,6 +248,8 @@ object ProxyEngine {
 
             val elapsed = System.currentTimeMillis() - t0
             Pair(elapsed, true)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             Pair(-1L, false)
         } finally {
@@ -313,6 +316,8 @@ object ProxyEngine {
                     configs = configs
                 )
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: ProxySubscriptionException) {
             throw e
         } catch (e: Exception) {
