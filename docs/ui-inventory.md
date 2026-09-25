@@ -81,9 +81,17 @@
 - راهنمای صفحه از `CommandCopy` برای عنوان، بخش‌ها، Copy/Copied، Tip و Warning استفاده می‌کند؛ برچسب‌های قابل مشاهدهٔ راهنما دیگر داخل Composable hardcode نیستند.
 - تست deterministic جدید در `CommandAccessibilityUiTest.kt` قرارداد RTL، font scale ۱٫۵، role تب/دکمه، action بودن tile و touch target مشترک را پوشش می‌دهد.
 
+## slice stage 4 — final product-owner audit
+
+- فرم DNS در ردیف Record از `CommandResponsiveRow` استفاده می‌کند؛ در ۳۲۰dp و font scale بزرگ، status، Edit و Delete دیگر در یک ردیف فشردهٔ غیرقابل‌استفاده قرار نمی‌گیرند.
+- ردیف actionهای پروندهٔ سرور و انتخاب server در SSH/SFTP در narrow layout به stack یا horizontal scroll قابل‌پیش‌بینی تبدیل شده‌اند؛ دکمه‌ها حداقل touch target مشترک را حفظ می‌کنند.
+- SFTP file rows اکنون `Role.Button`، label ترکیبی، test tag و حداقل ارتفاع dense-row دارند؛ عنوان فایل و Copy action در narrow layout با `CommandResponsiveRow` جدا می‌شوند.
+- عرض kind column و ارتفاع ویرایشگر SFTP به `CommandMetrics` منتقل شد؛ labelهای داخلی clipboard برای Proxy/SFTP نیز از `CommandCopy` می‌آیند.
+- `CommandFinalAuditUiTest.kt` حالت‌های empty محلی DNS، Tunnel، Manage Servers و SFTP را در عرض ۳۲۰dp و font scale ۱٫۵ بدون شبکه قفل می‌کند.
+
 ## audit backlog
 
-- انتقال hardcodedهای قابل مشاهده در `CommandDnsManagerScreen.kt`, `CommandNetworkToolsScreen.kt`, `CommandManageServersScreen.kt`, `CommandWorkbenchTools.kt` و `CommandTunnelEditorScreen.kt` به `CommandCopy`.
+- بررسی نهایی screenshot/state در CI و بازبینی warningهای قدیمی Kotlin؛ این warningها مانع پذیرش نیستند اما برای baseline تمیز باید در batch مستقل پاک‌سازی شوند.
 - جایگزینی برچسب‌های operational و telemetry با copy/glossary.
 - جایگزینی `RoundedCornerShape`/`dp`های دستی در shell و primitiveها با `CommandRadii`, `CommandSpacing`, `CommandMetrics`.
 - تست عرض ۳۲۰dp، font scale ۱٫۵، RTL/LTR، text truncation و touch target حداقل ۴۸dp.

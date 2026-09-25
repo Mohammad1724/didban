@@ -1,6 +1,6 @@
 package org.didban.monitor
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -115,9 +116,12 @@ fun CommandSshScreen(
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         Text(copy.currentServer, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        ) {
                             servers.forEach { item ->
-                                CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id, modifier = Modifier.weight(1f))
+                                CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id)
                             }
                         }
                         CommandResponsiveRow {
@@ -212,8 +216,11 @@ fun CommandBatchScreen(
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.wbFleetScope, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                     servers.forEach { server ->
-                        Row(Modifier.fillMaxWidth().clickable {
-                            if (server.id in selectedIds) selectedIds.remove(server.id) else selectedIds.add(server.id)
+                        Row(Modifier.fillMaxWidth().toggleable(
+                            value = server.id in selectedIds,
+                            role = Role.Checkbox
+                        ) { checked ->
+                            if (checked) selectedIds.add(server.id) else selectedIds.remove(server.id)
                         }.padding(vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
                             CommandStatusMark(if (server.id in selectedIds) copy.selected else copy.notSelected, if (server.id in selectedIds) CommandHealthTone.INFO else CommandHealthTone.UNKNOWN, Modifier.weight(1f), server.name)
                             Text(server.host, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry))

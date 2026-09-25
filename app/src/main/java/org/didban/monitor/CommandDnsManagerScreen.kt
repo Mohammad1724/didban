@@ -306,10 +306,10 @@ fun CommandDnsManagerScreen(copy: CommandCopy, onBack: () -> Unit) {
                             )
                         }
                         records.forEach { record ->
-                            Row(Modifier.fillMaxWidth().padding(vertical = CommandSpacing.xxs), verticalAlignment = Alignment.CenterVertically) {
-                                CommandStatusMark(record.type, CommandHealthTone.INFO, Modifier.weight(1f), "${record.name} → ${record.content}")
-                                CommandTextButton(copy.edit, { chooseRecord(record) }, enabled = !busy)
-                                CommandTextButton(copy.delete, { deleteRecord = record; deleteZoneId = selectedZone?.id }, enabled = !busy, icon = Icons.Rounded.DeleteOutline)
+                            CommandResponsiveRow {
+                                CommandStatusMark(record.type, CommandHealthTone.INFO, item(weight = 1f), "${record.name} → ${record.content}")
+                                CommandTextButton(copy.edit, { chooseRecord(record) }, modifier = item(), enabled = !busy)
+                                CommandTextButton(copy.delete, { deleteRecord = record; deleteZoneId = selectedZone?.id }, modifier = item(), enabled = !busy, icon = Icons.Rounded.DeleteOutline)
                             }
                         }
                     }

@@ -30,9 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
@@ -45,7 +43,6 @@ fun CommandManageServersScreen(
 ) {
     SecureWindowEffect()
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val initialLoad = remember { Prefs.loadServersResult(context) }
     var records by remember { mutableStateOf<List<ServerConfig>>(initialLoad.servers) }
@@ -299,13 +296,13 @@ fun CommandManageServersScreen(
             val selected = records.firstOrNull { it.id == selectedId }
             if (selected != null) item {
                 CommandSurface(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(CommandSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
+                    CommandResponsiveRow(Modifier.padding(CommandSpacing.md)) {
+                        Column(item(weight = 1f)) {
                             Text(copy.srvSavedActions, color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
                             Text(copy.srvDossierHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                         }
-                        CommandTextButton(copy.srvOpenDossier, { onOpenServer(selected) }, icon = Icons.Rounded.Security)
-                        CommandTextButton(copy.delete, { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline)
+                        CommandTextButton(copy.srvOpenDossier, { onOpenServer(selected) }, icon = Icons.Rounded.Security, modifier = item())
+                        CommandTextButton(copy.delete, { deleteServer = selected }, icon = Icons.Rounded.DeleteOutline, modifier = item())
                     }
                 }
             }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -35,9 +36,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -414,7 +418,7 @@ fun CommandProxyScreen(copy: CommandCopy, onBack: () -> Unit) {
                     parsed?.let { cfg ->
                         CommandStatusMark(if (probe?.second == true) copy.wtProxyReachable else if (probe != null) copy.wtProxyUnreachable else copy.wtProxyParsed, if (probe?.second == true) CommandHealthTone.HEALTHY else CommandHealthTone.UNKNOWN, detail = "${cfg.protocol} · ${cfg.host}:${cfg.port} · ${cfg.remark}")
                         probe?.let { result -> Text(copy.wtProxyLatency.replace("%1", if (result.first >= 0) copy.latencyValue(result.first.toLong()) else copy.failed), color = CommandColors.textSecondary) }
-                        CommandTextButton(copy.wtCopyNormalized, { SensitiveClipboard.copy(context, "Didban proxy configuration", cfg.rawUri) }, Icons.Rounded.ContentCopy)
+                        CommandTextButton(copy.wtCopyNormalized, { SensitiveClipboard.copy(context, copy.wtProxyClipboardLabel, cfg.rawUri) }, Icons.Rounded.ContentCopy)
                     }
                 }
             }
@@ -626,8 +630,11 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             item {
                 CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs), modifier = Modifier.fillMaxWidth()) {
-                            servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id && !loading, modifier = Modifier.weight(1f)) }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        ) {
+                            servers.forEach { item -> CommandSecondaryButton(item.name, { selectedId = item.id }, enabled = selectedId != item.id && !loading) }
                         }
                         CommandResponsiveRow {
                             OutlinedTextField(user, { user = it }, item(weight = 1f), enabled = !loading, singleLine = true, label = { Text(copy.uiUser) })
@@ -656,8 +663,23 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
                         Text(copy.wtRemoteEntries, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
                         if (files.isEmpty()) Text(copy.waitingForData, color = CommandColors.textSecondary)
                         files.forEach { item ->
-                            Row(Modifier.fillMaxWidth().clickable { openItem(item) }.padding(vertical = CommandSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
-                                Text(if (item.isDirectory) copy.wtDirectory else copy.wtFile, color = if (item.isDirectory) CommandColors.info else CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = CommandMetrics.compactRowMinHeight)
+                                    .testTag("sftp-entry-${item.path}")
+                                    .clickable(role = Role.Button) { openItem(item) }
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = listOfNotNull(
+                                            if (item.isDirectory) copy.wtDirectory else copy.wtFile,
+                                            item.name,
+                                            item.formattedSize(copy)
+                                        ).joinToString(" · ")
+                                    }
+                                    .padding(vertical = CommandSpacing.xs),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(if (item.isDirectory) copy.wtDirectory else copy.wtFile, color = if (item.isDirectory) CommandColors.info else CommandColors.textTertiary, style = androidx.compose.material3.MaterialTheme.typography.labelSmall, modifier = Modifier.width(CommandMetrics.sftpKindWidth))
                                 Text(item.name, Modifier.weight(1f), color = CommandColors.textPrimary)
                                 Text(item.formattedSize(copy), color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                             }
@@ -668,11 +690,11 @@ fun CommandSftpScreen(copy: CommandCopy, initialServer: ServerConfig?, onSelectS
             if (activeFile != null) item {
                 CommandSurface(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(activeFile ?: "", Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium)
-                            CommandTextButton(copy.copyAction, { if (content.isNotEmpty()) SensitiveClipboard.copy(context, "Didban remote file", content) }, Icons.Rounded.ContentCopy)
+                        CommandResponsiveRow {
+                            Text(activeFile ?: "", item(weight = 1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            CommandTextButton(copy.copyAction, { if (content.isNotEmpty()) SensitiveClipboard.copy(context, copy.wtRemoteFileClipboardLabel, content) }, Icons.Rounded.ContentCopy, modifier = item())
                         }
-                        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(280.dp), enabled = !loading, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
+                        OutlinedTextField(content, { content = it }, Modifier.fillMaxWidth().height(CommandMetrics.textEditorMinHeight), enabled = !loading, textStyle = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), label = { Text(copy.wtTextEditorMax) })
                         CommandPrimaryButton(copy.wtSaveRemoteFile, ::save, enabled = !loading, icon = Icons.Rounded.Security)
                     }
                 }

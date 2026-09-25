@@ -204,6 +204,8 @@ object CommandMetrics {
     val orbitCore = 50.dp
     val progressStroke = 2.dp
     val loadingStroke = 3.dp
+    val sftpKindWidth = 48.dp
+    val textEditorMinHeight = 280.dp
     val telemetryBarHeight = 5.dp
     val telemetryBarFill = 2.dp
     val telemetryLabelWidth = 31.dp
@@ -897,6 +899,8 @@ interface CommandCopy {
     val wtRemotePath: String
     val wtRemoteEntries: String
     val wtTextEditorMax: String
+    val wtProxyClipboardLabel: String
+    val wtRemoteFileClipboardLabel: String
     val wtSaveRemoteFile: String
     val wtArtifactHaproxy: String
     val wtArtifactBashDeploy: String
@@ -1884,6 +1888,8 @@ internal object CommandCopyFa : CommandCopy {
     override val wtRemotePath = "مسیر راه دور"
     override val wtRemoteEntries = "ورودی‌های راه دور"
     override val wtTextEditorMax = "ویرایشگر متن · حداکثر ۴ مگابایت"
+    override val wtProxyClipboardLabel = "پیکربندی Proxy دیدبان"
+    override val wtRemoteFileClipboardLabel = "فایل remote دیدبان"
     override val wtSaveRemoteFile = "ذخیرهٔ فایل راه دور"
     override val wtArtifactHaproxy = "HAProxy"
     override val wtArtifactBashDeploy = "Bash deploy"
@@ -2864,6 +2870,8 @@ internal object CommandCopyEn : CommandCopy {
     override val wtRemotePath = "Remote path"
     override val wtRemoteEntries = "Remote entries"
     override val wtTextEditorMax = "Text editor · max 4 MB"
+    override val wtProxyClipboardLabel = "Didban proxy configuration"
+    override val wtRemoteFileClipboardLabel = "Didban remote file"
     override val wtSaveRemoteFile = "Save remote file"
     override val wtArtifactHaproxy = "HAProxy"
     override val wtArtifactBashDeploy = "Bash deploy"

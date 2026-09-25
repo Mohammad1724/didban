@@ -84,6 +84,8 @@ class CommandLayoutTest {
         assertTrue(CommandMetrics.telemetryBarFill <= CommandMetrics.telemetryBarHeight)
         assertTrue(CommandMetrics.telemetryValueWidth > CommandMetrics.telemetryLabelWidth)
         assertTrue(CommandMetrics.orbitNodeHalo > CommandMetrics.orbitNode)
+        assertTrue(CommandMetrics.sftpKindWidth >= 48.dp)
+        assertTrue(CommandMetrics.textEditorMinHeight >= 240.dp)
     }
 
     @Test
