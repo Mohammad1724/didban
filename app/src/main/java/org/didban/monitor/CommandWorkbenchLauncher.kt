@@ -174,7 +174,7 @@ private fun WorkbenchLauncherTile(
             .testTag("workbench-tile-${route.key}")
             .clickable(role = Role.Button, onClick = onClick)
             .semantics(mergeDescendants = true) {
-                contentDescription = listOf(route.commandLabel(copy), summary)
+                contentDescription = listOf(route.commandLabel(copy), summary).joinToString(" · ")
             }
             .padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.sm),
         horizontalAlignment = Alignment.CenterHorizontally,

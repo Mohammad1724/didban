@@ -145,7 +145,7 @@ private fun CommandNetworkIndex(
                                 .testTag("network-index-row-$index")
                                 .clickable(role = Role.Button, onClick = content.third)
                                 .semantics(mergeDescendants = true) {
-                                    contentDescription = listOf(content.first, content.second)
+                                    contentDescription = listOf(content.first, content.second).joinToString(" · ")
                                 }
                                 .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md),
                             verticalAlignment = Alignment.CenterVertically
