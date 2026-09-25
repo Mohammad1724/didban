@@ -89,13 +89,11 @@
 - عرض kind column و ارتفاع ویرایشگر SFTP به `CommandMetrics` منتقل شد؛ labelهای داخلی clipboard برای Proxy/SFTP نیز از `CommandCopy` می‌آیند.
 - `CommandFinalAuditUiTest.kt` حالت‌های empty محلی DNS، Tunnel، Manage Servers و SFTP را در عرض ۳۲۰dp و font scale ۱٫۵ بدون شبکه قفل می‌کند.
 
-## audit backlog
+## audit backlog — non-blocking
 
-- بررسی نهایی screenshot/state در CI و بازبینی warningهای قدیمی Kotlin؛ این warningها مانع پذیرش نیستند اما برای baseline تمیز باید در batch مستقل پاک‌سازی شوند.
-- جایگزینی برچسب‌های operational و telemetry با copy/glossary.
-- جایگزینی `RoundedCornerShape`/`dp`های دستی در shell و primitiveها با `CommandRadii`, `CommandSpacing`, `CommandMetrics`.
-- تست عرض ۳۲۰dp، font scale ۱٫۵، RTL/LTR، text truncation و touch target حداقل ۴۸dp.
-- بررسی stateهایی که در Composable با `remember` نگه‌داری می‌شوند؛ draftهای حساس نباید `rememberSaveable` شوند و state عملیاتی باید با route/server scope پاک شود.
+- بررسی screenshot/state در CI برای این batch ثبت شد؛ artifact گزارش Android شامل `app/build/reports/redesign/**` است.
+- warningهای مربوط به Node 20 و مهاجرت `ubuntu-latest` با pinهای Node 24 و runner ثابت `ubuntu-24.04` برطرف شدند؛ همهٔ actionها همچنان با SHA کامل pin هستند.
+- پاک‌سازی گستردهٔ برچسب‌های operational/telemetry، جایگزینی geometryهای قدیمی در routeهای خارج از این audit و بازبینی عمیق state ownership می‌تواند در batch مستقل ادامه پیدا کند؛ هیچ‌کدام blocker این release نیستند.
 
 ## slice بعدی — Workbench copy و responsive
 
