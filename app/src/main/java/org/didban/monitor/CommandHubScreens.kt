@@ -27,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 
 @Composable
 fun CommandWorkbenchIndexScreen(
@@ -55,7 +54,6 @@ fun CommandProtectIndexScreen(
             copy.hubAppBehaviour to listOf(CommandRoute.SETTINGS)
         ),
         copy = copy,
-        icon = Icons.Rounded.Security,
         onNavigate = onNavigate
     )
 }
@@ -66,11 +64,13 @@ private fun CommandToolIndex(
     body: String,
     groups: List<Pair<String, List<CommandRoute>>>,
     copy: CommandCopy,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
-    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(CommandSpacing.md),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = CommandSpacing.md)
+    ) {
         item { CommandSectionTitle(title) }
         item { Text(body, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodyMedium) }
         groups.forEach { (groupTitle, routes) ->
@@ -82,7 +82,7 @@ private fun CommandToolIndex(
             } }
         }
         item { Text(copy.uiServerToolsHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
-        item { Spacer(Modifier.height(24.dp)) }
+        item { Spacer(Modifier.height(CommandSpacing.xl)) }
     }
 
 }

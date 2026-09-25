@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -35,7 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 
 private data class WorkbenchTab(
     val label: String,
@@ -61,13 +62,16 @@ internal fun CommandWorkbenchLauncherScreen(
         WorkbenchTab(copy.toolsTabDevelopment, listOf(CommandRoute.DEVELOPER_LAB))
     )
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val visibleRoutes = tabs[selectedTab.coerceIn(tabs.indices)].routes
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
-        contentPadding = PaddingValues(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val visibleRoutes = tabs[selectedTab.coerceIn(tabs.indices)].routes
+        val columns = workbenchLauncherColumns(maxWidth)
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+            contentPadding = PaddingValues(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)
+        ) {
         item {
             Text(
                 copy.uiToolsIntro,
@@ -86,15 +90,21 @@ internal fun CommandWorkbenchLauncherScreen(
             ) {
                 tabs.forEachIndexed { index, tab ->
                     val active = index == selectedTab
+                    val destination = tab.destination
+                    val tabModifier = Modifier
+                        .clip(RoundedCornerShape(CommandRadii.pill))
+                        .then(
+                            if (destination != null) {
+                                Modifier.clickable(role = Role.Button) { onNavigate(destination, null) }
+                            } else {
+                                Modifier.selectable(selected = active, role = Role.Tab) { selectedTab = index }
+                            }
+                        )
                     Surface(
                         color = if (active) CommandColors.accent else CommandColors.surface,
                         contentColor = if (active) CommandColors.onAccent else CommandColors.textSecondary,
                         shape = RoundedCornerShape(CommandRadii.pill),
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(CommandRadii.pill))
-                            .selectable(selected = active, role = Role.Tab) {
-                                tab.destination?.let { onNavigate(it, null) } ?: run { selectedTab = index }
-                            }
+                        modifier = tabModifier
                     ) {
                         Text(
                             tab.label,
@@ -107,28 +117,35 @@ internal fun CommandWorkbenchLauncherScreen(
             }
         }
 
-        visibleRoutes.chunked(3).forEach { rowRoutes ->
-            item {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    rowRoutes.forEach { route ->
-                        WorkbenchLauncherTile(
-                            copy = copy,
-                            route = route,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onNavigate(route, null) }
-                        )
+            visibleRoutes.chunked(columns).forEach { rowRoutes ->
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        rowRoutes.forEach { route ->
+                            WorkbenchLauncherTile(
+                                copy = copy,
+                                route = route,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onNavigate(route, null) }
+                            )
+                        }
+                        repeat(columns - rowRoutes.size) { Spacer(Modifier.weight(1f)) }
                     }
-                    repeat(3 - rowRoutes.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-        }
 
-        item { Spacer(Modifier.height(CommandSpacing.xl)) }
+            item { Spacer(Modifier.height(CommandSpacing.xl)) }
+        }
     }
+}
+
+internal fun workbenchLauncherColumns(width: Dp): Int = when {
+    width >= CommandBreakpoints.rail -> 4
+    width >= CommandBreakpoints.formStack -> 3
+    else -> 2
 }
 
 @Composable
@@ -142,7 +159,7 @@ private fun WorkbenchLauncherTile(
     val summary = route.helpContent(language).summary
     Column(
         modifier
-            .heightIn(min = 116.dp)
+            .heightIn(min = CommandMetrics.launcherTileMinHeight)
             .clip(RoundedCornerShape(CommandRadii.card))
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.sm),

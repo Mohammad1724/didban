@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Public
@@ -28,7 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun CommandNetworkIndexScreen(
@@ -86,7 +87,7 @@ private fun CommandNetworkIndex(
                     Modifier
                         .size(CommandMetrics.touchTarget)
                         .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon))
-                        .border(1.dp, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
+                        .border(CommandMetrics.borderWidth, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
@@ -107,7 +108,7 @@ private fun CommandNetworkIndex(
                         Row(
                             Modifier
                                 .fillMaxWidth()
-                                .clickable(onClick = content.third)
+                                .clickable(role = Role.Button, onClick = content.third)
                                 .padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.md),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -118,7 +119,12 @@ private fun CommandNetworkIndex(
                                 Spacer(Modifier.height(CommandSpacing.xxs))
                                 Text(content.second, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                             }
-                            Text("›", color = CommandColors.accent, style = androidx.compose.material3.MaterialTheme.typography.titleLarge)
+                            Icon(
+                                Icons.AutoMirrored.Rounded.ArrowForward,
+                                contentDescription = null,
+                                tint = CommandColors.accent,
+                                modifier = Modifier.size(CommandMetrics.iconMedium)
+                            )
                         }
                     }
                 }

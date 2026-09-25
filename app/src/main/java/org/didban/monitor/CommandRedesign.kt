@@ -27,24 +27,48 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 
 /** Presentation-only grouping. Persisted route keys and the existing Back stack stay intact. */
 internal enum class CommandPrimary(val root: CommandRoute) {
     SERVERS(CommandRoute.FLEET), MONITORING(CommandRoute.UPTIME), TOOLS(CommandRoute.WORKBENCH_HOME), SETTINGS(CommandRoute.SETTINGS)
 }
-internal fun CommandRoute.primary(): CommandPrimary = when (this) {
-    CommandRoute.OVERVIEW, CommandRoute.INCIDENTS, CommandRoute.FLEET, CommandRoute.MANAGE_SERVERS,
-    CommandRoute.SERVER_DOSSIER, CommandRoute.DOCKER, CommandRoute.PROCESSES, CommandRoute.SERVICES,
-    CommandRoute.SSH, CommandRoute.SFTP, CommandRoute.SECURITY, CommandRoute.BANDWIDTH,
-    CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR -> CommandPrimary.SERVERS
-    CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR, CommandRoute.RADAR -> CommandPrimary.MONITORING
-    CommandRoute.CHECK_HOST, CommandRoute.CF_SCANNER, CommandRoute.REALITY_SNI, CommandRoute.NETWORK_TOOLS,
-    CommandRoute.NETWORK_TOOLS_EDITOR, CommandRoute.DNS, CommandRoute.DNS_EDITOR,
+
+/**
+ * The canonical feature owner of a route. A route may live in a different
+ * persisted workspace for compatibility, but it must still have one visible
+ * home. In particular, server-scoped tools are owned by the server dossier
+ * and network diagnostics are owned by the Network Tools index.
+ */
+internal enum class CommandRouteOwner {
+    FLEET,
+    SERVER_WORKSPACE,
+    MONITORING,
+    NETWORK_TOOLS,
+    WORKBENCH,
+    PROTECT
+}
+
+internal fun CommandRoute.routeOwner(): CommandRouteOwner = when (this) {
+    CommandRoute.OVERVIEW, CommandRoute.INCIDENTS, CommandRoute.FLEET,
+    CommandRoute.SERVER_DOSSIER, CommandRoute.MANAGE_SERVERS -> CommandRouteOwner.FLEET
+    CommandRoute.TUNNELS, CommandRoute.TUNNELS_EDITOR, CommandRoute.DOCKER,
+    CommandRoute.PROCESSES, CommandRoute.SERVICES, CommandRoute.SSH,
+    CommandRoute.SFTP, CommandRoute.BANDWIDTH, CommandRoute.SECURITY -> CommandRouteOwner.SERVER_WORKSPACE
+    CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR, CommandRoute.RADAR -> CommandRouteOwner.MONITORING
+    CommandRoute.CHECK_HOST, CommandRoute.CF_SCANNER, CommandRoute.REALITY_SNI,
+    CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR,
+    CommandRoute.DNS, CommandRoute.DNS_EDITOR -> CommandRouteOwner.NETWORK_TOOLS
     CommandRoute.WORKBENCH_HOME, CommandRoute.BATCH, CommandRoute.SINGLE_PORT,
-    CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.DEVELOPER_LAB -> CommandPrimary.TOOLS
-    CommandRoute.PROTECT_HOME, CommandRoute.VAULT, CommandRoute.BACKUP,
-    CommandRoute.ALERTS, CommandRoute.SETTINGS -> CommandPrimary.SETTINGS
+    CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.DEVELOPER_LAB -> CommandRouteOwner.WORKBENCH
+    CommandRoute.PROTECT_HOME, CommandRoute.VAULT, CommandRoute.ALERTS,
+    CommandRoute.BACKUP, CommandRoute.SETTINGS -> CommandRouteOwner.PROTECT
+}
+
+internal fun CommandRoute.primary(): CommandPrimary = when (routeOwner()) {
+    CommandRouteOwner.FLEET, CommandRouteOwner.SERVER_WORKSPACE -> CommandPrimary.SERVERS
+    CommandRouteOwner.MONITORING -> CommandPrimary.MONITORING
+    CommandRouteOwner.NETWORK_TOOLS, CommandRouteOwner.WORKBENCH -> CommandPrimary.TOOLS
+    CommandRouteOwner.PROTECT -> CommandPrimary.SETTINGS
 }
 internal val serverToolRoutes = listOf(CommandRoute.DOCKER, CommandRoute.SERVICES, CommandRoute.SSH,
     CommandRoute.SFTP, CommandRoute.PROCESSES, CommandRoute.BANDWIDTH, CommandRoute.TUNNELS, CommandRoute.SECURITY)
@@ -81,7 +105,7 @@ internal fun CommandPrimaryNavigation(copy: CommandCopy, route: CommandRoute, ra
         val active = section == selected
         Column(modifier.clip(RoundedCornerShape(CommandRadii.tile))
             .background(if (active) CommandColors.infoSurface else Color.Transparent)
-            .border(1.dp, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(CommandRadii.tile))
+            .border(CommandMetrics.borderWidth, if (active) CommandColors.borderStrong.copy(alpha = .45f) else Color.Transparent, RoundedCornerShape(CommandRadii.tile))
             .testTag("primary-${section.name.lowercase()}")
             .selectable(active, role = Role.Tab, onClick = { onNavigate(section.root) })
             .padding(horizontal = CommandSpacing.xxs, vertical = CommandSpacing.xs), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -126,30 +150,42 @@ internal fun CommandDisclosure(copy: CommandCopy, title: String = copy.uiAdvance
     content: @Composable ColumnScope.() -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     Column {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(CommandRadii.control))
+        Row(Modifier.fillMaxWidth().heightIn(min = CommandMetrics.controlMinHeight).clip(RoundedCornerShape(CommandRadii.control))
             .semantics { stateDescription = if (expanded) copy.scannerHideList else copy.scannerShowList }
-            .clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 8.dp),
+            .clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = CommandSpacing.xs),
             verticalAlignment = Alignment.CenterVertically) {
             Text(title, Modifier.weight(1f), color = CommandColors.textSecondary, style = MaterialTheme.typography.labelLarge)
             Icon(if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null, tint = CommandColors.textSecondary)
         }
-        if (expanded) Column(verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        if (expanded) Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm), content = content)
     }
 }
 
 @Composable
 internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: String? = null, onClick: () -> Unit) {
     CommandSurface(Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(CommandColors.infoSurface), contentAlignment = Alignment.Center) {
-                Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(22.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(CommandSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)
+        ) {
+            Box(
+                Modifier
+                    .size(CommandMetrics.touchTarget)
+                    .clip(RoundedCornerShape(CommandRadii.icon))
+                    .background(CommandColors.infoSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
             }
             Column(Modifier.weight(1f)) {
                 Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
                 if (detail != null) Text(detail, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 3)
             }
-            Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = CommandColors.textTertiary, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = CommandColors.textTertiary, modifier = Modifier.size(CommandMetrics.iconMedium))
         }
     }
 }

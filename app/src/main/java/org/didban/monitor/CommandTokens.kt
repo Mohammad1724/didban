@@ -192,6 +192,8 @@ object CommandMetrics {
     val touchTarget = 48.dp
     val controlMinHeight = 48.dp
     val compactRowMinHeight = 56.dp
+    val borderWidth = 1.dp
+    val launcherTileMinHeight = 116.dp
     val iconSmall = 18.dp
     val iconMedium = 22.dp
     val iconLarge = 28.dp

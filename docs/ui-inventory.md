@@ -63,6 +63,14 @@
 4. `offline/error`: اتفاق، اثر و اقدام بعدی؛ با retry در صورت امکان.
 5. `destructive confirmation`: نام دقیق resource، اثر local/remote و action danger.
 
+## slice stage 4 — route ownership و responsive launcher
+
+- `CommandRouteOwner` مالک canonical هر route را صریح می‌کند؛ ابزارهای scoped مثل SSH، SFTP، Bandwidth، Tunnel و Security به Server Workspace تعلق دارند، و Network Tools/DNS/Check-Host/Cloudflare/Reality به Network Tools index.
+- launcher عمومی فقط `workbenchUtilityRoutes` را render می‌کند؛ Network Tools به‌صورت route link باقی می‌ماند و آیتم‌های network-specific را در grid عمومی تکرار نمی‌کند.
+- تب Network Tools از نظر accessibility به‌عنوان navigation action و نه tab انتخابی علامت‌گذاری می‌شود؛ تب‌های واقعی Workbench همچنان state انتخابی دارند.
+- grid لانچر بر اساس عرض مشترک design system در ۳۲۰dp دو ستون، در عرض فرم سه ستون و در عرض rail چهار ستون می‌شود؛ حداقل ارتفاع tile و border از token می‌آیند.
+- ردیف‌های Network Tools نقش button، فلش RTL-aware و spacing/radius مشترک دارند؛ indexهای عمومی نیز دیگر spacing دستی صفحه‌ای ندارند.
+
 ## audit backlog
 
 - انتقال hardcodedهای قابل مشاهده در `CommandDnsManagerScreen.kt`, `CommandNetworkToolsScreen.kt`, `CommandManageServersScreen.kt`, `CommandWorkbenchTools.kt` و `CommandTunnelEditorScreen.kt` به `CommandCopy`.

@@ -183,7 +183,7 @@ fun CommandRule(modifier: Modifier = Modifier) {
     Spacer(
         modifier
             .fillMaxWidth()
-            .height(1.dp)
+            .height(CommandMetrics.borderWidth)
             .background(CommandColors.border)
     )
 }

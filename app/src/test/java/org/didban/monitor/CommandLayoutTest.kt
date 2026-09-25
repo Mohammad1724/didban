@@ -73,6 +73,15 @@ class CommandLayoutTest {
         assertTrue(CommandMetrics.formAuxFieldWidth >= 96.dp)
         assertTrue(CommandMetrics.formAuxFieldWidth <= 144.dp)
         assertEquals(56.dp, CommandMetrics.launcherIcon)
+        assertEquals(116.dp, CommandMetrics.launcherTileMinHeight)
+        assertEquals(1.dp, CommandMetrics.borderWidth)
+    }
+
+    @Test
+    fun `workbench launcher changes columns at the shared responsive breakpoints`() {
+        assertEquals(2, workbenchLauncherColumns(320.dp))
+        assertEquals(3, workbenchLauncherColumns(CommandBreakpoints.formStack))
+        assertEquals(4, workbenchLauncherColumns(CommandBreakpoints.rail))
     }
 
     @Test

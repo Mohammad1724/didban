@@ -26,6 +26,17 @@ class CommandRedesignTest {
         assertTrue(serverToolRoutes.containsAll(listOf(CommandRoute.SSH, CommandRoute.SFTP, CommandRoute.BANDWIDTH, CommandRoute.SECURITY)))
         assertEquals(CommandPrimary.MONITORING, CommandRoute.RADAR.primary())
     }
+
+    @Test fun `every route has one canonical owner and network routes stay out of the workbench launcher`() {
+        val owned = CommandRoute.values().groupBy { it.routeOwner() }
+        assertEquals(CommandRoute.values().toSet(), owned.values.flatten().toSet())
+        assertEquals(CommandRouteOwner.SERVER_WORKSPACE, CommandRoute.SECURITY.routeOwner())
+        assertEquals(CommandRouteOwner.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR.routeOwner())
+        assertEquals(CommandRouteOwner.WORKBENCH, CommandRoute.DEVELOPER_LAB.routeOwner())
+        assertTrue(networkToolRoutes.all { it.routeOwner() == CommandRouteOwner.NETWORK_TOOLS })
+        assertTrue(workbenchUtilityRoutes.all { it.routeOwner() == CommandRouteOwner.WORKBENCH })
+        assertTrue(networkToolRoutes.intersect(workbenchUtilityRoutes.toSet()).isEmpty())
+    }
     @Test fun `unknown filter never treats missing measurements as offline`() {
         val fleet = (1L..3L).map { ServerConfig(it, "Node $it", "node$it.example") }
         val states = mapOf(1L to Repo.State(error = "unreachable"), 2L to Repo.State(updated = 5L))
