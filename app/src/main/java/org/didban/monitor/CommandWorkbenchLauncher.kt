@@ -1,6 +1,5 @@
 package org.didban.monitor
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Security
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.TravelExplore
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,23 +34,44 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 
-private data class WorkbenchTab(
-    val label: String,
-    val routes: List<CommandRoute>,
-    val destination: CommandRoute? = null
+private data class WorkbenchLauncherItem(
+    val key: String,
+    val title: String,
+    val summary: String,
+    val icon: ImageVector,
+    val route: CommandRoute
 )
 
-private val connectionRoutes = listOf(
-    CommandRoute.PROXY,
-    CommandRoute.SHARE,
-    CommandRoute.SINGLE_PORT
+private data class WorkbenchTab(
+    val label: String,
+    val items: List<WorkbenchLauncherItem>
+)
+
+private fun routeLauncherItem(copy: CommandCopy, route: CommandRoute): WorkbenchLauncherItem {
+    val language = if (copy === CommandCopyFa) "fa" else "en"
+    return WorkbenchLauncherItem(
+        key = route.key,
+        title = route.commandLabel(copy),
+        summary = route.helpContent(language).summary,
+        icon = route.navIcon(),
+        route = route
+    )
+}
+
+private fun networkLauncherItems(copy: CommandCopy): List<WorkbenchLauncherItem> = listOf(
+    WorkbenchLauncherItem("network-reachability", copy.netQReachable, copy.netQReachableTools, Icons.Rounded.Public, CommandRoute.CHECK_HOST),
+    WorkbenchLauncherItem("network-layer", copy.netQNetworkLayer, copy.netQNetworkLayerTools, Icons.Rounded.NetworkCheck, CommandRoute.NETWORK_TOOLS_EDITOR),
+    WorkbenchLauncherItem("network-tls", copy.netQTls, copy.netQTlsTools, Icons.Rounded.Security, CommandRoute.NETWORK_TOOLS_EDITOR),
+    WorkbenchLauncherItem("network-dns", copy.netQDns, copy.netQDnsTools, Icons.Rounded.Dns, CommandRoute.DNS),
+    WorkbenchLauncherItem("network-quality", copy.netQQuality, copy.netQQualityTools, Icons.Rounded.Speed, CommandRoute.NETWORK_TOOLS_EDITOR),
+    WorkbenchLauncherItem("network-cloudflare", copy.netQCfEdge, copy.netQCfEdgeTools, Icons.Rounded.TravelExplore, CommandRoute.CF_SCANNER),
+    WorkbenchLauncherItem("network-reality", copy.netQRealityDonor, copy.netQRealityDonorTools, Icons.Rounded.VerifiedUser, CommandRoute.REALITY_SNI)
 )
 
 @Composable
@@ -51,20 +79,25 @@ internal fun CommandWorkbenchLauncherScreen(
     copy: CommandCopy,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
+    val utilityItems = workbenchUtilityRoutes.map { routeLauncherItem(copy, it) }
+    val networkItems = networkLauncherItems(copy)
+    val connectionItems = listOf(CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.SINGLE_PORT)
+        .map { routeLauncherItem(copy, it) }
+    val developmentItems = listOf(routeLauncherItem(copy, CommandRoute.DEVELOPER_LAB))
     val tabs = listOf(
-        WorkbenchTab(copy.toolsTabAll, workbenchUtilityRoutes),
-        WorkbenchTab(copy.networkTools, emptyList(), destination = CommandRoute.NETWORK_TOOLS),
-        WorkbenchTab(copy.toolsTabConnection, connectionRoutes),
-        WorkbenchTab(copy.toolsTabDevelopment, listOf(CommandRoute.DEVELOPER_LAB))
+        WorkbenchTab(copy.toolsTabAll, utilityItems + networkItems),
+        WorkbenchTab(copy.networkTools, networkItems),
+        WorkbenchTab(copy.toolsTabConnection, connectionItems),
+        WorkbenchTab(copy.toolsTabDevelopment, developmentItems)
     )
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val visibleRoutes = tabs[selectedTab.coerceIn(tabs.indices)].routes
+        val visibleItems = tabs[selectedTab.coerceIn(tabs.indices)].items
         val columns = workbenchLauncherColumns(maxWidth)
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().testTag("workbench-launcher"),
             verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
             contentPadding = PaddingValues(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)
         ) {
@@ -86,21 +119,11 @@ internal fun CommandWorkbenchLauncherScreen(
             ) {
                 tabs.forEachIndexed { index, tab ->
                     val active = index == selectedTab
-                    val destination = tab.destination
                     val tabModifier = Modifier
                         .testTag("workbench-tab-$index")
                         .heightIn(min = CommandMetrics.touchTarget)
                         .clip(RoundedCornerShape(CommandRadii.pill))
-                        .semantics {
-                            if (destination != null) stateDescription = copy.networkTools
-                        }
-                        .then(
-                            if (destination != null) {
-                                Modifier.clickable(role = Role.Button) { onNavigate(destination, null) }
-                            } else {
-                                Modifier.selectable(selected = active, role = Role.Tab) { selectedTab = index }
-                            }
-                        )
+                        .selectable(selected = active, role = Role.Tab) { selectedTab = index }
                     Surface(
                         color = if (active) CommandColors.accent else CommandColors.surface,
                         contentColor = if (active) CommandColors.onAccent else CommandColors.textSecondary,
@@ -119,22 +142,24 @@ internal fun CommandWorkbenchLauncherScreen(
             }
         }
 
-            visibleRoutes.chunked(columns).forEach { rowRoutes ->
+            visibleItems.chunked(columns).forEach { rowItems ->
                 item {
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
                         verticalAlignment = Alignment.Top
                     ) {
-                        rowRoutes.forEach { route ->
-                            WorkbenchLauncherTile(
-                                copy = copy,
-                                route = route,
+                        rowItems.forEach { item ->
+                            CommandLauncherTile(
+                                title = item.title,
+                                summary = item.summary,
+                                icon = item.icon,
                                 modifier = Modifier.weight(1f),
-                                onClick = { onNavigate(route, null) }
+                                testTag = "workbench-tile-${item.key}",
+                                onClick = { onNavigate(item.route, null) }
                             )
                         }
-                        repeat(columns - rowRoutes.size) { Spacer(Modifier.weight(1f)) }
+                        repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
@@ -148,22 +173,4 @@ internal fun workbenchLauncherColumns(width: Dp): Int = when {
     width >= CommandBreakpoints.rail -> 4
     width >= CommandBreakpoints.formStack -> 3
     else -> 2
-}
-
-@Composable
-private fun WorkbenchLauncherTile(
-    copy: CommandCopy,
-    route: CommandRoute,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val language = if (copy === CommandCopyFa) "fa" else "en"
-    CommandLauncherTile(
-        title = route.commandLabel(copy),
-        summary = route.helpContent(language).summary,
-        icon = route.navIcon(),
-        modifier = modifier,
-        testTag = "workbench-tile-${route.key}",
-        onClick = onClick
-    )
 }

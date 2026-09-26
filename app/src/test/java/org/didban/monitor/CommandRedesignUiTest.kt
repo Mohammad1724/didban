@@ -41,9 +41,12 @@ class CommandRedesignUiTest {
         compose.onNodeWithTag("primary-servers").assertIsSelected()
         compose.onNodeWithTag("primary-tools").performClick().assertIsSelected()
         compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // page title + selected bottom navigation item
-        compose.onNodeWithText(copy.cfScanner).assertDoesNotExist() // network diagnostics have one canonical home
+        compose.onNodeWithTag("workbench-launcher")
+            .performScrollToNode(hasText(copy.netQReachable))
+        compose.onNodeWithText(copy.netQReachable).assertIsDisplayed() // All includes the canonical network launcher items
+        compose.onNodeWithTag("workbench-launcher").performScrollToIndex(1)
         compose.onNodeWithText(copy.networkTools).performClick()
-        compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1) // route chrome owns the title; the body must not repeat it
+        compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1) // the network tab stays inside the same launcher
         compose.onNodeWithText(copy.netQReachable).assertIsDisplayed()
         compose.onNodeWithTag("primary-settings").performClick().assertIsSelected()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))
@@ -56,7 +59,7 @@ class CommandRedesignUiTest {
         compose.onNodeWithTag("primary-tools").performClick()
         compose.onNodeWithText(copy.networkTools).performClick()
         compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1)
-        compose.onNodeWithTag("network-index-row-0").assertIsDisplayed()
+        compose.onNodeWithTag("workbench-tile-network-reachability").assertIsDisplayed()
         compose.onNodeWithText(copy.netQNetworkLayer).assertIsDisplayed()
     }
 

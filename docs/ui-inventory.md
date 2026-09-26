@@ -21,9 +21,9 @@
 | Servers | `TUNNELS` | `CommandTunnelEditorScreen.kt` | form + confirmation | hardcoded action labels باقی‌مانده |
 | Monitoring | `UPTIME` | `CommandDiagnoseScreens.kt` | dense list + status | loading/empty/error مشترک |
 | Monitoring | `RADAR` | `CommandDiagnoseScreens.kt` | comparison matrix | state contract مشترک |
-| Tools | `WORKBENCH_HOME` | `CommandWorkbenchLauncher.kt` | icon launcher + category tabs | canonical؛ فقط ابزار عمومی |
+| Tools | `WORKBENCH_HOME` | `CommandWorkbenchLauncher.kt` | icon launcher + category tabs | canonical؛ All و Network Tools از یک launcher مشترک استفاده می‌کنند |
 | Tools | `PROXY`, `SHARE`, `SINGLE_PORT`, `BATCH`, `DEVELOPER_LAB` | `CommandWorkbench*` | form/tool | copy migration در فاز ۲ |
-| Network | `NETWORK_TOOLS` | `CommandNetworkIndexScreens.kt` | dense network index | canonical مالک ابزارهای network |
+| Network | `NETWORK_TOOLS` | `CommandNetworkIndexScreens.kt` | icon launcher compatibility index | مالک canonical ابزارهای network؛ دسترسی اصلی از تب داخل launcher |
 | Network | `CHECK_HOST` | `CommandCheckHostScreen.kt` | public probe form/result | مستقل از server؛ بدون افزودن server |
 | Network | `CF_SCANNER`, `REALITY_SNI` | `CommandCfScannerScreen.kt`, `CommandRealitySniScreen.kt` | long-running tool | shared loading/error در فاز ۲ |
 | Network | `DNS` | `CommandNetworkIndexScreens.kt` | network index | route index |
@@ -44,14 +44,14 @@
 | state block | `CommandStateBlock`, `CommandEmptyState` | error, offline, empty, retry |
 | loading | `CommandLoadingState`, `CommandInlineLoading` | قرارداد مشترک فاز ۲ |
 | confirmation | `CommandConfirmDialog` / `CommandDestructiveDialog` | action confirmation؛ destructive action همیشه danger |
-| launcher tile | `WorkbenchLauncherTile` | فقط Tools عمومی |
+| launcher tile | `CommandLauncherTile` | Tools عمومی و Network Tools؛ با data model مشترک |
 
 ## مالکیت و جلوگیری از duplication
 
-- `WORKBENCH_HOME` فقط Proxy، Share، Single-Port، Batch و Developer Lab را نمایش می‌دهد.
-- `NETWORK_TOOLS` تنها خانهٔ Check-Host، TLS، DNS، quality، Cloudflare و Reality/SNI است.
-- routeهای `CF_SCANNER`, `REALITY_SNI`, `CHECK_HOST` و `DNS` نباید در launcher عمومی به‌عنوان tile تکرار شوند.
-- میان‌بر به route مجاز است؛ رندر هم‌زمان یک ابزار در دو index مجاز نیست.
+- `WORKBENCH_HOME` یک launcher واحد دارد: تب All ابزارهای عمومی و ابزارهای network را از همان data model نشان می‌دهد.
+- تب `Network Tools` همان launcher را فیلتر می‌کند و صفحهٔ جدیدی باز نمی‌کند؛ بنابراین تفاوت آن با تب Connection فقط در مجموعهٔ tileهاست.
+- routeهای `CF_SCANNER`, `REALITY_SNI`, `CHECK_HOST` و `DNS` در All و تب Network Tools از یک item مشترک می‌آیند؛ این تکرارِ داده در دو صفحه نیست.
+- index route قدیمی برای سازگاری مستقیم باقی می‌ماند، اما مسیر اصلی کاربر launcher/filter مشترک است.
 
 ## state contract برای همهٔ featureها
 
@@ -66,18 +66,18 @@
 ## slice stage 4 — route ownership و responsive launcher
 
 - `CommandRouteOwner` مالک canonical هر route را صریح می‌کند؛ ابزارهای scoped مثل SSH، SFTP، Bandwidth، Tunnel و Security به Server Workspace تعلق دارند، و Network Tools/DNS/Check-Host/Cloudflare/Reality به Network Tools index.
-- launcher عمومی فقط `workbenchUtilityRoutes` را render می‌کند؛ Network Tools به‌صورت route link باقی می‌ماند و آیتم‌های network-specific را در grid عمومی تکرار نمی‌کند.
-- تب Network Tools از نظر accessibility به‌عنوان navigation action و نه tab انتخابی علامت‌گذاری می‌شود؛ تب‌های واقعی Workbench همچنان state انتخابی دارند.
+- launcher عمومی از `workbenchUtilityRoutes + networkLauncherItems` ساخته می‌شود؛ All و تب Network Tools همان itemهای network را با filter مشترک render می‌کنند.
+- تب Network Tools از نظر accessibility `Role.Tab` و state انتخابی دارد و با تب Connection همان in-place behavior را حفظ می‌کند؛ دیگر navigation action جداگانه نیست.
 - grid لانچر بر اساس عرض مشترک design system در ۳۲۰dp دو ستون، در عرض فرم سه ستون و در عرض rail چهار ستون می‌شود؛ حداقل ارتفاع tile و border از token می‌آیند.
-- ردیف‌های Network Tools نقش button، فلش RTL-aware و spacing/radius مشترک دارند؛ indexهای عمومی نیز دیگر spacing دستی صفحه‌ای ندارند.
+- tileهای Network Tools همان icon، summary، spacing، semantics و test-tag tileهای launcher عمومی را دارند؛ index route قدیمی فقط compatibility entry است.
 
 ## slice stage 4 — accessibility و responsive audit
 
 - primitiveهای وضعیت اکنون علاوه بر رنگ، glyph معنایی، label و `stateDescription` دارند؛ success، attention، offline، unknown و info برای screen reader و تشخیص بدون رنگ قابل تفکیک‌اند.
 - loadingهای مشترک با live region محترمانه اعلام می‌شوند و اندازه/ضخامت indicator از `CommandMetrics` می‌آید؛ status، telemetry، border و gaugeهای مشترک دیگر مقدارهای هندسی صفحه‌ای ندارند.
-- تب‌های واقعی Workbench `Role.Tab` و state انتخابی خود را حفظ می‌کنند؛ میان‌بر Network Tools `Role.Button` است، test tag مستقل دارد و در عرض ۳۲۰dp و font scale بزرگ حداقل ۴۸dp باقی می‌ماند.
-- tileهای launcher با label و summary به‌صورت یک action قابل‌فهم merge می‌شوند؛ ردیف‌های Network Tools نیز button semantics، content description ترکیبی و حداقل ارتفاع dense-row دارند.
-- هدر Network Tools در عرض کمتر از breakpoint فرم به دو ردیف تبدیل می‌شود تا عنوان، توضیح و source pill در RTL/LTR و فونت بزرگ روی هم نیفتند.
+- همهٔ تب‌های Workbench، از جمله Network Tools، `Role.Tab` و state انتخابی خود را حفظ می‌کنند؛ تغییر تب داخل همان launcher انجام می‌شود.
+- tileهای launcher عمومی و network با `CommandLauncherTile` label، summary، button semantics و content description ترکیبی دارند و در عرض ۳۲۰dp و font scale بزرگ حداقل ۴۸dp باقی می‌مانند.
+- index route Network Tools دیگر hero یا source pill اختصاصی ندارد؛ در مسیر اصلی کاربر همان intro و grid launcher مشترک نمایش داده می‌شود.
 - راهنمای صفحه از `CommandCopy` برای عنوان، بخش‌ها، Copy/Copied، Tip و Warning استفاده می‌کند؛ برچسب‌های قابل مشاهدهٔ راهنما دیگر داخل Composable hardcode نیستند.
 - تست deterministic جدید در `CommandAccessibilityUiTest.kt` قرارداد RTL، font scale ۱٫۵، role تب/دکمه، action بودن tile و touch target مشترک را پوشش می‌دهد.
 
