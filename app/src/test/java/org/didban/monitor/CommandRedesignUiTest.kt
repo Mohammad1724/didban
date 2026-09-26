@@ -43,6 +43,7 @@ class CommandRedesignUiTest {
         compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // page title + selected bottom navigation item
         compose.onNodeWithText(copy.cfScanner).assertDoesNotExist() // network diagnostics have one canonical home
         compose.onNodeWithText(copy.networkTools).performClick()
+        compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1) // route chrome owns the title; the body must not repeat it
         compose.onNodeWithText(copy.netQReachable).assertIsDisplayed()
         compose.onNodeWithTag("primary-settings").performClick().assertIsSelected()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))

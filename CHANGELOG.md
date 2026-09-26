@@ -9,6 +9,7 @@
 - Moved visible clipboard labels into localized `CommandCopy` entries and kept important dimensions in `CommandMetrics`.
 - Added explicit semantics and touch-target coverage for SFTP entries and batch selection.
 - Added deterministic Compose coverage for the local empty states of DNS, Tunnel, Manage Servers and SFTP at 320dp with a 1.5 font scale.
+- Removed the duplicated Network Tools title from the index body; the shared route chrome is now the single page-title owner.
 
 ### Verification
 

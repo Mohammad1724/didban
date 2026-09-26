@@ -1,11 +1,7 @@
 package org.didban.monitor
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -47,7 +44,6 @@ fun CommandNetworkIndexScreen(
     onOpenRealitySni: () -> Unit
 ) {
     CommandNetworkIndex(
-        title = copy.networkTools,
         subtitle = copy.netIndexBody,
         rows = listOf(
             Triple(copy.netQReachable, copy.netQReachableTools, onOpenCheckHost) to Icons.Rounded.Public,
@@ -69,7 +65,6 @@ fun CommandDnsIndexScreen(
     onOpenNetwork: () -> Unit
 ) {
     CommandNetworkIndex(
-        title = copy.dns,
         subtitle = copy.dnsIndexBody,
         rows = listOf(
             Triple(copy.dnsZoneRecords, copy.dnsZoneRecordsBody, onOpenCloudflare) to Icons.Rounded.Dns,
@@ -80,58 +75,32 @@ fun CommandDnsIndexScreen(
 }
 
 @Composable
-private fun CommandNetworkIndexHeader(title: String, subtitle: String, sourceLabel: String) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(top = CommandSpacing.md)) {
-        val narrow = maxWidth < CommandBreakpoints.formStack
-        if (narrow) {
-            Column(verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    NetworkIndexHeaderIcon()
-                    Spacer(Modifier.width(CommandSpacing.sm))
-                    Column(Modifier.weight(1f)) {
-                        Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(subtitle, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                CommandTelemetryPill(sourceLabel, CommandHealthTone.INFO, Modifier.align(Alignment.End))
-            }
-        } else {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                NetworkIndexHeaderIcon()
-                Spacer(Modifier.width(CommandSpacing.sm))
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = androidx.compose.material3.MaterialTheme.typography.headlineSmall, color = CommandColors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(subtitle, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                }
-                CommandTelemetryPill(sourceLabel, CommandHealthTone.INFO)
-            }
-        }
-    }
-}
-
-@Composable
-private fun NetworkIndexHeaderIcon() {
-    Box(
-        Modifier
-            .size(CommandMetrics.touchTarget)
-            .background(CommandColors.accent.copy(alpha = 0.10f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon))
-            .border(CommandMetrics.borderWidth, CommandColors.accent.copy(alpha = 0.32f), androidx.compose.foundation.shape.RoundedCornerShape(CommandRadii.icon)),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(Icons.Rounded.NetworkCheck, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
+private fun CommandNetworkIndexIntro(subtitle: String, sourceLabel: String) {
+    // The route-level CommandPageChrome already owns the page title. Keep this
+    // intro descriptive so Network Tools follows the same hierarchy as the
+    // other index pages instead of rendering the title twice.
+    CommandResponsiveRow(Modifier.padding(top = CommandSpacing.md)) {
+        Text(
+            subtitle,
+            item(weight = 1f),
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            color = CommandColors.textSecondary,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
+        )
+        CommandTelemetryPill(sourceLabel, CommandHealthTone.INFO, modifier = item().wrapContentWidth(Alignment.End))
     }
 }
 
 @Composable
 private fun CommandNetworkIndex(
-    title: String,
     subtitle: String,
     rows: List<Pair<Triple<String, String, () -> Unit>, androidx.compose.ui.graphics.vector.ImageVector>>,
     copy: CommandCopy
 ) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
         item {
-            CommandNetworkIndexHeader(title, subtitle, copy.sources)
+            CommandNetworkIndexIntro(subtitle, copy.sources)
         }
         item {
             CommandSurface(Modifier.fillMaxWidth()) {
