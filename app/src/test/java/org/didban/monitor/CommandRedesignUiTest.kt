@@ -49,6 +49,17 @@ class CommandRedesignUiTest {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))
         compose.onNodeWithText(copy.vault).assertIsDisplayed()
     }
+    @Test
+    @Config(qualifiers = "w320dp-h900dp")
+    fun `network tools uses the shared icon launcher at narrow width`() {
+        app()
+        compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNodeWithText(copy.networkTools).performClick()
+        compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1)
+        compose.onNodeWithTag("network-tile-${copy.netQReachable}").assertIsDisplayed()
+        compose.onNodeWithText(copy.netQNetworkLayer).assertIsDisplayed()
+    }
+
     @Test fun `details replace fleet rather than opening a sheet and retain scoped tools`() {
         app()
         compose.onNodeWithText("UI Node").performScrollTo().performClick()

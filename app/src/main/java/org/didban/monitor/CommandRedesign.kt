@@ -25,8 +25,10 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 
 /** Presentation-only grouping. Persisted route keys and the existing Back stack stay intact. */
@@ -173,30 +175,12 @@ internal fun CommandDisclosure(copy: CommandCopy, title: String = copy.uiAdvance
 
 @Composable
 internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: String? = null, onClick: () -> Unit) {
-    CommandToolLink(
-        title = route.commandLabel(copy),
-        detail = detail,
-        icon = route.navIcon(),
-        testTag = "tool-${route.key}",
-        onClick = onClick
-    )
-}
-
-/** Shared index-row primitive for route and custom diagnostic destinations. */
-@Composable
-internal fun CommandToolLink(
-    title: String,
-    detail: String? = null,
-    icon: ImageVector,
-    testTag: String? = null,
-    onClick: () -> Unit
-) {
     CommandSurface(Modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = CommandMetrics.compactRowMinHeight)
-                .then(testTag?.let { Modifier.testTag(it) } ?: Modifier)
+                .testTag("tool-${route.key}")
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(CommandSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -209,13 +193,65 @@ internal fun CommandToolLink(
                     .background(CommandColors.infoSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
+                Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
             }
             Column(Modifier.weight(1f)) {
-                Text(title, color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
                 if (detail != null) Text(detail, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 3)
             }
             Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = CommandColors.textTertiary, modifier = Modifier.size(CommandMetrics.iconMedium))
         }
+    }
+}
+
+/** Shared icon-launcher tile used by the general and network tool indexes. */
+@Composable
+internal fun CommandLauncherTile(
+    title: String,
+    summary: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    testTag: String? = null,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier
+            .heightIn(min = CommandMetrics.launcherTileMinHeight)
+            .clip(RoundedCornerShape(CommandRadii.card))
+            .then(testTag?.let { Modifier.testTag(it) } ?: Modifier)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = listOf(title, summary).joinToString(" · ")
+            }
+            .padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.sm),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        Box(
+            Modifier
+                .size(CommandMetrics.launcherIcon)
+                .clip(RoundedCornerShape(CommandRadii.icon))
+                .background(CommandColors.infoSurface),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconLarge))
+        }
+        Spacer(Modifier.height(CommandSpacing.xs))
+        Text(
+            title,
+            color = CommandColors.textPrimary,
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            summary,
+            color = CommandColors.textTertiary,
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }

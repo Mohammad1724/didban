@@ -1,13 +1,10 @@
 package org.didban.monitor
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,11 +13,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,11 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 
@@ -166,50 +158,12 @@ private fun WorkbenchLauncherTile(
     onClick: () -> Unit
 ) {
     val language = if (copy === CommandCopyFa) "fa" else "en"
-    val summary = route.helpContent(language).summary
-    Column(
-        modifier
-            .heightIn(min = CommandMetrics.launcherTileMinHeight)
-            .clip(RoundedCornerShape(CommandRadii.card))
-            .testTag("workbench-tile-${route.key}")
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics(mergeDescendants = true) {
-                contentDescription = listOf(route.commandLabel(copy), summary).joinToString(" · ")
-            }
-            .padding(horizontal = CommandSpacing.xs, vertical = CommandSpacing.sm),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Box(
-            Modifier
-                .size(CommandMetrics.launcherIcon)
-                .clip(RoundedCornerShape(CommandRadii.icon))
-                .background(CommandColors.infoSurface),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                route.navIcon(),
-                contentDescription = null,
-                tint = CommandColors.accent,
-                modifier = Modifier.size(CommandMetrics.iconLarge)
-            )
-        }
-        Spacer(Modifier.height(CommandSpacing.xs))
-        Text(
-            route.commandLabel(copy),
-            color = CommandColors.textPrimary,
-            style = MaterialTheme.typography.labelLarge,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            summary,
-            color = CommandColors.textTertiary,
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+    CommandLauncherTile(
+        title = route.commandLabel(copy),
+        summary = route.helpContent(language).summary,
+        icon = route.navIcon(),
+        modifier = modifier,
+        testTag = "workbench-tile-${route.key}",
+        onClick = onClick
+    )
 }

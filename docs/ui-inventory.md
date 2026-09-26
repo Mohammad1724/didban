@@ -88,7 +88,7 @@
 - SFTP file rows اکنون `Role.Button`، label ترکیبی، test tag و حداقل ارتفاع dense-row دارند؛ عنوان فایل و Copy action در narrow layout با `CommandResponsiveRow` جدا می‌شوند.
 - عرض kind column و ارتفاع ویرایشگر SFTP به `CommandMetrics` منتقل شد؛ labelهای داخلی clipboard برای Proxy/SFTP نیز از `CommandCopy` می‌آیند.
 - `CommandFinalAuditUiTest.kt` حالت‌های empty محلی DNS، Tunnel، Manage Servers و SFTP را در عرض ۳۲۰dp و font scale ۱٫۵ بدون شبکه قفل می‌کند.
-- indexهای Network Tools و DNS اکنون از `CommandSectionTitle` و `CommandToolLink` مشترک استفاده می‌کنند؛ hero سفارشی، grouped-card و عنوان تکراری حذف شده و hierarchy آن‌ها با indexهای دیگر یکسان است.
+- indexهای Network Tools و DNS اکنون از `CommandSectionTitle` و tile launcher مشترک استفاده می‌کنند؛ hero سفارشی، grouped-card و عنوان تکراری حذف شده و hierarchy آن‌ها با launcher اصلی یکسان است.
 
 ## audit backlog — non-blocking
 
