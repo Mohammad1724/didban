@@ -56,7 +56,7 @@ class CommandRedesignUiTest {
         compose.onNodeWithTag("primary-tools").performClick()
         compose.onNodeWithText(copy.networkTools).performClick()
         compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1)
-        compose.onNodeWithTag("network-tile-${copy.netQReachable}").assertIsDisplayed()
+        compose.onNodeWithTag("network-index-row-0").assertIsDisplayed()
         compose.onNodeWithText(copy.netQNetworkLayer).assertIsDisplayed()
     }
 

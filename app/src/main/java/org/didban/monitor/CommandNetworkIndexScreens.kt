@@ -89,20 +89,20 @@ private fun CommandNetworkIndex(
                     modifier = Modifier.padding(horizontal = CommandSpacing.xs)
                 )
             }
-            rows.chunked(columns).forEach { rowItems ->
+            rows.chunked(columns).forEachIndexed { rowIndex, rowItems ->
                 item {
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
                         verticalAlignment = Alignment.Top
                     ) {
-                        rowItems.forEach { (content, icon) ->
+                        rowItems.forEachIndexed { columnIndex, (content, icon) ->
                             CommandLauncherTile(
                                 title = content.first,
                                 summary = content.second,
                                 icon = icon,
                                 modifier = Modifier.weight(1f),
-                                testTag = "network-tile-${content.first}",
+                                testTag = "network-index-row-${rowIndex * columns + columnIndex}",
                                 onClick = content.third
                             )
                         }
