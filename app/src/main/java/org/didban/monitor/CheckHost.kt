@@ -61,12 +61,64 @@ data class CheckHostNode(
         get() = listOf(city, country).filter { it.isNotBlank() }.joinToString(", ")
 }
 
+/**
+ * Stable probe policy for filter diagnosis. The inventory is refreshed from
+ * Check-Host, but selection is deterministic: four Iranian probes are reserved
+ * first, then a balanced set of outside probes fills the remaining slots.
+ */
+internal val checkHostProbeQuotas = listOf(
+    "ir" to 4,
+    "nl" to 2,
+    "de" to 2,
+    "us" to 2,
+    "in" to 2,
+    "id" to 2,
+    "gb" to 1,
+    "fr" to 1,
+    "ro" to 1,
+    "rs" to 1,
+    "md" to 1,
+    "pl" to 1
+)
+
+internal fun stableCheckHostNodeKeys(
+    inventory: Map<String, String>,
+    maxNodes: Int
+): List<String> {
+    if (maxNodes <= 0) return emptyList()
+    val available = inventory
+        .filterKeys { it.isNotBlank() }
+        .toList()
+        .sortedBy { it.first }
+    val selected = linkedSetOf<String>()
+
+    checkHostProbeQuotas.forEach { (countryCode, quota) ->
+        available
+            .filter { it.second.equals(countryCode, ignoreCase = true) }
+            .take(quota)
+            .forEach { (nodeKey, _) ->
+                if (selected.size < maxNodes) selected += nodeKey
+            }
+    }
+
+    available.forEach { (nodeKey, _) ->
+        if (selected.size < maxNodes) selected += nodeKey
+    }
+    return selected.toList()
+}
+
 object CheckHostService {
+
+    private const val NODE_INVENTORY_URL = "https://check-host.net/nodes/hosts"
+    private const val NODE_INVENTORY_CACHE_MS = 15 * 60 * 1000L
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
+    private val nodeCacheLock = Any()
+    @Volatile private var cachedStableNodesAt = 0L
+    @Volatile private var cachedStableNodes: List<String> = emptyList()
 
     fun flagForCountry(cc: String): String {
         val clean = cc.trim().uppercase(Locale.US)
@@ -79,6 +131,46 @@ object CheckHostService {
         return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
     }
 
+    private fun fetchNodeInventory(): Map<String, String> {
+        val request = Request.Builder()
+            .url(NODE_INVENTORY_URL)
+            .header("Accept", "application/json")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return emptyMap()
+            val body = BoundedResponseReader.readUtf8(response.body, BoundedResponseReader.STANDARD_BYTES)
+            val nodes = JSONObject(body).optJSONObject("nodes") ?: return emptyMap()
+            val result = linkedMapOf<String, String>()
+            val keys = nodes.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val location = nodes.optJSONObject(key)?.optJSONArray("location")
+                val countryCode = location?.optString(0).orEmpty().trim().lowercase(Locale.US)
+                if (countryCode.length == 2) result[key] = countryCode
+            }
+            return result
+        }
+    }
+
+    private fun stableNodes(maxNodes: Int): List<String> {
+        val now = System.currentTimeMillis()
+        synchronized(nodeCacheLock) {
+            if (cachedStableNodes.isNotEmpty() && now - cachedStableNodesAt < NODE_INVENTORY_CACHE_MS) {
+                return cachedStableNodes.take(maxNodes)
+            }
+        }
+
+        val inventory = runCatching { fetchNodeInventory() }.getOrDefault(emptyMap())
+        val selected = stableCheckHostNodeKeys(inventory, maxNodes)
+        if (selected.isNotEmpty()) {
+            synchronized(nodeCacheLock) {
+                cachedStableNodes = selected
+                cachedStableNodesAt = now
+            }
+        }
+        return selected
+    }
+
     suspend fun startCheck(
         target: String,
         type: String = "ping",
@@ -89,7 +181,11 @@ object CheckHostService {
 
         val encoded = URLEncoder.encode(cleanHost, "UTF-8")
         val cleanType = type.lowercase(Locale.US)
-        val url = "https://check-host.net/check-$cleanType?host=$encoded&max_nodes=$maxNodes"
+        val selectedNodes = stableNodes(maxNodes)
+        val nodeQuery = selectedNodes.joinToString("") {
+            "&node=${URLEncoder.encode(it, "UTF-8")}"
+        }
+        val url = "https://check-host.net/check-$cleanType?host=$encoded&max_nodes=$maxNodes$nodeQuery"
 
         val req = Request.Builder()
             .url(url)

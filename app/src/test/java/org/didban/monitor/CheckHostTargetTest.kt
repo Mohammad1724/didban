@@ -21,6 +21,30 @@ class CheckHostTargetTest {
         assertEquals("2001:db8::1", normalizeCheckHostTarget("2001:db8::1", "info", "443"))
     }
 
+    @Test fun `filter probes use a deterministic Iranian first cohort and stable fill`() {
+        val inventory = mapOf(
+            "ir4.node.check-host.net" to "ir",
+            "nl2.node.check-host.net" to "nl",
+            "ir1.node.check-host.net" to "ir",
+            "de1.node.check-host.net" to "de",
+            "ir2.node.check-host.net" to "ir",
+            "nl1.node.check-host.net" to "nl",
+            "ir3.node.check-host.net" to "ir",
+            "us1.node.check-host.net" to "us"
+        )
+        assertEquals(
+            listOf(
+                "ir1.node.check-host.net",
+                "ir2.node.check-host.net",
+                "ir3.node.check-host.net",
+                "ir4.node.check-host.net",
+                "nl1.node.check-host.net",
+                "nl2.node.check-host.net"
+            ),
+            stableCheckHostNodeKeys(inventory, 6)
+        )
+    }
+
     @Test fun `empty malformed and invalid TCP targets are rejected`() {
         assertNull(normalizeCheckHostTarget("", "ping", "443"))
         assertEquals("example.com", normalizeCheckHostTarget("example.com/path?x=1", "ping", "443"))
