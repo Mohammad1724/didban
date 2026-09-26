@@ -309,18 +309,18 @@ object CheckHostService {
                     allDone = false
                     continue
                 }
+                // Check-Host uses a missing/null/empty value while a probe is
+                // still running. Keep it pending here; the screen converts
+                // probes that remain unresolved after the polling deadline to
+                // an explicit no-data result.
                 if (json.isNull(node.nodeKey)) {
-                    node.result = CheckHostResult(CheckHostResultKind.NO_DATA)
-                    node.resultText = node.result.english()
-                    node.state = 2
+                    allDone = false
                     continue
                 }
 
                 val resArr = json.optJSONArray(node.nodeKey)
                 if (resArr == null || resArr.length() == 0 || resArr.isNull(0)) {
-                    node.result = CheckHostResult(CheckHostResultKind.NO_DATA)
-                    node.resultText = node.result.english()
-                    node.state = 2
+                    allDone = false
                     continue
                 }
 
