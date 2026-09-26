@@ -173,12 +173,30 @@ internal fun CommandDisclosure(copy: CommandCopy, title: String = copy.uiAdvance
 
 @Composable
 internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: String? = null, onClick: () -> Unit) {
+    CommandToolLink(
+        title = route.commandLabel(copy),
+        detail = detail,
+        icon = route.navIcon(),
+        testTag = "tool-${route.key}",
+        onClick = onClick
+    )
+}
+
+/** Shared index-row primitive for route and custom diagnostic destinations. */
+@Composable
+internal fun CommandToolLink(
+    title: String,
+    detail: String? = null,
+    icon: ImageVector,
+    testTag: String? = null,
+    onClick: () -> Unit
+) {
     CommandSurface(Modifier.fillMaxWidth()) {
         Row(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = CommandMetrics.compactRowMinHeight)
-                .testTag("tool-${route.key}")
+                .then(testTag?.let { Modifier.testTag(it) } ?: Modifier)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(CommandSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
@@ -191,10 +209,10 @@ internal fun CommandToolLink(copy: CommandCopy, route: CommandRoute, detail: Str
                     .background(CommandColors.infoSurface),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(route.navIcon(), null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
+                Icon(icon, null, tint = CommandColors.accent, modifier = Modifier.size(CommandMetrics.iconMedium))
             }
             Column(Modifier.weight(1f)) {
-                Text(route.commandLabel(copy), color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
+                Text(title, color = CommandColors.textPrimary, style = MaterialTheme.typography.titleMedium)
                 if (detail != null) Text(detail, color = CommandColors.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 3)
             }
             Icon(Icons.AutoMirrored.Rounded.ArrowForward, null, tint = CommandColors.textTertiary, modifier = Modifier.size(CommandMetrics.iconMedium))
