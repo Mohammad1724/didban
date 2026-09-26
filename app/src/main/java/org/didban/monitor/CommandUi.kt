@@ -74,6 +74,10 @@ import kotlin.math.sin
 internal fun CommandCopy.latencyValue(milliseconds: Long): String =
     if (milliseconds < 0) "—" else netLatencyValue.replace("%1", milliseconds.toString())
 
+internal fun CommandCopy.latencyRange(minimum: Long, average: Long, maximum: Long): String =
+    if (minimum < 0 || maximum < 0) latencyValue(average)
+    else netLatencyValue.replace("%1", "$minimum/$average/$maximum")
+
 @Composable
 fun CommandPage(
     modifier: Modifier = Modifier,

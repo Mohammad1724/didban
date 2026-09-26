@@ -9,6 +9,7 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToLong
 
 enum class CheckHostResultKind {
     PENDING,
@@ -29,7 +30,9 @@ data class CheckHostResult(
     val kind: CheckHostResultKind,
     val first: String = "",
     val second: String = "",
-    val milliseconds: Long = 0
+    val milliseconds: Long = 0,
+    val minimumMilliseconds: Long = -1,
+    val maximumMilliseconds: Long = -1
 ) {
     fun english(): String = when (kind) {
         CheckHostResultKind.PENDING -> "…"
@@ -53,18 +56,28 @@ data class CheckHostNode(
     val country: String,
     val city: String,
     val flag: String,
+    val asn: String = "",
+    var resolvedAddress: String = "",
     var resultText: String = "…",
     var result: CheckHostResult = CheckHostResult(CheckHostResultKind.PENDING),
-    var state: Int = 0 // 0 = pending, 1 = ok, 2 = fail
+    var state: Int = 0 // 0 = pending, 1 = ok, 2 = fail, 3 = partial
 ) {
     val location: String
         get() = listOf(city, country).filter { it.isNotBlank() }.joinToString(", ")
 }
 
+data class CheckHostInventoryNode(
+    val countryCode: String,
+    val city: String,
+    val asn: String
+)
+
 /**
  * Stable probe policy for filter diagnosis. The inventory is refreshed from
  * Check-Host, but selection is deterministic: four Iranian probes are reserved
- * first, then a balanced set of outside probes fills the remaining slots.
+ * first, then a balanced set of outside probes fills the remaining slots. A
+ * repeated city is allowed when it represents a different ASN/network, just
+ * like Check-Host's own table.
  */
 internal val checkHostProbeQuotas = listOf(
     "ir" to 4,
@@ -82,7 +95,7 @@ internal val checkHostProbeQuotas = listOf(
 )
 
 internal fun stableCheckHostNodeKeys(
-    inventory: Map<String, String>,
+    inventory: Map<String, CheckHostInventoryNode>,
     maxNodes: Int
 ): List<String> {
     if (maxNodes <= 0) return emptyList()
@@ -93,12 +106,24 @@ internal fun stableCheckHostNodeKeys(
     val selected = linkedSetOf<String>()
 
     checkHostProbeQuotas.forEach { (countryCode, quota) ->
-        available
-            .filter { it.second.equals(countryCode, ignoreCase = true) }
-            .take(quota)
-            .forEach { (nodeKey, _) ->
-                if (selected.size < maxNodes) selected += nodeKey
-            }
+        val countryNodes = available.filter {
+            it.second.countryCode.equals(countryCode, ignoreCase = true)
+        }
+        val networks = linkedSetOf<String>()
+
+        // Prefer independent networks first. Check-Host can legitimately list
+        // multiple probes from one city, so city is metadata, not a de-dup key.
+        countryNodes.forEach { (nodeKey, node) ->
+            if (selected.size >= maxNodes || networks.size >= quota) return@forEach
+            val networkKey = node.asn.trim().lowercase(Locale.US)
+            if (networkKey.isEmpty() || networks.add(networkKey)) selected += nodeKey
+        }
+        countryNodes.forEach { (nodeKey, _) ->
+            if (selected.size < maxNodes && selected.count { key ->
+                    inventory[key]?.countryCode?.equals(countryCode, ignoreCase = true) == true
+                } < quota
+            ) selected += nodeKey
+        }
     }
 
     available.forEach { (nodeKey, _) ->
@@ -111,6 +136,7 @@ object CheckHostService {
 
     private const val NODE_INVENTORY_URL = "https://check-host.net/nodes/hosts"
     private const val NODE_INVENTORY_CACHE_MS = 15 * 60 * 1000L
+    private const val CHECK_HOST_USER_AGENT = "Didban/1.0 (Android; Check-Host client)"
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -131,22 +157,27 @@ object CheckHostService {
         return String(Character.toChars(firstChar)) + String(Character.toChars(secondChar))
     }
 
-    private fun fetchNodeInventory(): Map<String, String> {
+    private fun fetchNodeInventory(): Map<String, CheckHostInventoryNode> {
         val request = Request.Builder()
             .url(NODE_INVENTORY_URL)
             .header("Accept", "application/json")
+            .header("User-Agent", CHECK_HOST_USER_AGENT)
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return emptyMap()
             val body = BoundedResponseReader.readUtf8(response.body, BoundedResponseReader.STANDARD_BYTES)
             val nodes = JSONObject(body).optJSONObject("nodes") ?: return emptyMap()
-            val result = linkedMapOf<String, String>()
+            val result = linkedMapOf<String, CheckHostInventoryNode>()
             val keys = nodes.keys()
             while (keys.hasNext()) {
                 val key = keys.next()
-                val location = nodes.optJSONObject(key)?.optJSONArray("location")
-                val countryCode = location?.optString(0).orEmpty().trim().lowercase(Locale.US)
-                if (countryCode.length == 2) result[key] = countryCode
+                val location = nodes.optJSONObject(key)?.optJSONArray("location") ?: continue
+                val countryCode = location.optString(0).trim().lowercase(Locale.US)
+                val city = location.optString(2).trim()
+                val asn = nodes.optJSONObject(key)?.optString("asn").orEmpty().trim()
+                if (countryCode.length == 2) {
+                    result[key] = CheckHostInventoryNode(countryCode, city, asn)
+                }
             }
             return result
         }
@@ -190,6 +221,7 @@ object CheckHostService {
         val req = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
+            .header("User-Agent", CHECK_HOST_USER_AGENT)
             .build()
 
         client.newCall(req).execute().use { resp ->
@@ -213,10 +245,12 @@ object CheckHostService {
                 var cc = ""
                 var country = ""
                 var city = ""
+                var asn = ""
 
                 if (nodeArr.length() > 0) cc = nodeArr.optString(0)
                 if (nodeArr.length() > 1) country = nodeArr.optString(1)
                 if (nodeArr.length() > 2) city = nodeArr.optString(2)
+                if (nodeArr.length() > 4) asn = nodeArr.optString(4).trim()
 
                 if (country.contains(",")) {
                     val parts = country.split(",")
@@ -232,11 +266,19 @@ object CheckHostService {
                         countryCode = cc,
                         country = country,
                         city = city,
-                        flag = flagForCountry(cc)
+                        flag = flagForCountry(cc),
+                        asn = asn
                     )
                 )
             }
 
+            val selectedOrder = selectedNodes.withIndex().associate { it.value to it.index }
+            nodesList.sortWith(
+                compareBy<CheckHostNode> { selectedOrder[it.nodeKey] ?: Int.MAX_VALUE }
+                    .thenBy { it.countryCode }
+                    .thenBy { it.city }
+                    .thenBy { it.nodeKey }
+            )
             Pair(reqId, nodesList)
         }
     }
@@ -250,6 +292,7 @@ object CheckHostService {
         val req = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
+            .header("User-Agent", CHECK_HOST_USER_AGENT)
             .build()
 
         client.newCall(req).execute().use { resp ->
@@ -262,17 +305,28 @@ object CheckHostService {
             for (node in nodes) {
                 if (node.state != 0) continue // already determined
 
-                if (!json.has(node.nodeKey) || json.isNull(node.nodeKey)) {
+                if (!json.has(node.nodeKey)) {
                     allDone = false
+                    continue
+                }
+                if (json.isNull(node.nodeKey)) {
+                    node.result = CheckHostResult(CheckHostResultKind.NO_DATA)
+                    node.resultText = node.result.english()
+                    node.state = 2
                     continue
                 }
 
                 val resArr = json.optJSONArray(node.nodeKey)
                 if (resArr == null || resArr.length() == 0 || resArr.isNull(0)) {
-                    allDone = false
+                    node.result = CheckHostResult(CheckHostResultKind.NO_DATA)
+                    node.resultText = node.result.english()
+                    node.state = 2
                     continue
                 }
 
+                extractResolvedAddress(type, resArr).takeIf { it.isNotBlank() }?.let {
+                    node.resolvedAddress = it
+                }
                 val (result, state) = parseNodeResult(type, resArr)
                 node.result = result
                 node.resultText = result.english()
@@ -283,7 +337,29 @@ object CheckHostService {
         }
     }
 
-    private fun parseNodeResult(type: String, resArr: JSONArray): Pair<CheckHostResult, Int> {
+    private fun extractResolvedAddress(type: String, resArr: JSONArray): String {
+        return when (type.lowercase(Locale.US)) {
+            "ping" -> {
+                val attempts = resArr.optJSONArray(0) ?: return ""
+                for (i in 0 until attempts.length()) {
+                    val attempt = attempts.optJSONArray(i) ?: continue
+                    val address = attempt.optString(2).trim()
+                    if (attempt.optString(0) == "OK" && address.isNotBlank()) return address
+                }
+                ""
+            }
+            "http" -> resArr.optJSONArray(0)?.optString(4, "").orEmpty().trim()
+            "tcp", "udp" -> resArr.optJSONObject(0)?.optString("address", "").orEmpty().trim()
+            "dns" -> {
+                val first = resArr.optJSONObject(0) ?: return ""
+                first.optJSONArray("A")?.optString(0)?.takeIf { it.isNotBlank() }
+                    ?: first.optJSONArray("AAAA")?.optString(0).orEmpty()
+            }
+            else -> ""
+        }
+    }
+
+    internal fun parseNodeResult(type: String, resArr: JSONArray): Pair<CheckHostResult, Int> {
         try {
             when (type.lowercase(Locale.US)) {
                 "ping" -> {
@@ -291,13 +367,18 @@ object CheckHostService {
                         ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
                     var total = 0
                     var ok = 0
-                    var sum = 0.0
+                    var sumMs = 0L
+                    var minMs = Long.MAX_VALUE
+                    var maxMs = Long.MIN_VALUE
                     for (i in 0 until first.length()) {
                         val att = first.optJSONArray(i) ?: continue
                         total++
                         if (att.optString(0) == "OK") {
                             ok++
-                            sum += att.optDouble(1, 0.0)
+                            val sampleMs = (att.optDouble(1, 0.0) * 1000).roundToLong()
+                            sumMs += sampleMs
+                            minMs = minOf(minMs, sampleMs)
+                            maxMs = maxOf(maxMs, sampleMs)
                         }
                     }
                     if (ok == 0) {
@@ -307,13 +388,16 @@ object CheckHostService {
                             second = total.toString()
                         ) to 2
                     }
-                    val avgMs = (sum / ok * 1000).toLong()
+                    val avgMs = sumMs / ok
+                    val state = if (ok == total) 1 else 3
                     return CheckHostResult(
                         CheckHostResultKind.PING_SUMMARY,
                         first = ok.toString(),
                         second = total.toString(),
-                        milliseconds = avgMs
-                    ) to 1
+                        milliseconds = avgMs,
+                        minimumMilliseconds = minMs,
+                        maximumMilliseconds = maxMs
+                    ) to state
                 }
 
                 "http" -> {
@@ -357,13 +441,15 @@ object CheckHostService {
                 "dns" -> {
                     val first = resArr.optJSONObject(0)
                         ?: return CheckHostResult(CheckHostResultKind.NO_DATA) to 2
-                    val aList = mutableListOf<String>()
-                    val aArr = first.optJSONArray("A")
-                    if (aArr != null) {
-                        for (i in 0 until aArr.length()) aList.add(aArr.optString(i))
+                    val sections = listOf("A", "AAAA", "CNAME", "MX", "NS", "TXT").mapNotNull { key ->
+                        val values = first.optJSONArray(key) ?: return@mapNotNull null
+                        if (values.length() == 0) null else {
+                            val items = (0 until values.length()).map { values.optString(it) }
+                            "$key: ${items.joinToString(", ")}"
+                        }
                     }
-                    if (aList.isEmpty()) return CheckHostResult(CheckHostResultKind.NO_RECORDS) to 2
-                    return CheckHostResult(CheckHostResultKind.RAW, first = aList.joinToString(", ")) to 1
+                    if (sections.isEmpty()) return CheckHostResult(CheckHostResultKind.NO_RECORDS) to 2
+                    return CheckHostResult(CheckHostResultKind.RAW, first = sections.joinToString(" · ")) to 1
                 }
 
                 else -> return CheckHostResult(CheckHostResultKind.OK) to 1

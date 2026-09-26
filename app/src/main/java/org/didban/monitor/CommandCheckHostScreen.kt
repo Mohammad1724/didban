@@ -85,6 +85,7 @@ internal fun normalizeCheckHostTarget(input: String, type: String, portText: Str
 private fun checkHostTone(node: CheckHostNode): CommandHealthTone = when (node.state) {
     1 -> CommandHealthTone.HEALTHY
     2 -> CommandHealthTone.OFFLINE
+    3 -> CommandHealthTone.ATTENTION
     else -> CommandHealthTone.UNKNOWN
 }
 
@@ -97,7 +98,7 @@ private fun CheckHostResult.localized(copy: CommandCopy): String = when (kind) {
     CheckHostResultKind.PING_SUMMARY -> copy.checkHostResultPing
         .replace("%1", first)
         .replace("%2", second)
-        .replace("%3", copy.latencyValue(milliseconds))
+        .replace("%3", copy.latencyRange(minimumMilliseconds, milliseconds, maximumMilliseconds))
     CheckHostResultKind.HTTP_SUMMARY -> copy.checkHostResultHttp
         .replace("%1", first)
         .replace("%2", copy.latencyValue(milliseconds))
@@ -192,14 +193,28 @@ fun CommandCheckHostScreen(
                 if (startedNodes.isEmpty()) throw IllegalStateException(copy.checkHostNoNodes)
                 nodes = startedNodes.toList()
 
-                repeat(CHECK_HOST_MAX_POLLS) {
+                var completed = false
+                repeat(CHECK_HOST_MAX_POLLS) { pollIndex ->
                     val done = pollResults(requestId, requestedType, startedNodes)
                     // CheckHostNode keeps mutable result fields because the
                     // API parser updates one node at a time. Publish a fresh
                     // list so Compose observes every polling update.
                     nodes = startedNodes.map { it.copy() }
-                    if (done) return@launch
-                    delay(CHECK_HOST_POLL_DELAY_MS)
+                    if (done) {
+                        completed = true
+                        return@repeat
+                    }
+                    if (pollIndex < CHECK_HOST_MAX_POLLS - 1) {
+                        delay(CHECK_HOST_POLL_DELAY_MS)
+                    }
+                }
+                if (!completed) {
+                    startedNodes.filter { it.state == 0 }.forEach {
+                        it.result = CheckHostResult(CheckHostResultKind.NO_DATA)
+                        it.resultText = it.result.english()
+                        it.state = 2
+                    }
+                    nodes = startedNodes.map { it.copy() }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -348,18 +363,22 @@ fun CommandCheckHostScreen(
                                 when (node.state) {
                                     1 -> copy.online
                                     2 -> copy.offline
+                                    3 -> copy.attention
                                     else -> copy.waitingForData
                                 },
                                 checkHostTone(node),
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                node.nodeKey,
+                                listOf(node.nodeKey, node.asn).filter { it.isNotBlank() }.joinToString(" · "),
                                 color = CommandColors.textTertiary,
                                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
+                        }
+                        if (node.resolvedAddress.isNotBlank()) {
+                            CheckHostInfoRow(copy.subnetIpLabel, node.resolvedAddress)
                         }
                     }
                 }

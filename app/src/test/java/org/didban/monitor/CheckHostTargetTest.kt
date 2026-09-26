@@ -1,5 +1,6 @@
 package org.didban.monitor
 
+import org.json.JSONArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -23,14 +24,15 @@ class CheckHostTargetTest {
 
     @Test fun `filter probes use a deterministic Iranian first cohort and stable fill`() {
         val inventory = mapOf(
-            "ir4.node.check-host.net" to "ir",
-            "nl2.node.check-host.net" to "nl",
-            "ir1.node.check-host.net" to "ir",
-            "de1.node.check-host.net" to "de",
-            "ir2.node.check-host.net" to "ir",
-            "nl1.node.check-host.net" to "nl",
-            "ir3.node.check-host.net" to "ir",
-            "us1.node.check-host.net" to "us"
+            "ir4.node.check-host.net" to CheckHostInventoryNode("ir", "Shiraz", "AS4"),
+            "nl2.node.check-host.net" to CheckHostInventoryNode("nl", "Meppel", "ASNL2"),
+            "ir1.node.check-host.net" to CheckHostInventoryNode("ir", "Tehran", "AS1"),
+            "de1.node.check-host.net" to CheckHostInventoryNode("de", "Frankfurt", "ASDE1"),
+            "ir2.node.check-host.net" to CheckHostInventoryNode("ir", "Isfahan", "AS2"),
+            "nl1.node.check-host.net" to CheckHostInventoryNode("nl", "Amsterdam", "ASNL1"),
+            "ir3.node.check-host.net" to CheckHostInventoryNode("ir", "Shiraz", "AS3"),
+            "ir5.node.check-host.net" to CheckHostInventoryNode("ir", "Qom", "AS5"),
+            "us1.node.check-host.net" to CheckHostInventoryNode("us", "New York", "ASUS1")
         )
         assertEquals(
             listOf(
@@ -43,6 +45,19 @@ class CheckHostTargetTest {
             ),
             stableCheckHostNodeKeys(inventory, 6)
         )
+    }
+
+    @Test fun `ping keeps min average max and marks packet loss as partial`() {
+        val response = JSONArray("[[[\"OK\",0.030,\"1.2.3.4\"],[\"TIMEOUT\"],[\"OK\",0.050]]]")
+        val (result, state) = CheckHostService.parseNodeResult("ping", response)
+
+        assertEquals(CheckHostResultKind.PING_SUMMARY, result.kind)
+        assertEquals("2", result.first)
+        assertEquals("3", result.second)
+        assertEquals(40L, result.milliseconds)
+        assertEquals(30L, result.minimumMilliseconds)
+        assertEquals(50L, result.maximumMilliseconds)
+        assertEquals(3, state)
     }
 
     @Test fun `empty malformed and invalid TCP targets are rejected`() {

@@ -12,6 +12,11 @@
 - Aligned the Network Tools and DNS indexes with the shared section-title and icon-launcher primitives: no custom hero, no grouped-card exception and no duplicated page title.
 - The Tools `All` tab now includes the canonical network launcher tiles; the `Network Tools` control is an in-place selectable tab instead of opening a second page.
 
+### Check-Host reachability
+
+- Check-Host probes now use a deterministic cohort selected from the live inventory, with balanced country quotas and ASN diversity; repeated cities remain valid when they represent separate networks.
+- Ping results preserve min/average/max RTT, partial packet loss is shown as attention rather than healthy, resolved target IPs are displayed per probe, and unavailable probes remain visible as no-data/error.
+
 ### Verification
 
 - Android CI and Agent CI are green for the final audit commit: [Android #318](https://github.com/Mohammad1724/didban/actions/runs/36188090880) and [Agent #312](https://github.com/Mohammad1724/didban/actions/runs/36188090887).
