@@ -40,7 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 
-private data class WorkbenchLauncherItem(
+internal data class WorkbenchLauncherItem(
     val key: String,
     val title: String,
     val summary: String,
@@ -48,7 +48,7 @@ private data class WorkbenchLauncherItem(
     val route: CommandRoute
 )
 
-private data class WorkbenchTab(
+internal data class WorkbenchTab(
     val label: String,
     val items: List<WorkbenchLauncherItem>
 )
@@ -74,24 +74,32 @@ private fun networkLauncherItems(copy: CommandCopy): List<WorkbenchLauncherItem>
     WorkbenchLauncherItem("network-reality", copy.netQRealityDonor, copy.netQRealityDonorTools, Icons.Rounded.VerifiedUser, CommandRoute.REALITY_SNI)
 )
 
-@Composable
-internal fun CommandWorkbenchLauncherScreen(
-    copy: CommandCopy,
-    onNavigate: (CommandRoute, ServerConfig?) -> Unit
-) {
+/**
+ * Tab model for the tools launcher, shared with tests. The All tab mirrors the
+ * tab order: network tools first, then connection and development utilities.
+ */
+internal fun workbenchTabs(copy: CommandCopy): List<WorkbenchTab> {
     val utilityItems = workbenchUtilityRoutes.map { routeLauncherItem(copy, it) }
     val networkItems = networkLauncherItems(copy)
     val connectionItems = listOf(CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.SINGLE_PORT)
         .map { routeLauncherItem(copy, it) }
     val developmentItems = listOf(routeLauncherItem(copy, CommandRoute.DEVELOPER_LAB))
-    val tabs = listOf(
-        WorkbenchTab(copy.toolsTabAll, utilityItems + networkItems),
+    return listOf(
+        WorkbenchTab(copy.toolsTabAll, networkItems + utilityItems),
         WorkbenchTab(copy.networkTools, networkItems),
         WorkbenchTab(copy.toolsTabConnection, connectionItems),
         WorkbenchTab(copy.toolsTabDevelopment, developmentItems)
     )
-    // Network diagnostics are the primary entry point; the All tab still
-    // contains the same network tiles for discoverability.
+}
+
+@Composable
+internal fun CommandWorkbenchLauncherScreen(
+    copy: CommandCopy,
+    onNavigate: (CommandRoute, ServerConfig?) -> Unit
+) {
+    val tabs = workbenchTabs(copy)
+    // Network diagnostics are the primary entry point; the All tab lists the
+    // same network tiles first, then the connection and development tools.
     var selectedTab by rememberSaveable { mutableIntStateOf(1) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {

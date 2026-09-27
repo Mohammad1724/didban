@@ -13,21 +13,32 @@ import java.security.MessageDigest
  * Copies credentials/configuration as sensitive clipboard data and removes
  * only that exact value after a short lifetime. The delayed task retains a
  * SHA-256 digest, never the secret itself, and will not erase newer user data.
+ *
+ * Values the user must store themselves — such as a backup recovery code —
+ * are copied with [autoExpire] and [markSensitive] disabled: the clip survives
+ * past 60 seconds and stays visible to keyboard clipboard managers.
  */
 object SensitiveClipboard {
     private const val SENSITIVE_KEY = "android.content.extra.IS_SENSITIVE"
     private const val CLEAR_AFTER_MS = 60_000L
     private val handler = Handler(Looper.getMainLooper())
 
-    fun copy(context: Context, label: String, value: String) {
+    fun copy(
+        context: Context,
+        label: String,
+        value: String,
+        autoExpire: Boolean = true,
+        markSensitive: Boolean = true
+    ) {
         require(value.isNotEmpty()) { "Sensitive clipboard value is empty" }
         val appContext = context.applicationContext
         val clipboard = appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText(label.take(80), value)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (markSensitive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             clip.description.extras = PersistableBundle().apply { putBoolean(SENSITIVE_KEY, true) }
         }
         clipboard.setPrimaryClip(clip)
+        if (!autoExpire) return
 
         val expectedDigest = digest(value)
         handler.postDelayed({

@@ -1087,13 +1087,18 @@ interface CommandCopy {
     val secretType: String
     val backupCreate: String
     val backupBody: String
-    val backupPasswordOptional: String
+    val backupPasswordField: String
+    val backupPasswordWhy: String
     val backupCreateEncrypted: String
     val backupCreated: String
     val backupOutput: String
+    val backupCopiedFeedback: String
+    val backupOutputHint: String
     val backupVerifyRestore: String
     val backupText: String
     val backupValid: String
+    val backupMergeHint: String
+    val backupOverwriteHint: String
     val backupInvalid: String
     val backupTooLarge: String
     val backupEmpty: String
@@ -1451,7 +1456,7 @@ internal object CommandCopyFa : CommandCopy {
     override val sftp = "فایل‌ها (SFTP)"
     override val singlePort = "Single-Port"
     override val proxy = "Proxy Inspector"
-    override val developerLab = "Developer Lab"
+    override val developerLab = "ابزارهای توسعه‌دهنده"
     override val vault = "خزانه (Vault)"
     override val alerts = "کانال‌های هشدار"
     override val backup = "پشتیبان‌گیری و بازیابی"
@@ -1610,9 +1615,9 @@ internal object CommandCopyFa : CommandCopy {
     override val shareErrorUsername = "نام کاربری را پر کن."
     override val shareErrorPassword = "رمز باید دست\u200cکم ۴ نویسه باشد."
     override val pressAgainToExit = "برای خروج، دوباره Back بزنید"
-    override val netQCfEdge = "تست IPهای Cloudflare"
-    override val netQCfEdgeTools = "بررسی دسترسی و کیفیت IPهای Cloudflare"
-    override val netQRealityDonor = "بررسی REALITY"
+    override val netQCfEdge = "اسکنر IP کلودفلر"
+    override val netQCfEdgeTools = "اسکن دسترسی و کیفیت IPهای کلودفلر"
+    override val netQRealityDonor = "اسکنر REALITY"
     override val netQRealityDonorTools = "بررسی TLS، SNI، SAN و CDN"
     override val cfScanner = "اسکنر IP تمیز کلودفلر"
     override val scannerReadyLists = "فهرست‌های آمادهٔ اسکن"
@@ -2075,14 +2080,19 @@ internal object CommandCopyFa : CommandCopy {
     override val secretTags = "برچسب‌ها"
     override val secretType = "SECRET"
     override val backupCreate = "ساخت Backup"
-    override val backupBody = "Backup بدون Password قابل خواندن است؛ برای دادهٔ واقعی از رمز استفاده کنید."
-    override val backupPasswordOptional = "Password اختیاری"
+    override val backupBody = "پشتیبان شامل توکن سرورها و رمزهاست؛ همیشه با رمز ساخته می‌شود و کد آن را در جای امن نگه دارید."
+    override val backupPasswordField = "رمز پشتیبان‌گیری (الزامی)"
+    override val backupPasswordWhy = "خروجی پشتیبان رمزها و توکن‌ها را درون خود دارد، پس بدون رمز ساخته نمی‌شود. رمز را جایی امن یادداشت کنید؛ بدون آن بازیابی ممکن نیست."
     override val backupCreateEncrypted = "ساخت Backup رمزنگاری‌شده"
     override val backupCreated = "Backup ساخته شد. مقدار آن را خارج از دستگاه امن نگه دارید."
-    override val backupOutput = "خروجی Backup"
+    override val backupOutput = "کد بازیابی (خروجی Backup)"
+    override val backupCopiedFeedback = "کپی شد ✓"
+    override val backupOutputHint = "با دکمهٔ کپی، کل کد برداشته می‌شود؛ متن نمایش‌داده‌شده کوتاه‌شدهٔ آن است."
     override val backupVerifyRestore = "بررسی و Restore"
     override val backupText = "متن Backup"
     override val backupValid = "ساختار معتبر"
+    override val backupMergeHint = "ادغام: رکوردهای پشتیبان به داده‌های فعلی اضافه می‌شود؛ چیزی حذف نمی‌شود و موارد تکراری نادیده گرفته می‌شوند."
+    override val backupOverwriteHint = "بازنویسی: همهٔ سرورها، تانل‌ها، مانیتورها، خزانه و تنظیمات با محتوای همین پشتیبان جایگزین می‌شود."
     override val backupInvalid = "ساختار نامعتبر"
     override val backupTooLarge = "حجم Backup بیش از حد مجاز است."
     override val backupEmpty = "متن Backup خالی است."
@@ -2433,7 +2443,7 @@ internal object CommandCopyEn : CommandCopy {
     override val sftp = "SFTP"
     override val singlePort = "Single-Port"
     override val proxy = "Proxy Inspector"
-    override val developerLab = "Developer Lab"
+    override val developerLab = "Developer tools"
     override val vault = "Vault"
     override val alerts = "Alert delivery"
     override val backup = "Backup and Restore"
@@ -2592,9 +2602,9 @@ internal object CommandCopyEn : CommandCopy {
     override val shareErrorUsername = "Fill in the username."
     override val shareErrorPassword = "The password needs at least 4 characters."
     override val pressAgainToExit = "Press back again to exit"
-    override val netQCfEdge = "Cloudflare IP check"
-    override val netQCfEdgeTools = "Check Cloudflare IP reachability and quality"
-    override val netQRealityDonor = "REALITY check"
+    override val netQCfEdge = "Cloudflare IP scanner"
+    override val netQCfEdgeTools = "Scan Cloudflare IP reachability and quality"
+    override val netQRealityDonor = "REALITY scanner"
     override val netQRealityDonorTools = "Inspect TLS, SNI, SAN and CDN behavior"
     override val cfScanner = "Cloudflare clean-IP scanner"
     override val scannerReadyLists = "Ready-to-scan lists"
@@ -3057,14 +3067,19 @@ internal object CommandCopyEn : CommandCopy {
     override val secretTags = "Tags"
     override val secretType = "SECRET"
     override val backupCreate = "Create backup"
-    override val backupBody = "A backup is readable without a password; use one for real data."
-    override val backupPasswordOptional = "Password (optional)"
+    override val backupBody = "A backup contains server tokens and credentials, so it is always created with a password; keep its code somewhere safe."
+    override val backupPasswordField = "Backup password (required)"
+    override val backupPasswordWhy = "The export embeds credentials and tokens, so Didban refuses to create it without a password. Note the password down safely; restore is impossible without it."
     override val backupCreateEncrypted = "Create encrypted backup"
     override val backupCreated = "Backup created. Keep its value somewhere safe off this device."
-    override val backupOutput = "Backup output"
+    override val backupOutput = "Recovery code (backup output)"
+    override val backupCopiedFeedback = "Copied ✓"
+    override val backupOutputHint = "The copy button takes the whole code; the displayed text is only a shortened preview."
     override val backupVerifyRestore = "Verify & restore"
     override val backupText = "Backup text"
     override val backupValid = "Valid structure"
+    override val backupMergeHint = "Merge: backup records are added to the current data; nothing is removed and duplicates are skipped."
+    override val backupOverwriteHint = "Overwrite: all servers, tunnels, monitors, vault and settings are replaced with this backup."
     override val backupInvalid = "Invalid structure"
     override val backupTooLarge = "Backup is too large."
     override val backupEmpty = "Backup text is empty."

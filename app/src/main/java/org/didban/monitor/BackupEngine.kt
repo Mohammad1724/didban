@@ -79,6 +79,14 @@ object BackupEngine {
     }
 
     /**
+     * The base64 payload never contains legitimate whitespace, but messengers,
+     * notes apps and text fields hard-wrap long codes. Strip every whitespace
+     * run so a wrapped pasted backup code still decrypts.
+     */
+    private fun encryptedPayload(trimmedRaw: String): String =
+        trimmedRaw.removePrefix(ENC_PREFIX).replace(Regex("\\s+"), "")
+
+    /**
      * Creates a full backup of Didban (Servers, Tunnels, Uptime, Vault, Settings).
      * If [password] is provided and not blank, encrypts the payload with AES-256-GCM.
      */
@@ -155,7 +163,7 @@ object BackupEngine {
                 )
             }
             try {
-                val encPayload = trimmed.removePrefix(ENC_PREFIX)
+                val encPayload = encryptedPayload(trimmed)
                 EncryptedVault.decrypt(encPayload, password).also { require(it.length <= MAX_BACKUP_CHARS) { "Decrypted backup is too large" } }
             } catch (e: Exception) {
                 val message = BackupMessage(BackupMessageKind.PASSWORD_INVALID)

@@ -52,6 +52,23 @@ class CommandRedesignUiTest {
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))
         compose.onNodeWithText(copy.vault).assertIsDisplayed()
     }
+    @Test fun `all tab lists network tools before connection tools`() {
+        // The All tab mirrors the tab order: network tiles first, then the
+        // connection and development utilities.
+        val tabs = workbenchTabs(copy)
+        val allKeys = tabs.first().items.map { it.key }
+        val networkKeys = tabs[1].items.map { it.key }
+        assertEquals(networkKeys + workbenchUtilityRoutes.map { it.key }, allKeys)
+    }
+
+    @Test fun `all tab renders network tiles above connection tiles`() {
+        app()
+        compose.onNodeWithTag("workbench-tab-0").performClick()
+        val network = compose.onNodeWithTag("workbench-tile-network-reachability").getUnclippedBoundsInRoot()
+        val connection = compose.onNodeWithTag("workbench-tile-proxy").getUnclippedBoundsInRoot()
+        assertTrue(network.top < connection.top)
+    }
+
     @Test
     @Config(qualifiers = "w320dp-h900dp")
     fun `network tools uses the shared icon launcher at narrow width`() {

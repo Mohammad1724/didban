@@ -271,6 +271,7 @@ fun CommandBackupScreen(
     var resultSuccess by remember { mutableStateOf<Boolean?>(null) }
     var inspectedRaw by remember { mutableStateOf<String?>(null) }
     var pendingRestore by remember { mutableStateOf<PendingRestoreRequest?>(null) }
+    var copied by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(CommandSpacing.md)) {
@@ -290,13 +291,15 @@ fun CommandBackupScreen(
                         { createPassword = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text(copy.backupPasswordOptional) },
+                        label = { Text(copy.backupPasswordField) },
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
                     )
+                    Text(copy.backupPasswordWhy, style = androidx.compose.material3.MaterialTheme.typography.bodySmall, color = CommandColors.textSecondary)
                     CommandPrimaryButton(copy.backupCreateEncrypted, {
                         runCatching { BackupEngine.createBackup(context, createPassword) }
                             .onSuccess {
                                 raw = it
+                                copied = false
                                 result = copy.backupCreated
                             }
                             .onFailure {
@@ -312,10 +315,18 @@ fun CommandBackupScreen(
                     Column(Modifier.padding(CommandSpacing.md)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(copy.backupOutput, Modifier.weight(1f), style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                            CommandTextButton(copy.copyAction, { SensitiveClipboard.copy(context, "Didban encrypted backup", raw) }, Icons.Rounded.ContentCopy)
+                            CommandTextButton(if (copied) copy.backupCopiedFeedback else copy.copyAction, {
+                                // The recovery code must be stored by the user, so
+                                // keep it on the clipboard past the 60s secret
+                                // lifetime and visible to clipboard managers.
+                                SensitiveClipboard.copy(context, copy.backupOutput, raw, autoExpire = false, markSensitive = false)
+                                copied = true
+                            }, Icons.Rounded.ContentCopy, enabled = !copied)
                         }
                         Spacer(Modifier.height(CommandSpacing.sm))
                         Text(raw, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 8, overflow = TextOverflow.Ellipsis)
+                        Spacer(Modifier.height(CommandSpacing.xs))
+                        Text(copy.backupOutputHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                 }
             }
@@ -331,6 +342,11 @@ fun CommandBackupScreen(
                         CommandSecondaryButton(copy.backupModeOverwrite, { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
                         CommandSecondaryButton(copy.backupInspect, { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = raw }, enabled = raw.isNotBlank() && !busy)
                     }
+                    Text(
+                        if (mode == RestoreMode.Merge) copy.backupMergeHint else copy.backupOverwriteHint,
+                        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                        color = CommandColors.textSecondary
+                    )
                     if (busy) CommandInlineLoading(copy.waitingForData)
                     val currentPreview = preview
                     if (currentPreview != null) {

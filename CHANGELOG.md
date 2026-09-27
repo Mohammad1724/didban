@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — 2026-09-26
+## Unreleased — 2026-09-27
+
+### Backup & restore
+
+- The recovery code now survives real-world copy/paste: whitespace (hard-wrapped lines from messengers, emails or notes apps) inside a pasted backup code is ignored, so it decrypts instead of failing with “wrong password”.
+- Copying the recovery code no longer auto-clears after 60 seconds and stays visible to keyboard clipboard managers; the copy button confirms with “کپی شد ✓ / Copied ✓” and a note explains that the preview text is shortened.
+- The create-backup form is honest about the password: the field is labelled “رمز پشتیبان‌گیری (الزامی) / Backup password (required)” with an explanation that exports embed credentials, replacing the misleading “Password اختیاری / Password (optional)”.
+- The Merge and Overwrite restore modes now carry a plain-language hint of what each one does to current data; regression tests pin the labels, the hints and the whitespace-tolerant paste.
 
 ### UI and product audit
 
@@ -21,6 +28,9 @@
 
 - A fresh app session now opens Tools first; the primary navigation order is Tools, Servers, Monitoring and Settings.
 - The Tools launcher opens on Network Tools while keeping network tiles available in All, and network labels now state the action and technology plainly (Check-Host, DNS, TLS, network tests and connection quality).
+- The Tools `All` tab now mirrors the tab order: network tiles are listed first, then the connection and development utilities, instead of leading with the connection tools.
+- Renamed the scanner tiles to say what they do: «اسکنر IP کلودفلر» / “Cloudflare IP scanner” and «اسکنر REALITY» / “REALITY scanner”.
+- Renamed `Developer Lab` to «ابزارهای توسعه‌دهنده» / “Developer tools” so the tile states its purpose; regression tests pin the All-tab order.
 
 ### Verification
 
