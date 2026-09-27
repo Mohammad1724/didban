@@ -208,6 +208,45 @@ enum class CensorshipDiagnosis {
     PORT_OPEN
 }
 
+/** Deep-DPI verdicts: distinguish "IP blocked" from "SNI/pattern blocked" from "healthy". */
+enum class DpiVerdict { TCP_BLOCKED, TCP_DOWN, UNSTABLE, TLS_BLOCKED, SNI_BLOCKED, HEALTHY }
+
+/** One probe attempt. [reset] marks an observed injected RST rather than a timeout. */
+data class DpiProbe(val ok: Boolean, val reset: Boolean, val latencyMs: Long, val refused: Boolean = false)
+
+/**
+ * Repeated, SNI-aware diagnosis. A single plain TCP/TLS success proves very
+ * little: operator-level filtering often targets the TLS ClientHello pattern
+ * (REALITY/uTLS) or specific SNI values, and RST injection is intermittent.
+ * So: TCP is attempted [tries] times, then TLS twice without SNI and twice
+ * with the caller's SNI (the REALITY donor domain) for comparison.
+ */
+data class DpiDeepResult(
+    val host: String,
+    val port: Int,
+    val sni: String,
+    val tcpOk: Int,
+    val tcpTries: Int,
+    val tlsPlainOk: Int,
+    val tlsPlainTries: Int,
+    val tlsSniOk: Int,
+    val tlsSniTries: Int,
+    val tcpReset: Boolean,
+    val sniReset: Boolean,
+    val avgLatencyMs: Long
+) {
+    val verdict: DpiVerdict
+        get() = when {
+            tcpOk == 0 && tcpReset -> DpiVerdict.TCP_BLOCKED
+            tcpOk == 0 -> DpiVerdict.TCP_DOWN
+            tcpOk < tcpTries -> DpiVerdict.UNSTABLE
+            tlsPlainTries > 0 && tlsPlainOk == 0 -> DpiVerdict.TLS_BLOCKED
+            tlsSniTries > 0 && tlsSniOk == 0 -> DpiVerdict.SNI_BLOCKED
+            tlsSniTries > 0 && tlsSniOk < tlsSniTries -> DpiVerdict.UNSTABLE
+            else -> DpiVerdict.HEALTHY
+        }
+}
+
 data class CensorshipDiagnosticResult(
     val host: String,
     val port: Int,
@@ -316,6 +355,99 @@ object CensorshipTester {
             diagnosis = diagnosis,
             latencyMs = lat,
             details = detail
+        )
+    }
+
+    private fun isTlsPort(port: Int) = port in listOf(443, 8443, 2053, 2083, 2087, 2096, 9443)
+
+    private fun tcpProbe(host: String, port: Int, timeoutMs: Int): DpiProbe {
+        val t0 = System.currentTimeMillis()
+        return try {
+            Socket().use { s ->
+                s.connect(InetSocketAddress(host, port), timeoutMs)
+                DpiProbe(ok = true, reset = false, latencyMs = System.currentTimeMillis() - t0)
+            }
+        } catch (e: SocketTimeoutException) {
+            DpiProbe(ok = false, reset = false, latencyMs = System.currentTimeMillis() - t0)
+        } catch (e: IOException) {
+            val msg = e.message ?: ""
+            val refused = msg.contains("refused", ignoreCase = true)
+            val reset = msg.contains("reset", ignoreCase = true)
+            // Refused means the server OS answered: reachable, just closed.
+            DpiProbe(ok = refused, reset = reset, latencyMs = System.currentTimeMillis() - t0, refused = refused)
+        } catch (e: Exception) {
+            DpiProbe(ok = false, reset = false, latencyMs = System.currentTimeMillis() - t0)
+        }
+    }
+
+    /** Trust-all TLS handshake with explicit SNI control ([sni] = null sends no server name). */
+    private fun tlsProbe(host: String, port: Int, sni: String?, timeoutMs: Int): DpiProbe {
+        val t0 = System.currentTimeMillis()
+        val tm = object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+            override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+        }
+        return try {
+            val ctx = SSLContext.getInstance("TLS")
+            ctx.init(null, arrayOf<TrustManager>(tm), null)
+            (ctx.socketFactory.createSocket() as SSLSocket).use { s ->
+                s.connect(InetSocketAddress(InetAddress.getByName(host), port), timeoutMs)
+                s.soTimeout = timeoutMs
+                val params = s.sslParameters
+                params.serverNames = if (sni.isNullOrBlank()) emptyList()
+                else listOf(javax.net.ssl.SNIHostName(sni))
+                s.sslParameters = params
+                s.startHandshake()
+                DpiProbe(ok = true, reset = false, latencyMs = System.currentTimeMillis() - t0)
+            }
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            val reset = msg.contains("reset", ignoreCase = true) || msg.contains("broken pipe", ignoreCase = true)
+            DpiProbe(ok = false, reset = reset, latencyMs = System.currentTimeMillis() - t0)
+        }
+    }
+
+    suspend fun diagnoseDeep(
+        host: String,
+        port: Int = 443,
+        sni: String? = null,
+        tries: Int = 3,
+        timeoutMs: Int = 3000
+    ): DpiDeepResult = withContext(Dispatchers.IO) {
+        val n = tries.coerceIn(1, 5)
+        val tcp = (1..n).map { tcpProbe(host, port, timeoutMs) }
+        val tcpOkCount = tcp.count { it.ok }
+        val anyTcpReset = tcp.any { it.reset }
+        val latencies = tcp.filter { it.ok }.map { it.latencyMs }
+
+        var plainOk = 0; var plainTries = 0
+        var sniOk = 0; var sniTries = 0
+        var anySniReset = false
+        if (tcpOkCount > 0 && isTlsPort(port)) {
+            repeat(2) { if (tlsProbe(host, port, null, timeoutMs).ok) plainOk++; plainTries++ }
+            if (!sni.isNullOrBlank()) {
+                repeat(2) {
+                    val r = tlsProbe(host, port, sni, timeoutMs)
+                    if (r.ok) sniOk++ else if (r.reset) anySniReset = true
+                    sniTries++
+                }
+            }
+        }
+
+        DpiDeepResult(
+            host = host,
+            port = port,
+            sni = sni?.trim().orEmpty(),
+            tcpOk = tcpOkCount,
+            tcpTries = n,
+            tlsPlainOk = plainOk,
+            tlsPlainTries = plainTries,
+            tlsSniOk = sniOk,
+            tlsSniTries = sniTries,
+            tcpReset = anyTcpReset,
+            sniReset = anySniReset,
+            avgLatencyMs = if (latencies.isEmpty()) -1 else latencies.average().toLong()
         )
     }
 }

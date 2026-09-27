@@ -64,7 +64,7 @@ class NetworkToolsUiTest {
         }
         compose.onNodeWithText(copy.retry).performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText(copy.netDpiTlsHealthy).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(copy.netVerdictHealthy).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText(copy.operationFailed).assertDoesNotExist()
         assertEquals(2, runner.diagnoseCalls)
@@ -93,13 +93,13 @@ class NetworkToolsUiTest {
         var diagnoseCalls = 0
         var scanCalls = 0
 
-        override suspend fun diagnose(host: String, port: Int): CensorshipDiagnosticResult {
+        override suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int): DpiDeepResult {
             diagnoseCalls++
             if (failNextDiagnosis) {
                 failNextDiagnosis = false
                 error("offline")
             }
-            return CensorshipDiagnosticResult(host, port, true, true, false, CensorshipDiagnosis.TLS_HEALTHY, 12, "certificate")
+            return DpiDeepResult(host, port, sni.orEmpty(), tries, tries, 2, 2, 2, 2, false, false, 12)
         }
 
         override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) {
@@ -115,7 +115,7 @@ class NetworkToolsUiTest {
         var started = false
         var cancelled = false
 
-        override suspend fun diagnose(host: String, port: Int): CensorshipDiagnosticResult {
+        override suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int): DpiDeepResult {
             started = true
             try {
                 awaitCancellation()

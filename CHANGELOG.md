@@ -6,6 +6,14 @@
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
 
+### DPI diagnostics that can actually catch operator filtering
+
+- The DPI test no longer trusts a single plain connection. It now repeats probes — TCP 3×, TLS twice without SNI and twice with your SNI — and reports pass counts, average latency and injected-RST sightings, because RST injection is intermittent and operator filtering usually targets the ClientHello pattern (REALITY/uTLS), not the plain handshake.
+- New optional "SNI مقایسه" field: enter your REALITY server's SNI domain; if plain TLS is open but TLS with that SNI is reset, the verdict reads "TLS blocked only with this SNI" — pattern/SNI filtering on the current operator.
+- New network-context banner: Wi-Fi results explicitly warn they say nothing about an operator; on mobile data the current operator name is shown with a reminder to compare on another operator.
+- Verdict tips now cover the reported case: plain connection healthy while REALITY fails → likely TLS-fingerprint (uTLS) or post-handshake blocking; try another SNI, fingerprint (chrome→firefox) or port and check server logs.
+- Verdict logic pinned by a new unit test (healthy / TCP blocked / TCP down / unstable / TLS blocked / SNI blocked).
+
 ### REALITY SNI scanner
 
 - Added an «سایت‌های ایرانی / Iranian sites» category (47 popular Iranian domains — e-commerce, media, telecom, banking, infrastructure) to the bundled SNI candidate list, for domestic-SNI setups; the bundled list is now 273 domains in five categories.

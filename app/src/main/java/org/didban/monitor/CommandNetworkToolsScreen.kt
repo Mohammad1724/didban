@@ -27,9 +27,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.telephony.TelephonyManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -48,21 +53,58 @@ private fun NetworkDiagnosticMode.label(copy: CommandCopy): String = when (this)
 
 /** Injectable network operations keep the state contract testable without live internet. */
 interface NetworkToolsRunner {
-    suspend fun diagnose(host: String, port: Int): CensorshipDiagnosticResult
+    suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int = 3): DpiDeepResult =
+        CensorshipTester.diagnoseDeep(host, port, sni, tries)
     suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit)
     suspend fun inspectCertificate(host: String, port: Int): SslCertInfo
 }
 
 object DefaultNetworkToolsRunner : NetworkToolsRunner {
-    override suspend fun diagnose(host: String, port: Int): CensorshipDiagnosticResult =
-        CensorshipTester.diagnose(host, port)
-
     override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) {
         PortScanner.scanPorts(host, ports, concurrency = 10, onResult = onResult)
     }
 
     override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo =
         SslInspector.inspect(host, port)
+}
+
+private fun localizedVerdict(verdict: DpiVerdict, copy: CommandCopy): String = when (verdict) {
+    DpiVerdict.TCP_BLOCKED -> copy.netVerdictTcpBlocked
+    DpiVerdict.TCP_DOWN -> copy.netVerdictTcpDown
+    DpiVerdict.UNSTABLE -> copy.netVerdictUnstable
+    DpiVerdict.TLS_BLOCKED -> copy.netVerdictTlsBlocked
+    DpiVerdict.SNI_BLOCKED -> copy.netVerdictSniBlocked
+    DpiVerdict.HEALTHY -> copy.netVerdictHealthy
+}
+
+private fun verdictTone(verdict: DpiVerdict): CommandHealthTone = when (verdict) {
+    DpiVerdict.TCP_BLOCKED, DpiVerdict.TCP_DOWN, DpiVerdict.TLS_BLOCKED, DpiVerdict.SNI_BLOCKED -> CommandHealthTone.OFFLINE
+    DpiVerdict.UNSTABLE -> CommandHealthTone.ATTENTION
+    DpiVerdict.HEALTHY -> CommandHealthTone.HEALTHY
+}
+
+private fun verdictTip(verdict: DpiVerdict, copy: CommandCopy): String = when (verdict) {
+    DpiVerdict.SNI_BLOCKED -> copy.netTipSniBlocked
+    DpiVerdict.HEALTHY -> copy.netTipHealthy
+    DpiVerdict.UNSTABLE -> copy.netTipRetest
+    else -> ""
+}
+
+/** Current data network: Wi-Fi, cellular (with operator) or unknown. */
+internal fun currentNetworkContext(context: Context): Triple<Boolean, String, String> {
+    val wifi: Boolean
+    val operator: String
+    try {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val caps = cm?.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+        wifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        operator = if (wifi) "" else runCatching {
+            (context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager)?.networkOperatorName.orEmpty()
+        }.getOrDefault("").ifBlank { "" }
+    } catch (_: Exception) {
+        return Triple(false, "", "")
+    }
+    return Triple(wifi, operator, "")
 }
 
 private fun localizedCensorshipResult(
@@ -101,6 +143,7 @@ fun CommandNetworkToolsScreen(
     var mode by remember { mutableStateOf(NetworkDiagnosticMode.DPI) }
     var host by remember { mutableStateOf(initialServer?.host ?: "") }
     var port by remember { mutableStateOf("443") }
+    var sni by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var summary by remember { mutableStateOf<String?>(null) }
@@ -141,18 +184,23 @@ fun CommandNetworkToolsScreen(
             try {
                 when (requestedMode) {
                     NetworkDiagnosticMode.DPI -> {
-                        val result = runner.diagnose(clean, targetPort)
-                        val localized = localizedCensorshipResult(result, copy)
-                        summary = localized.first
-                        summaryTone = if (result.isFiltered) CommandHealthTone.OFFLINE else CommandHealthTone.INFO
-                        val yes = { value: Boolean -> if (value) copy.netYes else copy.netNo }
-                        detail = listOf(
-                            copy.netTcpReachable.replace("%1", yes(result.tcpReachable)),
-                            copy.netTlsReachable.replace("%1", yes(result.tlsReachable)),
-                            copy.netFiltered.replace("%1", yes(result.isFiltered)),
-                            copy.netLatency.replace("%1", result.latencyMs.toString()),
-                            localized.second
-                        ).joinToString("\n")
+                        val result = runner.diagnoseDeep(clean, targetPort, sni.trim().takeIf { it.isNotBlank() })
+                        val verdict = result.verdict
+                        summary = localizedVerdict(verdict, copy)
+                        summaryTone = verdictTone(verdict)
+                        detail = buildString {
+                            appendLine(
+                                copy.netAttemptsLine
+                                    .replace("%1", result.tcpOk.toString()).replace("%2", result.tcpTries.toString())
+                                    .replace("%3", result.tlsPlainOk.toString()).replace("%4", result.tlsPlainTries.toString())
+                                    .replace("%5", result.tlsSniOk.toString()).replace("%6", result.tlsSniTries.toString())
+                            )
+                            if (result.avgLatencyMs >= 0) appendLine(copy.netAvgLatency.replace("%1", result.avgLatencyMs.toString()))
+                            if (result.tcpReset) appendLine(copy.netResetFlag)
+                            else if (result.sniReset) appendLine(copy.netResetFlag)
+                            val tip = verdictTip(verdict, copy)
+                            if (tip.isNotBlank()) append(tip)
+                        }
                     }
                     NetworkDiagnosticMode.PORTS -> {
                         val found = mutableListOf<PortScanResult>()
@@ -213,6 +261,21 @@ fun CommandNetworkToolsScreen(
                 }
             }
         }
+        if (mode == NetworkDiagnosticMode.DPI) item {
+            // Filtering decisions are per-operator: state the current network so
+            // a Wi-Fi result is never mistaken for an operator verdict.
+            val context = LocalContext.current
+            val (onWifi, operator, _) = remember { currentNetworkContext(context) }
+            if (onWifi) {
+                CommandStatusMark(copy.netNetWifiTitle, CommandHealthTone.ATTENTION, detail = copy.netNetWifiBody)
+            } else {
+                CommandStatusMark(
+                    if (operator.isBlank()) copy.netNetCellUnknown else copy.netNetCellTitle.replace("%1", operator),
+                    CommandHealthTone.INFO,
+                    detail = copy.netNetCellBody
+                )
+            }
+        }
         item {
             CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
@@ -220,6 +283,9 @@ fun CommandNetworkToolsScreen(
                     CommandResponsiveRow {
                         OutlinedTextField(host, { host = it }, item(weight = 1f), enabled = !loading, singleLine = true, label = { Text(copy.netHostDomain) })
                         OutlinedTextField(port, { port = it.filter(Char::isDigit).take(5) }, item(width = CommandMetrics.formAuxFieldWidth), enabled = !loading, singleLine = true, label = { Text(copy.port) })
+                    }
+                    if (mode == NetworkDiagnosticMode.DPI) {
+                        OutlinedTextField(sni, { sni = it }, Modifier.fillMaxWidth(), enabled = !loading, singleLine = true, label = { Text(copy.netSniField) }, placeholder = { Text(copy.netSniHint) })
                     }
                     Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     CommandResponsiveRow {

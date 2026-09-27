@@ -750,6 +750,25 @@ interface CommandCopy {
     val netIspLabel: String
     val netAsnLabel: String
     val netDiagFailed: String
+    val netSniField: String
+    val netSniHint: String
+    val netNetWifiTitle: String
+    val netNetWifiBody: String
+    val netNetCellTitle: String
+    val netNetCellUnknown: String
+    val netNetCellBody: String
+    val netVerdictTcpBlocked: String
+    val netVerdictTcpDown: String
+    val netVerdictUnstable: String
+    val netVerdictTlsBlocked: String
+    val netVerdictSniBlocked: String
+    val netVerdictHealthy: String
+    val netTipSniBlocked: String
+    val netTipHealthy: String
+    val netTipRetest: String
+    val netAttemptsLine: String
+    val netAvgLatency: String
+    val netResetFlag: String
     val dnsNoPtr: String
     val tunEditingId: String
     val upMonitorConfiguration: String
@@ -1167,9 +1186,6 @@ interface CommandCopy {
     val netOpenPortsFound: String
     val netOpen: String
     val netTlsCertificateSummary: String
-    val netTcpReachable: String
-    val netTlsReachable: String
-    val netFiltered: String
     val netLatency: String
     val netLatencyValue: String
     val netSubject: String
@@ -1179,7 +1195,6 @@ interface CommandCopy {
     val netSignature: String
     val netFingerprint: String
     val netSan: String
-    val netYes: String
     val netNo: String
     val netDpiTcpTimeout: String
     val netDpiTcpTimeoutBody: String
@@ -1657,6 +1672,25 @@ internal object CommandCopyFa : CommandCopy {
     override val netIspLabel = "ISP"
     override val netAsnLabel = "ASN"
     override val netDiagFailed = "تشخیص شبکه ناموفق بود"
+    override val netSniField = "SNI مقایسه (اختیاری)"
+    override val netSniHint = "مثلاً دامنهٔ SNI سرور REALITY‌ات"
+    override val netNetWifiTitle = "وای‌فای فعال است"
+    override val netNetWifiBody = "نتیجه دربارهٔ اپراتور نیست؛ برای قضاوت دربارهٔ همراه اول یا ایرانسل، وای‌فای را خاموش کن و دیتای همان اپراتور را روشن کن."
+    override val netNetCellTitle = "شبکهٔ فعلی: %1"
+    override val netNetCellUnknown = "شبکهٔ فعلی: دیتای موبایل"
+    override val netNetCellBody = "نتیجه فقط برای همین اپراتور معتبر است؛ برای مقایسه، سیم‌کارت یا دیتای اپراتور دیگر را هم امتحان کن."
+    override val netVerdictTcpBlocked = "TCP مسدود شده (RST تزریقی)"
+    override val netVerdictTcpDown = "TCP پاسخ نمی‌دهد"
+    override val netVerdictUnstable = "ناپایدار: بعضی تلاش‌ها رد شد"
+    override val netVerdictTlsBlocked = "TLS مسدود می‌شود"
+    override val netVerdictSniBlocked = "TLS فقط با این SNI مسدود می‌شود"
+    override val netVerdictHealthy = "اتصال ساده سالم است"
+    override val netTipSniBlocked = "TCP و TLS بدون SNI بازند ولی با این SNI بسته می‌شود: فیلترینگ روی همین اپراتور الگوی ClientHello یا همین دامنه را هدف گرفته. یک SNI دیگر را هم آزمایش کن."
+    override val netTipHealthy = "اتصال ساده سالم است. اگر REALITY با همین وضع کار نمی‌کند، احتمالاً اثرانگشت TLS (uTLS) یا رفتار بعد از دست‌دادن روی این اپراتور مسدود شده است: SNI، فینگرپرینت (مثلاً chrome به firefox) یا پورت را عوض کن و از سرور لاگ بگیر."
+    override val netTipRetest = "چند بار تکرار کن؛ تزریق RST گاهی فقط بعضی اتصال‌ها را می‌گیرد. برای قضاوت قطعی باید روی دیتای همان اپراتور باشی."
+    override val netAttemptsLine = "TCP %1/%2 · TLS بدون SNI %3/%4 · TLS با SNI %5/%6"
+    override val netAvgLatency = "میانگین تأخیر: %1"
+    override val netResetFlag = "نشانهٔ RST تزریقی دیده شد"
     override val dnsNoPtr = "بدون PTR"
     override val tunEditingId = "ویرایش #%1"
     override val upMonitorConfiguration = "تنظیمات پایش"
@@ -2074,9 +2108,6 @@ internal object CommandCopyFa : CommandCopy {
     override val netOpenPortsFound = "%1 پورت باز پیدا شد"
     override val netOpen = "باز"
     override val netTlsCertificateSummary = "گواهی TLS · %1 روز اعتبار باقی مانده"
-    override val netTcpReachable = "دسترسی TCP: %1"
-    override val netTlsReachable = "دسترسی TLS: %1"
-    override val netFiltered = "فیلترشده: %1"
     override val netLatency = "تأخیر: %1 ms"
     override val netLatencyValue = "%1 ms"
     override val netSubject = "Subject"
@@ -2086,7 +2117,6 @@ internal object CommandCopyFa : CommandCopy {
     override val netSignature = "Signature"
     override val netFingerprint = "Fingerprint SHA-256"
     override val netSan = "SAN"
-    override val netYes = "بله"
     override val netNo = "خیر"
     override val netDpiTcpTimeout = "Timeout TCP؛ مقصد یا پورت ممکن است فیلتر باشد"
     override val netDpiTcpTimeoutBody = "سرور پاسخی نداد؛ ممکن است مسیر یا فایروال پکت‌ها را حذف کرده باشد."
@@ -2557,6 +2587,25 @@ internal object CommandCopyEn : CommandCopy {
     override val netIspLabel = "ISP"
     override val netAsnLabel = "ASN"
     override val netDiagFailed = "Network diagnostic failed"
+    override val netSniField = "SNI to compare (optional)"
+    override val netSniHint = "e.g. your REALITY server's SNI domain"
+    override val netNetWifiTitle = "Wi-Fi is active"
+    override val netNetWifiBody = "This result says nothing about an operator: to judge MCI or Irancell, turn off Wi-Fi and use that operator's mobile data."
+    override val netNetCellTitle = "Current network: %1"
+    override val netNetCellUnknown = "Current network: mobile data"
+    override val netNetCellBody = "Results only apply to this operator; compare by testing with another SIM or operator."
+    override val netVerdictTcpBlocked = "TCP blocked (injected RST)"
+    override val netVerdictTcpDown = "TCP does not answer"
+    override val netVerdictUnstable = "Unstable: some attempts failed"
+    override val netVerdictTlsBlocked = "TLS gets blocked"
+    override val netVerdictSniBlocked = "TLS blocked only with this SNI"
+    override val netVerdictHealthy = "Plain connection is healthy"
+    override val netTipSniBlocked = "TCP and TLS without SNI are open but blocked with this SNI: filtering on this operator targets the ClientHello pattern or this domain. Try another SNI."
+    override val netTipHealthy = "The plain connection is healthy. If REALITY still fails, this operator likely blocks the TLS fingerprint (uTLS) or post-handshake behavior: change the SNI, fingerprint (e.g. chrome to firefox) or port, and check server logs."
+    override val netTipRetest = "Run it a few times; RST injection sometimes only catches some connections. A final verdict requires the same operator's mobile data."
+    override val netAttemptsLine = "TCP %1/%2 · TLS no-SNI %3/%4 · TLS with SNI %5/%6"
+    override val netAvgLatency = "Average latency: %1"
+    override val netResetFlag = "Injected RST observed"
     override val dnsNoPtr = "No PTR"
     override val tunEditingId = "editing #%1"
     override val upMonitorConfiguration = "Monitor configuration"
@@ -2974,9 +3023,6 @@ internal object CommandCopyEn : CommandCopy {
     override val netOpenPortsFound = "%1 open ports found"
     override val netOpen = "Open"
     override val netTlsCertificateSummary = "TLS certificate · %1 days remaining"
-    override val netTcpReachable = "TCP reachable: %1"
-    override val netTlsReachable = "TLS reachable: %1"
-    override val netFiltered = "Filtered: %1"
     override val netLatency = "Latency: %1 ms"
     override val netLatencyValue = "%1 ms"
     override val netSubject = "Subject"
@@ -2986,7 +3032,6 @@ internal object CommandCopyEn : CommandCopy {
     override val netSignature = "Signature"
     override val netFingerprint = "Fingerprint SHA-256"
     override val netSan = "SAN"
-    override val netYes = "Yes"
     override val netNo = "No"
     override val netDpiTcpTimeout = "TCP timeout; destination or port may be filtered"
     override val netDpiTcpTimeoutBody = "The server did not respond; the route or a firewall may be dropping packets."
