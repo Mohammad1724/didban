@@ -766,6 +766,8 @@ interface CommandCopy {
     val netTipSniBlocked: String
     val netTipHealthy: String
     val netTipRetest: String
+    val netPortHint: String
+    val netCertSelfTip: String
     val netAttemptsLine: String
     val netAvgLatency: String
     val netResetFlag: String
@@ -1696,6 +1698,8 @@ internal object CommandCopyFa : CommandCopy {
     override val netTipSniBlocked = "TCP و TLS بدون SNI بازند ولی با این SNI بسته می‌شود: فیلترینگ روی همین اپراتور الگوی ClientHello یا همین دامنه را هدف گرفته. یک SNI دیگر را هم آزمایش کن."
     override val netTipHealthy = "اتصال ساده سالم است. اگر REALITY با همین وضع کار نمی‌کند، احتمالاً اثرانگشت TLS (uTLS) یا رفتار بعد از دست‌دادن روی این اپراتور مسدود شده است: SNI، فینگرپرینت (مثلاً chrome به firefox) یا پورت را عوض کن و از سرور لاگ بگیر."
     override val netTipRetest = "چند بار تکرار کن؛ تزریق RST گاهی فقط بعضی اتصال‌ها را می‌گیرد. برای قضاوت قطعی باید روی دیتای همان اپراتور باشی."
+    override val netPortHint = "مهم: پورت را دقیقاً پورت سرویس REALITY بگذار (مثلاً 2887)، نه 443؛ پورت 443 معمولاً سرویس وب جداگانهٔ سرور است و ربطی به REALITY ندارد."
+    override val netCertSelfTip = "گواهیِ برگشته مال دامنهٔ خود سرور است نه SNI؛ یعنی روی این پورت سرویس دیگری (وب/پنل) یا واسطی جواب می‌دهد، نه مقصد SNI. همین تست را با پورت واقعی REALITY تکرار کن."
     override val netAttemptsLine = "TCP %1/%2 · TLS بدون SNI %3/%4 · TLS با SNI %5/%6"
     override val netAvgLatency = "میانگین تأخیر: %1"
     override val netResetFlag = "نشانهٔ RST تزریقی دیده شد"
@@ -2619,6 +2623,8 @@ internal object CommandCopyEn : CommandCopy {
     override val netTipSniBlocked = "TCP and TLS without SNI are open but blocked with this SNI: filtering on this operator targets the ClientHello pattern or this domain. Try another SNI."
     override val netTipHealthy = "The plain connection is healthy. If REALITY still fails, this operator likely blocks the TLS fingerprint (uTLS) or post-handshake behavior: change the SNI, fingerprint (e.g. chrome to firefox) or port, and check server logs."
     override val netTipRetest = "Run it a few times; RST injection sometimes only catches some connections. A final verdict requires the same operator's mobile data."
+    override val netPortHint = "Important: set the exact REALITY service port (e.g. 2887), not 443; port 443 is usually the server's separate web service and says nothing about REALITY."
+    override val netCertSelfTip = "The returned certificate is for the server's own domain, not the SNI: another service (web/panel) or an on-path box answered here, not the SNI destination. Rerun against the real REALITY port."
     override val netAttemptsLine = "TCP %1/%2 · TLS no-SNI %3/%4 · TLS with SNI %5/%6"
     override val netAvgLatency = "Average latency: %1"
     override val netResetFlag = "Injected RST observed"

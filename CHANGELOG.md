@@ -6,6 +6,11 @@
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
 
+### Smarter guidance from the first real-world DPI run
+
+- Field feedback (a 126ms-healthy run whose certificate was the server's own domain, SAN mismatch): the healthy verdict now drops to attention and explains that the port just tested serves a different TLS service, not the SNI destination — rerun against the exact REALITY port.
+- DPI mode now states it up front: «پورت را دقیقاً پورت سرویس REALITY بگذار (مثلاً 2887)، نه 443».
+
 ### Middlebox suspicion for the "everything green at 4ms" case
 
 - The DPI run now measures a reference anchor (1.1.1.1 / 8.8.8.8) and compares: if the target answers impossibly fast versus that reference (like the reported 4ms), the verdict becomes «پاسخ‌ها مشکوک‌اند: احتمالاً سرور واقعی جواب نمی‌دهد» — an on-path middlebox is probably answering, not the server.

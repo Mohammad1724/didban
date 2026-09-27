@@ -190,6 +190,13 @@ fun CommandNetworkToolsScreen(
                         val verdict = result.verdict
                         summary = localizedVerdict(verdict, copy)
                         summaryTone = verdictTone(verdict)
+                        // A healthy probe whose certificate does not match the
+                        // SNI answered with the server's own web service (or an
+                        // on-path box), not the REALITY destination: soften the
+                        // green and steer the user to the real REALITY port.
+                        if (verdict == DpiVerdict.HEALTHY && result.sniCertSan == "mismatch") {
+                            summaryTone = CommandHealthTone.ATTENTION
+                        }
                         detail = buildString {
                             appendLine(
                                 copy.netAttemptsLine
@@ -209,6 +216,7 @@ fun CommandNetworkToolsScreen(
                                         else -> "-"
                                     })
                             )
+                            if (verdict == DpiVerdict.HEALTHY && result.sniCertSan == "mismatch") appendLine(copy.netCertSelfTip)
                             if (result.tcpReset) appendLine(copy.netResetFlag)
                             else if (result.sniReset) appendLine(copy.netResetFlag)
                             val tip = verdictTip(verdict, copy)
@@ -299,6 +307,7 @@ fun CommandNetworkToolsScreen(
                     }
                     if (mode == NetworkDiagnosticMode.DPI) {
                         OutlinedTextField(sni, { sni = it }, Modifier.fillMaxWidth(), enabled = !loading, singleLine = true, label = { Text(copy.netSniField) }, placeholder = { Text(copy.netSniHint) })
+                        Text(copy.netPortHint, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     }
                     Text(copy.netProbeBody, color = CommandColors.textSecondary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                     CommandResponsiveRow {
