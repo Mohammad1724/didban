@@ -105,6 +105,7 @@ class CommandRedesignScreenshotTest {
         val copy = CommandCopy.forLanguage("fa")
         open("fa", "light")
         compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNodeWithTag("workbench-tab-0").performClick()
         // The launcher keeps the independent tools visible on the phone-sized fixture.
         compose.onNodeWithText(copy.shareTitle).performClick()
         shot("fa-light-share")
@@ -116,6 +117,7 @@ class CommandRedesignScreenshotTest {
         val copy = CommandCopy.forLanguage("fa")
         open("fa", "dark")
         compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNodeWithTag("workbench-tab-0").performClick()
         // The launcher keeps the independent tools visible on the phone-sized fixture.
         compose.onNodeWithText(copy.shareTitle).performClick()
         shot("fa-dark-share")

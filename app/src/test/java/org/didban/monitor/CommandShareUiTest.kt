@@ -96,6 +96,7 @@ class CommandShareUiTest {
             }
         }
         compose.onNodeWithTag("primary-tools").performClick()
+        compose.onNodeWithTag("workbench-tab-0").performClick()
         // The launcher keeps the independent tools visible on the phone-sized fixture.
         compose.onNodeWithText(copy.shareTitle).assertIsDisplayed()
     }

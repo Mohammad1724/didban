@@ -36,14 +36,15 @@ class CommandAccessibilityUiTest {
             }
         }
 
-        compose.onNodeWithTag("workbench-tab-0")
+        compose.onNodeWithTag("workbench-tab-1")
             .assertIsSelected()
             .assertHasClickAction()
-        compose.onNodeWithTag("workbench-tab-0")
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
-        compose.onNodeWithTag("workbench-tab-1").assertHasClickAction()
         compose.onNodeWithTag("workbench-tab-1")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
+        compose.onNodeWithTag("workbench-tab-0").assertHasClickAction()
+        compose.onNodeWithTag("workbench-tab-0")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
+        compose.onNodeWithTag("workbench-tab-0").performClick()
         compose.onNodeWithTag("workbench-tile-proxy").assertHasClickAction()
     }
 
@@ -56,11 +57,12 @@ class CommandAccessibilityUiTest {
             }
         }
 
-        compose.onNodeWithTag("workbench-tab-0")
+        compose.onNodeWithTag("workbench-tab-1")
             .assertIsSelected()
             .assertHasClickAction()
-        compose.onNodeWithTag("workbench-tab-1")
+        compose.onNodeWithTag("workbench-tab-0")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
+        compose.onNodeWithTag("workbench-tab-0").performClick()
         compose.onNodeWithTag("workbench-tile-proxy").assertHasClickAction()
     }
 

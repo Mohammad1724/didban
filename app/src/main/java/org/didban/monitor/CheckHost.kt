@@ -114,9 +114,10 @@ internal fun stableCheckHostNodeKeys(
         // Prefer independent networks first. Check-Host can legitimately list
         // multiple probes from one city, so city is metadata, not a de-dup key.
         countryNodes.forEach { (nodeKey, node) ->
-            if (selected.size >= maxNodes || networks.size >= quota) return@forEach
-            val networkKey = node.asn.trim().lowercase(Locale.US)
-            if (networkKey.isEmpty() || networks.add(networkKey)) selected += nodeKey
+            if (selected.size < maxNodes && networks.size < quota) {
+                val networkKey = node.asn.trim().lowercase(Locale.US)
+                if (networkKey.isEmpty() || networks.add(networkKey)) selected += nodeKey
+            }
         }
         countryNodes.forEach { (nodeKey, _) ->
             if (selected.size < maxNodes && selected.count { key ->
