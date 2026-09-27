@@ -245,7 +245,7 @@ fun CommandCenterApp(
     var navigation by rememberSaveable(stateSaver = listSaver(
         save = { it: CommandNavigation -> it.save() },
         restore = { CommandNavigation.restore(it) }
-    )) { mutableStateOf(CommandNavigation.root()) }
+    )) { mutableStateOf(CommandNavigation.launchRoot()) }
     val contentStateHolder = rememberSaveableStateHolder()
     var reloadTick by remember { mutableIntStateOf(0) }
     var mobileNavigationOpen by rememberSaveable { mutableStateOf(false) }

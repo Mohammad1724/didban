@@ -38,8 +38,8 @@ class CommandRedesignUiTest {
     }
     @Test fun `four tabs expose independent tools and data settings without a workspace menu`() {
         app()
-        compose.onNodeWithTag("primary-servers").assertIsSelected()
-        compose.onNodeWithTag("primary-tools").performClick().assertIsSelected()
+        compose.onNodeWithTag("primary-tools").assertIsSelected()
+        compose.onNodeWithTag("workbench-tab-1").assertIsSelected()
         compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // page title + selected bottom navigation item
         compose.onNodeWithTag("workbench-launcher")
             .performScrollToNode(hasText(copy.netQReachable))
@@ -65,6 +65,7 @@ class CommandRedesignUiTest {
 
     @Test fun `details replace fleet rather than opening a sheet and retain scoped tools`() {
         app()
+        compose.onNodeWithTag("primary-servers").performClick()
         compose.onNodeWithText("UI Node").performScrollTo().performClick()
         compose.onNodeWithText(copy.fleetDetails).assertIsDisplayed()
         compose.onNodeWithText(copy.serversSearchPlaceholder).assertDoesNotExist()

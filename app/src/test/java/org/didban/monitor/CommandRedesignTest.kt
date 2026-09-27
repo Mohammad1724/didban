@@ -8,6 +8,8 @@ import androidx.compose.ui.graphics.luminance
 class CommandRedesignTest {
     @Test fun `every legacy route has one primary section and existing keys stay intact`() {
         assertEquals(4, CommandPrimary.values().size)
+        assertEquals(CommandPrimary.TOOLS, CommandPrimary.values().first())
+        assertEquals(CommandRoute.WORKBENCH_HOME, CommandNavigation.launchRoot().current.route)
         CommandRoute.values().forEach { route ->
             assertTrue(route.primary() in CommandPrimary.values())
             assertEquals(route, CommandRoute.values().single { it.key == route.key })

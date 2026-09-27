@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 
 /** Presentation-only grouping. Persisted route keys and the existing Back stack stay intact. */
 internal enum class CommandPrimary(val root: CommandRoute) {
-    SERVERS(CommandRoute.FLEET), MONITORING(CommandRoute.UPTIME), TOOLS(CommandRoute.WORKBENCH_HOME), SETTINGS(CommandRoute.SETTINGS)
+    TOOLS(CommandRoute.WORKBENCH_HOME), SERVERS(CommandRoute.FLEET), MONITORING(CommandRoute.UPTIME), SETTINGS(CommandRoute.SETTINGS)
 }
 
 /**

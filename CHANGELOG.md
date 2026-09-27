@@ -17,6 +17,11 @@
 - Check-Host probes now use a deterministic cohort selected from the live inventory, with balanced country quotas and ASN diversity; repeated cities remain valid when they represent separate networks.
 - Ping results preserve min/average/max RTT, partial packet loss is shown as attention rather than healthy, resolved target IPs are displayed per probe, and unavailable probes remain visible as no-data/error.
 
+### Navigation and tool discoverability
+
+- A fresh app session now opens Tools first; the primary navigation order is Tools, Servers, Monitoring and Settings.
+- The Tools launcher opens on Network Tools while keeping network tiles available in All, and network labels now state the action and technology plainly (Check-Host, DNS, TLS, network tests and connection quality).
+
 ### Verification
 
 - Android CI and Agent CI are green for the final audit commit: [Android #318](https://github.com/Mohammad1724/didban/actions/runs/36188090880) and [Agent #312](https://github.com/Mohammad1724/didban/actions/runs/36188090887).

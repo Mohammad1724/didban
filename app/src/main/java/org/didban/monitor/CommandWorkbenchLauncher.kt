@@ -90,7 +90,9 @@ internal fun CommandWorkbenchLauncherScreen(
         WorkbenchTab(copy.toolsTabConnection, connectionItems),
         WorkbenchTab(copy.toolsTabDevelopment, developmentItems)
     )
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    // Network diagnostics are the primary entry point; the All tab still
+    // contains the same network tiles for discoverability.
+    var selectedTab by rememberSaveable { mutableIntStateOf(1) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val visibleItems = tabs[selectedTab.coerceIn(tabs.indices)].items

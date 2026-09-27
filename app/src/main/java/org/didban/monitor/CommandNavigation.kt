@@ -101,9 +101,15 @@ internal data class CommandNavigation private constructor(val entries: List<Comm
     fun save(): List<String> = entries.map { it.encode() }
 
     companion object {
+        /** Stable server-list root used by legacy server-panel history. */
         fun root() = CommandNavigation(listOf(CommandDestination(CommandRoute.FLEET)))
-        fun restore(saved: List<String>): CommandNavigation = saved.mapNotNull(CommandDestination::decode)
-            .fold(root()) { navigation, destination ->
+
+        /** First screen for a fresh app session. */
+        fun launchRoot() = CommandNavigation(listOf(CommandDestination(CommandRoute.WORKBENCH_HOME)))
+        fun restore(saved: List<String>): CommandNavigation {
+            val decoded = saved.mapNotNull(CommandDestination::decode)
+            val seed = if (decoded.firstOrNull()?.route == CommandRoute.WORKBENCH_HOME) launchRoot() else root()
+            return decoded.fold(seed) { navigation, destination ->
                 when (destination.serverPane) {
                     ServerPane.DETAILS -> navigation.openServer(destination.serverId!!)
                     ServerPane.EDIT -> navigation.editServer(destination.serverId)
@@ -111,6 +117,7 @@ internal data class CommandNavigation private constructor(val entries: List<Comm
                     ServerPane.LIST -> navigation.navigate(destination.route, destination.serverId)
                 }
             }
+        }
     }
 }
 
