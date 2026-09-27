@@ -40,7 +40,7 @@ class ContextualHelpTest {
 
     @Test fun `phone tools do not falsely require an agent and SSH tools distinguish credentials`() {
         listOf(CommandRoute.UPTIME, CommandRoute.UPTIME_EDITOR, CommandRoute.CF_SCANNER,
-            CommandRoute.REALITY_SNI, CommandRoute.PROXY, CommandRoute.DEVELOPER_LAB,
+            CommandRoute.REALITY_SNI,
             CommandRoute.DNS_EDITOR, CommandRoute.NETWORK_TOOLS_EDITOR, CommandRoute.ALERTS).forEach {
             assertNull(it.helpContent("en").prerequisite)
         }
@@ -71,11 +71,8 @@ class ContextualHelpTest {
         assertTrue(sni.warning!!.contains("not guaranteed"))
     }
 
-    @Test fun `guides do not promise unsupported single port proxy or backup workflows`() {
-        assertTrue(CommandRoute.SINGLE_PORT.helpContent("en").tip!!.contains("not a single-port connectivity test"))
-        assertTrue(CommandRoute.PROXY.helpContent("en").summary.contains("does not connect a phone VPN"))
+    @Test fun `guides do not promise unsupported backup workflows`() {
         assertTrue(CommandRoute.BACKUP.helpContent("en").tip!!.contains("not a file picker"))
-        assertTrue(CommandRoute.DEVELOPER_LAB.helpContent("en").warning!!.contains("does not verify its signature"))
     }
 
     @Test fun `installation commands are static bilingual and limited to server setup`() {

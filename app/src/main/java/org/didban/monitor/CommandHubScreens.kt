@@ -92,9 +92,6 @@ fun CommandRoute.commandIcon(): androidx.compose.ui.graphics.vector.ImageVector 
     CommandRoute.SSH -> Icons.Rounded.Terminal
     CommandRoute.BATCH -> Icons.Rounded.Tune
     CommandRoute.SFTP -> Icons.Rounded.Folder
-    CommandRoute.SINGLE_PORT -> Icons.Rounded.Tune
-    CommandRoute.PROXY -> Icons.Rounded.Tune
-    CommandRoute.DEVELOPER_LAB -> Icons.Rounded.Code
     CommandRoute.PROTECT_HOME -> Icons.Rounded.Security
     else -> Icons.Rounded.Tune
 }

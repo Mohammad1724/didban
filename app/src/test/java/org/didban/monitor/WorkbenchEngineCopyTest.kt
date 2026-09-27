@@ -6,20 +6,6 @@ import org.junit.Test
 class WorkbenchEngineCopyTest {
 
     @Test
-    fun `proxy subscription failures localize without exposing provider text in the screen contract`() {
-        assertEquals(
-            "Subscription fetch failed with HTTP 403.",
-            ProxyFailure(ProxyFailureKind.HTTP_STATUS, "403").localized(CommandCopyEn)
-        )
-        assertEquals(
-            "دریافت اشتراک با HTTP 403 ناموفق بود.",
-            ProxyFailure(ProxyFailureKind.HTTP_STATUS, "403").localized(CommandCopyFa)
-        )
-        assertEquals("The subscription URL is invalid.", ProxyFailure(ProxyFailureKind.INVALID_URL).localized(CommandCopyEn))
-        assertEquals("نشانی اشتراک معتبر نیست.", ProxyFailure(ProxyFailureKind.INVALID_URL).localized(CommandCopyFa))
-    }
-
-    @Test
     fun `sftp failures and dynamic file values localize at the screen boundary`() {
         assertEquals("File read failed", SftpFailure(SftpFailureKind.READ).localized(CommandCopyEn))
         assertEquals("خواندن فایل ناموفق بود", SftpFailure(SftpFailureKind.READ).localized(CommandCopyFa))
@@ -35,15 +21,6 @@ class WorkbenchEngineCopyTest {
         val directory = SftpFileItem("etc", "/etc", isDirectory = true)
         assertEquals("DIR", directory.formattedSize(CommandCopyEn))
         assertEquals("پوشه", directory.formattedSize(CommandCopyFa))
-    }
-
-    @Test
-    fun `subscription quota fallbacks use the active locale`() {
-        val info = SubscriptionInfo()
-        assertEquals("Unlimited", info.totalFormatted(CommandCopyEn))
-        assertEquals("نامحدود", info.totalFormatted(CommandCopyFa))
-        assertEquals("Unlimited", info.expireDateFormatted(CommandCopyEn))
-        assertEquals("نامحدود", info.expireDateFormatted(CommandCopyFa))
     }
 
     @Test

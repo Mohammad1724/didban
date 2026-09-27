@@ -131,10 +131,7 @@ enum class CommandRoute(val key: String, val workspace: CommandWorkspace) {
     SSH("ssh", CommandWorkspace.WORKBENCH),
     BATCH("batch", CommandWorkspace.WORKBENCH),
     SFTP("sftp", CommandWorkspace.WORKBENCH),
-    SINGLE_PORT("single-port", CommandWorkspace.WORKBENCH),
-    PROXY("proxy", CommandWorkspace.WORKBENCH),
     SHARE("share", CommandWorkspace.WORKBENCH),
-    DEVELOPER_LAB("developer-lab", CommandWorkspace.WORKBENCH),
     PROTECT_HOME("protect-home", CommandWorkspace.PROTECT),
     VAULT("vault", CommandWorkspace.PROTECT),
     SECURITY("security", CommandWorkspace.PROTECT),
@@ -187,10 +184,7 @@ fun CommandRoute.commandLabel(copy: CommandCopy): String = when (this) {
     CommandRoute.SSH -> copy.ssh
     CommandRoute.BATCH -> copy.batch
     CommandRoute.SFTP -> copy.sftp
-    CommandRoute.SINGLE_PORT -> copy.singlePort
-    CommandRoute.PROXY -> copy.proxy
     CommandRoute.SHARE -> copy.shareTitle
-    CommandRoute.DEVELOPER_LAB -> copy.developerLab
     CommandRoute.PROTECT_HOME -> copy.protect
     CommandRoute.VAULT -> copy.vault
     CommandRoute.SECURITY -> copy.security
@@ -220,10 +214,7 @@ internal fun CommandRoute.navIcon(): ImageVector = when (this) {
     CommandRoute.SSH -> Icons.Rounded.Terminal
     CommandRoute.BATCH -> Icons.Rounded.Groups
     CommandRoute.SFTP -> Icons.Rounded.Folder
-    CommandRoute.SINGLE_PORT -> Icons.Rounded.Router
-    CommandRoute.PROXY -> Icons.Rounded.Public
     CommandRoute.SHARE -> Icons.Rounded.Cast
-    CommandRoute.DEVELOPER_LAB -> Icons.Rounded.Code
     CommandRoute.PROTECT_HOME -> Icons.Rounded.Security
     CommandRoute.VAULT -> Icons.Rounded.Security
     CommandRoute.SECURITY -> Icons.Rounded.Shield
@@ -527,10 +518,7 @@ private fun CommandRouteContent(
             CommandRoute.SSH -> key(selectedServer) { CommandSshScreen(copy, selectedServer, onSelectServer, { onBack() }) }
             CommandRoute.BATCH -> CommandBatchScreen(copy) { onBack() }
             CommandRoute.SFTP -> key(selectedServer) { CommandSftpScreen(copy, selectedServer, onSelectServer) { onBack() } }
-            CommandRoute.SINGLE_PORT -> CommandSinglePortScreen(copy) { onBack() }
-            CommandRoute.PROXY -> CommandProxyScreen(copy) { onBack() }
             CommandRoute.SHARE -> CommandShareScreen(copy, onBack) { onNavigate(CommandRoute.SHARE, null) }
-            CommandRoute.DEVELOPER_LAB -> CommandDeveloperLabScreen(copy) { onBack() }
             CommandRoute.WORKBENCH_HOME -> CommandWorkbenchIndexScreen(copy, onNavigate)
             CommandRoute.PROTECT_HOME -> CommandProtectIndexScreen(copy, onNavigate)
             CommandRoute.SETTINGS -> CommandSettingsScreen(copy, themeMode, language, onThemeChange, onLanguageChange, onNavigate)

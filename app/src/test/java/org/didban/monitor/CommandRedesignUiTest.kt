@@ -36,7 +36,7 @@ class CommandRedesignUiTest {
         assertEquals("light", Prefs.getThemeMode(context))
         listOf("dark", "auto", "light").forEach { Prefs.setThemeMode(context, it); assertEquals(it, Prefs.getThemeMode(context)) }
     }
-    @Test fun `four tabs expose independent tools and data settings without a workspace menu`() {
+    @Test fun `two tabs expose independent tools and data settings without a workspace menu`() {
         app()
         compose.onNodeWithTag("primary-tools").assertIsSelected()
         compose.onNodeWithTag("workbench-tab-1").assertIsSelected()
@@ -65,7 +65,7 @@ class CommandRedesignUiTest {
         app()
         compose.onNodeWithTag("workbench-tab-0").performClick()
         val network = compose.onNodeWithTag("workbench-tile-network-reachability").getUnclippedBoundsInRoot()
-        val connection = compose.onNodeWithTag("workbench-tile-proxy").getUnclippedBoundsInRoot()
+        val connection = compose.onNodeWithTag("workbench-tile-share").getUnclippedBoundsInRoot()
         assertTrue(network.top < connection.top)
     }
 

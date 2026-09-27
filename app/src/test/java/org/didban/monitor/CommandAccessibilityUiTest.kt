@@ -45,7 +45,7 @@ class CommandAccessibilityUiTest {
         compose.onNodeWithTag("workbench-tab-0")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
         compose.onNodeWithTag("workbench-tab-0").performClick()
-        compose.onNodeWithTag("workbench-tile-proxy").assertHasClickAction()
+        compose.onNodeWithTag("workbench-tile-share").assertHasClickAction()
     }
 
     @Test
@@ -63,7 +63,7 @@ class CommandAccessibilityUiTest {
         compose.onNodeWithTag("workbench-tab-0")
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
         compose.onNodeWithTag("workbench-tab-0").performClick()
-        compose.onNodeWithTag("workbench-tile-proxy").assertHasClickAction()
+        compose.onNodeWithTag("workbench-tile-share").assertHasClickAction()
     }
 
     @Test

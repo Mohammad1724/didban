@@ -389,8 +389,6 @@ interface CommandCopy {
     val uiServerIntro: String
     val uiToolsIntro: String
     val toolsTabAll: String
-    val toolsTabConnection: String
-    val toolsTabDevelopment: String
     val uiServerTools: String
     val uiScopedTools: String
     val uiResources: String
@@ -459,9 +457,7 @@ interface CommandCopy {
     val ssh: String
     val batch: String
     val sftp: String
-    val singlePort: String
     val proxy: String
-    val developerLab: String
     val vault: String
     val alerts: String
     val backup: String
@@ -739,10 +735,6 @@ interface CommandCopy {
     val metricLoad: String
     val metricDisks: String
     val metricInterfaces: String
-    val metricConfigs: String
-    val metricUsed: String
-    val metricTotal: String
-    val metricExpire: String
     val netRegionLabel: String
     val netDnsRecordsLabel: String
     val svcLoadHint: String
@@ -831,92 +823,18 @@ interface CommandCopy {
     val netRealResponses: String
     val upIncidentCount: String
     val setHostKeyStoreInit: String
-    val wtLocalTools: String
-    val wtInputTransform: String
-    val wtInvalidInput: String
-    val wtArtifactGenerator: String
-    val wtRoutingContract: String
-    val wtBindPort: String
-    val wtInspectSec: String
-    val wtPanelSni: String
-    val wtSubscriptionSni: String
-    val wtRealitySni: String
-    val wtFallbackPort: String
-    val wtGeneratedArtifact: String
     val wtToolBase64: String
     val wtToolJson: String
     val wtToolHash: String
     val wtToolSubnet: String
     val wtToolJwt: String
     val wtToolGenerator: String
-    val wtBase64Encode: String
-    val wtBase64Decode: String
-    val wtUrlEncode: String
-    val wtUrlDecode: String
-    val wtFormatted: String
-    val wtMinified: String
-    val wtHashDetected: String
-    val wtHeader: String
-    val wtPayload: String
-    val wtExpired: String
-    val wtExpiry: String
-    val wtNotProvided: String
-    val runVerb: String
-    val outputTitle: String
-    val genTitle: String
-    val genPasswordLabel: String
-    val genUuidLabel: String
-    val subnetHint: String
-    val subnetPlaceholder: String
-    val subnetDomainLabel: String
     val subnetIpLabel: String
-    val subnetAssumedPrefix: String
-    val subnetErrFormat: String
-    val subnetErrPrefix: String
-    val subnetErrIp: String
-    val subnetErrDns: String
-    val subnetErrIpv6: String
-    val netNetwork: String
-    val netBroadcast: String
-    val netFirstHost: String
-    val netLastHost: String
-    val netNetmask: String
-    val netWildcard: String
-    val netUsableHosts: String
-    val netTotalHosts: String
-    val spIntroTitle: String
-    val spIntroBody: String
-    val spFormHint: String
-    val spLocalPort: String
-    val spGenerateVerb: String
-    val spArtifactHint: String
-    val spNextHint: String
-    val wtSingleConfig: String
-    val wtParseProbe: String
-    val wtCopyNormalized: String
-    val wtSubscriptionUrl: String
-    val wtFetchSubscription: String
     val wtRemotePath: String
     val wtRemoteEntries: String
     val wtTextEditorMax: String
-    val wtProxyClipboardLabel: String
     val wtRemoteFileClipboardLabel: String
     val wtSaveRemoteFile: String
-    val wtArtifactHaproxy: String
-    val wtArtifactBashDeploy: String
-    val wtArtifactDockerCompose: String
-    val wtProxyModeSubtitle: String
-    val wtProxyUriLabel: String
-    val wtProxyReachable: String
-    val wtProxyUnreachable: String
-    val wtProxyParsed: String
-    val wtProxyLatency: String
-    val wtSubscription: String
-    val wtSubscriptionFailed: String
-    val wtSubscriptionInvalidUrl: String
-    val wtSubscriptionHttpFailure: String
-    val wtSubscriptionNetworkFailure: String
-    val wtUnlimited: String
     val wtSftpBrowseFailed: String
     val wtSftpFileTooLarge: String
     val wtFileReadFailed: String
@@ -1237,8 +1155,6 @@ interface CommandCopy {
     val upDeleted: String
     val serversSearchPlaceholder: String
     val tunnelsBody: String
-    val devLabBody: String
-    val vaultConfigUnparseable: String
     val hostKeysStatus: String
     val sftpBody: String
     val netNoHost: String
@@ -1384,8 +1300,6 @@ internal object CommandCopyFa : CommandCopy {
     override val uiServerIntro = "همهٔ سرورها، یک جای مشخص."
     override val uiToolsIntro = "ابزار مناسب را برای کاری که داری انتخاب کن."
     override val toolsTabAll = "همه"
-    override val toolsTabConnection = "اتصال"
-    override val toolsTabDevelopment = "توسعه"
     override val uiServerTools = "مدیریت این سرور"
     override val uiScopedTools = "همهٔ ابزارهای زیر برای «%1» هستند."
     override val uiResources = "وضعیت منابع"
@@ -1454,9 +1368,7 @@ internal object CommandCopyFa : CommandCopy {
     override val ssh = "SSH"
     override val batch = "اجرای گروهی"
     override val sftp = "فایل‌ها (SFTP)"
-    override val singlePort = "Single-Port"
     override val proxy = "Proxy Inspector"
-    override val developerLab = "ابزارهای توسعه‌دهنده"
     override val vault = "خزانه (Vault)"
     override val alerts = "کانال‌های هشدار"
     override val backup = "پشتیبان‌گیری و بازیابی"
@@ -1733,10 +1645,6 @@ internal object CommandCopyFa : CommandCopy {
     override val metricLoad = "بار"
     override val metricDisks = "دیسک"
     override val metricInterfaces = "رابط شبکه"
-    override val metricConfigs = "تنظیمات"
-    override val metricUsed = "مصرف"
-    override val metricTotal = "کل"
-    override val metricExpire = "انقضا"
     override val netRegionLabel = "منطقه"
     override val netDnsRecordsLabel = "رکوردهای DNS"
     override val svcLoadHint = "سرویس‌ها را بارگذاری کنید تا systemd روی %1 پرس‌وجو شود. هیچ سرویسی به‌صورت محلی ساخته نمی‌شود."
@@ -1825,92 +1733,18 @@ internal object CommandCopyFa : CommandCopy {
     override val netRealResponses = "%1 پاسخ واقعی"
     override val upIncidentCount = "%1 رکورد رخداد"
     override val setHostKeyStoreInit = "Trust Store کلید میزبان مقداردهی‌شده: %1"
-    override val wtLocalTools = "ابزارهای محلی"
-    override val wtInputTransform = "ورودی / تبدیل"
-    override val wtInvalidInput = "ورودی نامعتبر"
-    override val wtArtifactGenerator = "سازندهٔ فایل‌های تنظیمات"
-    override val wtRoutingContract = "پورت ورودی و مسیرها"
-    override val wtBindPort = "پورت bind"
-    override val wtInspectSec = "ثانیهٔ بازرسی"
-    override val wtPanelSni = "SNI پنل"
-    override val wtSubscriptionSni = "SNI اشتراک"
-    override val wtRealitySni = "SNI REALITY"
-    override val wtFallbackPort = "پورت محلی fallback"
-    override val wtGeneratedArtifact = "فایل ساخته‌شده"
     override val wtToolBase64 = "Base64 / URL"
     override val wtToolJson = "JSON"
     override val wtToolHash = "Hash"
     override val wtToolSubnet = "Subnet"
     override val wtToolJwt = "JWT"
     override val wtToolGenerator = "سازنده"
-    override val wtBase64Encode = "کدگذاری Base64"
-    override val wtBase64Decode = "گشایش Base64"
-    override val wtUrlEncode = "کدگذاری URL"
-    override val wtUrlDecode = "گشایش URL"
-    override val wtFormatted = "قالب‌بندی‌شده"
-    override val wtMinified = "فشرده"
-    override val wtHashDetected = "تشخیص"
-    override val wtHeader = "Header"
-    override val wtPayload = "Payload"
-    override val wtExpired = "منقضی‌شده"
-    override val wtExpiry = "انقضا"
-    override val wtNotProvided = "ارائه نشده"
-    override val runVerb = "اجرا"
-    override val outputTitle = "خروجی"
-    override val genTitle = "سازندهٔ گذرواژه و شناسهٔ یکتا"
-    override val genPasswordLabel = "گذرواژه"
-    override val genUuidLabel = "شناسهٔ یکتا (UUID)"
-    override val subnetHint = "سه شکل ورودی قبول است: آی‌پی با پیشوند مثل 192.168.1.10/24، فقط آی‌پی که در آن صورت پیشوند 24 فرض می‌شود، یا دامنه مثل example.com که اول به آی‌پی تبدیل می‌شود. فقط IPv4 پشتیبانی می‌شود."
-    override val subnetPlaceholder = "مثل: 192.168.1.10/24 یا example.com"
-    override val subnetDomainLabel = "دامنه"
     override val subnetIpLabel = "آی‌پی"
-    override val subnetAssumedPrefix = "(پیشوند ۲۴ فرض شد)"
-    override val subnetErrFormat = "ورودی را به یکی از این شکل‌ها بنویسید: 192.168.1.10/24 یا 192.168.1.10 یا example.com"
-    override val subnetErrPrefix = "پیشوند باید عددی بین ۰ تا ۳۲ باشد و مثل 24 نوشته می‌شود."
-    override val subnetErrIp = "آدرس IPv4 نامعتبر است؛ چهار عدد ۰ تا ۲۵۵ را با نقطه از هم جدا کنید."
-    override val subnetErrDns = "دامنه به آی‌پی تبدیل نشد؛ املا و اتصال اینترنت را بررسی کنید."
-    override val subnetErrIpv6 = "فقط IPv4 پشتیبانی می‌شود."
-    override val netNetwork = "شبکه"
-    override val netBroadcast = "برودکست"
-    override val netFirstHost = "اولین میزبان"
-    override val netLastHost = "آخرین میزبان"
-    override val netNetmask = "نت‌ماسک"
-    override val netWildcard = "وایلدکارت"
-    override val netUsableHosts = "میزبان‌های قابل‌استفاده"
-    override val netTotalHosts = "کل میزبان‌ها"
-    override val spIntroTitle = "تک‌پورت یعنی چه؟"
-    override val spIntroBody = "فرض کنید چند سرویس دارید (پنل، اشتراک، REALITY) ولی می‌خواهید همه از یک پورت — معمولاً 443 — جواب بدهند. این ابزار یک متن آماده می‌سازد که HAProxy با آن، از روی نام دامنهٔ هر اتصال (SNI) تشخیص می‌دهد آن را به کدام سرویس داخلی بفرستد. سه قدم: ۱) دامنه‌ها و پورت‌های داخلی سرویس‌های خودتان را وارد کنید ۲) نوع خروجی را انتخاب و «ساخت» را بزنید ۳) متن ساخته‌شده را کپی و روی سرور اجرا یا نصب کنید. بازکردن این صفحه چیزی روی سرور نصب نمی‌کند."
-    override val spFormHint = "SNI یعنی نام دامنه‌ای که اول اتصال امن معرفی می‌شود؛ «داخلی» یعنی پورتی که همان سرویس روی خود سرور گوش می‌دهد؛ fallback مسیر پیش‌فرض اتصال‌های ناشناس است."
-    override val spLocalPort = "داخلی"
-    override val spGenerateVerb = "ساخت"
-    override val spArtifactHint = "HAProxy یعنی متن فایل تنظیمات؛ Bash deploy یعنی اسکریپت نصب خودکار روی سرور؛ Docker Compose یعنی فایل اجرای HAProxy داخل کانتینر."
-    override val spNextHint = "بعد از ساخت: متن را کپی کنید، در سرور اجرا یا در مسیر گفته‌شده ذخیره کنید، بعد وضعیت سرویس را بررسی کنید."
-    override val wtSingleConfig = "تنظیمات تکی"
-    override val wtParseProbe = "پارس و probe"
-    override val wtCopyNormalized = "کپی منبع نرمال‌شده"
-    override val wtSubscriptionUrl = "نشانی اشتراک"
-    override val wtFetchSubscription = "دریافت اشتراک"
     override val wtRemotePath = "مسیر راه دور"
     override val wtRemoteEntries = "ورودی‌های راه دور"
     override val wtTextEditorMax = "ویرایشگر متن · حداکثر ۴ مگابایت"
-    override val wtProxyClipboardLabel = "پیکربندی Proxy دیدبان"
     override val wtRemoteFileClipboardLabel = "فایل remote دیدبان"
     override val wtSaveRemoteFile = "ذخیرهٔ فایل راه دور"
-    override val wtArtifactHaproxy = "HAProxy"
-    override val wtArtifactBashDeploy = "Bash deploy"
-    override val wtArtifactDockerCompose = "Docker Compose"
-    override val wtProxyModeSubtitle = "parse · probe · inspect"
-    override val wtProxyUriLabel = "VLESS / VMess / Trojan / SS URI"
-    override val wtProxyReachable = "قابل دسترسی"
-    override val wtProxyUnreachable = "غیرقابل دسترسی"
-    override val wtProxyParsed = "پارس شد"
-    override val wtProxyLatency = "تأخیر TCP/TLS: %1"
-    override val wtSubscription = "اشتراک"
-    override val wtSubscriptionFailed = "دریافت اشتراک ناموفق بود"
-    override val wtSubscriptionInvalidUrl = "نشانی اشتراک معتبر نیست."
-    override val wtSubscriptionHttpFailure = "دریافت اشتراک با HTTP %1 ناموفق بود."
-    override val wtSubscriptionNetworkFailure = "اتصال به اشتراک ناموفق بود: %1"
-    override val wtUnlimited = "نامحدود"
     override val wtSftpBrowseFailed = "مرور SFTP ناموفق بود"
     override val wtSftpFileTooLarge = "فایل %1 کیلوبایت است و برای ویرایشگر متن بزرگ است."
     override val wtFileReadFailed = "خواندن فایل ناموفق بود"
@@ -2231,8 +2065,6 @@ internal object CommandCopyFa : CommandCopy {
     override val upDeleted = "Monitor حذف شد."
     override val serversSearchPlaceholder = "جست‌وجوی نام یا آدرس"
     override val tunnelsBody = "ساخت و ویرایش تنظیمات از همین مسیر انجام می‌شود؛ Save محلی است و Deploy جداگانه تأیید می‌خواهد."
-    override val devLabBody = "این ابزار دو مقدار تازه و تصادفی می‌سازد: یک گذرواژهٔ امن ۱۶ حرفی برای پنل‌ها و سرویس‌ها، و یک شناسهٔ یکتا (UUID) که در کانفیگ‌هایی مثل VLESS به کار می‌رود. هر بار «اجرا» را بزنید مقدارهای تازه ساخته می‌شوند؛ همه‌چیز روی خود گوشی انجام می‌شود و چیزی به جایی فرستاده نمی‌شود."
-    override val vaultConfigUnparseable = "Config قابل parse نیست"
     override val hostKeysStatus = "%d entries · Trust Store فعال است"
     override val sftpBody = "SFTP از Trust Store محلی استفاده می‌کند؛ اولین کلید سرور به‌صورت TOFU ثبت می‌شود و تغییر بعدی اتصال را رد می‌کند."
     override val netNoHost = "Host یا domain وارد نشده است."
@@ -2371,8 +2203,6 @@ internal object CommandCopyEn : CommandCopy {
     override val uiServerIntro = "All your servers in one place."
     override val uiToolsIntro = "Choose the right tool for your task."
     override val toolsTabAll = "All"
-    override val toolsTabConnection = "Connection"
-    override val toolsTabDevelopment = "Development"
     override val uiServerTools = "Manage this server"
     override val uiScopedTools = "All tools below act on “%1”."
     override val uiResources = "Resource usage"
@@ -2441,9 +2271,7 @@ internal object CommandCopyEn : CommandCopy {
     override val ssh = "SSH"
     override val batch = "Batch execution"
     override val sftp = "SFTP"
-    override val singlePort = "Single-Port"
     override val proxy = "Proxy Inspector"
-    override val developerLab = "Developer tools"
     override val vault = "Vault"
     override val alerts = "Alert delivery"
     override val backup = "Backup and Restore"
@@ -2720,10 +2548,6 @@ internal object CommandCopyEn : CommandCopy {
     override val metricLoad = "Load"
     override val metricDisks = "disks"
     override val metricInterfaces = "interfaces"
-    override val metricConfigs = "configs"
-    override val metricUsed = "Used"
-    override val metricTotal = "Total"
-    override val metricExpire = "Expire"
     override val netRegionLabel = "Region"
     override val netDnsRecordsLabel = "DNS records"
     override val svcLoadHint = "Load services to query systemd on %1. No service is fabricated locally."
@@ -2812,92 +2636,18 @@ internal object CommandCopyEn : CommandCopy {
     override val netRealResponses = "%1 real responses"
     override val upIncidentCount = "%1 incident record(s)"
     override val setHostKeyStoreInit = "Host Key Store initialized: %1"
-    override val wtLocalTools = "local tools"
-    override val wtInputTransform = "Input / transform"
-    override val wtInvalidInput = "Invalid input"
-    override val wtArtifactGenerator = "Config file builder"
-    override val wtRoutingContract = "Entry port & routes"
-    override val wtBindPort = "Bind port"
-    override val wtInspectSec = "Inspect sec"
-    override val wtPanelSni = "Panel SNI"
-    override val wtSubscriptionSni = "Subscription SNI"
-    override val wtRealitySni = "REALITY SNI"
-    override val wtFallbackPort = "Fallback local port"
-    override val wtGeneratedArtifact = "Generated file"
     override val wtToolBase64 = "Base64 / URL"
     override val wtToolJson = "JSON"
     override val wtToolHash = "Hash"
     override val wtToolSubnet = "Subnet"
     override val wtToolJwt = "JWT"
     override val wtToolGenerator = "Generator"
-    override val wtBase64Encode = "Base64 encode"
-    override val wtBase64Decode = "Base64 decode"
-    override val wtUrlEncode = "URL encode"
-    override val wtUrlDecode = "URL decode"
-    override val wtFormatted = "Formatted"
-    override val wtMinified = "Minified"
-    override val wtHashDetected = "Detected"
-    override val wtHeader = "Header"
-    override val wtPayload = "Payload"
-    override val wtExpired = "Expired"
-    override val wtExpiry = "Expiry"
-    override val wtNotProvided = "not provided"
-    override val runVerb = "Run"
-    override val outputTitle = "Output"
-    override val genTitle = "Password & UUID generator"
-    override val genPasswordLabel = "Password"
-    override val genUuidLabel = "UUID"
-    override val subnetHint = "Three input shapes: IP with prefix (e.g. 192.168.1.10/24), bare IP (assumes /24), or a domain (resolved to IP first; e.g. example.com). IPv4 only."
-    override val subnetPlaceholder = "e.g. 192.168.1.10/24 or example.com"
-    override val subnetDomainLabel = "Domain"
     override val subnetIpLabel = "IP"
-    override val subnetAssumedPrefix = "(assumed /24)"
-    override val subnetErrFormat = "Use one of these shapes: 192.168.1.10/24, 192.168.1.10 or example.com"
-    override val subnetErrPrefix = "The prefix must be a number between 0 and 32 (e.g. /24)."
-    override val subnetErrIp = "Invalid IPv4 address; use four numbers 0-255 separated by dots."
-    override val subnetErrDns = "Could not resolve the domain; check the spelling and your connection."
-    override val subnetErrIpv6 = "Only IPv4 is supported."
-    override val netNetwork = "Network"
-    override val netBroadcast = "Broadcast"
-    override val netFirstHost = "First host"
-    override val netLastHost = "Last host"
-    override val netNetmask = "Netmask"
-    override val netWildcard = "Wildcard"
-    override val netUsableHosts = "Usable hosts"
-    override val netTotalHosts = "Total hosts"
-    override val spIntroTitle = "What is single-port?"
-    override val spIntroBody = "Suppose several services (panel, subscription, REALITY) must all answer on one port — usually 443. This tool builds a ready-made text with which HAProxy routes each connection to the right internal service by its domain name (SNI). Three steps: 1) enter your own domains and internal ports 2) choose an output and press Generate 3) copy the text and run or install it on your server. Opening this page installs nothing."
-    override val spFormHint = "SNI is the domain name presented at the start of a secure connection; \u201cLocal\u201d is the port that service listens on inside the server; fallback is the default route for unknown connections."
-    override val spLocalPort = "Local"
-    override val spGenerateVerb = "Generate"
-    override val spArtifactHint = "HAProxy is the config file text; Bash deploy is a one-shot auto-install script for your server; Docker Compose runs HAProxy in a container."
-    override val spNextHint = "After generating: copy the text, run it or save it at the stated path on your server, then check the service status."
-    override val wtSingleConfig = "Single config"
-    override val wtParseProbe = "Parse and probe"
-    override val wtCopyNormalized = "Copy normalized source"
-    override val wtSubscriptionUrl = "Subscription URL"
-    override val wtFetchSubscription = "Fetch subscription"
     override val wtRemotePath = "Remote path"
     override val wtRemoteEntries = "Remote entries"
     override val wtTextEditorMax = "Text editor · max 4 MB"
-    override val wtProxyClipboardLabel = "Didban proxy configuration"
     override val wtRemoteFileClipboardLabel = "Didban remote file"
     override val wtSaveRemoteFile = "Save remote file"
-    override val wtArtifactHaproxy = "HAProxy"
-    override val wtArtifactBashDeploy = "Bash deploy"
-    override val wtArtifactDockerCompose = "Docker Compose"
-    override val wtProxyModeSubtitle = "parse · probe · inspect"
-    override val wtProxyUriLabel = "VLESS / VMess / Trojan / SS URI"
-    override val wtProxyReachable = "reachable"
-    override val wtProxyUnreachable = "unreachable"
-    override val wtProxyParsed = "parsed"
-    override val wtProxyLatency = "TCP/TLS latency: %1"
-    override val wtSubscription = "Subscription"
-    override val wtSubscriptionFailed = "Subscription fetch failed"
-    override val wtSubscriptionInvalidUrl = "The subscription URL is invalid."
-    override val wtSubscriptionHttpFailure = "Subscription fetch failed with HTTP %1."
-    override val wtSubscriptionNetworkFailure = "Could not reach the subscription: %1"
-    override val wtUnlimited = "Unlimited"
     override val wtSftpBrowseFailed = "SFTP browse failed"
     override val wtSftpFileTooLarge = "The file is %1 KB and too large for the text editor."
     override val wtFileReadFailed = "File read failed"
@@ -3218,8 +2968,6 @@ internal object CommandCopyEn : CommandCopy {
     override val upDeleted = "Monitor deleted."
     override val serversSearchPlaceholder = "Search name or host"
     override val tunnelsBody = "Create and edit tunnel configuration from here. Save is local; deploy asks for separate confirmation."
-    override val devLabBody = "This tool creates two fresh random values: a secure 16-character password for panels and services, and a UUID for configs such as VLESS. Every run makes new values; everything happens on your phone and nothing is sent anywhere."
-    override val vaultConfigUnparseable = "Config cannot be parsed"
     override val hostKeysStatus = "%d entries · trust store active"
     override val sftpBody = "SFTP uses the local trust store: the first server key is recorded as TOFU and a later change rejects the connection."
     override val netNoHost = "No host or domain entered."

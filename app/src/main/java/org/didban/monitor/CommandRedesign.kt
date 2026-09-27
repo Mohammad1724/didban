@@ -61,8 +61,7 @@ internal fun CommandRoute.routeOwner(): CommandRouteOwner = when (this) {
     CommandRoute.CHECK_HOST, CommandRoute.CF_SCANNER, CommandRoute.REALITY_SNI,
     CommandRoute.NETWORK_TOOLS, CommandRoute.NETWORK_TOOLS_EDITOR,
     CommandRoute.DNS, CommandRoute.DNS_EDITOR -> CommandRouteOwner.NETWORK_TOOLS
-    CommandRoute.WORKBENCH_HOME, CommandRoute.BATCH, CommandRoute.SINGLE_PORT,
-    CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.DEVELOPER_LAB -> CommandRouteOwner.WORKBENCH
+    CommandRoute.WORKBENCH_HOME, CommandRoute.BATCH, CommandRoute.SHARE -> CommandRouteOwner.WORKBENCH
     CommandRoute.PROTECT_HOME, CommandRoute.VAULT, CommandRoute.ALERTS,
     CommandRoute.BACKUP, CommandRoute.SETTINGS -> CommandRouteOwner.PROTECT
 }
@@ -80,8 +79,7 @@ internal val networkToolRoutes = listOf(
     CommandRoute.CHECK_HOST, CommandRoute.DNS
 )
 internal val workbenchUtilityRoutes = listOf(
-    CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.SINGLE_PORT,
-    CommandRoute.DEVELOPER_LAB, CommandRoute.BATCH
+    CommandRoute.SHARE, CommandRoute.BATCH
 )
 internal val independentToolRoutes = networkToolRoutes + workbenchUtilityRoutes
 internal val settingsToolRoutes = listOf(CommandRoute.ALERTS, CommandRoute.VAULT, CommandRoute.BACKUP)

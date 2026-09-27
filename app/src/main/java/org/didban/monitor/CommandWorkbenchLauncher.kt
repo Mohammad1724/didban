@@ -76,19 +76,14 @@ private fun networkLauncherItems(copy: CommandCopy): List<WorkbenchLauncherItem>
 
 /**
  * Tab model for the tools launcher, shared with tests. The All tab mirrors the
- * tab order: network tools first, then connection and development utilities.
+ * tab order: network tools first, then the remaining utilities (Share, Batch).
  */
 internal fun workbenchTabs(copy: CommandCopy): List<WorkbenchTab> {
     val utilityItems = workbenchUtilityRoutes.map { routeLauncherItem(copy, it) }
     val networkItems = networkLauncherItems(copy)
-    val connectionItems = listOf(CommandRoute.PROXY, CommandRoute.SHARE, CommandRoute.SINGLE_PORT)
-        .map { routeLauncherItem(copy, it) }
-    val developmentItems = listOf(routeLauncherItem(copy, CommandRoute.DEVELOPER_LAB))
     return listOf(
         WorkbenchTab(copy.toolsTabAll, networkItems + utilityItems),
-        WorkbenchTab(copy.networkTools, networkItems),
-        WorkbenchTab(copy.toolsTabConnection, connectionItems),
-        WorkbenchTab(copy.toolsTabDevelopment, developmentItems)
+        WorkbenchTab(copy.networkTools, networkItems)
     )
 }
 
@@ -99,7 +94,7 @@ internal fun CommandWorkbenchLauncherScreen(
 ) {
     val tabs = workbenchTabs(copy)
     // Network diagnostics are the primary entry point; the All tab lists the
-    // same network tiles first, then the connection and development tools.
+    // same network tiles first, then the remaining utilities.
     var selectedTab by rememberSaveable { mutableIntStateOf(1) }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {

@@ -521,49 +521,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "ذخیره مستقیماً فایل راه‌دور را تغییر می‌دهد. فایل باینری یا تنظیمات حیاتی را بدون شناخت ویرایش نکنید.",
             "Save changes the remote file directly. Do not edit binary files or critical configuration without understanding them."
         )
-        CommandRoute.SINGLE_PORT -> h(
-            "برای ساخت تنظیمات هدایت چند سرویس از یک پورت مشترک است؛ مثلاً پنل و اشتراک و REALITY روی ورودی 443، با تشخیص نام دامنه در شروع اتصال TLS.",
-            "Generate routing configuration for several services sharing one incoming port, such as a panel, subscription and REALITY on 443, using the TLS domain name.",
-            listOf(
-                "پورت ورودی را مشخص کنید؛ سرویس‌های پشت آن باید از قبل روی پورت‌های داخلی متفاوت آماده باشند.",
-                "دامنهٔ پنل، دامنهٔ اشتراک، SNI مربوط به REALITY و پورت داخلی هرکدام را وارد کنید؛ مقدارهای نمونه را جایگزین کنید.",
-                "پورت fallback، یعنی مسیر پیش‌فرض برای اتصال‌های نامنطبق، را مشخص کنید.",
-                "نوع خروجی HAProxy، Bash deploy یا Docker Compose را انتخاب و «ساخت» را بزنید.",
-                "خروجی را بخوانید و کپی کنید؛ برای استقرار باید خودتان با آگاهی روی سرور اجرا یا نصبش کنید.",
-            ),
-            listOf(
-                "Choose an incoming port; backend services must already be ready on different internal ports.",
-                "Enter panel and subscription domains, the REALITY SNI and each internal port, replacing example values.",
-                "Set the fallback port for unmatched connections.",
-                "Choose HAProxy, Bash deploy or Docker Compose and press Generate.",
-                "Review and copy the output; deploying it on your server is a separate manual action.",
-            ),
-            "این بخش تست یک پورت نیست و بازکردن صفحه چیزی روی سرور نصب نمی‌کند؛ فقط متن تنظیمات یا اسکریپت تولید می‌شود.",
-            "This is not a single-port connectivity test. Opening it installs nothing; it generates configuration or script text.",
-            "اجرای خروجی می‌تواند با سرویس فعلی روی 443 تداخل کند. قبل از استقرار، پشتیبان و دسترسی کنسول داشته باشید و دامنه‌ها و گواهی‌های لازم را آماده کنید.",
-            "Deployment may conflict with an existing service on 443. Back up, keep console access and prepare required domains and certificates."
-        )
-        CommandRoute.PROXY -> h(
-            "برای خواندن لینک کانفیگ و بررسی اولیهٔ مقصد آن است؛ همچنین می‌توانید اطلاعات یک لینک اشتراک را ببینید. این صفحه VPN گوشی را وصل نمی‌کند.",
-            "Read a configuration link and perform an initial check of its destination, or inspect a subscription link. This screen does not connect a phone VPN.",
-            listOf(
-                "لینک کامل VLESS، VMess، Trojan یا Shadowsocks خودتان را در بخش کانفیگ تکی بچسبانید.",
-                "دکمهٔ خواندن و آزمایش را بزنید و نام پروتکل، میزبان، پورت و نتیجهٔ دسترسی را ببینید.",
-                "برای اشتراک، URL کامل اشتراک را در بخش Subscription وارد و بررسی را اجرا کنید.",
-                "اگر نیاز به استفاده دارید، کانفیگ را در برنامهٔ کلاینت مناسب خودتان جداگانه امتحان کنید.",
-            ),
-            listOf(
-                "Paste your full VLESS, VMess, Trojan or Shadowsocks link into the single-config field.",
-                "Parse and probe it, then inspect protocol, host, port and reachability.",
-                "For a subscription, enter its full URL under Subscription and inspect it.",
-                "Test the configuration separately in a suitable client for actual use.",
-            ),
-            "این ابزار به Agent نیاز ندارد؛ از اتصال گوشی برای بررسی مقصد یا دریافت اشتراک استفاده می‌کند.",
-            "No Agent is needed; the phone connection is used to probe the destination or fetch a subscription.",
-            "دسترسی TCP/TLS ثابت نمی‌کند احراز هویت یا عبور ترافیک VPN کار می‌کند. لینک کانفیگ و اشتراک محرمانه‌اند؛ فقط لینک مورداعتماد را وارد کنید.",
-            "TCP/TLS reachability does not prove VPN authentication or traffic forwarding. Configuration and subscription links are secrets; use trusted links only."
-        )
-        CommandRoute.SHARE -> h(
+                        CommandRoute.SHARE -> h(
             "این ابزار اینترنت گوشی را همراه با VPN به دستگاه‌های دیگر می‌دهد: روی گوشی یک پروکسی بالا می‌آید که خروجی‌اش از تونل VPN می‌رود و دستگاه‌های دیگر آن را به‌عنوان پروکسی خود می‌گیرند. این کار روت لازم ندارد.",
             "This tool hands this phone's internet, through its VPN, to other devices: a proxy runs on the phone and every outgoing connection rides the VPN tunnel, while other devices use it as their proxy. No root needed.",
             listOf(
@@ -583,27 +541,7 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "webOS تلویزیون LG تنظیم پروکسی ندارد. برای تلویزیون باید یا رام گزینهٔ «Allow clients to use VPNs» داشته باشد یا گوشی روت شود یا یک روتر کوچک VPN بگیرد؛ این محدودیت اندروید است، نه این ابزار.",
             "LG webOS TVs have no proxy setting: a TV needs either a ROM with \"Allow clients to use VPNs\", a rooted phone, or a small router running the VPN. That is an Android limitation, not this tool."
         )
-        CommandRoute.DEVELOPER_LAB -> h(
-            "ابزارهای کوچک برای کار با متن و تنظیمات است: مرتب‌کردن JSON، تبدیل Base64 و URL، محاسبهٔ هش و محدودهٔ شبکه یا دیدن محتوای JWT.",
-            "Small utilities for text and configuration: format JSON, convert Base64 and URLs, calculate hashes and subnet ranges, or inspect JWT content.",
-            listOf(
-                "نوع ابزار را انتخاب کنید؛ مثلاً JSON برای خواناترشدن متن تنظیمات.",
-                "متن مناسب همان ابزار را وارد کنید؛ برای Subnet یک آی‌پی با پیشوند مثل 192.168.1.10/24، فقط آی‌پی، یا یک دامنه بنویسید.",
-                "اجرا را بزنید و نتیجه یا خطای ورودی را بخوانید.",
-                "برای ساخت گذرواژهٔ امن و شناسهٔ یکتای تازه، ابزار Generator را انتخاب و اجرا را بزنید؛ برای برداشتن خروجی از کپی استفاده کنید.",
-            ),
-            listOf(
-                "Choose a tool, such as JSON to format configuration text.",
-                "Enter suitable input; for Subnet use an IP with prefix such as 192.168.1.10/24, a bare IP, or a domain name.",
-                "Run and inspect output or input errors.",
-                "Use Generator for a fresh secure password and UUID, and Copy for output.",
-            ),
-            "پردازش این ابزارها محلی است و سرور نمی‌خواهد؛ فقط تبدیل دامنه به آی‌پی در Subnet به اینترنت نیاز دارد. Base64 تبدیل نمایش متن است، نه رمزگذاری امن.",
-            "These utilities process locally without a server; only domain resolution in Subnet needs the internet. Base64 is an encoding, not secure encryption.",
-            "دیدن محتوای JWT به معنی تأیید امضای آن نیست. خروجی حاوی رمز یا توکن را در چت یا اسکرین‌شات منتشر نکنید.",
-            "Decoding JWT content does not verify its signature. Never publish output containing passwords or tokens."
-        )
-        CommandRoute.PROTECT_HOME -> h(
+                CommandRoute.PROTECT_HOME -> h(
             "محل نگهداری امن اطلاعات، تنظیم خبررسانی و تهیهٔ پشتیبان است؛ برای کم‌کردن خطر گم‌شدن تنظیمات یا افشای رمزها.",
             "Keep sensitive information, configure notifications and make backups, reducing the risk of lost settings or exposed passwords.",
             listOf(

@@ -25,7 +25,6 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 - 🛰️ **Network diagnostics** — multi-threaded Port Scanner, SSL Inspector (expiry countdown, SANs, chain), IP & GeoIP lookup, and TCP Pinger
 - 🔐 **Encrypted Vault & backup** — store confidential notes & credentials with AES-256-GCM encryption and export/import full backups
 - 📡 **Local Web Server & QR Code** — share files and text across local Wi-Fi with instant QR code downloading
-- 🛠️ **Developer Tools (String Lab)** — Base64, JSON formatter/minifier, Subnet/CIDR calculator, JWT decoder, Hashes, and UUID/Password generator
 - 📱 **Android app** — bilingual (Persian/English), “Nightwatch” design language (dark & light themes, Inter + tabular telemetry numerals, animated radar mark), 1-click SSH install
 - 🔐 **Secure by default** — HTTPS with self-signed certs + token auth; the app pins the certificate fingerprint (SSH-style trust-on-first-use)
 - 🪶 **Featherweight** — single static Go binary (~8 MB), zero external dependencies, ~10 MB RAM, systemd-hardened
@@ -44,7 +43,6 @@ Every server admin knows the 2 AM question: **"CPU was at 100% last night — wh
 │  • Cloudflare DNS Manager (Zones, Records, Proxy)              │
 │  • Network Hub (Port Scanner, SSL Inspector, GeoIP, Ping)      │
 │  • Encrypted Vault & Backup (AES-256-GCM)                      │
-│  • Developer Tools (Base64, JSON, CIDR, JWT, Generators)       │
 └───────────────────────────────┬────────────────────────────────┘
                                 │ HTTPS + Bearer token + cert pinning
 ┌───────────────────────────────▼────────────────────────────────┐
