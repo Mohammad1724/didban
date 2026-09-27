@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.Dispatchers
@@ -262,9 +263,11 @@ fun CommandBackupScreen(
     SecureWindowEffect()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
     var createPassword by remember { mutableStateOf("") }
     var restorePassword by remember { mutableStateOf("") }
     var raw by remember { mutableStateOf("") }
+    var restoreText by remember { mutableStateOf("") }
     var preview by remember { mutableStateOf<BackupPreview?>(null) }
     var mode by remember { mutableStateOf(RestoreMode.Merge) }
     var result by remember { mutableStateOf<String?>(null) }
@@ -299,6 +302,7 @@ fun CommandBackupScreen(
                         runCatching { BackupEngine.createBackup(context, createPassword) }
                             .onSuccess {
                                 raw = it
+                                restoreText = it
                                 copied = false
                                 result = copy.backupCreated
                             }
@@ -335,12 +339,27 @@ fun CommandBackupScreen(
             CommandSurface(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                     Text(copy.backupVerifyRestore, style = androidx.compose.material3.MaterialTheme.typography.titleMedium, color = CommandColors.textPrimary)
-                    OutlinedTextField(raw, { raw = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
+                    OutlinedTextField(restoreText, { restoreText = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), minLines = 5, label = { Text(copy.backupText) })
+                    Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
+                        CommandSecondaryButton(copy.pasteAction, {
+                            val clipped = clipboard.getText()?.toString().orEmpty().trim()
+                            if (clipped.isBlank()) {
+                                result = copy.backupEmpty
+                                resultSuccess = false
+                            } else {
+                                restoreText = clipped
+                                preview = null
+                                inspectedRaw = null
+                                result = null
+                                resultSuccess = null
+                            }
+                        }, enabled = !busy)
+                    }
                     OutlinedTextField(restorePassword, { restorePassword = it; preview = null; inspectedRaw = null; result = null; resultSuccess = null }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(copy.backupPassword) }, visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation())
                     Row(horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
                         CommandSecondaryButton(copy.backupModeMerge, { mode = RestoreMode.Merge }, enabled = mode != RestoreMode.Merge)
                         CommandSecondaryButton(copy.backupModeOverwrite, { mode = RestoreMode.Overwrite }, enabled = mode != RestoreMode.Overwrite)
-                        CommandSecondaryButton(copy.backupInspect, { preview = BackupEngine.inspectBackup(raw, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = raw }, enabled = raw.isNotBlank() && !busy)
+                        CommandSecondaryButton(copy.backupInspect, { preview = BackupEngine.inspectBackup(restoreText, restorePassword.takeIf { it.isNotBlank() }); inspectedRaw = restoreText }, enabled = restoreText.isNotBlank() && !busy)
                     }
                     Text(
                         if (mode == RestoreMode.Merge) copy.backupMergeHint else copy.backupOverwriteHint,
@@ -354,8 +373,8 @@ fun CommandBackupScreen(
                         CommandStatusMark(if (p.isValid) copy.backupValid else copy.backupInvalid, if (p.isValid) CommandHealthTone.HEALTHY else CommandHealthTone.OFFLINE, detail = if (p.isValid) copy.backupSummary.replace("%1", p.serversCount.toString()).replace("%2", p.tunnelsCount.toString()).replace("%3", p.uptimeCount.toString()).replace("%4", BackupEngine.formatTimestamp(p.timestamp)) else p.error?.localized(copy) ?: p.errorMessage)
                         Spacer(Modifier.height(CommandSpacing.xs))
                         CommandPrimaryButton(copy.backupRestoreAction.replace("%1", if (mode == RestoreMode.Merge) copy.backupModeMerge else copy.backupModeOverwrite), {
-                            if (raw == inspectedRaw) pendingRestore = PendingRestoreRequest(raw, restorePassword.takeIf { it.isNotBlank() }, mode, p)
-                        }, enabled = p.isValid && raw == inspectedRaw && !busy)
+                            if (restoreText == inspectedRaw) pendingRestore = PendingRestoreRequest(restoreText, restorePassword.takeIf { it.isNotBlank() }, mode, p)
+                        }, enabled = p.isValid && restoreText == inspectedRaw && !busy)
                     }
                     if (result != null) Text(result ?: "", color = if (resultSuccess == true) CommandColors.success else CommandColors.danger, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
                 }

@@ -96,9 +96,8 @@ class CommandShareUiTest {
             }
         }
         compose.onNodeWithTag("primary-tools").performClick()
-        compose.onNodeWithTag("workbench-tab-0").performClick()
-        // The All tab lists the network tiles first, so the connection group
-        // sits below the fold on the phone-sized fixture; scroll to it.
+        // The launcher lists network tools first, so the utility group sits
+        // below the fold on the phone-sized fixture; scroll to it.
         compose.onNodeWithTag("workbench-launcher").performScrollToNode(hasText(copy.shareTitle))
         compose.onNodeWithText(copy.shareTitle).assertIsDisplayed()
     }

@@ -1,12 +1,16 @@
 package org.didban.monitor
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performScrollToNode
 import org.junit.Before
 import org.junit.Rule
@@ -45,6 +49,27 @@ class BackupScreenUiTest {
         open()
         compose.onNodeWithText(copy.backupPasswordField).assertExists()
         compose.onNodeWithText(copy.backupPasswordWhy).assertExists()
+    }
+
+    @Test fun `paste button fills the restore field from the clipboard`() {
+        val app = RuntimeEnvironment.getApplication()
+        val clip = app.getSystemService(ClipboardManager::class.java)
+        val code = "DIDBAN_BACKUP_V2:AbCdEf123456"
+        clip.setPrimaryClip(ClipData.newPlainText("code", code))
+        open()
+        // The restore card sits below the fold; an off-screen click is a no-op.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.pasteAction))
+        compose.onNodeWithText(copy.pasteAction).performClick()
+        compose.onNodeWithText(code).assertExists()
+        // The created-backup output card must NOT appear from pasting.
+        compose.onNodeWithText(copy.backupOutput).assertDoesNotExist()
+    }
+
+    @Test fun `paste button reports an empty clipboard instead of silence`() {
+        open()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.pasteAction))
+        compose.onNodeWithText(copy.pasteAction).performClick()
+        compose.onNodeWithText(copy.backupEmpty).assertExists()
     }
 
     @Test fun `merge and overwrite modes carry a plain-language hint`() {

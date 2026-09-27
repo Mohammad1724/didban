@@ -1,7 +1,6 @@
 package org.didban.monitor
 
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,8 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.Public
-import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.MaterialTheme
@@ -28,8 +25,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,11 +43,6 @@ internal data class WorkbenchLauncherItem(
     val route: CommandRoute
 )
 
-internal data class WorkbenchTab(
-    val label: String,
-    val items: List<WorkbenchLauncherItem>
-)
-
 private fun routeLauncherItem(copy: CommandCopy, route: CommandRoute): WorkbenchLauncherItem {
     val language = if (copy === CommandCopyFa) "fa" else "en"
     return WorkbenchLauncherItem(
@@ -64,27 +54,28 @@ private fun routeLauncherItem(copy: CommandCopy, route: CommandRoute): Workbench
     )
 }
 
+/** Canonical network tile keys, shared with tests to pin the launcher order. */
+internal val networkLauncherItemKeys = listOf(
+    "network-reachability", "network-layer", "network-dns",
+    "network-cloudflare", "network-reality"
+)
+
 private fun networkLauncherItems(copy: CommandCopy): List<WorkbenchLauncherItem> = listOf(
     WorkbenchLauncherItem("network-reachability", copy.netQReachable, copy.netQReachableTools, Icons.Rounded.Public, CommandRoute.CHECK_HOST),
     WorkbenchLauncherItem("network-layer", copy.netQNetworkLayer, copy.netQNetworkLayerTools, Icons.Rounded.NetworkCheck, CommandRoute.NETWORK_TOOLS_EDITOR),
-    WorkbenchLauncherItem("network-tls", copy.netQTls, copy.netQTlsTools, Icons.Rounded.Security, CommandRoute.NETWORK_TOOLS_EDITOR),
     WorkbenchLauncherItem("network-dns", copy.netQDns, copy.netQDnsTools, Icons.Rounded.Dns, CommandRoute.DNS),
-    WorkbenchLauncherItem("network-quality", copy.netQQuality, copy.netQQualityTools, Icons.Rounded.Speed, CommandRoute.NETWORK_TOOLS_EDITOR),
     WorkbenchLauncherItem("network-cloudflare", copy.netQCfEdge, copy.netQCfEdgeTools, Icons.Rounded.TravelExplore, CommandRoute.CF_SCANNER),
     WorkbenchLauncherItem("network-reality", copy.netQRealityDonor, copy.netQRealityDonorTools, Icons.Rounded.VerifiedUser, CommandRoute.REALITY_SNI)
 )
 
 /**
- * Tab model for the tools launcher, shared with tests. The All tab mirrors the
- * tab order: network tools first, then the remaining utilities (Share, Batch).
+ * Launcher sections, shared with tests: network diagnostics first, then the
+ * remaining utilities. They render as two labeled sections of one page.
  */
-internal fun workbenchTabs(copy: CommandCopy): List<WorkbenchTab> {
-    val utilityItems = workbenchUtilityRoutes.map { routeLauncherItem(copy, it) }
+internal fun workbenchLauncherSections(copy: CommandCopy): Pair<List<WorkbenchLauncherItem>, List<WorkbenchLauncherItem>> {
     val networkItems = networkLauncherItems(copy)
-    return listOf(
-        WorkbenchTab(copy.toolsTabAll, networkItems + utilityItems),
-        WorkbenchTab(copy.networkTools, networkItems)
-    )
+    val utilityItems = workbenchUtilityRoutes.map { routeLauncherItem(copy, it) }
+    return networkItems to utilityItems
 }
 
 @Composable
@@ -92,13 +83,9 @@ internal fun CommandWorkbenchLauncherScreen(
     copy: CommandCopy,
     onNavigate: (CommandRoute, ServerConfig?) -> Unit
 ) {
-    val tabs = workbenchTabs(copy)
-    // Network diagnostics are the primary entry point; the All tab lists the
-    // same network tiles first, then the remaining utilities.
-    var selectedTab by rememberSaveable { mutableIntStateOf(1) }
+    val (networkItems, utilityItems) = workbenchLauncherSections(copy)
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val visibleItems = tabs[selectedTab.coerceIn(tabs.indices)].items
         val columns = workbenchLauncherColumns(maxWidth)
 
         LazyColumn(
@@ -106,48 +93,41 @@ internal fun CommandWorkbenchLauncherScreen(
             verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
             contentPadding = PaddingValues(horizontal = CommandSpacing.md, vertical = CommandSpacing.sm)
         ) {
-        item {
-            Text(
-                copy.uiToolsIntro,
-                color = CommandColors.textSecondary,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(horizontal = CommandSpacing.xs)
-            )
-        }
+            item {
+                Text(
+                    copy.uiToolsIntro,
+                    color = CommandColors.textSecondary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = CommandSpacing.xs)
+                )
+            }
+            item { CommandSectionTitle(copy.networkTools) }
 
-        item {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    val active = index == selectedTab
-                    val tabModifier = Modifier
-                        .testTag("workbench-tab-$index")
-                        .heightIn(min = CommandMetrics.touchTarget)
-                        .clip(RoundedCornerShape(CommandRadii.pill))
-                        .selectable(selected = active, role = Role.Tab) { selectedTab = index }
-                    Surface(
-                        color = if (active) CommandColors.accent else CommandColors.surface,
-                        contentColor = if (active) CommandColors.onAccent else CommandColors.textSecondary,
-                        shape = RoundedCornerShape(CommandRadii.pill),
-                        modifier = tabModifier
+            networkItems.chunked(columns).forEach { rowItems ->
+                item {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(CommandSpacing.sm),
+                        verticalAlignment = Alignment.Top
                     ) {
-                        Text(
-                            tab.label,
-                            modifier = Modifier.padding(horizontal = CommandSpacing.md, vertical = CommandSpacing.xs),
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        rowItems.forEach { item ->
+                            CommandLauncherTile(
+                                title = item.title,
+                                summary = item.summary,
+                                icon = item.icon,
+                                modifier = Modifier.weight(1f),
+                                testTag = "workbench-tile-${item.key}",
+                                onClick = { onNavigate(item.route, null) }
+                            )
+                        }
+                        repeat(columns - rowItems.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
-        }
 
-            visibleItems.chunked(columns).forEach { rowItems ->
+            item { CommandSectionTitle(copy.toolsOtherHeader) }
+
+            utilityItems.chunked(columns).forEach { rowItems ->
                 item {
                     Row(
                         Modifier.fillMaxWidth(),

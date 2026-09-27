@@ -109,7 +109,6 @@ class NetworkToolsUiTest {
 
         override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo = error("unused")
 
-        override suspend fun lookupGeoDns(target: String): GeoIpData = error("unused")
     }
 
     private class BlockingNetworkToolsRunner : NetworkToolsRunner {
@@ -130,6 +129,5 @@ class NetworkToolsUiTest {
 
         override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo = error("unused")
 
-        override suspend fun lookupGeoDns(target: String): GeoIpData = error("unused")
     }
 }

@@ -388,7 +388,8 @@ interface CommandCopy {
     val uiTools: String
     val uiServerIntro: String
     val uiToolsIntro: String
-    val toolsTabAll: String
+    val toolsOtherHeader: String
+    val pasteAction: String
     val uiServerTools: String
     val uiScopedTools: String
     val uiResources: String
@@ -1089,12 +1090,8 @@ interface CommandCopy {
     val netQReachableTools: String
     val netQNetworkLayer: String
     val netQNetworkLayerTools: String
-    val netQTls: String
-    val netQTlsTools: String
     val netQDns: String
     val netQDnsTools: String
-    val netQQuality: String
-    val netQQualityTools: String
     val dnsIndexBody: String
     val dnsZoneRecords: String
     val dnsZoneRecordsBody: String
@@ -1164,7 +1161,6 @@ interface CommandCopy {
     val netModeDpi: String
     val netModePorts: String
     val netModeCertificate: String
-    val netModeGeoDns: String
     val netRunMode: String
     val netCopyResult: String
     val netOpenPortsFound: String
@@ -1299,7 +1295,8 @@ internal object CommandCopyFa : CommandCopy {
     override val uiTools = "ابزارها"
     override val uiServerIntro = "همهٔ سرورها، یک جای مشخص."
     override val uiToolsIntro = "ابزار مناسب را برای کاری که داری انتخاب کن."
-    override val toolsTabAll = "همه"
+    override val toolsOtherHeader = "سایر ابزارها"
+    override val pasteAction = "چسباندن از کلیپ‌بورد"
     override val uiServerTools = "مدیریت این سرور"
     override val uiScopedTools = "همهٔ ابزارهای زیر برای «%1» هستند."
     override val uiResources = "وضعیت منابع"
@@ -1999,12 +1996,8 @@ internal object CommandCopyFa : CommandCopy {
     override val netQReachableTools = "بررسی دسترسی دامنه یا IP از چند نقطهٔ عمومی؛ بدون نیاز به افزودن سرور"
     override val netQNetworkLayer = "تست‌های شبکه"
     override val netQNetworkLayerTools = "پینگ TCP، تشخیص DPI و اسکن پورت"
-    override val netQTls = "بررسی TLS و گواهی"
-    override val netQTlsTools = "گواهی، Fingerprint، Chain و SAN"
     override val netQDns = "بررسی DNS"
     override val netQDnsTools = "بررسی پاسخ DNS و مدیریت رکوردها"
-    override val netQQuality = "تست کیفیت اتصال"
-    override val netQQualityTools = "سرعت، تأخیر، افت بسته و نوسان"
     override val dnsIndexBody = "تشخیص پاسخ DNS از مدیریت Record جداست."
     override val dnsZoneRecords = "مدیریت Zone و Record"
     override val dnsZoneRecordsBody = "ساخت، ویرایش و حذف Recordهای واقعی Cloudflare"
@@ -2074,7 +2067,6 @@ internal object CommandCopyFa : CommandCopy {
     override val netModeDpi = "DPI / TLS"
     override val netModePorts = "اسکن پورت"
     override val netModeCertificate = "گواهی TLS"
-    override val netModeGeoDns = "GeoIP / DNS"
     override val netRunMode = "اجرای %1"
     override val netCopyResult = "کپی نتیجه"
     override val netOpenPortsFound = "%1 پورت باز پیدا شد"
@@ -2202,7 +2194,8 @@ internal object CommandCopyEn : CommandCopy {
     override val uiTools = "Tools"
     override val uiServerIntro = "All your servers in one place."
     override val uiToolsIntro = "Choose the right tool for your task."
-    override val toolsTabAll = "All"
+    override val toolsOtherHeader = "Other tools"
+    override val pasteAction = "Paste from clipboard"
     override val uiServerTools = "Manage this server"
     override val uiScopedTools = "All tools below act on “%1”."
     override val uiResources = "Resource usage"
@@ -2902,12 +2895,8 @@ internal object CommandCopyEn : CommandCopy {
     override val netQReachableTools = "Check a domain or IP from public locations; no server required"
     override val netQNetworkLayer = "Network tests"
     override val netQNetworkLayerTools = "TCP ping, DPI detection and port scanning"
-    override val netQTls = "TLS and certificate check"
-    override val netQTlsTools = "Certificate, fingerprint, chain and SAN"
     override val netQDns = "DNS check"
     override val netQDnsTools = "Inspect DNS answers and manage records"
-    override val netQQuality = "Connection quality test"
-    override val netQQualityTools = "Bandwidth, latency, packet loss and jitter"
     override val dnsIndexBody = "DNS diagnosis is separate from record management."
     override val dnsZoneRecords = "Manage zones and records"
     override val dnsZoneRecordsBody = "Create, edit and delete real Cloudflare records"
@@ -2977,7 +2966,6 @@ internal object CommandCopyEn : CommandCopy {
     override val netModeDpi = "DPI / TLS"
     override val netModePorts = "Port scan"
     override val netModeCertificate = "TLS certificate"
-    override val netModeGeoDns = "GeoIP / DNS"
     override val netRunMode = "Run %1"
     override val netCopyResult = "Copy result"
     override val netOpenPortsFound = "%1 open ports found"

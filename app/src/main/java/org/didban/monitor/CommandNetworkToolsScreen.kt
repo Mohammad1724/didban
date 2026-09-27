@@ -37,15 +37,13 @@ import kotlinx.coroutines.launch
 private enum class NetworkDiagnosticMode {
     DPI,
     PORTS,
-    CERTIFICATE,
-    GEO_DNS
+    CERTIFICATE
 }
 
 private fun NetworkDiagnosticMode.label(copy: CommandCopy): String = when (this) {
     NetworkDiagnosticMode.DPI -> copy.netModeDpi
     NetworkDiagnosticMode.PORTS -> copy.netModePorts
     NetworkDiagnosticMode.CERTIFICATE -> copy.netModeCertificate
-    NetworkDiagnosticMode.GEO_DNS -> copy.netModeGeoDns
 }
 
 /** Injectable network operations keep the state contract testable without live internet. */
@@ -53,7 +51,6 @@ interface NetworkToolsRunner {
     suspend fun diagnose(host: String, port: Int): CensorshipDiagnosticResult
     suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit)
     suspend fun inspectCertificate(host: String, port: Int): SslCertInfo
-    suspend fun lookupGeoDns(target: String): GeoIpData
 }
 
 object DefaultNetworkToolsRunner : NetworkToolsRunner {
@@ -66,9 +63,6 @@ object DefaultNetworkToolsRunner : NetworkToolsRunner {
 
     override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo =
         SslInspector.inspect(host, port)
-
-    override suspend fun lookupGeoDns(target: String): GeoIpData =
-        IpInfoService.lookup(target)
 }
 
 private fun localizedCensorshipResult(
@@ -187,12 +181,6 @@ fun CommandNetworkToolsScreen(
                             "${copy.netFingerprint}: ${cert.fingerprintSha256}",
                             "${copy.netSan}: ${cert.sans.joinToString()}"
                         ).joinToString("\n")
-                    }
-                    NetworkDiagnosticMode.GEO_DNS -> {
-                        val info = runner.lookupGeoDns(clean)
-                        summary = "${info.flag} ${info.country} · ${info.ip}"
-                        summaryTone = CommandHealthTone.INFO
-                        detail = "${copy.netDomainLabel}: ${info.domainName.ifBlank { "—" }}\n${copy.netReverseDnsLabel}: ${info.reverseDns.ifBlank { "—" }}\n${copy.netIspLabel}: ${info.isp.ifBlank { "—" }}\n${copy.netAsnLabel}: ${info.asn.ifBlank { "—" }}\n${copy.netRegionLabel}: ${info.region} / ${info.city}\n${copy.netDnsRecordsLabel}: ${info.dnsRecords.size}"
                     }
                 }
             } catch (cancelled: CancellationException) {

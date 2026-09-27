@@ -36,37 +36,33 @@ class CommandRedesignUiTest {
         assertEquals("light", Prefs.getThemeMode(context))
         listOf("dark", "auto", "light").forEach { Prefs.setThemeMode(context, it); assertEquals(it, Prefs.getThemeMode(context)) }
     }
-    @Test fun `two tabs expose independent tools and data settings without a workspace menu`() {
+    @Test fun `launcher lists network tools then utilities without a workspace menu`() {
         app()
         compose.onNodeWithTag("primary-tools").assertIsSelected()
-        compose.onNodeWithTag("workbench-tab-1").assertIsSelected()
         compose.onAllNodesWithText(copy.uiTools).assertCountEquals(2) // page title + selected bottom navigation item
+        compose.onNodeWithText(copy.networkTools).assertIsDisplayed() // first section header
+        compose.onNodeWithTag("workbench-tile-network-reachability").assertIsDisplayed()
         compose.onNodeWithTag("workbench-launcher")
-            .performScrollToNode(hasText(copy.netQReachable))
-        compose.onNodeWithText(copy.netQReachable).assertIsDisplayed() // All includes the canonical network launcher items
-        compose.onNodeWithTag("workbench-launcher").performScrollToIndex(1)
-        compose.onNodeWithText(copy.networkTools).performClick()
-        compose.onAllNodesWithText(copy.networkTools).assertCountEquals(1) // the network tab stays inside the same launcher
-        compose.onNodeWithText(copy.netQReachable).assertIsDisplayed()
+            .performScrollToNode(hasText(copy.shareTitle))
+        compose.onNodeWithText(copy.toolsOtherHeader).assertIsDisplayed()
+        compose.onNodeWithText(copy.shareTitle).assertIsDisplayed()
         compose.onNodeWithTag("primary-settings").performClick().assertIsSelected()
         compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.vault))
         compose.onNodeWithText(copy.vault).assertIsDisplayed()
     }
-    @Test fun `all tab lists network tools before connection tools`() {
-        // The All tab mirrors the tab order: network tiles first, then the
-        // connection and development utilities.
-        val tabs = workbenchTabs(copy)
-        val allKeys = tabs.first().items.map { it.key }
-        val networkKeys = tabs[1].items.map { it.key }
-        assertEquals(networkKeys + workbenchUtilityRoutes.map { it.key }, allKeys)
+    @Test fun `launcher sections list network tools before utility tools`() {
+        // One page, two sections: network diagnostics first, then utilities.
+        val (network, utilities) = workbenchLauncherSections(copy)
+        assertEquals(network.map { it.key } + utilities.map { it.key },
+            networkLauncherItemKeys + workbenchUtilityRoutes.map { it.key })
     }
 
-    @Test fun `all tab renders network tiles above connection tiles`() {
+    @Test fun `launcher renders network tiles above utility tiles`() {
         app()
-        compose.onNodeWithTag("workbench-tab-0").performClick()
         val network = compose.onNodeWithTag("workbench-tile-network-reachability").getUnclippedBoundsInRoot()
-        val connection = compose.onNodeWithTag("workbench-tile-share").getUnclippedBoundsInRoot()
-        assertTrue(network.top < connection.top)
+        compose.onNodeWithTag("workbench-launcher").performScrollToNode(hasText(copy.shareTitle))
+        val utility = compose.onNodeWithTag("workbench-tile-share").getUnclippedBoundsInRoot()
+        assertTrue(network.top < utility.top)
     }
 
     @Test

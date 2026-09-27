@@ -27,7 +27,7 @@ class CommandAccessibilityUiTest {
     private val copy = CommandCopy.forLanguage("fa")
 
     @Test
-    fun `launcher keeps tab roles and 48dp actions with large font in rtl`() {
+    fun `launcher tiles keep button roles and 48dp actions with large font in rtl`() {
         compose.setContent {
             CompositionLocalProvider(LocalDensity provides Density(1f, 1.5f)) {
                 CommandTheme("light", "fa") {
@@ -36,16 +36,14 @@ class CommandAccessibilityUiTest {
             }
         }
 
-        compose.onNodeWithTag("workbench-tab-1")
-            .assertIsSelected()
+        compose.onNodeWithTag("workbench-tile-network-reachability")
             .assertHasClickAction()
-        compose.onNodeWithTag("workbench-tab-1")
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
-        compose.onNodeWithTag("workbench-tab-0").assertHasClickAction()
-        compose.onNodeWithTag("workbench-tab-0")
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
-        compose.onNodeWithTag("workbench-tab-0").performClick()
-        compose.onNodeWithTag("workbench-tile-share").assertHasClickAction()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        compose.onNodeWithTag("workbench-launcher")
+            .performScrollToNode(hasText(copy.shareTitle))
+        compose.onNodeWithTag("workbench-tile-share")
+            .assertHasClickAction()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
     }
 
     @Test
@@ -57,12 +55,11 @@ class CommandAccessibilityUiTest {
             }
         }
 
-        compose.onNodeWithTag("workbench-tab-1")
-            .assertIsSelected()
+        compose.onNodeWithTag("workbench-tile-network-reachability")
             .assertHasClickAction()
-        compose.onNodeWithTag("workbench-tab-0")
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab))
-        compose.onNodeWithTag("workbench-tab-0").performClick()
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        compose.onNodeWithTag("workbench-launcher")
+            .performScrollToNode(hasText(english.shareTitle))
         compose.onNodeWithTag("workbench-tile-share").assertHasClickAction()
     }
 

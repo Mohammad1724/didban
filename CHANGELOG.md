@@ -6,7 +6,16 @@
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
 
+### Tools launcher polish
+
+- The Tools launcher is now one page with two labeled sections — «ابزارهای شبکه» (network tiles) then «سایر ابزارها» (Share, Batch) — replacing the redundant All/Network Tools tabs whose contents overlapped.
+- Removed the duplicate TLS and connection-quality tiles that opened the same diagnostics suite as the “تست‌های شبکه” tile; TLS/certificate checking stays inside that suite.
+- Removed the GeoIP/DNS mode from the network diagnostics suite; GeoIP details remain on Check-Host results and the DNS manager, which already cover it.
+
 ### Backup & restore
+
+- The restore field now keeps its own state (no longer shared with the created-backup output), so pasting a code no longer inserts the output card above and jumps the scroll position — the reported “it appears and disappears” paste bug.
+- Added a «چسباندن از کلیپ‌بورد / Paste from clipboard» button that fills the restore field programmatically, with an explicit empty-clipboard message.
 
 - The recovery code now survives real-world copy/paste: whitespace (hard-wrapped lines from messengers, emails or notes apps) inside a pasted backup code is ignored, so it decrypts instead of failing with “wrong password”.
 - Copying the recovery code no longer auto-clears after 60 seconds and stays visible to keyboard clipboard managers; the copy button confirms with “کپی شد ✓ / Copied ✓” and a note explains that the preview text is shortened.
