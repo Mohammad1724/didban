@@ -837,7 +837,7 @@ object RemoteVantageCompare {
 
 // ── Final assessment ─────────────────────────────────────────────────────────
 
-enum class DpiVerdict {
+enum class DpiConclusion {
     /** Nothing on this path blocked us — with the limits listed in [DpiAssessment.limitations]. */
     NO_FILTERING_SEEN,
     FILTERED_ADDRESS,
@@ -857,7 +857,7 @@ enum class Confidence { HIGH, MEDIUM, LOW, NONE }
 data class Evidence(val label: String, val detail: String)
 
 data class DpiAssessment(
-    val verdict: DpiVerdict,
+    val verdict: DpiConclusion,
     val confidence: Confidence,
     val summary: String,
     val evidence: List<Evidence>,
@@ -972,7 +972,7 @@ object DpiAssessmentEngine {
         // ── Decision order matters: rule out non-censorship causes first. ──
         if (validation == ValidationState.BROKEN_NETWORK) {
             return DpiAssessment(
-                DpiVerdict.INCONCLUSIVE,
+                DpiConclusion.INCONCLUSIVE,
                 Confidence.NONE,
                 "The control target was unreachable too, so this run says nothing about filtering.",
                 evidence + Evidence("control", "control target ${input.positiveControl?.target} did not answer"),
@@ -983,7 +983,7 @@ object DpiAssessmentEngine {
 
         if (vantage == VantageOutcome.SERVER_SIDE) {
             return DpiAssessment(
-                DpiVerdict.SERVICE_DOWN,
+                DpiConclusion.SERVICE_DOWN,
                 Confidence.HIGH,
                 "Nodes outside the country cannot reach ${input.host}:${input.port} either — this is not operator filtering.",
                 evidence,
@@ -994,7 +994,7 @@ object DpiAssessmentEngine {
 
         if (input.postHandshake?.killedAfterHandshake == true) {
             return DpiAssessment(
-                DpiVerdict.FILTERED_AFTER_HANDSHAKE,
+                DpiConclusion.FILTERED_AFTER_HANDSHAKE,
                 Confidence.HIGH,
                 "The TLS handshake succeeded but the connection was reset as soon as it was used — " +
                     "the classic accept-then-kill pattern.",
@@ -1012,7 +1012,7 @@ object DpiAssessmentEngine {
 
         if (input.differential == DifferentialOutcome.MODERN_CHROME_ONLY) {
             return DpiAssessment(
-                DpiVerdict.FILTERED_MODERN_FINGERPRINT_REQUIRED,
+                DpiConclusion.FILTERED_MODERN_FINGERPRINT_REQUIRED,
                 Confidence.HIGH,
                 "Only the modern Chrome ClientHello (with a post-quantum key share) was answered; " +
                     "older Chrome/Edge/Firefox hellos were rejected.",
@@ -1026,7 +1026,7 @@ object DpiAssessmentEngine {
             DifferentialOutcome.CHROME_WHITELIST,
             DifferentialOutcome.NON_BROWSER_BLOCKED -> {
                 return DpiAssessment(
-                    DpiVerdict.FILTERED_FINGERPRINT,
+                    DpiConclusion.FILTERED_FINGERPRINT,
                     Confidence.HIGH,
                     "The operator answers some TLS fingerprints and kills others on this port.",
                     evidence,
@@ -1037,7 +1037,7 @@ object DpiAssessmentEngine {
             DifferentialOutcome.ALL_BLOCKED -> {
                 if (vantage == VantageOutcome.OPERATOR_FILTERING || input.matrixOutcome == PortMatrixOutcome.SELECTIVE) {
                     return DpiAssessment(
-                        DpiVerdict.FILTERED_PORT,
+                        DpiConclusion.FILTERED_PORT,
                         Confidence.HIGH,
                         "TCP reaches the address on other ports but port ${input.port} answers no TLS at all.",
                         evidence,
@@ -1046,7 +1046,7 @@ object DpiAssessmentEngine {
                     )
                 }
                 return DpiAssessment(
-                    DpiVerdict.FILTERED_ADDRESS,
+                    DpiConclusion.FILTERED_ADDRESS,
                     if (vantage == VantageOutcome.OPERATOR_FILTERING) Confidence.HIGH else Confidence.MEDIUM,
                     "No port on this address answers from here.",
                     evidence,
@@ -1059,7 +1059,7 @@ object DpiAssessmentEngine {
 
         if (input.matrixOutcome == PortMatrixOutcome.ALL_DEAD && vantage == VantageOutcome.OPERATOR_FILTERING) {
             return DpiAssessment(
-                DpiVerdict.FILTERED_ADDRESS,
+                DpiConclusion.FILTERED_ADDRESS,
                 Confidence.HIGH,
                 "The whole address is unreachable from here while remote nodes reach it.",
                 evidence,
@@ -1070,7 +1070,7 @@ object DpiAssessmentEngine {
 
         if (input.matrixOutcome == PortMatrixOutcome.ALL_DEAD) {
             return DpiAssessment(
-                DpiVerdict.FILTERED_ADDRESS,
+                DpiConclusion.FILTERED_ADDRESS,
                 Confidence.MEDIUM,
                 "No port on ${input.host} answers from this network.",
                 evidence,
@@ -1081,7 +1081,7 @@ object DpiAssessmentEngine {
 
         if (validation == ValidationState.BLIND_NETWORK) {
             return DpiAssessment(
-                DpiVerdict.INCONCLUSIVE,
+                DpiConclusion.INCONCLUSIVE,
                 Confidence.LOW,
                 "The known-filtered control target was answered normally, so this network is not applying " +
                     "filtering the probe can see. Results from this run are not trustworthy.",
@@ -1095,7 +1095,7 @@ object DpiAssessmentEngine {
         }
 
         return DpiAssessment(
-            DpiVerdict.NO_FILTERING_SEEN,
+            DpiConclusion.NO_FILTERING_SEEN,
             if (input.fingerprints.isNotEmpty() && input.postHandshake != null) Confidence.MEDIUM else Confidence.LOW,
             "No filtering was observed on this path for ${input.host}:${input.port}" +
                 (if (input.sni.isNullOrBlank()) "" else " with SNI ${input.sni}") + ".",

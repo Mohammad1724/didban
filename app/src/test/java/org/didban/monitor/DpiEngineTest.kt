@@ -341,7 +341,7 @@ class DpiEngineTest {
                 )
             )
         )
-        assertEquals(DpiVerdict.FILTERED_AFTER_HANDSHAKE, assessment.verdict)
+        assertEquals(DpiConclusion.FILTERED_AFTER_HANDSHAKE, assessment.verdict)
         assertEquals(Confidence.HIGH, assessment.confidence)
         assertTrue(assessment.nextSteps.any { it.contains("XHTTP") })
     }
@@ -355,7 +355,7 @@ class DpiEngineTest {
                 differential = DifferentialOutcome.MODERN_CHROME_ONLY
             )
         )
-        assertEquals(DpiVerdict.FILTERED_MODERN_FINGERPRINT_REQUIRED, assessment.verdict)
+        assertEquals(DpiConclusion.FILTERED_MODERN_FINGERPRINT_REQUIRED, assessment.verdict)
         assertTrue(assessment.evidence.any { it.label == "fingerprint" })
     }
 
@@ -370,7 +370,7 @@ class DpiEngineTest {
                 remote = RemoteVantage(nodesReached = 14, nodesOpen = 13)
             )
         )
-        assertEquals(DpiVerdict.FILTERED_ADDRESS, assessment.verdict)
+        assertEquals(DpiConclusion.FILTERED_ADDRESS, assessment.verdict)
         assertEquals(Confidence.HIGH, assessment.confidence)
     }
 
@@ -384,7 +384,7 @@ class DpiEngineTest {
                 remote = RemoteVantage(nodesReached = 14, nodesOpen = 0)
             )
         )
-        assertEquals(DpiVerdict.SERVICE_DOWN, assessment.verdict)
+        assertEquals(DpiConclusion.SERVICE_DOWN, assessment.verdict)
     }
 
     @Test
@@ -403,7 +403,7 @@ class DpiEngineTest {
                 )
             )
         )
-        assertEquals(DpiVerdict.NO_FILTERING_SEEN, assessment.verdict)
+        assertEquals(DpiConclusion.NO_FILTERING_SEEN, assessment.verdict)
         assertTrue(assessment.limitations.any { it.contains("never") })
         assertTrue(assessment.nextSteps.any { it.contains("transport") })
     }
