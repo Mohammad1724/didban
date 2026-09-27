@@ -2,6 +2,19 @@
 
 ## Unreleased — 2026-09-27
 
+### DPI forensics engine (`DpiEngine.kt`)
+
+The censorship diagnosis could report "healthy" for a target the real client could not use at all. Three structural causes, all addressed by the new engine:
+
+- TLS was only attempted on a hardcoded port whitelist (443, 8443, 2053, 2083, 2087, 2096, 9443), so a REALITY service on 2887 or 31049 never got a handshake — a bare `connect()` was reported as healthy.
+- Not a single payload byte was exchanged after the handshake, so the dominant "accept then reset after data" operator pattern was invisible.
+- The probe's TLS fingerprint was Conscrypt's, not the client's, and the run had no controls, so it could not tell "no filtering" apart from "I am blind on this network".
+
+- `ClientHelloForge` builds ClientHellos for seven fingerprints (modern Chrome with a post-quantum group, legacy Chrome, Firefox, Safari, Edge, Go/Java, and a REALITY-like Chrome with a 32-byte session id), so an operator that whitelists ClientHello patterns is detected by differential.
+- `PostHandshakeProbe` watches the connection *after* the handshake (idle survival, then an 8 KB payload) and reports resets that only appear once data moves.
+- `PortMatrix`, `RunValidator` (positive/negative controls) and `RemoteVantageCompare` (Check-Host) separate "address filtered" from "port filtered" from "service down", and refuse to trust a run whose negative control came back clean.
+- Verdicts now carry a confidence level, the evidence behind them, and an explicit list of what the run did **not** check. The clean verdict is `NO_FILTERING_SEEN`, never "provably unfiltered".
+
 ### Removed tools
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
