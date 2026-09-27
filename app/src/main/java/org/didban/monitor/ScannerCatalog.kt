@@ -7,13 +7,13 @@ import java.nio.charset.CodingErrorAction
 
 /** Offline candidates, NOT a claim of reachability, TLS suitability, or clean IPs. */
 internal object ScannerCatalog {
-    const val VERSION = "2026-09-19"
+    const val VERSION = "2026-09-27"
     const val CF_SOURCE = "https://www.cloudflare.com/ips-v4/"
     const val MAX_TEXT_BYTES = 65_536
     const val MAX_SNI_TARGETS = 256
     const val SNI_CONCURRENCY = 4
 
-    enum class Group { ALL, TECHNOLOGY, DEVELOPMENT, KNOWLEDGE, SERVICES }
+    enum class Group { ALL, TECHNOLOGY, DEVELOPMENT, KNOWLEDGE, SERVICES, IRAN }
 
     private fun names(text: String) = text.trimIndent().trim().split(Regex("\\s+"))
 
@@ -78,6 +78,18 @@ internal object ScannerCatalog {
             www.lufthansa.com www.klm.com www.qantas.com www.airfrance.com
             www.cathaypacific.com www.jetblue.com www.southwest.com
             www.united.com www.delta.com
+        """),
+        Group.IRAN to names("""
+            digikala.com digistyle.com divar.ir torob.com bama.ir
+            alibaba.ir mrbilit.com safar724.com snapp.ir aparat.com
+            filimo.com namava.ir telewebion.com doctoreto.com cafebazaar.ir
+            myket.ir zoomit.ir varzesh3.com isna.ir irna.ir
+            tasnimnews.com khabaronline.ir entekhab.ir khabarfarsi.com yjc.ir
+            mehrnews.com tabnak.ir irancell.ir mci.ir tci.ir
+            shaparak.ir iran.ir gov.ir bankmellat.ir bsi.ir
+            tejaratbank.ir zarinpal.com idpay.ir quera.org arvancloud.ir
+            parspack.com iranserver.com webgozar.com blogfa.com ghatreh.com
+            namnak.com tebyan.net
         """)
     )
 

@@ -6,6 +6,10 @@
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
 
+### REALITY SNI scanner
+
+- Added an «سایت‌های ایرانی / Iranian sites» category (47 popular Iranian domains — e-commerce, media, telecom, banking, infrastructure) to the bundled SNI candidate list, for domestic-SNI setups; the bundled list is now 273 domains in five categories.
+
 ### Tools launcher polish
 
 - The Tools launcher is now one page with two labeled sections — «ابزارهای شبکه» (network tiles) then «سایر ابزارها» (Share, Batch) — replacing the redundant All/Network Tools tabs whose contents overlapped.

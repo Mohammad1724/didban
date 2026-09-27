@@ -297,14 +297,14 @@ internal fun CommandRoute.helpContent(language: String): CommandHelpContent {
             "SNI نام دامنه‌ای است که در شروع اتصال امن معرفی می‌شود. اینجا دامنه‌های کاندید برای استفاده در تنظیمات SNI/REALITY را از نظر TLS و گواهی بررسی می‌کنید؛ خود VPN ساخته نمی‌شود.",
             "SNI is the domain name introduced when starting a secure connection. Check candidate SNI/REALITY domains for TLS and certificate properties; this does not create a VPN.",
             listOf(
-                "فهرست آماده را انتخاب کنید: ۲۲۶ دامنه در چهار دسته دارید و می‌توانید دسته یا همه را انتخاب کنید.",
+                "فهرست آماده را انتخاب کنید: ۲۷۳ دامنه در پنج دسته دارید؛ دستهٔ «سایت‌های ایرانی» مخصوص SNI داخلی است و می‌توانید یک دسته یا همه را انتخاب کنید.",
                 "تعداد را تعیین کنید؛ پیش‌فرض ۵۰ مقصد است. پورت معمول 443 را نگه دارید مگر مقصد شما متفاوت باشد.",
                 "در پیش‌نمایش فهرست را ببینید و شروع اسکن را بزنید؛ نتیجهٔ قبول یا رد هر مقصد را بخوانید.",
                 "برای دامنه‌های شخصی، فهرست را به حالت دستی کپی و ویرایش کنید یا فایل UTF-8 تا ۶۴ KiB وارد کنید؛ بررسی تکی هم موجود است.",
                 "دامنهٔ مناسب را با تنظیمات و از سرور واقعی خودتان دوباره آزمایش کنید.",
             ),
             listOf(
-                "Choose the bundled list: 226 domains in four categories, or select all categories.",
+                "Choose the bundled list: 273 domains in five categories, including an Iranian-sites category for domestic SNI; select one category or all.",
                 "Choose a count; the default is 50. Keep port 443 unless your target uses another port.",
                 "Preview the list, start scanning and read each accepted or rejected result.",
                 "For custom domains, copy the list to custom input and edit, or import UTF-8 text up to 64 KiB; single-domain checking remains available.",

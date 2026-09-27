@@ -49,6 +49,7 @@ internal fun ScannerCatalog.Group.label(copy: CommandCopy): String = when (this)
     ScannerCatalog.Group.DEVELOPMENT -> copy.scannerCategoryDevelopment
     ScannerCatalog.Group.KNOWLEDGE -> copy.scannerCategoryKnowledge
     ScannerCatalog.Group.SERVICES -> copy.scannerCategoryServices
+    ScannerCatalog.Group.IRAN -> copy.scannerCategoryIran
 }
 
 @Composable

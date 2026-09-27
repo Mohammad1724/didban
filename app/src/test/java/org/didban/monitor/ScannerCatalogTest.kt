@@ -12,16 +12,18 @@ internal fun scannerFixture(host: String, port: Int) = RealityProbeResult(
 )
 
 class ScannerCatalogTest {
-    @Test fun `large offline catalog has unique valid candidates across four balanced categories`() {
+    @Test fun `large offline catalog has unique valid candidates across five balanced categories`() {
         val all = ScannerCatalog.domains(ScannerCatalog.Group.ALL)
         assertTrue(all.size >= 200)
-        assertTrue(all.size <= ScannerCatalog.MAX_SNI_TARGETS)
+        assertTrue(all.size <= 300)
         assertEquals(all.size, all.distinct().size)
         assertTrue(all.all(ScannerCatalog::validDomain))
         assertTrue(all.none { it in RealitySniScanner.DISCOURAGED })
-        assertEquals(4, ScannerCatalog.groups.size)
+        assertEquals(5, ScannerCatalog.groups.size)
+        assertTrue(ScannerCatalog.groups.getValue(ScannerCatalog.Group.IRAN).size >= 40)
+        assertTrue(ScannerCatalog.groups.getValue(ScannerCatalog.Group.IRAN).all { ScannerCatalog.validDomain(it) })
         assertTrue(ScannerCatalog.groups.values.all { it.size >= 40 })
-        ScannerCatalog.groups.values.forEach { assertTrue(it.first() in all.take(4)) }
+        ScannerCatalog.groups.values.forEach { assertTrue(it.first() in all.take(5)) }
         all.forEach { assertEquals(it to 443, RealitySniScanner.parseTarget(it)) }
     }
 

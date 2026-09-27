@@ -640,6 +640,7 @@ interface CommandCopy {
     val scannerCategoryDevelopment: String
     val scannerCategoryKnowledge: String
     val scannerCategoryServices: String
+    val scannerCategoryIran: String
     val scannerLimit: String
     val scannerPlanSummary: String
     val scannerRangeSummary: String
@@ -1546,6 +1547,7 @@ internal object CommandCopyFa : CommandCopy {
     override val scannerCategoryDevelopment = "توسعه و متن‌باز"
     override val scannerCategoryKnowledge = "دانش و رسانه"
     override val scannerCategoryServices = "خدمات و فروشگاه‌ها"
+    override val scannerCategoryIran = "سایت‌های ایرانی"
     override val scannerLimit = "حداکثر تعداد اسکن"
     override val scannerPlanSummary = "در این اجرا: %1 از %2 کاندید"
     override val scannerRangeSummary = "%1 از %2 رنج انتخاب شده"
@@ -2445,6 +2447,7 @@ internal object CommandCopyEn : CommandCopy {
     override val scannerCategoryDevelopment = "Development & open source"
     override val scannerCategoryKnowledge = "Knowledge & media"
     override val scannerCategoryServices = "Services & shopping"
+    override val scannerCategoryIran = "Iranian sites"
     override val scannerLimit = "Scan limit"
     override val scannerPlanSummary = "This run: %1 of %2 candidates"
     override val scannerRangeSummary = "%1 of %2 ranges selected"
