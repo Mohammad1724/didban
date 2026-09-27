@@ -56,4 +56,22 @@ class DpiVerdictTest {
     fun `partial sni failures are unstable`() {
         assertEquals(DpiVerdict.UNSTABLE, result(sniOk = 1).verdict)
     }
+
+    @Test
+    fun `impossibly fast target vs reference reads as middlebox`() {
+        val r = result().copy(avgLatencyMs = 4, controlAvgMs = 90)
+        assertEquals(DpiVerdict.MIDDLEBOX, r.verdict)
+    }
+
+    @Test
+    fun `plausible latency with a live reference stays healthy`() {
+        val r = result().copy(avgLatencyMs = 85, controlAvgMs = 90)
+        assertEquals(DpiVerdict.HEALTHY, r.verdict)
+    }
+
+    @Test
+    fun `no reference anchor skips the middlebox check`() {
+        val r = result().copy(avgLatencyMs = 4, controlAvgMs = -1)
+        assertEquals(DpiVerdict.HEALTHY, r.verdict)
+    }
 }

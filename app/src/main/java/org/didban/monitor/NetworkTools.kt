@@ -209,7 +209,7 @@ enum class CensorshipDiagnosis {
 }
 
 /** Deep-DPI verdicts: distinguish "IP blocked" from "SNI/pattern blocked" from "healthy". */
-enum class DpiVerdict { TCP_BLOCKED, TCP_DOWN, UNSTABLE, TLS_BLOCKED, SNI_BLOCKED, HEALTHY }
+enum class DpiVerdict { TCP_BLOCKED, TCP_DOWN, UNSTABLE, TLS_BLOCKED, SNI_BLOCKED, HEALTHY, MIDDLEBOX }
 
 /** One probe attempt. [reset] marks an observed injected RST rather than a timeout. */
 data class DpiProbe(val ok: Boolean, val reset: Boolean, val latencyMs: Long, val refused: Boolean = false)
@@ -233,7 +233,14 @@ data class DpiDeepResult(
     val tlsSniTries: Int,
     val tcpReset: Boolean,
     val sniReset: Boolean,
-    val avgLatencyMs: Long
+    val avgLatencyMs: Long,
+    /** Average RTT of the reference anchor (1.1.1.1 / 8.8.8.8), -1 when unreachable. */
+    val controlAvgMs: Long = -1,
+    /** Certificate returned when handshaking with the user's SNI (empty = not captured). */
+    val sniCertCn: String = "",
+    val sniCertIssuer: String = "",
+    /** "match" / "mismatch" / "" (unknown). */
+    val sniCertSan: String = ""
 ) {
     val verdict: DpiVerdict
         get() = when {
@@ -243,6 +250,9 @@ data class DpiDeepResult(
             tlsPlainTries > 0 && tlsPlainOk == 0 -> DpiVerdict.TLS_BLOCKED
             tlsSniTries > 0 && tlsSniOk == 0 -> DpiVerdict.SNI_BLOCKED
             tlsSniTries > 0 && tlsSniOk < tlsSniTries -> DpiVerdict.UNSTABLE
+            // Impossibly fast answers versus the reference anchor: something
+            // on-path is responding instead of the real server.
+            controlAvgMs >= 40 && avgLatencyMs in 0 until minOf(20, controlAvgMs * 35 / 100) -> DpiVerdict.MIDDLEBOX
             else -> DpiVerdict.HEALTHY
         }
 }
@@ -380,12 +390,22 @@ object CensorshipTester {
         }
     }
 
+    private class TlsProbeOutcome(
+        val probe: DpiProbe,
+        val certCn: String = "",
+        val certIssuer: String = "",
+        val sanMatch: String = ""
+    )
+
     /** Trust-all TLS handshake with explicit SNI control ([sni] = null sends no server name). */
-    private fun tlsProbe(host: String, port: Int, sni: String?, timeoutMs: Int): DpiProbe {
+    private fun tlsProbe(host: String, port: Int, sni: String?, timeoutMs: Int): TlsProbeOutcome {
         val t0 = System.currentTimeMillis()
+        val chainRef = arrayOf<Array<X509Certificate>?>(null)
         val tm = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
+                chainRef[0] = chain
+            }
             override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
         }
         return try {
@@ -399,13 +419,41 @@ object CensorshipTester {
                 else listOf(javax.net.ssl.SNIHostName(sni))
                 s.sslParameters = params
                 s.startHandshake()
-                DpiProbe(ok = true, reset = false, latencyMs = System.currentTimeMillis() - t0)
+                val outcome = DpiProbe(ok = true, reset = false, latencyMs = System.currentTimeMillis() - t0)
+                val chain = chainRef[0]
+                if (chain.isNullOrEmpty() || sni.isNullOrBlank()) TlsProbeOutcome(outcome)
+                else {
+                    val leaf = chain[0]
+                    val cn = Regex("CN=([^,]+)").find(leaf.subjectX500Principal.name)?.groupValues?.get(1)?.trim() ?: ""
+                    val issuer = Regex("CN=([^,]+)").find(leaf.issuerX500Principal.name)?.groupValues?.get(1)?.trim()
+                        ?: leaf.issuerX500Principal.name
+                    val sanMatch = try {
+                        val sans = leaf.subjectAlternativeNames
+                        when {
+                            sans == null -> ""
+                            sans.any { it.size >= 2 && it[1] == sni } -> "match"
+                            else -> "mismatch"
+                        }
+                    } catch (_: Exception) { "" }
+                    TlsProbeOutcome(outcome, cn, issuer, sanMatch)
+                }
             }
         } catch (e: Exception) {
             val msg = e.message ?: ""
             val reset = msg.contains("reset", ignoreCase = true) || msg.contains("broken pipe", ignoreCase = true)
-            DpiProbe(ok = false, reset = reset, latencyMs = System.currentTimeMillis() - t0)
+            TlsProbeOutcome(DpiProbe(ok = false, reset = reset, latencyMs = System.currentTimeMillis() - t0))
         }
+    }
+
+    /** Public-anchor RTT; -1 when no anchor answers at least twice. */
+    private fun controlAnchorAvg(timeoutMs: Int): Long {
+        val anchors = listOf("1.1.1.1" to 443, "8.8.8.8" to 53)
+        var best: List<Long> = emptyList()
+        for ((h, p) in anchors) {
+            val ok = (1..3).map { tcpProbe(h, p, timeoutMs) }.filter { it.ok }.map { it.latencyMs }
+            if (ok.size >= 2 && ok.size > best.size) best = ok
+        }
+        return if (best.isEmpty()) -1 else best.average().toLong()
     }
 
     suspend fun diagnoseDeep(
@@ -416,6 +464,7 @@ object CensorshipTester {
         timeoutMs: Int = 3000
     ): DpiDeepResult = withContext(Dispatchers.IO) {
         val n = tries.coerceIn(1, 5)
+        val controlAvg = controlAnchorAvg(timeoutMs)
         val tcp = (1..n).map { tcpProbe(host, port, timeoutMs) }
         val tcpOkCount = tcp.count { it.ok }
         val anyTcpReset = tcp.any { it.reset }
@@ -424,12 +473,21 @@ object CensorshipTester {
         var plainOk = 0; var plainTries = 0
         var sniOk = 0; var sniTries = 0
         var anySniReset = false
+        var certCn = ""; var certIssuer = ""; var certSan = ""
         if (tcpOkCount > 0 && isTlsPort(port)) {
-            repeat(2) { if (tlsProbe(host, port, null, timeoutMs).ok) plainOk++; plainTries++ }
+            repeat(2) {
+                if (tlsProbe(host, port, null, timeoutMs).probe.ok) plainOk++
+                plainTries++
+            }
             if (!sni.isNullOrBlank()) {
                 repeat(2) {
                     val r = tlsProbe(host, port, sni, timeoutMs)
-                    if (r.ok) sniOk++ else if (r.reset) anySniReset = true
+                    if (r.probe.ok) {
+                        sniOk++
+                        if (r.certCn.isNotBlank() || r.sanMatch.isNotBlank()) {
+                            certCn = r.certCn; certIssuer = r.certIssuer; certSan = r.sanMatch
+                        }
+                    } else if (r.probe.reset) anySniReset = true
                     sniTries++
                 }
             }
@@ -447,7 +505,11 @@ object CensorshipTester {
             tlsSniTries = sniTries,
             tcpReset = anyTcpReset,
             sniReset = anySniReset,
-            avgLatencyMs = if (latencies.isEmpty()) -1 else latencies.average().toLong()
+            avgLatencyMs = if (latencies.isEmpty()) -1 else latencies.average().toLong(),
+            controlAvgMs = controlAvg,
+            sniCertCn = certCn,
+            sniCertIssuer = certIssuer,
+            sniCertSan = certSan
         )
     }
 }

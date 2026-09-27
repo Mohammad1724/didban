@@ -6,6 +6,12 @@
 
 - Removed Proxy Inspector, Developer Tools (Developer Lab) and Single-Port from the app and the Tools launcher; the Tools launcher is now two tabs (All, Network Tools) with the Share and Batch utilities kept in All. Routes and their saved keys fall back safely for existing installs.
 
+### Middlebox suspicion for the "everything green at 4ms" case
+
+- The DPI run now measures a reference anchor (1.1.1.1 / 8.8.8.8) and compares: if the target answers impossibly fast versus that reference (like the reported 4ms), the verdict becomes «پاسخ‌ها مشکوک‌اند: احتمالاً سرور واقعی جواب نمی‌دهد» — an on-path middlebox is probably answering, not the server.
+- If a VPN is active, the screen now leads with «VPN فعاله — نتیجه مالِ مسیر مستقیم نیست» since tunnelled probes say nothing about operator filtering.
+- The TLS-with-SNI probe now captures the returned certificate (CN, issuer, SAN match) and shows it, exposing transparent TLS interception.
+
 ### DPI diagnostics that can actually catch operator filtering
 
 - The DPI test no longer trusts a single plain connection. It now repeats probes — TCP 3×, TLS twice without SNI and twice with your SNI — and reports pass counts, average latency and injected-RST sightings, because RST injection is intermittent and operator filtering usually targets the ClientHello pattern (REALITY/uTLS), not the plain handshake.

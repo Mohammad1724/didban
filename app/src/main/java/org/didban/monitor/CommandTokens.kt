@@ -769,6 +769,14 @@ interface CommandCopy {
     val netAttemptsLine: String
     val netAvgLatency: String
     val netResetFlag: String
+    val netCtlLine: String
+    val netSniCertLine: String
+    val netCertSanMatch: String
+    val netCertSanMismatch: String
+    val netNetVpnTitle: String
+    val netNetVpnBody: String
+    val netVerdictMiddlebox: String
+    val netTipMiddlebox: String
     val dnsNoPtr: String
     val tunEditingId: String
     val upMonitorConfiguration: String
@@ -1691,6 +1699,14 @@ internal object CommandCopyFa : CommandCopy {
     override val netAttemptsLine = "TCP %1/%2 · TLS بدون SNI %3/%4 · TLS با SNI %5/%6"
     override val netAvgLatency = "میانگین تأخیر: %1"
     override val netResetFlag = "نشانهٔ RST تزریقی دیده شد"
+    override val netCtlLine = "تأخیر مرجع (1.1.1.1): %1"
+    override val netSniCertLine = "گواهی با SNI شما: CN=%1 · صادرکننده=%2 · SAN=%3"
+    override val netCertSanMatch = "همسان"
+    override val netCertSanMismatch = "ناهمسان"
+    override val netNetVpnTitle = "VPN فعاله — نتیجه مالِ مسیر مستقیم نیست"
+    override val netNetVpnBody = "این تست از داخل تونل VPN رفته و دربارهٔ فیلترینگ اپراتور چیزی نمی‌گوید. برای تست DPI، VPN را کاملاً خاموش کن و دوباره اجرا کن."
+    override val netVerdictMiddlebox = "پاسخ‌ها مشکوک‌اند: احتمالاً سرور واقعی جواب نمی‌دهد"
+    override val netTipMiddlebox = "تأخیر هدف نسبت به مرجع غیرواقعی کم است؛ به‌احتمال زیاد یک واسط روی مسیر جواب می‌دهد نه سرور شما. VPN را خاموش کن، چند بار تکرار کن و نتیجه را با اپراتور دیگر مقایسه کن."
     override val dnsNoPtr = "بدون PTR"
     override val tunEditingId = "ویرایش #%1"
     override val upMonitorConfiguration = "تنظیمات پایش"
@@ -2606,6 +2622,14 @@ internal object CommandCopyEn : CommandCopy {
     override val netAttemptsLine = "TCP %1/%2 · TLS no-SNI %3/%4 · TLS with SNI %5/%6"
     override val netAvgLatency = "Average latency: %1"
     override val netResetFlag = "Injected RST observed"
+    override val netCtlLine = "Reference latency (1.1.1.1): %1"
+    override val netSniCertLine = "Certificate with your SNI: CN=%1 · issuer=%2 · SAN=%3"
+    override val netCertSanMatch = "matches"
+    override val netCertSanMismatch = "mismatch"
+    override val netNetVpnTitle = "VPN active — this is not your direct path"
+    override val netNetVpnBody = "This probe went through the VPN tunnel and says nothing about operator filtering. Turn the VPN off completely and rerun the DPI test."
+    override val netVerdictMiddlebox = "Suspicious answers: likely not your real server"
+    override val netTipMiddlebox = "Target latency is impossibly low versus the reference; an on-path middlebox is probably answering instead of your server. Turn the VPN off, rerun a few times and compare with another operator."
     override val dnsNoPtr = "No PTR"
     override val tunEditingId = "editing #%1"
     override val upMonitorConfiguration = "Monitor configuration"

@@ -75,10 +75,11 @@ private fun localizedVerdict(verdict: DpiVerdict, copy: CommandCopy): String = w
     DpiVerdict.TLS_BLOCKED -> copy.netVerdictTlsBlocked
     DpiVerdict.SNI_BLOCKED -> copy.netVerdictSniBlocked
     DpiVerdict.HEALTHY -> copy.netVerdictHealthy
+    DpiVerdict.MIDDLEBOX -> copy.netVerdictMiddlebox
 }
 
 private fun verdictTone(verdict: DpiVerdict): CommandHealthTone = when (verdict) {
-    DpiVerdict.TCP_BLOCKED, DpiVerdict.TCP_DOWN, DpiVerdict.TLS_BLOCKED, DpiVerdict.SNI_BLOCKED -> CommandHealthTone.OFFLINE
+    DpiVerdict.TCP_BLOCKED, DpiVerdict.TCP_DOWN, DpiVerdict.TLS_BLOCKED, DpiVerdict.SNI_BLOCKED, DpiVerdict.MIDDLEBOX -> CommandHealthTone.OFFLINE
     DpiVerdict.UNSTABLE -> CommandHealthTone.ATTENTION
     DpiVerdict.HEALTHY -> CommandHealthTone.HEALTHY
 }
@@ -87,24 +88,25 @@ private fun verdictTip(verdict: DpiVerdict, copy: CommandCopy): String = when (v
     DpiVerdict.SNI_BLOCKED -> copy.netTipSniBlocked
     DpiVerdict.HEALTHY -> copy.netTipHealthy
     DpiVerdict.UNSTABLE -> copy.netTipRetest
+    DpiVerdict.MIDDLEBOX -> copy.netTipMiddlebox
     else -> ""
 }
 
-/** Current data network: Wi-Fi, cellular (with operator) or unknown. */
-internal fun currentNetworkContext(context: Context): Triple<Boolean, String, String> {
-    val wifi: Boolean
-    val operator: String
-    try {
+/** Current data network: VPN, Wi-Fi, cellular (with operator) or unknown. */
+internal data class NetContext(val wifi: Boolean, val vpn: Boolean, val operator: String)
+internal fun currentNetworkContext(context: Context): NetContext {
+    return try {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         val caps = cm?.activeNetwork?.let { cm.getNetworkCapabilities(it) }
-        wifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
-        operator = if (wifi) "" else runCatching {
+        val vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        val wifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        val operator = if (wifi || vpn) "" else runCatching {
             (context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager)?.networkOperatorName.orEmpty()
-        }.getOrDefault("").ifBlank { "" }
+        }.getOrDefault("")
+        NetContext(wifi, vpn, operator)
     } catch (_: Exception) {
-        return Triple(false, "", "")
+        NetContext(false, false, "")
     }
-    return Triple(wifi, operator, "")
 }
 
 private fun localizedCensorshipResult(
@@ -196,6 +198,17 @@ fun CommandNetworkToolsScreen(
                                     .replace("%5", result.tlsSniOk.toString()).replace("%6", result.tlsSniTries.toString())
                             )
                             if (result.avgLatencyMs >= 0) appendLine(copy.netAvgLatency.replace("%1", result.avgLatencyMs.toString()))
+                            if (result.controlAvgMs >= 0) appendLine(copy.netCtlLine.replace("%1", result.controlAvgMs.toString()))
+                            if (result.sniCertCn.isNotBlank() || result.sniCertIssuer.isNotBlank()) appendLine(
+                                copy.netSniCertLine
+                                    .replace("%1", result.sniCertCn.ifBlank { "-" })
+                                    .replace("%2", result.sniCertIssuer.ifBlank { "-" })
+                                    .replace("%3", when (result.sniCertSan) {
+                                        "match" -> copy.netCertSanMatch
+                                        "mismatch" -> copy.netCertSanMismatch
+                                        else -> "-"
+                                    })
+                            )
                             if (result.tcpReset) appendLine(copy.netResetFlag)
                             else if (result.sniReset) appendLine(copy.netResetFlag)
                             val tip = verdictTip(verdict, copy)
@@ -265,12 +278,12 @@ fun CommandNetworkToolsScreen(
             // Filtering decisions are per-operator: state the current network so
             // a Wi-Fi result is never mistaken for an operator verdict.
             val context = LocalContext.current
-            val (onWifi, operator, _) = remember { currentNetworkContext(context) }
-            if (onWifi) {
-                CommandStatusMark(copy.netNetWifiTitle, CommandHealthTone.ATTENTION, detail = copy.netNetWifiBody)
-            } else {
-                CommandStatusMark(
-                    if (operator.isBlank()) copy.netNetCellUnknown else copy.netNetCellTitle.replace("%1", operator),
+            val net = remember { currentNetworkContext(context) }
+            when {
+                net.vpn -> CommandStatusMark(copy.netNetVpnTitle, CommandHealthTone.OFFLINE, detail = copy.netNetVpnBody)
+                net.wifi -> CommandStatusMark(copy.netNetWifiTitle, CommandHealthTone.ATTENTION, detail = copy.netNetWifiBody)
+                else -> CommandStatusMark(
+                    if (net.operator.isBlank()) copy.netNetCellUnknown else copy.netNetCellTitle.replace("%1", net.operator),
                     CommandHealthTone.INFO,
                     detail = copy.netNetCellBody
                 )
