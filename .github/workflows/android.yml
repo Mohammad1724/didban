@@ -26,7 +26,11 @@ jobs:
   verify:
     name: Tests & lint
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # A branch that has never been built starts with a cold Gradle cache: the
+    # big configuration and dependency caches are only shared with the base
+    # branch, so the first run recompiles everything and the 78 Robolectric
+    # test classes on top of it. That does not fit in 25 minutes.
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
