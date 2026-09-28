@@ -57,9 +57,19 @@ android {
     testOptions {
         unitTests.includeAndroidResources = true
         unitTests.all {
-            maxHeapSize = "384m"
-            jvmArgs "-XX:MaxMetaspaceSize=192m", "-XX:+UseSerialGC"
+            // Every Robolectric class boots an Android runtime and the Compose
+            // screenshot tests render real layouts. At 384m with the serial
+            // collector the worker spent most of its time collecting, so a full
+            // run did not finish in 40 minutes -- it only ever "passed" in CI
+            // because Gradle served the task from the build cache. Anything
+            // touching a widely-depended-on file (CommandTokens.kt, say)
+            // invalidated that cache and stalled the job instead.
+            maxHeapSize = "1536m"
+            jvmArgs "-XX:MaxMetaspaceSize=512m"
             systemProperty "robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2"
+            // Standard runners have 4 vCPU; two workers roughly halve the wall
+            // clock without exceeding the machine's memory.
+            maxParallelForks = 2
         }
     }
     buildFeatures {
