@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+      # Working branches, so a change can be built and tested before it is
+      # merged. Without this the only way to get CI was to push to main.
+      - 'fix/**'
+      - 'feat/**'
     tags:
       - 'v*'
   pull_request:
