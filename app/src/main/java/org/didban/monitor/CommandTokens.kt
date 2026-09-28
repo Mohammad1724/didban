@@ -678,6 +678,8 @@ interface CommandCopy {
     val realityDomain: String
     val realityCheck: String
     val realityCheckAll: String
+    /** Explains that donors are probed on 443 and how to set another port. */
+    val realityDonorPortHint: String
     val realityDiscouraged: String
     val realityResults: String
     val realityProgress: String
@@ -1128,6 +1130,8 @@ interface CommandCopy {
     val dnsInspect: String
     val dnsInspectBody: String
     val copyAction: String
+    /** Feedback shown right after a value was copied to the clipboard. */
+    val copiedToClipboard: String
     val selected: String
     val notSelected: String
     val batchSharedPassword: String
@@ -1610,6 +1614,7 @@ internal object CommandCopyFa : CommandCopy {
     override val realityDomain = "دامنهٔ دونر"
     override val realityCheck = "بررسی دونر"
     override val realityCheckAll = "شروع اسکن فهرست"
+    override val realityDonorPortHint = "دامنه‌های مقصد روی پورت ۴۴۳ بررسی می‌شوند. برای پورت دیگر، آن را در لیست دستی جلوی دامنه بنویسید: example.com:8443"
     override val realityDiscouraged = "دونرهای نامناسب"
     override val realityResults = "نتایج"
     override val realityProgress = "%1 از %2 بررسی شد · %3 قابل استفاده"
@@ -2060,6 +2065,7 @@ internal object CommandCopyFa : CommandCopy {
     override val dnsInspect = "بررسی پاسخ DNS"
     override val dnsInspectBody = "Resolve، Reverse DNS و Recordهای عمومی"
     override val copyAction = "کپی"
+    override val copiedToClipboard = "کپی شد"
     override val selected = "انتخاب‌شده"
     override val notSelected = "انتخاب‌نشده"
     override val batchSharedPassword = "SSH Password مشترک"
@@ -2535,6 +2541,7 @@ internal object CommandCopyEn : CommandCopy {
     override val realityDomain = "Donor domain"
     override val realityCheck = "Check donor"
     override val realityCheckAll = "Scan selected list"
+    override val realityDonorPortHint = "Donor domains are probed on port 443. For a different port, write it after the domain in the manual list: example.com:8443"
     override val realityDiscouraged = "Donors to avoid"
     override val realityResults = "Results"
     override val realityProgress = "%1 of %2 checked · %3 usable"
@@ -2985,6 +2992,7 @@ internal object CommandCopyEn : CommandCopy {
     override val dnsInspect = "Inspect DNS resolution"
     override val dnsInspectBody = "Resolve, reverse DNS and public records"
     override val copyAction = "Copy"
+    override val copiedToClipboard = "Copied"
     override val selected = "Selected"
     override val notSelected = "Not selected"
     override val batchSharedPassword = "Shared SSH password"

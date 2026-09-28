@@ -2,6 +2,11 @@
 
 ## Unreleased — 2026-09-27
 
+### Scanner: take a result with you, and stop asking for a donor port
+
+- Clean-IP and REALITY donor results can now be copied one at a time. The clean-IP screen only ever exported the top 20 as a block, and the REALITY screen had no clipboard support at all — so a single useful IP found deep in a scan, or the donor name you came for, could not be taken away.
+- Removed the global "port" field from the REALITY donor scanner. A donor is an ordinary website reached over TLS 443, so the field read as "scan donors on my REALITY port" (2887, 31049, ...) where no website answers; such a scan correctly found nothing and looked broken. A non-default port is still available per target as `example.com:8443` in the manual list, which `parseSniList` already understood.
+
 ### DPI forensics engine (`DpiEngine.kt`)
 
 The censorship diagnosis could report "healthy" for a target the real client could not use at all. Three structural causes, all addressed by the new engine:

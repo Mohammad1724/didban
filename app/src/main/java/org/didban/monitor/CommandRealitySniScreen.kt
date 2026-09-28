@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -27,11 +28,20 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+
+/**
+ * The TLS port a REALITY donor is reached on: the donor is an ordinary
+ * website, so this is the website's port — never the port of your own
+ * REALITY inbound. See the note in `startBatch`.
+ */
+private const val DONOR_TLS_PORT = 443
 
 /**
  * REALITY donor (dest / SNI) checker.
@@ -48,9 +58,9 @@ internal fun CommandRealitySniScreen(
     probe: suspend (String, Int) -> RealityProbeResult = { host, port -> RealitySniScanner.probe(host, port, timeoutMs = 3_000) }
 ) {
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
 
     var target by rememberSaveable { mutableStateOf("") }
-    var port by rememberSaveable { mutableStateOf("443") }
     var customSource by rememberSaveable { mutableStateOf(false) }
     var category by rememberSaveable { mutableStateOf(ScannerCatalog.Group.ALL.name) }
     var limitText by rememberSaveable { mutableStateOf("50") }
@@ -58,7 +68,7 @@ internal fun CommandRealitySniScreen(
     var preview by remember { mutableStateOf(false) }
     val group = ScannerCatalog.Group.values().firstOrNull { it.name == category } ?: ScannerCatalog.Group.ALL
     val limit = (limitText.toIntOrNull() ?: 50).coerceIn(1, ScannerCatalog.MAX_SNI_TARGETS)
-    val imported = ScannerCatalog.parseSniList(customDomains, port.toIntOrNull() ?: 443, limit)
+    val imported = ScannerCatalog.parseSniList(customDomains, DONOR_TLS_PORT, limit)
     val readyNames = ScannerCatalog.domains(group)
 
     var job by remember { mutableStateOf<Job?>(null) }
@@ -68,16 +78,25 @@ internal fun CommandRealitySniScreen(
     var single by remember { mutableStateOf<Pair<RealityProbeResult, RealityAssessment>?>(null) }
     var batch by remember { mutableStateOf<List<Pair<RealityProbeResult, RealityAssessment>>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var notice by remember { mutableStateOf<String?>(null) }
     var expanded by remember { mutableStateOf<String?>(null) }
+
+    /** Copies one value and confirms it, so a tap never looks like a no-op. */
+    fun copyValue(value: String) {
+        if (value.isBlank()) return
+        clipboard.setText(AnnotatedString(value))
+        notice = copy.copiedToClipboard
+    }
 
     fun startSingle() {
         if (running) return
-        val parsed = RealitySniScanner.parseTarget(target, port.toIntOrNull() ?: 443)
+        val parsed = RealitySniScanner.parseTarget(target, DONOR_TLS_PORT)
         if (parsed == null || !ScannerCatalog.validDomain(parsed.first)) {
             error = copy.realityBadTarget
             return
         }
         error = null
+        notice = null
         single = null
         batch = emptyList()
         batchTotal = 0
@@ -101,15 +120,21 @@ internal fun CommandRealitySniScreen(
     fun startBatch() {
         if (running) return
         error = null
+        notice = null
         single = null
         batch = emptyList()
-        val scanPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
-        if (scanPort == null) { error = copy.fleetPortInvalid; return }
         // Read saved input state AT THE CLICK, not an immutable composition snapshot.
         val scanLimit = (limitText.toIntOrNull() ?: 50).coerceIn(1, ScannerCatalog.MAX_SNI_TARGETS)
         val selectedGroup = ScannerCatalog.Group.values().firstOrNull { it.name == category } ?: ScannerCatalog.Group.ALL
-        val names = if (customSource) ScannerCatalog.parseSniList(customDomains, scanPort, scanLimit).targets
-            else ScannerCatalog.sniPlan(selectedGroup, scanLimit, scanPort)
+        // The donor's own TLS port, never the port of your REALITY inbound.
+        // A donor is an ordinary website reached over 443; offering a global
+        // port field here made people scan donors on their own tunnel port
+        // (2887, 31049, ...) where no website answers, and conclude the tool
+        // found nothing. A non-default port is still expressible per target as
+        // `example.com:8443` in the manual list, which parseSniList already
+        // understands — see ScannerPresetUiTest.
+        val names = if (customSource) ScannerCatalog.parseSniList(customDomains, DONOR_TLS_PORT, scanLimit).targets
+            else ScannerCatalog.sniPlan(selectedGroup, scanLimit, DONOR_TLS_PORT)
         if (names.isEmpty()) { error = copy.realityBadTarget; return }
         batchTotal = names.size
         batchDone = 0
@@ -175,13 +200,10 @@ internal fun CommandRealitySniScreen(
                     OutlinedTextField(limitText, { limitText = it.filter(Char::isDigit).take(3) },
                         Modifier.fillMaxWidth(), enabled = !running, singleLine = true,
                         label = { Text("${copy.scannerLimit} (1–${ScannerCatalog.MAX_SNI_TARGETS})") })
-                        OutlinedTextField(
-                            value = port,
-                            onValueChange = { port = it.filter(Char::isDigit).take(5) },
-                            label = { Text(copy.port) },
-                            singleLine = true,
-                            enabled = !running,
-                            modifier = Modifier.fillMaxWidth()
+                        Text(
+                            copy.realityDonorPortHint,
+                            color = CommandColors.textTertiary,
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                     CommandPrimaryButton(copy.realityCheckAll, ::startBatch, enabled = !running, modifier = Modifier.fillMaxWidth(), icon = Icons.Rounded.PlayArrow)
@@ -233,6 +255,7 @@ internal fun CommandRealitySniScreen(
         }
 
         if (error != null) item { CommandStateBlock(copy.operationFailed, error ?: "", CommandHealthTone.OFFLINE) }
+        if (notice != null) item { CommandStateBlock(copy.operationDone, notice ?: "", CommandHealthTone.INFO) }
 
         if (running && batchTotal > 0) {
             item {
@@ -255,7 +278,7 @@ internal fun CommandRealitySniScreen(
         }
 
         single?.let { (r, a) ->
-            item { RealityVerdictCard(copy, r, a) }
+            item { RealityVerdictCard(copy, r, a, { copyValue(it) }) }
             item { RealityDetailCard(copy, r, a) }
         }
 
@@ -275,6 +298,10 @@ internal fun CommandRealitySniScreen(
                                 Modifier.weight(1f),
                                 "${copy.realityScore}: ${a.score}"
                             )
+                            // Same reason as the single-result card: a scan that
+                            // finds a good donor is only useful if the name can
+                            // be taken away from it.
+                            CommandIconButton(Icons.Rounded.ContentCopy, copy.copyAction, { copyValue(r.sni) })
                         }
                         if (a.blockerFindings.isNotEmpty()) {
                             Text(
@@ -346,7 +373,8 @@ private fun RealityFinding.localized(copy: CommandCopy): String = when (kind) {
 private fun RealityVerdictCard(
     copy: CommandCopy,
     r: RealityProbeResult,
-    a: RealityAssessment
+    a: RealityAssessment,
+    onCopy: (String) -> Unit
 ) {
     CommandSurface(raised = true, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(CommandSpacing.md), verticalArrangement = Arrangement.spacedBy(CommandSpacing.sm)) {
@@ -360,11 +388,20 @@ private fun RealityVerdictCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // The donor name is the value a user came here to get, so it
+                // has to be takeable on its own — a verdict you cannot paste
+                // into a REALITY config is only half a result.
+                CommandIconButton(Icons.Rounded.ContentCopy, copy.copyAction, { onCopy(r.sni) })
                 CommandTelemetryPill(verdictLabel(copy, a.verdict), verdictTone(a.verdict))
             }
             CommandTelemetryBar(copy.realityScore, a.score.toFloat(), scoreTone(a.score))
             if (r.resolvedIp.isNotEmpty()) {
-                CommandMetricLine(copy.realityResolved, r.resolvedIp, CommandHealthTone.INFO)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        CommandMetricLine(copy.realityResolved, r.resolvedIp, CommandHealthTone.INFO)
+                    }
+                    CommandIconButton(Icons.Rounded.ContentCopy, copy.copyAction, { onCopy(r.resolvedIp) })
+                }
             }
             if (a.blockerFindings.isNotEmpty()) {
                 CommandRule()

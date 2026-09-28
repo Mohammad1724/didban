@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LinearProgressIndicator
@@ -313,6 +314,18 @@ internal fun CommandCfScannerScreen(
                                 color = CommandColors.textPrimary,
                                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = Telemetry),
                                 modifier = Modifier.weight(1f)
+                            )
+                            // Copying a single address is the whole point of a
+                            // result row: the header action only ever exported
+                            // the top 20 as a block, so one useful IP found
+                            // deep in the list could not be taken on its own.
+                            CommandIconButton(
+                                Icons.Rounded.ContentCopy,
+                                copy.copyAction,
+                                {
+                                    clipboard.setText(AnnotatedString(r.ip))
+                                    notice = copy.copiedToClipboard
+                                }
                             )
                             Text(
                                 "${r.avgLatencyMs.toInt()} ms",

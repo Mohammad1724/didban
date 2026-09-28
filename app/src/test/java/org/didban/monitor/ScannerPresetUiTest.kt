@@ -86,7 +86,7 @@ class ScannerPresetUiTest {
         }
     }
 
-    @Test fun `SNI category count and port updates reach the probe`() {
+    @Test fun `SNI category and count reach the probe`() {
         val scanned = mutableListOf<Pair<String, Int>>()
         compose.setContent { CommandTheme("dark", "fa") {
             CommandRealitySniScreen(copy, {}, probe = { host, port -> scanned += host to port; scannerFixture(host, port) })
@@ -96,9 +96,12 @@ class ScannerPresetUiTest {
         compose.onNodeWithText("${group.label(copy)} (${ScannerCatalog.domains(group).size})").performClick()
         click(copy.uiAdvanced)
         field(copy.scannerLimit).performTextReplacement("3")
-        field(copy.port).performTextReplacement("8443")
         click(copy.realityCheckAll)
-        compose.runOnIdle { assertEquals(ScannerCatalog.sniPlan(group, 3, 8443).toSet(), scanned.toSet()) }
+        // A donor is an ordinary website, so preset targets are probed on the
+        // donor's TLS port. The global port field was removed: it read as "scan
+        // donors on my tunnel port", where no website answers. A per-target
+        // port is still covered by the manual-list test below.
+        compose.runOnIdle { assertEquals(ScannerCatalog.sniPlan(group, 3, 443).toSet(), scanned.toSet()) }
     }
 
     @Test fun `manual SNI list remains optional and handles duplicates invalid lines and different ports`() {
