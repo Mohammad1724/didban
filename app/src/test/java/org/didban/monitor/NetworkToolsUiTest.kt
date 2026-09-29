@@ -42,6 +42,15 @@ class NetworkToolsUiTest {
         }
     }
 
+    /**
+     * The lazy column. Two nodes scroll on this screen — the list and the
+     * horizontally scrollable mode chips row — and there is no vertical-only
+     * matcher in this Compose version, so the list is taken by position: it
+     * is the chips row's ancestor, hence first in the traversal.
+     */
+    private val list: SemanticsNodeInteraction
+        get() = compose.onAllNodes(hasScrollAction())[0]
+
     private fun enterHost() {
         compose.onNode(hasText(copy.netHostDomain, substring = true) and hasSetTextAction())
             .performTextInput("example.com")
@@ -103,9 +112,7 @@ class NetworkToolsUiTest {
         // The card sits below the verdict, and a lazy column only composes
         // what it shows — so the list itself has to be scrolled to it before
         // anything inside it exists to assert on.
-        // hasVerticalScrollAction, not hasScrollAction: the mode chips row is
-        // horizontally scrollable too, and the plain matcher matches both.
-        compose.onNode(hasVerticalScrollAction()).performScrollToNode(hasText(copy.netDpiEvidence))
+        list.performScrollToNode(hasText(copy.netDpiEvidence))
         compose.onNodeWithText(copy.netDpiEvidence).assertIsDisplayed()
         // Inside the card the sections are laid out past where a phone's
         // viewport ends, so their presence is what is asserted here.
