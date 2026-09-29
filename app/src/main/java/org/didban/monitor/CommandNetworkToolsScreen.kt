@@ -68,28 +68,43 @@ object DefaultNetworkToolsRunner : NetworkToolsRunner {
         SslInspector.inspect(host, port)
 }
 
-private fun localizedVerdict(verdict: DpiVerdict, copy: CommandCopy): String = when (verdict) {
-    DpiVerdict.TCP_BLOCKED -> copy.netVerdictTcpBlocked
-    DpiVerdict.TCP_DOWN -> copy.netVerdictTcpDown
-    DpiVerdict.UNSTABLE -> copy.netVerdictUnstable
-    DpiVerdict.TLS_BLOCKED -> copy.netVerdictTlsBlocked
-    DpiVerdict.SNI_BLOCKED -> copy.netVerdictSniBlocked
-    DpiVerdict.HEALTHY -> copy.netVerdictHealthy
-    DpiVerdict.MIDDLEBOX -> copy.netVerdictMiddlebox
+private fun localizedConclusion(verdict: DpiConclusion, copy: CommandCopy): String = when (verdict) {
+    DpiConclusion.NO_FILTERING_SEEN -> copy.netVerdictNoFilteringSeen
+    DpiConclusion.FILTERED_ADDRESS -> copy.netVerdictFilteredAddress
+    DpiConclusion.FILTERED_PORT -> copy.netVerdictFilteredPort
+    DpiConclusion.FILTERED_FINGERPRINT -> copy.netVerdictFilteredFingerprint
+    DpiConclusion.FILTERED_MODERN_FINGERPRINT_REQUIRED -> copy.netVerdictModernFingerprint
+    DpiConclusion.FILTERED_SNI -> copy.netVerdictFilteredSni
+    DpiConclusion.FILTERED_AFTER_HANDSHAKE -> copy.netVerdictAfterHandshake
+    DpiConclusion.SERVICE_DOWN -> copy.netVerdictServiceDown
+    DpiConclusion.MIDDLEBOX_SUSPECTED -> copy.netVerdictMiddleboxSuspected
+    DpiConclusion.INCONCLUSIVE -> copy.netVerdictInconclusive
 }
 
-private fun verdictTone(verdict: DpiVerdict): CommandHealthTone = when (verdict) {
-    DpiVerdict.TCP_BLOCKED, DpiVerdict.TCP_DOWN, DpiVerdict.TLS_BLOCKED, DpiVerdict.SNI_BLOCKED, DpiVerdict.MIDDLEBOX -> CommandHealthTone.OFFLINE
-    DpiVerdict.UNSTABLE -> CommandHealthTone.ATTENTION
-    DpiVerdict.HEALTHY -> CommandHealthTone.HEALTHY
+private fun conclusionTone(verdict: DpiConclusion): CommandHealthTone = when (verdict) {
+    DpiConclusion.NO_FILTERING_SEEN -> CommandHealthTone.HEALTHY
+    // Nothing was proven either way: attention, never the green of "healthy".
+    DpiConclusion.SERVICE_DOWN, DpiConclusion.INCONCLUSIVE, DpiConclusion.MIDDLEBOX_SUSPECTED -> CommandHealthTone.ATTENTION
+    else -> CommandHealthTone.OFFLINE
 }
 
-private fun verdictTip(verdict: DpiVerdict, copy: CommandCopy): String = when (verdict) {
-    DpiVerdict.SNI_BLOCKED -> copy.netTipSniBlocked
-    DpiVerdict.HEALTHY -> copy.netTipHealthy
-    DpiVerdict.UNSTABLE -> copy.netTipRetest
-    DpiVerdict.MIDDLEBOX -> copy.netTipMiddlebox
-    else -> ""
+private fun localizedConfidence(confidence: Confidence, copy: CommandCopy): String = when (confidence) {
+    Confidence.HIGH -> copy.netConfidenceHigh
+    Confidence.MEDIUM -> copy.netConfidenceMedium
+    Confidence.LOW -> copy.netConfidenceLow
+    Confidence.NONE -> copy.netConfidenceNone
+}
+
+/** Evidence rows arrive from the engine with stable English identifiers. */
+private fun localizedEvidenceLabel(label: String, copy: CommandCopy): String = when (label) {
+    "handshake" -> copy.netEvidenceHandshake
+    "idle" -> copy.netEvidenceIdle
+    "payload" -> copy.netEvidencePayload
+    "fingerprint" -> copy.netEvidenceFingerprint
+    "remote" -> copy.netEvidenceRemote
+    "latency" -> copy.netEvidenceLatency
+    "control" -> copy.netEvidenceControl
+    else -> copy.netEvidenceOther
 }
 
 /** Current data network: VPN, Wi-Fi, cellular (with operator) or unknown. */
@@ -138,10 +153,17 @@ fun CommandNetworkToolsScreen(
     copy: CommandCopy,
     initialServer: ServerConfig?,
     onBack: () -> Unit,
-    runner: NetworkToolsRunner = DefaultNetworkToolsRunner
+    runner: NetworkToolsRunner = DefaultNetworkToolsRunner,
+    /** Injectable so the state contract is testable without live internet. */
+    dpiRun: suspend (DpiRun.Config) -> DpiAssessment = { DpiRun.run(it) }
 ) {
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Which operator we are on is part of the DPI input, not just a banner:
+    // a filtered control that sails through means the run is not on the
+    // operator's path and cannot be trusted.
+    val net = remember { currentNetworkContext(context) }
     var mode by remember { mutableStateOf(NetworkDiagnosticMode.DPI) }
     var host by remember { mutableStateOf(initialServer?.host ?: "") }
     var port by remember { mutableStateOf("443") }
@@ -153,6 +175,7 @@ fun CommandNetworkToolsScreen(
     var detail by remember { mutableStateOf("") }
     var portResults by remember { mutableStateOf<List<PortScanResult>>(emptyList()) }
     var emptyResult by remember { mutableStateOf(false) }
+    var dpiAssessment by remember { mutableStateOf<DpiAssessment?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
 
     fun clearResult() {
@@ -162,6 +185,7 @@ fun CommandNetworkToolsScreen(
         detail = ""
         portResults = emptyList()
         emptyResult = false
+        dpiAssessment = null
     }
 
     fun selectMode(candidate: NetworkDiagnosticMode) {
@@ -186,42 +210,24 @@ fun CommandNetworkToolsScreen(
             try {
                 when (requestedMode) {
                     NetworkDiagnosticMode.DPI -> {
-                        val result = runner.diagnoseDeep(clean, targetPort, sni.trim().takeIf { it.isNotBlank() })
-                        val verdict = result.verdict
-                        summary = localizedVerdict(verdict, copy)
-                        summaryTone = verdictTone(verdict)
-                        // A healthy probe whose certificate does not match the
-                        // SNI answered with the server's own web service (or an
-                        // on-path box), not the REALITY destination: soften the
-                        // green and steer the user to the real REALITY port.
-                        if (verdict == DpiVerdict.HEALTHY && result.sniCertSan == "mismatch") {
-                            summaryTone = CommandHealthTone.ATTENTION
-                        }
-                        detail = buildString {
-                            appendLine(
-                                copy.netAttemptsLine
-                                    .replace("%1", result.tcpOk.toString()).replace("%2", result.tcpTries.toString())
-                                    .replace("%3", result.tlsPlainOk.toString()).replace("%4", result.tlsPlainTries.toString())
-                                    .replace("%5", result.tlsSniOk.toString()).replace("%6", result.tlsSniTries.toString())
+                        // The engine, not the old single-handshake probe: it
+                        // forges seven ClientHello shapes, watches the
+                        // connection after the handshake, probes a port matrix
+                        // on the same address and runs both controls, so
+                        // "healthy" can no longer be reported for a target the
+                        // real client cannot use.
+                        val assessment = dpiRun(
+                            DpiRun.Config(
+                                host = clean,
+                                port = targetPort,
+                                sni = sni.trim().takeIf { it.isNotBlank() },
+                                vpnActive = net.vpn
                             )
-                            if (result.avgLatencyMs >= 0) appendLine(copy.netAvgLatency.replace("%1", result.avgLatencyMs.toString()))
-                            if (result.controlAvgMs >= 0) appendLine(copy.netCtlLine.replace("%1", result.controlAvgMs.toString()))
-                            if (result.sniCertCn.isNotBlank() || result.sniCertIssuer.isNotBlank()) appendLine(
-                                copy.netSniCertLine
-                                    .replace("%1", result.sniCertCn.ifBlank { "-" })
-                                    .replace("%2", result.sniCertIssuer.ifBlank { "-" })
-                                    .replace("%3", when (result.sniCertSan) {
-                                        "match" -> copy.netCertSanMatch
-                                        "mismatch" -> copy.netCertSanMismatch
-                                        else -> "-"
-                                    })
-                            )
-                            if (verdict == DpiVerdict.HEALTHY && result.sniCertSan == "mismatch") appendLine(copy.netCertSelfTip)
-                            if (result.tcpReset) appendLine(copy.netResetFlag)
-                            else if (result.sniReset) appendLine(copy.netResetFlag)
-                            val tip = verdictTip(verdict, copy)
-                            if (tip.isNotBlank()) append(tip)
-                        }
+                        )
+                        dpiAssessment = assessment
+                        summary = localizedConclusion(assessment.verdict, copy)
+                        summaryTone = conclusionTone(assessment.verdict)
+                        detail = assessment.summary
                     }
                     NetworkDiagnosticMode.PORTS -> {
                         val found = mutableListOf<PortScanResult>()
@@ -285,8 +291,6 @@ fun CommandNetworkToolsScreen(
         if (mode == NetworkDiagnosticMode.DPI) item {
             // Filtering decisions are per-operator: state the current network so
             // a Wi-Fi result is never mistaken for an operator verdict.
-            val context = LocalContext.current
-            val net = remember { currentNetworkContext(context) }
             when {
                 net.vpn -> CommandStatusMark(copy.netNetVpnTitle, CommandHealthTone.OFFLINE, detail = copy.netNetVpnBody)
                 net.wifi -> CommandStatusMark(copy.netNetWifiTitle, CommandHealthTone.ATTENTION, detail = copy.netNetWifiBody)
@@ -347,6 +351,60 @@ fun CommandNetworkToolsScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(detail, Modifier.weight(1f), color = CommandColors.textPrimary, style = androidx.compose.material3.MaterialTheme.typography.bodySmall.copy(fontFamily = Telemetry), maxLines = 30, overflow = TextOverflow.Ellipsis)
                             CommandTextButton(copy.netCopyResult, { clipboard.setText(AnnotatedString(detail)) }, icon = Icons.Rounded.ContentCopy)
+                        }
+                    }
+                }
+            }
+        }
+        // The evidence behind the verdict. Shown as it was collected — label,
+        // detail, and the list of what this run did NOT check — so a clean
+        // result can never be read as proof, and "filtered" can be argued with.
+        val currentAssessment = dpiAssessment
+        if (currentAssessment != null) {
+            item {
+                CommandSurface(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(CommandSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
+                    ) {
+                        val typography = androidx.compose.material3.MaterialTheme.typography
+                        Text(
+                            localizedConfidence(currentAssessment.confidence, copy),
+                            color = CommandColors.textSecondary,
+                            style = typography.labelSmall
+                        )
+                        if (currentAssessment.evidence.isNotEmpty()) {
+                            Text(copy.netDpiEvidence, color = CommandColors.textPrimary, style = typography.titleSmall)
+                            currentAssessment.evidence.forEach { row ->
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(CommandSpacing.xs)
+                                ) {
+                                    Text(
+                                        localizedEvidenceLabel(row.label, copy),
+                                        color = CommandColors.accent,
+                                        style = typography.labelSmall
+                                    )
+                                    Text(
+                                        row.detail,
+                                        Modifier.weight(1f),
+                                        color = CommandColors.textSecondary,
+                                        style = typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                        if (currentAssessment.limitations.isNotEmpty()) {
+                            Text(copy.netDpiLimitations, color = CommandColors.textPrimary, style = typography.titleSmall)
+                            currentAssessment.limitations.forEach { line ->
+                                Text("• $line", color = CommandColors.textSecondary, style = typography.bodySmall)
+                            }
+                        }
+                        if (currentAssessment.nextSteps.isNotEmpty()) {
+                            Text(copy.netDpiNextSteps, color = CommandColors.textPrimary, style = typography.titleSmall)
+                            currentAssessment.nextSteps.forEach { step ->
+                                Text("• $step", color = CommandColors.textPrimary, style = typography.bodySmall)
+                            }
                         }
                     }
                 }

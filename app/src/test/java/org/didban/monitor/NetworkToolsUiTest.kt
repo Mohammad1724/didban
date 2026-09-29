@@ -21,10 +21,23 @@ class NetworkToolsUiTest {
     @get:Rule val compose = createComposeRule()
     private val copy = CommandCopy.forLanguage("fa")
 
-    private fun openScreen(runner: NetworkToolsRunner) {
+    /** A run the engine would return; the screen renders it, it does not invent it. */
+    private fun cannedAssessment(verdict: DpiConclusion = DpiConclusion.NO_FILTERING_SEEN) = DpiAssessment(
+        verdict = verdict,
+        confidence = Confidence.MEDIUM,
+        summary = "No filtering was observed on this path for example.com:443.",
+        evidence = listOf(Evidence("handshake", "TLS completed in 120ms")),
+        limitations = listOf("Only the path from this device, on this operator, at this moment was measured."),
+        nextSteps = listOf("If the real client still fails, check the transport, the SNI and the server logs.")
+    )
+
+    private fun openScreen(
+        runner: NetworkToolsRunner = RecordingNetworkToolsRunner(),
+        dpiRun: suspend (DpiRun.Config) -> DpiAssessment = { cannedAssessment() }
+    ) {
         compose.setContent {
             CommandTheme(themeMode = "dark", language = "fa") {
-                CommandNetworkToolsScreen(copy, null, {}, runner)
+                CommandNetworkToolsScreen(copy, null, {}, runner, dpiRun)
             }
         }
     }
@@ -54,8 +67,16 @@ class NetworkToolsUiTest {
 
     @Test
     fun `offline failure exposes retry and a successful retry replaces the error`() {
-        val runner = RecordingNetworkToolsRunner(failNextDiagnosis = true)
-        openScreen(runner)
+        var failNext = true
+        var calls = 0
+        openScreen(dpiRun = {
+            calls++
+            if (failNext) {
+                failNext = false
+                error("offline")
+            }
+            cannedAssessment()
+        })
         enterHost()
         runButton().performClick()
 
@@ -64,43 +85,57 @@ class NetworkToolsUiTest {
         }
         compose.onNodeWithText(copy.retry).performClick()
         compose.waitUntil(10_000) {
-            compose.onAllNodesWithText(copy.netVerdictHealthy).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText(copy.netVerdictNoFilteringSeen).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText(copy.operationFailed).assertDoesNotExist()
-        assertEquals(2, runner.diagnoseCalls)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `the verdict arrives with its evidence, its limits and a next step`() {
+        openScreen(dpiRun = { cannedAssessment(DpiConclusion.FILTERED_ADDRESS) })
+        enterHost()
+        runButton().performClick()
+
+        compose.waitUntil(10_000) {
+            compose.onAllNodesWithText(copy.netVerdictFilteredAddress).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithText(copy.netDpiEvidence).assertIsDisplayed()
+        compose.onNodeWithText(copy.netDpiLimitations).assertIsDisplayed()
+        compose.onNodeWithText(copy.netDpiNextSteps).assertIsDisplayed()
+        compose.onNodeWithText(copy.netConfidenceMedium).assertIsDisplayed()
+        // The honest half: even a filtered verdict lists what was not checked.
+        compose.onNodeWithText(hasText = true, substring = false).assertExists()
     }
 
     @Test
     fun `cancel stops an in-flight operation without converting cancellation into an error`() {
-        val runner = BlockingNetworkToolsRunner()
-        openScreen(runner)
+        var started = false
+        var cancelled = false
+        openScreen(dpiRun = {
+            started = true
+            try {
+                awaitCancellation()
+            } finally {
+                cancelled = true
+            }
+        })
         enterHost()
         runButton().performClick()
-        compose.waitUntil(10_000) { runner.started }
+        compose.waitUntil(10_000) { started }
         assertTrue(compose.onAllNodesWithText(copy.waitingForData).fetchSemanticsNodes().isNotEmpty())
 
         compose.onNodeWithText(copy.stop).performClick()
-        compose.waitUntil(10_000) { runner.cancelled }
+        compose.waitUntil(10_000) { cancelled }
         compose.onNodeWithText(copy.stop).assertDoesNotExist()
         compose.onNodeWithText(copy.netRunMode.replace("%1", copy.netModeDpi)).assertIsDisplayed()
         compose.onNodeWithText(copy.operationFailed).assertDoesNotExist()
     }
 
     private class RecordingNetworkToolsRunner(
-        private val portResults: List<PortScanResult> = emptyList(),
-        private var failNextDiagnosis: Boolean = false
+        private val portResults: List<PortScanResult> = emptyList()
     ) : NetworkToolsRunner {
-        var diagnoseCalls = 0
         var scanCalls = 0
-
-        override suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int): DpiDeepResult {
-            diagnoseCalls++
-            if (failNextDiagnosis) {
-                failNextDiagnosis = false
-                error("offline")
-            }
-            return DpiDeepResult(host, port, sni.orEmpty(), tries, tries, 2, 2, 2, 2, false, false, 12)
-        }
 
         override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) {
             scanCalls++
@@ -108,26 +143,5 @@ class NetworkToolsUiTest {
         }
 
         override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo = error("unused")
-
-    }
-
-    private class BlockingNetworkToolsRunner : NetworkToolsRunner {
-        var started = false
-        var cancelled = false
-
-        override suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int): DpiDeepResult {
-            started = true
-            try {
-                awaitCancellation()
-            } finally {
-                cancelled = true
-            }
-        }
-
-        override suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit) =
-            error("unused")
-
-        override suspend fun inspectCertificate(host: String, port: Int): SslCertInfo = error("unused")
-
     }
 }

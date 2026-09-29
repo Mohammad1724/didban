@@ -759,28 +759,34 @@ interface CommandCopy {
     val netNetCellTitle: String
     val netNetCellUnknown: String
     val netNetCellBody: String
-    val netVerdictTcpBlocked: String
-    val netVerdictTcpDown: String
-    val netVerdictUnstable: String
-    val netVerdictTlsBlocked: String
-    val netVerdictSniBlocked: String
-    val netVerdictHealthy: String
-    val netTipSniBlocked: String
-    val netTipHealthy: String
-    val netTipRetest: String
+    val netVerdictNoFilteringSeen: String
+    val netVerdictFilteredAddress: String
+    val netVerdictFilteredPort: String
+    val netVerdictFilteredFingerprint: String
+    val netVerdictModernFingerprint: String
+    val netVerdictFilteredSni: String
+    val netVerdictAfterHandshake: String
+    val netVerdictServiceDown: String
+    val netVerdictMiddleboxSuspected: String
+    val netVerdictInconclusive: String
+    val netConfidenceHigh: String
+    val netConfidenceMedium: String
+    val netConfidenceLow: String
+    val netConfidenceNone: String
+    val netDpiEvidence: String
+    val netDpiLimitations: String
+    val netDpiNextSteps: String
+    val netEvidenceHandshake: String
+    val netEvidenceIdle: String
+    val netEvidencePayload: String
+    val netEvidenceFingerprint: String
+    val netEvidenceRemote: String
+    val netEvidenceLatency: String
+    val netEvidenceControl: String
+    val netEvidenceOther: String
     val netPortHint: String
-    val netCertSelfTip: String
-    val netAttemptsLine: String
-    val netAvgLatency: String
-    val netResetFlag: String
-    val netCtlLine: String
-    val netSniCertLine: String
-    val netCertSanMatch: String
-    val netCertSanMismatch: String
     val netNetVpnTitle: String
     val netNetVpnBody: String
-    val netVerdictMiddlebox: String
-    val netTipMiddlebox: String
     val dnsNoPtr: String
     val tunEditingId: String
     val upMonitorConfiguration: String
@@ -1694,28 +1700,59 @@ internal object CommandCopyFa : CommandCopy {
     override val netNetCellTitle = "شبکهٔ فعلی: %1"
     override val netNetCellUnknown = "شبکهٔ فعلی: دیتای موبایل"
     override val netNetCellBody = "نتیجه فقط برای همین اپراتور معتبر است؛ برای مقایسه، سیم‌کارت یا دیتای اپراتور دیگر را هم امتحان کن."
-    override val netVerdictTcpBlocked = "TCP مسدود شده (RST تزریقی)"
-    override val netVerdictTcpDown = "TCP پاسخ نمی‌دهد"
-    override val netVerdictUnstable = "ناپایدار: بعضی تلاش‌ها رد شد"
-    override val netVerdictTlsBlocked = "TLS مسدود می‌شود"
-    override val netVerdictSniBlocked = "TLS فقط با این SNI مسدود می‌شود"
-    override val netVerdictHealthy = "اتصال ساده سالم است"
-    override val netTipSniBlocked = "TCP و TLS بدون SNI بازند ولی با این SNI بسته می‌شود: فیلترینگ روی همین اپراتور الگوی ClientHello یا همین دامنه را هدف گرفته. یک SNI دیگر را هم آزمایش کن."
-    override val netTipHealthy = "اتصال ساده سالم است. اگر REALITY با همین وضع کار نمی‌کند، احتمالاً اثرانگشت TLS (uTLS) یا رفتار بعد از دست‌دادن روی این اپراتور مسدود شده است: SNI، فینگرپرینت (مثلاً chrome به firefox) یا پورت را عوض کن و از سرور لاگ بگیر."
-    override val netTipRetest = "چند بار تکرار کن؛ تزریق RST گاهی فقط بعضی اتصال‌ها را می‌گیرد. برای قضاوت قطعی باید روی دیتای همان اپراتور باشی."
+    override val netVerdictNoFilteringSeen = "در این مسیر فیلترینگی دیده نشد"
+    override val netVerdictFilteredAddress = "این آدرس روی این اپراتور فیلتر است"
+    override val netVerdictFilteredPort = "این پورت روی این اپراتور فیلتر است"
+    override val netVerdictFilteredFingerprint = "الگوی ClientHello فیلتر می‌شود (اثرانگشت TLS)"
+    override val netVerdictModernFingerprint = "فقط ClientHello شبیه کرومِ جدید پذیرفته می‌شود"
+    override val netVerdictFilteredSni = "فیلترینگ همین SNI را هدف گرفته"
+    override val netVerdictAfterHandshake = "اتصال بعد از دست‌دادن TLS قطع می‌شود"
+    override val netVerdictServiceDown = "سرویس از خارج از کشور هم در دسترس نیست (فیلترینگ نیست)"
+    override val netVerdictMiddleboxSuspected = "پاسخ‌ها مشکوک‌اند: احتمالاً خودِ سرور جواب نمی‌دهد"
+    override val netVerdictInconclusive = "این اجرا نمی‌تواند دربارهٔ فیلترینگ قضاوت کند"
+    override val netConfidenceHigh = "اطمینان بالا"
+    override val netConfidenceMedium = "اطمینان متوسط"
+    override val netConfidenceLow = "اطمینان کم"
+    override val netConfidenceNone = "بدون اعتبار"
+    override val netDpiEvidence = "شواهد این اجرا"
+    override val netDpiLimitations = "چه چیزهایی بررسی نشد"
+    override val netDpiNextSteps = "قدم بعدی"
+    override val netEvidenceHandshake = "دست‌دادن TLS"
+    override val netEvidenceIdle = "بی‌تحرکی پس از اتصال"
+    override val netEvidencePayload = "ارسال داده"
+    override val netEvidenceFingerprint = "اثرانگشت"
+    override val netEvidenceRemote = "بررسی از خارج"
+    override val netEvidenceLatency = "تأخیر"
+    override val netEvidenceControl = "کنترل"
+    override val netEvidenceOther = "نکته"
+    override val netVerdictNoFilteringSeen = "No filtering observed on this path"
+    override val netVerdictFilteredAddress = "This address is filtered on this operator"
+    override val netVerdictFilteredPort = "This port is filtered on this operator"
+    override val netVerdictFilteredFingerprint = "The ClientHello pattern is filtered (TLS fingerprint)"
+    override val netVerdictModernFingerprint = "Only a modern Chrome-shaped ClientHello is accepted"
+    override val netVerdictFilteredSni = "Filtering targets this SNI"
+    override val netVerdictAfterHandshake = "The connection is killed after the TLS handshake"
+    override val netVerdictServiceDown = "The service is unreachable from abroad too (not filtering)"
+    override val netVerdictMiddleboxSuspected = "The answers are suspicious: the real server is probably not answering"
+    override val netVerdictInconclusive = "This run cannot judge filtering"
+    override val netConfidenceHigh = "High confidence"
+    override val netConfidenceMedium = "Medium confidence"
+    override val netConfidenceLow = "Low confidence"
+    override val netConfidenceNone = "No confidence"
+    override val netDpiEvidence = "What this run observed"
+    override val netDpiLimitations = "What this run did not check"
+    override val netDpiNextSteps = "Next steps"
+    override val netEvidenceHandshake = "TLS handshake"
+    override val netEvidenceIdle = "Idle after connect"
+    override val netEvidencePayload = "Payload"
+    override val netEvidenceFingerprint = "Fingerprint"
+    override val netEvidenceRemote = "Remote check"
+    override val netEvidenceLatency = "Latency"
+    override val netEvidenceControl = "Control"
+    override val netEvidenceOther = "Note"
     override val netPortHint = "مهم: پورت را دقیقاً پورت سرویس REALITY بگذار (مثلاً 2887)، نه 443؛ پورت 443 معمولاً سرویس وب جداگانهٔ سرور است و ربطی به REALITY ندارد."
-    override val netCertSelfTip = "گواهیِ برگشته مال دامنهٔ خود سرور است نه SNI؛ یعنی روی این پورت سرویس دیگری (وب/پنل) یا واسطی جواب می‌دهد، نه مقصد SNI. همین تست را با پورت واقعی REALITY تکرار کن."
-    override val netAttemptsLine = "TCP %1/%2 · TLS بدون SNI %3/%4 · TLS با SNI %5/%6"
-    override val netAvgLatency = "میانگین تأخیر: %1"
-    override val netResetFlag = "نشانهٔ RST تزریقی دیده شد"
-    override val netCtlLine = "تأخیر مرجع (1.1.1.1): %1"
-    override val netSniCertLine = "گواهی با SNI شما: CN=%1 · صادرکننده=%2 · SAN=%3"
-    override val netCertSanMatch = "همسان"
-    override val netCertSanMismatch = "ناهمسان"
     override val netNetVpnTitle = "VPN فعاله — نتیجه مالِ مسیر مستقیم نیست"
     override val netNetVpnBody = "این تست از داخل تونل VPN رفته و دربارهٔ فیلترینگ اپراتور چیزی نمی‌گوید. برای تست DPI، VPN را کاملاً خاموش کن و دوباره اجرا کن."
-    override val netVerdictMiddlebox = "پاسخ‌ها مشکوک‌اند: احتمالاً سرور واقعی جواب نمی‌دهد"
-    override val netTipMiddlebox = "تأخیر هدف نسبت به مرجع غیرواقعی کم است؛ به‌احتمال زیاد یک واسط روی مسیر جواب می‌دهد نه سرور شما. VPN را خاموش کن، چند بار تکرار کن و نتیجه را با اپراتور دیگر مقایسه کن."
     override val dnsNoPtr = "بدون PTR"
     override val tunEditingId = "ویرایش #%1"
     override val upMonitorConfiguration = "تنظیمات پایش"
@@ -2621,28 +2658,9 @@ internal object CommandCopyEn : CommandCopy {
     override val netNetCellTitle = "Current network: %1"
     override val netNetCellUnknown = "Current network: mobile data"
     override val netNetCellBody = "Results only apply to this operator; compare by testing with another SIM or operator."
-    override val netVerdictTcpBlocked = "TCP blocked (injected RST)"
-    override val netVerdictTcpDown = "TCP does not answer"
-    override val netVerdictUnstable = "Unstable: some attempts failed"
-    override val netVerdictTlsBlocked = "TLS gets blocked"
-    override val netVerdictSniBlocked = "TLS blocked only with this SNI"
-    override val netVerdictHealthy = "Plain connection is healthy"
-    override val netTipSniBlocked = "TCP and TLS without SNI are open but blocked with this SNI: filtering on this operator targets the ClientHello pattern or this domain. Try another SNI."
-    override val netTipHealthy = "The plain connection is healthy. If REALITY still fails, this operator likely blocks the TLS fingerprint (uTLS) or post-handshake behavior: change the SNI, fingerprint (e.g. chrome to firefox) or port, and check server logs."
-    override val netTipRetest = "Run it a few times; RST injection sometimes only catches some connections. A final verdict requires the same operator's mobile data."
     override val netPortHint = "Important: set the exact REALITY service port (e.g. 2887), not 443; port 443 is usually the server's separate web service and says nothing about REALITY."
-    override val netCertSelfTip = "The returned certificate is for the server's own domain, not the SNI: another service (web/panel) or an on-path box answered here, not the SNI destination. Rerun against the real REALITY port."
-    override val netAttemptsLine = "TCP %1/%2 · TLS no-SNI %3/%4 · TLS with SNI %5/%6"
-    override val netAvgLatency = "Average latency: %1"
-    override val netResetFlag = "Injected RST observed"
-    override val netCtlLine = "Reference latency (1.1.1.1): %1"
-    override val netSniCertLine = "Certificate with your SNI: CN=%1 · issuer=%2 · SAN=%3"
-    override val netCertSanMatch = "matches"
-    override val netCertSanMismatch = "mismatch"
     override val netNetVpnTitle = "VPN active — this is not your direct path"
     override val netNetVpnBody = "This probe went through the VPN tunnel and says nothing about operator filtering. Turn the VPN off completely and rerun the DPI test."
-    override val netVerdictMiddlebox = "Suspicious answers: likely not your real server"
-    override val netTipMiddlebox = "Target latency is impossibly low versus the reference; an on-path middlebox is probably answering instead of your server. Turn the VPN off, rerun a few times and compare with another operator."
     override val dnsNoPtr = "No PTR"
     override val tunEditingId = "editing #%1"
     override val upMonitorConfiguration = "Monitor configuration"
