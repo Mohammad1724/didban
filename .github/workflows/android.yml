@@ -58,11 +58,41 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Unit tests
-        run: gradle testDebugUnitTest --no-daemon
+      # One invocation, not two: separate runs pay Gradle configuration and a
+      # JVM start each time for nothing. Without --continue a failing test task
+      # still skips lint, so a red run stays as short as it is today.
+      - name: Unit tests & lint
+        run: gradle testDebugUnitTest lintDebug --no-daemon
 
-      - name: Lint
-        run: gradle lintDebug --no-daemon
+      # The assertion that failed used to live inside a zipped artifact; the
+      # run summary is where someone looks first.
+      - name: Summarise test failures
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import glob, os, xml.etree.ElementTree as ET
+
+          reports = sorted(glob.glob('app/build/test-results/**/*.xml', recursive=True))
+          blocks = []
+          for path in reports:
+              try:
+                  root = ET.parse(path).getroot()
+              except Exception:
+                  continue
+              for case in root.iter('testcase'):
+                  for failure in list(case.findall('failure')) + list(case.findall('error')):
+                      name = case.get('classname', '?').split('.')[-1] + ' > ' + case.get('name', '?')
+                      detail = (failure.get('message') or '').strip() or (failure.text or '').strip()
+                      blocks.append('### ' + name + '\n```\n' + detail[:1500] + '\n```')
+          if not blocks:
+              blocks = ['_No JUnit report found — the failure is a compile or lint error; see the build log above._']
+          text = '## Failing tests\n\n' + '\n\n'.join(blocks) + '\n'
+          summary = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary:
+              with open(summary, 'a') as handle:
+                  handle.write(text)
+          print(text)
+          PY
 
       - name: Verify Android component exposure policy
         run: |
