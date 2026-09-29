@@ -53,8 +53,6 @@ private fun NetworkDiagnosticMode.label(copy: CommandCopy): String = when (this)
 
 /** Injectable network operations keep the state contract testable without live internet. */
 interface NetworkToolsRunner {
-    suspend fun diagnoseDeep(host: String, port: Int, sni: String?, tries: Int = 3): DpiDeepResult =
-        CensorshipTester.diagnoseDeep(host, port, sni, tries)
     suspend fun scanPorts(host: String, ports: List<Int>, onResult: (PortScanResult) -> Unit)
     suspend fun inspectCertificate(host: String, port: Int): SslCertInfo
 }

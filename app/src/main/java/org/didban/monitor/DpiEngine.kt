@@ -16,8 +16,8 @@ import javax.net.ssl.X509TrustManager
 // ─────────────────────────────────────────────────────────────────────────────
 // DPI / censorship forensics engine.
 //
-// Why this exists: the previous diagnosis (CensorshipTester.diagnoseDeep) could
-// report "healthy" for a target that a real client could not use at all. Three
+// Why this exists: the diagnosis this replaced could report "healthy" for a
+// target that a real client could not use at all. Three
 // structural reasons, all of them fixed here:
 //
 //   1. TLS was only attempted on a hardcoded port whitelist
