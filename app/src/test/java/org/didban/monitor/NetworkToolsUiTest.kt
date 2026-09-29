@@ -103,7 +103,9 @@ class NetworkToolsUiTest {
         // The card sits below the verdict, and a lazy column only composes
         // what it shows — so the list itself has to be scrolled to it before
         // anything inside it exists to assert on.
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.netDpiEvidence))
+        // hasVerticalScrollAction, not hasScrollAction: the mode chips row is
+        // horizontally scrollable too, and the plain matcher matches both.
+        compose.onNode(hasVerticalScrollAction()).performScrollToNode(hasText(copy.netDpiEvidence))
         compose.onNodeWithText(copy.netDpiEvidence).assertIsDisplayed()
         // Inside the card the sections are laid out past where a phone's
         // viewport ends, so their presence is what is asserted here.
