@@ -100,12 +100,16 @@ class NetworkToolsUiTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText(copy.netVerdictFilteredAddress).fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText(copy.netDpiEvidence).assertIsDisplayed()
-        compose.onNodeWithText(copy.netDpiLimitations).assertIsDisplayed()
-        compose.onNodeWithText(copy.netDpiNextSteps).assertIsDisplayed()
-        compose.onNodeWithText(copy.netConfidenceMedium).assertIsDisplayed()
-        // The honest half: even a filtered verdict lists what was not checked.
-        compose.onNodeWithText(hasText = true, substring = false).assertExists()
+        // Scrolled to rather than assumed visible: the card sits below the
+        // verdict in a lazy column, so on a phone the lower sections are off-screen.
+        compose.onNodeWithText(copy.netDpiEvidence).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(copy.netDpiLimitations).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(copy.netDpiNextSteps).performScrollTo().assertIsDisplayed()
+        // The honesty check: a "filtered" verdict still states the confidence
+        // it was reached with, and lists what this run did not check.
+        compose.onNodeWithText(copy.netConfidenceMedium).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Only the path from this device", substring = true)
+            .performScrollTo().assertIsDisplayed()
     }
 
     @Test
