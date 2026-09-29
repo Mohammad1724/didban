@@ -58,11 +58,19 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      # One invocation, not two: separate runs pay Gradle configuration and a
-      # JVM start each time for nothing. Without --continue a failing test task
-      # still skips lint, so a red run stays as short as it is today.
-      - name: Unit tests & lint
-        run: gradle testDebugUnitTest lintDebug --no-daemon
+      # Two invocations on purpose. Merging them into
+      # `gradle testDebugUnitTest lintDebug` was tried and reverted: with both
+      # in one task graph Gradle starts the lint analysis before the test task
+      # finishes, so a run whose tests fail pays for ~60s of lint it can never
+      # report. Measured on the same code: a test failure ended the build at
+      # 162s with two invocations and 229s with one; the job took 207s vs 255s.
+      # Two invocations cost one extra Gradle configuration (~10s) and keep
+      # lint strictly behind a passing test task.
+      - name: Unit tests
+        run: gradle testDebugUnitTest --no-daemon
+
+      - name: Lint
+        run: gradle lintDebug --no-daemon
 
       # The assertion that failed used to live inside a zipped artifact; the
       # run summary is where someone looks first.
