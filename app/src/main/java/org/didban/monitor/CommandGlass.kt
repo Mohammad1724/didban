@@ -15,6 +15,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -87,6 +88,34 @@ internal object CommandAurora {
     /** Longest visual travel of the orb layer, in dp. */
     const val driftDp = 9f
 
+    /**
+     * The drift is quantized into this many steps per period instead of being
+     * read fresh on every animation frame.
+     *
+     * The canvas is five full-screen radial gradients (see
+     * [commandAtmosphere]), so each new drift value costs one full-screen
+     * repaint. Unquantized, that is ~1800 repaints per period at 60 fps. At
+     * 375 steps it is 375 — one every [stepMs] (80 ms, ~12.5 fps), ~79%
+     * fewer — and a step moves the layer by at most 0.31 dp, which is under
+     * one pixel on a 3x display, so the drift still reads as continuous
+     * motion. Slower than this starts to show: 180 steps means ~1.9 px jumps.
+     *
+     * 375 rather than a rounder 360 because it divides the period exactly,
+     * so every step lasts the same 80 ms.
+     */
+    const val steps = 375
+
+    /** Milliseconds between two repaints of the orb layer. */
+    val stepMs: Float get() = periodMs / steps.toFloat()
+
+    /** Snap a continuous phase (0f..1f) to the nearest step boundary.
+     *  Phase 1f snaps back onto 0f: [driftOffset] closes its loop, so the
+     *  restart is invisible. Pure math — see `CommandEmeraldThemeTest`. */
+    fun quantize(phase: Float): Float {
+        val raw = kotlin.math.round(phase * steps).toInt() % steps
+        return (if (raw < 0) raw + steps else raw) / steps.toFloat()
+    }
+
     /** Offset in units of [driftDp]; `harmonic` must be a whole number so
      *  every axis returns to its start at phase 1f (loop closure). */
     fun driftOffset(phase: Float, harmonic: Float): Float {
@@ -115,7 +144,7 @@ internal fun rememberCommandAuroraDrift(): State<Float> {
     val reduceMotion = useReduceMotion()
     if (reduceMotion) return remember { mutableStateOf(0f) }
     val transition = rememberInfiniteTransition(label = "emerald-atmosphere")
-    return transition.animateFloat(
+    val phase = transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -124,6 +153,11 @@ internal fun rememberCommandAuroraDrift(): State<Float> {
         ),
         label = "emerald-drift"
     )
+    // The animation still ticks every frame (a float, effectively free), but
+    // the derived state only publishes a *new* value when the quantized step
+    // changes. The canvas is drawn in the draw phase, so this is what turns
+    // ~60 invalidations per second into ~12.
+    return remember { derivedStateOf { CommandAurora.quantize(phase.value) } }
 }
 
 @Composable

@@ -2,6 +2,25 @@
 
 ## Unreleased — 2026-09-27
 
+### Performance: drop 2 MB of dead fonts, and stop repainting the background 60 times a second
+
+Two findings from the performance audit in `docs/perf-audit.md`:
+
+- **Deleted 11 unused font files** (Inter, JetBrains Mono, Vazirmatn — 2.0 MB)
+  plus `app/FONT_LICENSES.md`. Nothing referenced them: `Theme.kt` uses platform
+  families (`SansSerif` / `Monospace` / `Default`) and there was not a single
+  `R.font.*` reference in the project. Commit `5360cc2` ("eliminate font loading
+  runtime crashes") had made the switch deliberately and left the files behind.
+  `app/src/main/res` goes from 2.1 MB to 45 KB.
+- **Quantized the ambient aurora drift.** `commandAtmosphere()` sits at the root
+  of the app shell and draws five full-screen radial gradients, so every new
+  drift value cost one full-screen repaint — roughly 1,800 per 30 s period at
+  60 fps, for a layer that travels 9 dp. The raw animation phase is now wrapped
+  in a `derivedStateOf` that quantizes it to 375 steps per period: one repaint
+  every 80 ms (~12.5 fps) instead of every frame, **~79% fewer repaints**, and
+  each step moves the layer 0.30 dp — under one pixel on a 3x display, so the
+  motion looks identical. Reduce-motion handling is untouched.
+
 ### Scanner: take a result with you, and stop asking for a donor port
 
 - Clean-IP and REALITY donor results can now be copied one at a time. The clean-IP screen only ever exported the top 20 as a block, and the REALITY screen had no clipboard support at all — so a single useful IP found deep in a scan, or the donor name you came for, could not be taken away.

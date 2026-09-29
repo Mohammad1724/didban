@@ -165,6 +165,55 @@ class CommandEmeraldThemeTest {
     }
 
     @Test
+    fun `aurora drift repaints on a step budget instead of every frame`() {
+        // The canvas is five full-screen radial gradients, so one new drift
+        // value costs one full-screen repaint. Reading the raw animation phase
+        // meant ~60 of those per second for a layer that travels 9 dp in 30 s.
+        val steps = CommandAurora.steps
+        assertTrue(
+            "a repaint every ${CommandAurora.stepMs}ms is too close to per-frame (steps=$steps)",
+            CommandAurora.stepMs >= 60f
+        )
+        assertTrue("steps must divide the period evenly for a clean loop", CommandAurora.periodMs % steps == 0)
+
+        // Exactly `steps` distinct values per period — that is the budget.
+        val seen = (0 until steps).map { i -> CommandAurora.quantize(i.toFloat() / steps) }.toSet()
+        assertEquals("$steps distinct drift values per period", steps, seen.size)
+        assertTrue("quantized phase must stay inside the period", seen.all { it in 0f..1f })
+    }
+
+    @Test
+    fun `one quantized step moves the orb layer less than a pixel`() {
+        // Above ~1 px per step the drift stops reading as ambient motion and
+        // starts reading as jitter. 375 steps is 0.31 dp worst case; 180 is
+        // 0.63 dp (~1.9 px on a 3x display) and is already visible.
+        var worstStepDp = 0f
+        listOf(1f, 2f).forEach { harmonic ->
+            (0 until CommandAurora.steps).forEach { i ->
+                val from = CommandAurora.driftOffset(CommandAurora.quantize(i.toFloat() / CommandAurora.steps), harmonic)
+                val to = CommandAurora.driftOffset(
+                    CommandAurora.quantize(((i + 1) % CommandAurora.steps).toFloat() / CommandAurora.steps),
+                    harmonic
+                )
+                worstStepDp = maxOf(worstStepDp, kotlin.math.abs(to - from) * CommandAurora.driftDp)
+            }
+        }
+        assertTrue(
+            "one step jumps the layer $worstStepDp dp (want < 0.35 dp, i.e. under a pixel at 3x)",
+            worstStepDp < 0.35f
+        )
+    }
+
+    @Test
+    fun `quantized drift still closes its loop`() {
+        // The animation restarts at phase 1f -> 0f; both must quantize onto
+        // the same step or the canvas would jump once per period.
+        assertEquals(CommandAurora.quantize(0f), CommandAurora.quantize(1f), 0f)
+        assertEquals(0f, CommandAurora.quantize(0f), 0f)
+        assertEquals(0f, CommandAurora.quantize(0.9999f), 0f)
+    }
+
+    @Test
     fun `aurora harmonic axes never move in lockstep`() {
         // both axes must be out of phase somewhere, otherwise the canvas would
         // slide diagonally as one rigid sheet

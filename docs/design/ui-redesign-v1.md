@@ -23,7 +23,7 @@ The HTML prototype also provides lightweight Monitoring, Tools and Settings view
 
 - Light background `#F2F5FA`, cards `#FFFFFF`, text `#19263C`, secondary text `#5C6B81`.
 - Action/selection blue `#245BDB`; status colors are reserved for actual meaning (green connected, red failed, gray unknown).
-- Thin borders, restrained shadows, 10–16px component radii, consistent spacing and the existing bundled Vazir font family.
+- Thin borders, restrained shadows, 10–16px component radii, consistent spacing and the Vazir font family. (Note: the app no longer *bundles* the TTFs — commit `5360cc2` swapped bundled fonts for platform families to fix font-loading crashes. Treat "Vazir" here as the intended typeface, delivered by the platform Persian fallback.)
 - Dark background `#101724`, cards `#182234`, text `#EDF2FA`, action blue `#9ABAFF` with dark button text.
 - Final Android implementation must use scalable typography, accessible touch targets, visible focus/state labels and large-font tests. HTML pixel dimensions are a visual reference, not Android dp/sp specifications.
 
