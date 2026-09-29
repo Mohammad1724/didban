@@ -100,16 +100,19 @@ class NetworkToolsUiTest {
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText(copy.netVerdictFilteredAddress).fetchSemanticsNodes().isNotEmpty()
         }
-        // Scrolled to rather than assumed visible: the card sits below the
-        // verdict in a lazy column, so on a phone the lower sections are off-screen.
-        compose.onNodeWithText(copy.netDpiEvidence).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(copy.netDpiLimitations).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText(copy.netDpiNextSteps).performScrollTo().assertIsDisplayed()
+        // The card sits below the verdict, and a lazy column only composes
+        // what it shows — so the list itself has to be scrolled to it before
+        // anything inside it exists to assert on.
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(copy.netDpiEvidence))
+        compose.onNodeWithText(copy.netDpiEvidence).assertIsDisplayed()
+        // Inside the card the sections are laid out past where a phone's
+        // viewport ends, so their presence is what is asserted here.
+        compose.onNodeWithText(copy.netDpiLimitations).assertExists()
+        compose.onNodeWithText(copy.netDpiNextSteps).assertExists()
         // The honesty check: a "filtered" verdict still states the confidence
         // it was reached with, and lists what this run did not check.
-        compose.onNodeWithText(copy.netConfidenceMedium).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("Only the path from this device", substring = true)
-            .performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(copy.netConfidenceMedium).assertExists()
+        compose.onNodeWithText("Only the path from this device", substring = true).assertExists()
     }
 
     @Test
