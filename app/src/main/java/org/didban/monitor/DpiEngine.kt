@@ -891,10 +891,8 @@ object DpiAssessmentEngine {
         val steps = mutableListOf<String>()
 
         val validation = RunValidator.validate(input.positiveControl, input.negativeControl)
-        val vantage = RemoteVantageCompare.compare(
-            localReachable = input.portMatrix.any { it.port == input.port && it.connectOk },
-            remote = input.remote
-        )
+        val localReachable = input.portMatrix.any { it.port == input.port && it.connectOk }
+        val vantage = RemoteVantageCompare.compare(localReachable = localReachable, remote = input.remote)
 
         // Honest baseline: a censorship probe can only ever report what it saw.
         limitations += "Only the path from this device, on this operator, at this moment was measured."
@@ -989,6 +987,48 @@ object DpiAssessmentEngine {
                 evidence,
                 limitations,
                 listOf("Check the service and firewall on the server itself; the path is fine.")
+            )
+        }
+
+        // An answer that beats the reference anchor by this margin cannot have
+        // come from the server: something on the path replied. Every later
+        // observation is therefore suspect, so this outranks the patterns below.
+        if (input.referenceAnchorMs >= 40 && input.targetLatencyMs >= 0 &&
+            input.targetLatencyMs < input.referenceAnchorMs * 35 / 100 &&
+            input.targetLatencyMs < 20
+        ) {
+            return DpiAssessment(
+                DpiConclusion.MIDDLEBOX_SUSPECTED,
+                Confidence.MEDIUM,
+                "${input.host}:${input.port} answered in ${input.targetLatencyMs}ms while the reference host takes " +
+                    "${input.referenceAnchorMs}ms — an on-path box is answering, not the server.",
+                evidence,
+                limitations,
+                listOf(
+                    "Treat every other result in this run as the middlebox's, not the server's.",
+                    "Re-run on a plain connection with any VPN off, and compare the reported latency with a traceroute."
+                )
+            )
+        }
+
+        // The address answers somewhere but this port does not. Without this,
+        // a run whose target port is unreachable and whose fingerprint
+        // differential was skipped (nothing to handshake with) fell all the
+        // way through to "no filtering observed" — the worst possible answer
+        // for exactly the case a user comes here with.
+        if (!localReachable && input.matrixOutcome == PortMatrixOutcome.SELECTIVE) {
+            return DpiAssessment(
+                DpiConclusion.FILTERED_PORT,
+                if (vantage == VantageOutcome.OPERATOR_FILTERING) Confidence.HIGH else Confidence.MEDIUM,
+                "The address answers on other ports, but port ${input.port} is unreachable from here.",
+                evidence,
+                limitations,
+                buildList {
+                    add("Move the service to a port that answers from this operator, then re-test.")
+                    if (vantage != VantageOutcome.OPERATOR_FILTERING) {
+                        add("Confirm with a remote probe: nodes outside the country that reach this port mean filtering, not a stopped service.")
+                    }
+                }
             )
         }
 

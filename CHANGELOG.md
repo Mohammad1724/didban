@@ -2,6 +2,36 @@
 
 ## Unreleased — 2026-09-27
 
+### DPI: the run that feeds the engine, and the two verdicts it could not reach
+
+`DpiAssessmentEngine` only interprets a `DpiRunInput` — nothing collected one,
+so none of the engine reached the UI. `DpiRun` is the missing half: it measures
+a reference anchor, probes the target port, builds a port matrix on the same
+address, runs the seven-ClientHello differential, probes after the handshake,
+runs both controls and (optionally) asks nodes outside the country, then hands
+the lot to the engine.
+
+Two deliberate calls while writing it, both about not over-reading a dead port:
+
+- The fingerprint differential runs **only if TCP reached the port**. On a port
+  that never answers, every hello "fails", and the engine read that as
+  `ALL_BLOCKED` → *filtered port* — even when the whole address was dead. Now
+  the matrix speaks instead and the verdict is `FILTERED_ADDRESS`.
+- The post-handshake probe is skipped for the same reason.
+
+Closing that hole exposed a worse one: with the differential skipped and the
+matrix selective, **nothing** returned a verdict, so a dead port on a live
+address fell through to "no filtering observed" — precisely the case the
+diagnosis exists for. `DpiAssessmentEngine` now returns `FILTERED_PORT` when
+the address answers elsewhere but the target port does not (high confidence
+when remote nodes reach it, medium otherwise). `MIDDLEBOX_SUSPECTED` was in the
+enum but unreachable from any branch, so the "answered impossibly fast"
+heuristic the screen already had would have been lost; it now outranks the
+patterns below it, since a middlebox answering invalidates everything else.
+
+11 tests in `DpiRunTest` drive whole runs through a fake transport — no
+sockets — covering each of those cases.
+
 ### Performance: drop 2 MB of dead fonts, and stop repainting the background 60 times a second
 
 Two findings from the performance audit in `docs/perf-audit.md`:
