@@ -18,7 +18,6 @@ import java.io.IOException
 import java.net.ConnectException
 import java.net.InetSocketAddress
 import java.net.Socket
-import java.security.SecureRandom
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -138,7 +137,9 @@ private suspend fun <T> Call.consume(read: (Response) -> T): T = suspendCancella
 }
 
 private class BenchmarkUploadBody(private val total: Long, private val progress: (Long) -> Unit) : RequestBody() {
-    private val block = ByteArray(64 * 1024).also { SecureRandom().nextBytes(it) }
+    // CryptoSecurity.fillRandom, not nextBytes(): Bouncy Castle serves
+    // SecureRandom once it is registered and caps one request at 32 KB.
+    private val block = ByteArray(64 * 1024).also { CryptoSecurity.fillRandom(it) }
     override fun contentType() = "application/octet-stream".toMediaType()
     override fun contentLength() = total
     override fun writeTo(sink: BufferedSink) {

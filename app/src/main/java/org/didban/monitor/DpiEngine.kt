@@ -694,7 +694,7 @@ object PostHandshakeProbe {
 
                 // 2. Push payload: the "accept then RST after data" signature.
                 val payload = ByteArray(payloadBytes)
-                SecureRandom().nextBytes(payload)
+                CryptoSecurity.fillRandom(payload)
                 val dataStart = System.currentTimeMillis()
                 var dataReset = false
                 var received = 0

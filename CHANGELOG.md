@@ -21,6 +21,24 @@ Two findings from the performance audit in `docs/perf-audit.md`:
   each step moves the layer 0.30 dp — under one pixel on a 3x display, so the
   motion looks identical. Reduce-motion handling is untouched.
 
+### Fixed: the bandwidth test failed on every device, not just in CI
+
+`BenchmarkUploadBody` filled its 64 KB block with one `SecureRandom.nextBytes()`
+call. Bouncy Castle is registered at provider priority 1, so it serves
+`new SecureRandom()` too — and its DRBG refuses a single request above 262,144
+bits (32 KB) with `IllegalArgumentException: Number of bits per request limited
+to 262144`. Every bandwidth run therefore failed at the upload stage, on a
+device as well as in tests. It only surfaced in CI now because the change below
+makes Bouncy Castle register in the same JVM as the plain unit tests, the way it
+always has on a device.
+
+`CryptoSecurity.fillRandom()` fills in 8 KB chunks, which every provider
+accepts, so the result no longer depends on which SecureRandom a device hands
+us. `DpiEngine`'s post-handshake payload uses it too — at 8 KB it was inside
+the limit, but its size is a parameter. Four tests in `CryptoSecurityTest`
+cover the sizes the app asks for, the oversized one-shot call that is rejected,
+and idempotent registration.
+
 ### Performance: stop registering Bouncy Castle before the first frame
 
 `CryptoSecurity.ensureInitialized()` used to be the first statement in

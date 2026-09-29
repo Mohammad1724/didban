@@ -1,6 +1,7 @@
 package org.didban.monitor
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import java.security.SecureRandom
 import java.security.Security
 
 object CryptoSecurity {
@@ -48,4 +49,32 @@ object CryptoSecurity {
             }
         }
     }
+
+    /**
+     * Fill [bytes] from the default SecureRandom, in chunks.
+     *
+     * Once Bouncy Castle sits at provider priority 1 it also serves
+     * `new SecureRandom()`, and its DRBG rejects a single request larger
+     * than 262,144 bits (32 KB). `BandwidthBenchmark`'s 64 KB upload block
+     * hit that on every run — on a device too, not just in tests.
+     *
+     * Chunking is provider-independent: every provider accepts a small
+     * request, so this behaves the same under Bouncy Castle, Conscrypt or
+     * the JDK, and keeps working if the block size grows.
+     */
+    fun fillRandom(bytes: ByteArray) {
+        if (bytes.isEmpty()) return
+        val random = SecureRandom()
+        var offset = 0
+        while (offset < bytes.size) {
+            val size = minOf(CHUNK_BYTES, bytes.size - offset)
+            val chunk = ByteArray(size)
+            random.nextBytes(chunk)
+            System.arraycopy(chunk, 0, bytes, offset, size)
+            offset += size
+        }
+    }
+
+    /** Comfortably under Bouncy Castle's 32 KB per-request DRBG limit. */
+    private const val CHUNK_BYTES = 8 * 1024
 }
