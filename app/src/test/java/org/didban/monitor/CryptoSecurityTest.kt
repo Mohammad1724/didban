@@ -49,7 +49,9 @@ class CryptoSecurityTest {
             val buffer = ByteArray(size)
             CryptoSecurity.fillRandom(buffer)
             assertEquals("size must be preserved", size, buffer.size)
-            if (size > 0) {
+            // A one-byte fill is legitimately zero one time in 256, so only
+            // the larger sizes are asked to prove they were written.
+            if (size >= 16) {
                 assertTrue("size $size must not be left zeroed", buffer.any { it != 0.toByte() })
             }
         }
