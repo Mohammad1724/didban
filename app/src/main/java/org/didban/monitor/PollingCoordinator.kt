@@ -66,6 +66,13 @@ object PollingCoordinator {
         started = true
         contextRef = ctx.applicationContext
         scope.launch {
+            // Give the first frame room. A cold start already pays for class
+            // loading, the crypto warm-up and the first composition, and
+            // every server is due on this tick -- probing them all in that
+            // same instant competes with the UI for I/O. One tick (2 s) of
+            // delay is invisible for monitoring and keeps start-up smooth.
+            // Manual refresh (requestNow / refresh) is unaffected.
+            delay(TICK_MS)
             while (isActive) {
                 try {
                     tick()

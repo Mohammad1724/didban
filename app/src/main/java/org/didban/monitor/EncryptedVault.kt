@@ -56,6 +56,7 @@ object EncryptedVault {
     private const val FORMAT_VERSION = 1
 
     fun encrypt(plaintext: String, password: String): String {
+        CryptoSecurity.ensureInitialized()
         val random = SecureRandom()
         val salt = ByteArray(SALT_LENGTH)
         random.nextBytes(salt)
@@ -90,6 +91,7 @@ object EncryptedVault {
     }
 
     fun decrypt(encryptedB64: String, password: String): String {
+        CryptoSecurity.ensureInitialized()
         val combined = try {
             Base64.getDecoder().decode(encryptedB64.trim())
         } catch (e: IllegalArgumentException) {

@@ -19,6 +19,10 @@ object SecureCipher {
 
     /** AES-256-GCM encrypt; output is base64(iv || ciphertext || tag). */
     fun encrypt(key: SecretKey, plaintext: String, associatedData: ByteArray = byteArrayOf()): String {
+        // Same provider on every device and every thread: the warm-up in
+        // DidbanApplication may not have finished, and a substituted provider
+        // would change the cipher that serves an AndroidKeyStore-backed key.
+        CryptoSecurity.ensureInitialized()
         val generatedIv = ByteArray(IV_LENGTH).also { SecureRandom().nextBytes(it) }
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val iv = try {
@@ -47,6 +51,7 @@ object SecureCipher {
 
     /** Inverse of [encrypt]; throws on tampering or wrong key. */
     fun decrypt(key: SecretKey, payload: String, associatedData: ByteArray = byteArrayOf()): String {
+        CryptoSecurity.ensureInitialized()
         val raw = Base64.getDecoder().decode(payload)
         require(raw.size >= IV_LENGTH + TAG_LENGTH_BIT / 8) { "payload too short" }
         val iv = raw.copyOfRange(0, IV_LENGTH)

@@ -7,7 +7,26 @@ import android.util.Log
 class DidbanApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        CryptoSecurity.ensureInitialized()
+        // Registering Bouncy Castle measured 275-310 ms cold (it registers
+        // ~4200 services and loads most of the provider's DEX). It used to be
+        // the very first thing the process did, before the first frame existed.
+        // Warm it up on a background thread instead, with the whole of activity
+        // start-up as a head start.
+        //
+        // Every call site that needs it still calls ensureInitialized(), which
+        // is idempotent and thread-safe: crypto that runs before this finishes
+        // does the work itself and gets the same provider, just on its own
+        // thread's time. Nothing can silently fall back to another provider.
+        //
+        // The throw is swallowed deliberately: the uncaught-exception handler
+        // below is not installed yet, and the failure is not silent either --
+        // it resurfaces at the first crypto call, which fails closed.
+        Thread({
+            try {
+                CryptoSecurity.ensureInitialized()
+            } catch (_: Throwable) {
+            }
+        }, "didban-crypto-warmup").start()
         HostKeyTrustStore.init(this)
         // H7: the single poller for all servers runs for the life of the
         // process (see PollingCoordinator for the gating semantics).

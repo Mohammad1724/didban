@@ -21,6 +21,36 @@ Two findings from the performance audit in `docs/perf-audit.md`:
   each step moves the layer 0.30 dp — under one pixel on a 3x display, so the
   motion looks identical. Reduce-motion handling is untouched.
 
+### Performance: stop registering Bouncy Castle before the first frame
+
+`CryptoSecurity.ensureInitialized()` used to be the first statement in
+`DidbanApplication.onCreate`. Measured on a JVM with the project's own
+bcprov-jdk18on 1.78.1: `new BouncyCastleProvider()` costs 250-255 ms and
+registers 4207 services, and the insert another 24-57 ms — 275-312 ms cold,
+worse on a device where it also loads DEX. It now runs on a
+`didban-crypto-warmup` background thread, with the whole of activity start-up
+as a head start.
+
+Two changes make that safe rather than racy:
+
+- `ensureInitialized()` builds the provider outside its monitor and only the
+  remove/insert swap runs under it, so a caller arriving mid-warm-up waits tens
+  of milliseconds instead of a quarter of a second.
+- Every call site that depends on Bouncy Castle now asks for it itself —
+  `EncryptedVault` and `SecureCipher` join SSH and SFTP. Nothing can be served
+  by a substituted provider, and no crypto path can see the brief window
+  between `removeProvider("BC")` and `insertProviderAt(...)`. Checked with a
+  30-run race test: four concurrent callers at five offsets into the warm-up,
+  all got Bouncy Castle, none threw.
+
+The poller's first tick is also deferred by one interval (2 s): on a cold start
+every server is due at once, and probing them all in the same instant as the
+first composition competed with the UI for I/O. Manual refresh is unaffected.
+
+Not changed, after measuring: `EncryptedVault`'s 600k-iteration PBKDF2 is
+within 5% of the platform provider under Bouncy Castle (a first benchmark
+claimed 2.4x; it was sandbox CPU noise — see `docs/perf-audit.md` §8).
+
 ### Scanner: take a result with you, and stop asking for a donor port
 
 - Clean-IP and REALITY donor results can now be copied one at a time. The clean-IP screen only ever exported the top 20 as a block, and the REALITY screen had no clipboard support at all — so a single useful IP found deep in a scan, or the donor name you came for, could not be taken away.

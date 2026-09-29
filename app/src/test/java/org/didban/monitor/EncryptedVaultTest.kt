@@ -1,9 +1,11 @@
 package org.didban.monitor
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.security.SecureRandom
+import java.security.Security
 import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.SecretKeyFactory
@@ -106,5 +108,20 @@ class EncryptedVaultTest {
         } catch (e: IllegalArgumentException) {
             // expected
         }
+    }
+
+    @Test
+    fun `the vault registers Bouncy Castle itself, not via the warm-up race`() {
+        // DidbanApplication warms the provider up on a background thread, so
+        // it is not necessarily registered when the first screen decrypts its
+        // server list. The vault must not depend on winning that race: it asks
+        // for the provider itself, and every call site is then served by the
+        // same implementation instead of whichever one happened to be there.
+        EncryptedVault.encrypt("provider check", "p")
+        val provider = Security.getProvider("BC")
+        assertTrue(
+            "expected Bouncy Castle to serve the vault, got $provider",
+            provider is BouncyCastleProvider
+        )
     }
 }

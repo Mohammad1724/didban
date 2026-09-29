@@ -118,17 +118,51 @@ For an app designed to sit in a foreground service for hours this is the most
 direct battery and thermals win in the list. Note `useReduceMotion()` is already
 respected — the hook for options 2 and 3 exists.
 
-## 5. Bouncy Castle is inserted on the main thread in `Application.onCreate`
+## 5. Bouncy Castle is inserted on the main thread in `Application.onCreate` — fixed
 
 ```kotlin
 // DidbanApplication.kt
 CryptoSecurity.ensureInitialized()      // -> Security.insertProviderAt(BouncyCastleProvider(), 1)
 ```
 
-Registering the full BC provider is a well-known cold-start cost (typically tens
-to hundreds of ms) and it is literally the first thing the process does, before
-the first frame. Worth measuring with `AndroidX Startup` + `reportFullyDrawn()`,
-then moving it off the critical path or making it lazy.
+Measured on a JVM with the project's own dependency (bcprov-jdk18on 1.78.1):
+
+```
+new BouncyCastleProvider()  : 250-255 ms      (4207 services registered)
+insertProviderAt(p, 1)      :  24-57 ms
+total, cold                 : 275-312 ms
+total, warm (2nd insert)    :   7-11 ms
+```
+
+On a device this is *worse*, not better — the same work plus DEX loading and
+verification, on a slower CPU. It was also the very first thing the process did,
+before the first frame existed.
+
+**Fixed**, in three parts:
+
+1. `DidbanApplication` warms the provider up on a `didban-crypto-warmup`
+   background thread, so activity creation and the first composition run
+   without waiting for it.
+2. `CryptoSecurity.ensureInitialized()` now builds the provider *outside* the
+   monitor and only the remove/insert swap runs under it. A caller that arrives
+   mid-warm-up waits tens of milliseconds instead of a quarter of a second.
+3. Every call site that depends on Bouncy Castle asks for it itself —
+   `EncryptedVault`, `SecureCipher` (and SSH/SFTP, which already did). So no
+   crypto path can observe the few-millisecond window between
+   `removeProvider("BC")` and `insertProviderAt(...)`, and nothing can silently
+   be served by a substituted provider. Verified by a 30-run race check: four
+   concurrent callers at five different offsets into the warm-up, every one got
+   Bouncy Castle and none threw.
+
+The first tick of `PollingCoordinator` is also deferred by one interval (2 s):
+on a cold start every server is due at once, and probing them all in the same
+instant as the first composition competed with the UI for I/O. Manual refresh
+is unaffected.
+
+What is *not* on the startup path: `Prefs.loadServersResult` reads through
+`SecureStorage` (AndroidKeyStore + AES-GCM), not `EncryptedVault`, so the
+600k-iteration PBKDF2 below is never paid at start-up — only when the vault or
+notes are opened.
 
 ## 6. Build and CI
 
@@ -159,3 +193,34 @@ and fix the top offenders rather than guessing.
 Not a problem found: `HttpClientPool` already shares one `OkHttpClient` per
 (fingerprint, host, port) key with a bounded LRU, `PollSchedule` already backs
 off failing servers, and there is no `runBlocking` anywhere in `main`.
+
+---
+
+## 8. Measured and rejected: PBKDF2 is *not* slower under Bouncy Castle
+
+`EncryptedVault` derives its key with PBKDF2-HMAC-SHA256 at 600,000 iterations
+(OWASP's 2023 minimum), which costs ~600 ms per call here. Since Bouncy Castle
+sits at provider priority 1, it serves that derivation — and on a device its
+pure-Java PBKDF2 should be slower than the platform's native one.
+
+A first benchmark said exactly that: **39 ms (SunJCE) vs 95 ms (BC)** per
+100k iterations, 2.4x. It was wrong. Re-measured with both providers in the
+*same* JVM, alternating, minimum of 7 rounds:
+
+```
+100k iterations   SunJCE  99.9 ms    BC 108.2 ms    1.08x
+200k iterations   SunJCE 197.1 ms    BC 192.1 ms    0.98x
+600k iterations   SunJCE 603.2 ms    BC 636.1 ms    1.05x
+```
+
+The 2.4x was CPU noise in the sandbox (the two providers were benchmarked in
+separate JVM runs, minutes apart). Within 5% there is nothing to win by
+preferring another provider for PBKDF2, so no change was made. The output is
+identical across providers both ways — verified, and the vault round trip passes
+under SunJCE *and* under BC — which is why the provider choice there is a
+performance question only, never a correctness one.
+
+Worth keeping an eye on anyway: ~600 ms per vault decrypt is real work, and
+`loadVaultNotes` / `verifyMasterPassword` call it on whichever thread the screen
+uses. Moving those off the main thread is a separate, larger change than the
+start-up work above.
